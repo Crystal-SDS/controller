@@ -44,4 +44,7 @@ package {
     "django":
         ensure => "1.8.1",
         provider => pip;
+    "django-bootstrap3":
+        ensure => "installed",
+        provider => pip;
 }
