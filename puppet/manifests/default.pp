@@ -47,4 +47,7 @@ package {
     "django-bootstrap3":
         ensure => "installed",
         provider => pip;
+    "djangorestframework":
+        ensure => "installed",
+        provider => pip;
 }
