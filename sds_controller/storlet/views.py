@@ -1,9 +1,10 @@
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework.renderers import JSONRenderer
-from rest_framework.parsers import JSONParser
+from rest_framework.parsers import JSONParser, FileUploadParser
 from snippets.models import Snippet
 from snippets.serializers import SnippetSerializer
+
 # Create your views here.
 
 class JSONResponse(HttpResponse):
@@ -58,3 +59,32 @@ def storlet_detail(request, id):
     elif request.method == 'DELETE':
         storlet.delete()
         return HttpResponse(status=204)
+
+@csrf_exempt
+def storlet_data(request, id):
+    parser_classes = (FileUploadParser,)
+
+    if request.method == 'PUT':
+        file_obj = request.FILES['file']
+        path = save_file(file_obj, './sotrlets_jar/')
+        try:
+            storlet = Storlet.objects.get(id=id)
+        except storlet.DoesNotExist:
+            return HttpResponse(status=404)
+
+        #TODO Update the path field
+
+        return Response(status=201)
+    if request.method == 'GET':
+        #TODO Return the storlet data
+        return Response(status=200)
+
+def save_file(file, path=''):
+    ''' Little helper to save a file
+    '''
+    filename = file._get_name()
+    fd = open('%s/%s' % (MEDIA_ROOT, str(path) + str(filename)), 'wb')
+    for chunk in file.chunks():
+        fd.write(chunk)
+    fd.close()
+    return str(path) + str(filename)

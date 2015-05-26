@@ -39,7 +39,9 @@ postgresql::server::db { 'sds_controller':
   user     => 'sds_controller_user',
   password => postgresql_password('sds_controller_user', 'sds_controller_pass');
 }
-
+package { 'python-psycopg2':
+    ensure => installed,
+  }
 package {
     "django":
         ensure => "1.8.1",
