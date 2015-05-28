@@ -14,7 +14,7 @@ class Storlet(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     name = models.CharField(max_length=100, blank=False)
     path = models.CharField(max_length=200, blank=False, null=True)
-    lenguage = models.CharField(max_length=20, blank=False)
+    language = models.CharField(max_length=20, blank=False)
     interface_version = models.CharField(max_length=10, blank=False)
     object_metadata = models.CharField(max_length=200, blank=False)
     main_class = models.CharField(max_length=200, blank=False)
