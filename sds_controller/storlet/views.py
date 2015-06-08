@@ -80,6 +80,19 @@ def storlet_data(request, id):
         #TODO Return the storlet data
         return Response(status=200)
 
+
+@csrf_exempt
+def storlet_deploy(request, id):
+    try:
+        storlet = Storlet.objects.get(id=id)
+    except storlet.DoesNotExist:
+        return HttpResponse(status=404)
+
+    if request.method == 'PUT':
+        #TODO Call swift using storlets parameters to deploy it
+        return Response(status=201)
+
+
 @csrf_exempt
 def dependency_list(request):
     """
@@ -143,6 +156,18 @@ def dependency_data(request, id):
     if request.method == 'GET':
         #TODO Return the storlet data
         return Response(status=200)
+
+@csrf_exempt
+def dependency_deploy(request, id):
+    try:
+        dependency = Dependency.objects.get(id=id)
+    except storlet.DoesNotExist:
+        return HttpResponse(status=404)
+
+    if request.method == 'PUT':
+        #TODO Call swift using storlets parameters to deploy it
+        return Response(status=201)
+
 
 def save_file(file, path=''):
     ''' Little helper to save a file
