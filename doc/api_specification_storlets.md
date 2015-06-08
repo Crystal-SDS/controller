@@ -53,7 +53,7 @@ POST
 #### Request Query arguments
 JSON input that contains a dictionary with the following keys:
 
-FIELD |  DESCRIPTION | REQUIRED
+FIELD |  DESCRIPTION
 --- | ---
 **name** | The name of the storlet to be created.
 **language** |Currently must be 'java'
@@ -254,7 +254,7 @@ PUT
 #### Request Body
 JSON input that contains a dictionary with the following keys:
 
-FIELD |  DESCRIPTION | REQUIRED
+FIELD |  DESCRIPTION
 --- | ---
 **name** | The name of the storlet to be created.
 **language** |Currently must be 'java'
@@ -349,7 +349,7 @@ POST
 #### Request Body
 JSON input that contains a dictionary with the following keys:
 
-FIELD |  DESCRIPTION | REQUIRED
+FIELD |  DESCRIPTION
 --- | ---
 **name** | The name of the dependency to be created. It is a unique field.
 **version** | While the engine currently does not parse this header, it must appear.
@@ -555,7 +555,7 @@ PUT
 #### Request Query arguments
 JSON input that contains a dictionary with the following keys:
 
-FIELD |  DESCRIPTION | REQUIRED
+FIELD |  DESCRIPTION
 --- | ---
 **name** | The name of the dependency to be created. It is a unique field.
 **version** | While the engine currently does not parse this header, it must appear.
