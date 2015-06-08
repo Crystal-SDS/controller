@@ -32,4 +32,4 @@ class StorletSerializer(serializers.ModelSerializer):
 class DependencySerializer(serializers.ModelSerializer):
     class Meta:
         model = Dependency
-        fields = ('name', 'deployed', 'version', 'permissions', 'created_at')
+        fields = ('name', 'deployed', 'version', 'path', 'permissions', 'created_at')

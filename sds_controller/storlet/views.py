@@ -2,8 +2,8 @@ from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework.renderers import JSONRenderer
 from rest_framework.parsers import JSONParser, FileUploadParser
-from snippets.models import Snippet
-from snippets.serializers import SnippetSerializer
+from storlet.models import Storlet, Dependency
+from storlet.serializers import StorletSerializer, DependencySerializer
 
 # Create your views here.
 
@@ -69,6 +69,71 @@ def storlet_data(request, id):
         path = save_file(file_obj, './sotrlets_jar/')
         try:
             storlet = Storlet.objects.get(id=id)
+            storlet.path = path
+        except storlet.DoesNotExist:
+            return HttpResponse(status=404)
+
+        #TODO Update the path field
+
+        return Response(status=201)
+    if request.method == 'GET':
+        #TODO Return the storlet data
+        return Response(status=200)
+
+@csrf_exempt
+def dependency_list(request):
+    """
+    List all code snippets, or create a Dependency.
+    """
+    if request.method == 'GET':
+        dependencies = Dependency.objects.all()
+        serializer = SnippetSerializer(dependencies, many=True)
+        return JSONResponse(serializer.data)
+
+    elif request.method == 'POST':
+        data = JSONParser().parse(request)
+        serializer = DependencySerializer(data=data)
+        if serializer.is_valid():
+            serializer.save()
+            return JSONResponse(serializer.data, status=201)
+        return JSONResponse(serializer.errors, status=400)
+
+@csrf_exempt
+def dependency_detail(request, id):
+    """
+    Retrieve, update or delete a Dependency.
+    """
+    try:
+        dependency = Dependency.objects.get(id=id)
+    except storlet.DoesNotExist:
+        return HttpResponse(status=404)
+
+    if request.method == 'GET':
+        serializer = DependencySerializer(dependency)
+        return JSONResponse(serializer.data)
+
+    elif request.method == 'PUT':
+        data = JSONParser().parse(request)
+        serializer = dependencySerializer(dependency, data=data)
+        if serializer.is_valid():
+            serializer.save()
+            return JSONResponse(serializer.data)
+        return JSONResponse(serializer.errors, status=400)
+
+    elif request.method == 'DELETE':
+        dependency.delete()
+        return HttpResponse(status=204)
+
+@csrf_exempt
+def dependency_data(request, id):
+    parser_classes = (FileUploadParser,)
+
+    if request.method == 'PUT':
+        file_obj = request.FILES['file']
+        path = save_file(file_obj, './dependencies/')
+        try:
+            dependency = Dependency.objects.get(id=id)
+            dependency.path = path
         except storlet.DoesNotExist:
             return HttpResponse(status=404)
 
