@@ -6,7 +6,7 @@ class Dependency(models.Model):
     version = models.CharField(max_length=10, blank=False)
     permissions = models.CharField(max_length=4, blank=False, null=True)
     path = models.CharField(max_length=200, blank=False, null=True)
-    deployed = forms.BooleanField(initial=False)
+    deployed = models.BooleanField(default=False)
     class Meta:
         ordering = ('created_at',)
 
@@ -20,6 +20,6 @@ class Storlet(models.Model):
     object_metadata = models.CharField(max_length=200, blank=False)
     main_class = models.CharField(max_length=200, blank=False)
     dependency = models.CharField(max_length=200, blank=False)
-    deployed = forms.BooleanField(initial=False)
+    deployed = models.BooleanField(default=False)
     class Meta:
         ordering = ('created_at',)

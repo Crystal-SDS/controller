@@ -6,6 +6,7 @@ Vagrant.configure(2) do |config|
   config.vm.hostname = "sds-controller-vm"
 
   config.vm.network "forwarded_port", guest: 5432, host: 15432 # Postgresql
+  config.vm.network "forwarded_port", guest: 8000, host: 18000 # Django
 
   config.vm.synced_folder ".", "/home/vagrant/src"
 

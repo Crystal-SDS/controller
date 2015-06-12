@@ -1,6 +1,6 @@
 from django.forms import widgets
 from rest_framework import serializers
-from storlet.models import Storlet
+from storlet.models import Storlet, Dependency
 
 
 # class StorletSerializer(serializers.Serializer):

@@ -18,6 +18,6 @@ from django.contrib import admin
 
 urlpatterns = [
     url(r'^admin/', include(admin.site.urls)),
-    url(r'^storlet/', include('storlet.urls')),
-    url(r'^bw/', include('bw.urls')),
+    url(r'^storlets', include('storlet.urls')),
+    url(r'^bw', include('bw.urls')),
 ]

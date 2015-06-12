@@ -23,7 +23,7 @@ def storlet_list(request):
     """
     if request.method == 'GET':
         storlets = Storlet.objects.all()
-        serializer = SnippetSerializer(storlets, many=True)
+        serializer = StorletSerializer(storlets, many=True)
         return JSONResponse(serializer.data)
 
     elif request.method == 'POST':
@@ -41,7 +41,7 @@ def storlet_detail(request, id):
     """
     try:
         storlet = Storlet.objects.get(id=id)
-    except storlet.DoesNotExist:
+    except Storlet.DoesNotExist:
         return HttpResponse(status=404)
 
     if request.method == 'GET':
@@ -70,7 +70,7 @@ def storlet_data(request, id):
         try:
             storlet = Storlet.objects.get(id=id)
             storlet.path = path
-        except storlet.DoesNotExist:
+        except Storlet.DoesNotExist:
             return HttpResponse(status=404)
 
         #TODO Update the path field
@@ -85,7 +85,7 @@ def storlet_data(request, id):
 def storlet_deploy(request, id):
     try:
         storlet = Storlet.objects.get(id=id)
-    except storlet.DoesNotExist:
+    except Storlet.DoesNotExist:
         return HttpResponse(status=404)
 
     if request.method == 'PUT':
@@ -100,7 +100,7 @@ def dependency_list(request):
     """
     if request.method == 'GET':
         dependencies = Dependency.objects.all()
-        serializer = SnippetSerializer(dependencies, many=True)
+        serializer = DependencySerializer(dependencies, many=True)
         return JSONResponse(serializer.data)
 
     elif request.method == 'POST':
@@ -112,13 +112,13 @@ def dependency_list(request):
         return JSONResponse(serializer.errors, status=400)
 
 @csrf_exempt
-def dependency_detail(request, id):
+def dependency_detail(request, name):
     """
     Retrieve, update or delete a Dependency.
     """
     try:
-        dependency = Dependency.objects.get(id=id)
-    except storlet.DoesNotExist:
+        dependency = Dependency.objects.get(name=name)
+    except Dependency.DoesNotExist:
         return HttpResponse(status=404)
 
     if request.method == 'GET':
@@ -127,7 +127,7 @@ def dependency_detail(request, id):
 
     elif request.method == 'PUT':
         data = JSONParser().parse(request)
-        serializer = dependencySerializer(dependency, data=data)
+        serializer = DependencySerializer(dependency, data=data)
         if serializer.is_valid():
             serializer.save()
             return JSONResponse(serializer.data)
@@ -138,16 +138,16 @@ def dependency_detail(request, id):
         return HttpResponse(status=204)
 
 @csrf_exempt
-def dependency_data(request, id):
+def dependency_data(request, name):
     parser_classes = (FileUploadParser,)
 
     if request.method == 'PUT':
         file_obj = request.FILES['file']
         path = save_file(file_obj, './dependencies/')
         try:
-            dependency = Dependency.objects.get(id=id)
+            dependency = Dependency.objects.get(name=name)
             dependency.path = path
-        except storlet.DoesNotExist:
+        except Dependency.DoesNotExist:
             return HttpResponse(status=404)
 
         #TODO Update the path field
@@ -158,10 +158,10 @@ def dependency_data(request, id):
         return Response(status=200)
 
 @csrf_exempt
-def dependency_deploy(request, id):
+def dependency_deploy(request, name):
     try:
-        dependency = Dependency.objects.get(id=id)
-    except storlet.DoesNotExist:
+        dependency = Dependency.objects.get(name=name)
+    except Dependency.DoesNotExist:
         return HttpResponse(status=404)
 
     if request.method == 'PUT':
@@ -170,7 +170,8 @@ def dependency_deploy(request, id):
 
 
 def save_file(file, path=''):
-    ''' Little helper to save a file
+    '''
+    Little helper to save a file
     '''
     filename = file._get_name()
     fd = open('%s/%s' % (MEDIA_ROOT, str(path) + str(filename)), 'wb')
