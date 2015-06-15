@@ -5,7 +5,7 @@ SDS Controller API Specification - BW Differentiation
 - [Error handling](#error-handling)
 - [BW info](#bw-info)
   - [Get BW info about all accounts](#get-bw-info-about-all-accounts)
-  - [Upload a Storlet data](#upload-a-storlet-data)
+  - [Get BW info about an account](#get-bw-info-about-an-account)
 - [Clear BW](#clear-bw)
   - [Clear all the BW assignations for all accounts and policies](#clear-all-the-bw-assignations-for-all-accounts-and-policies)
   - [Clear all the BW assignations entries for the selected account](#clears-all-the-bw-assignations-entries-for-the-selected-account)
@@ -77,7 +77,7 @@ HTTP/1.1 200 OK
 }
 ```
 
-##Get BW info about an account
+## Get BW info about an account
 
 An application can return all the bw information about an account by issuing an HTTP GET request.
 
