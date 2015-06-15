@@ -3,15 +3,15 @@ SDS Controller API Specification - BW Differentiation
 **Table of Contents**
 
 - [Error handling](#error-handling)
-- [BW info](#bw_info)
+- [BW info](#bw-info)
   - [Get BW info about all accounts](#get-bw-info-about-all-accounts)
   - [Upload a Storlet data](#upload-a-storlet-data)
-- [Clear BW](#clear_bw)
+- [Clear BW](#clear-bw)
   - [Clear all the BW assignations for all accounts and policies](#clear-all-the-bw-assignations-for-all-accounts-and-policies)
   - [Clear all the BW assignations entries for the selected account](#clears-all-the-bw-assignations-entries-for-the-selected-account)
   - [Clear all the BW assignations entries for the selected account and policy](#clears-all-the-bw-assignations-entries-for-the-selected-account-and-policy)
-- [Update BW](#update_bw)
-  - [Assign the specified bw to all the policies of the selected account](assigns-the-specified-bw-to-all-the-policies-of-the-selected-account)
+- [Update BW](#update-bw)
+  - [Assign the specified bw to all the policies of the selected account](#assigns-the-specified-bw-to-all-the-policies-of-the-selected-account)
   - [Assign the specified bw to the selected account and policy](#assign-the-specified-bw-to-the-selected-account-and-policy)
 
 #Error handling
@@ -29,9 +29,9 @@ CODE |  DESCRIPTION
 **405** | Request method not expected (generally should be GET or POST).
 **5xx** | Server error
 
-#BW info
+# BW info
 
-##Get BW info about all accounts
+## Get BW info about all accounts
 
 An application can return all the bw information about all accounts by issuing an HTTP GET request.
 
