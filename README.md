@@ -47,6 +47,6 @@ You can start the server using the command into the source folder (src/sds_contr
 
 # Future Work
 
-- [ ] Communicate Storlet module with Open Stack Swift.
-- [ ] Communicate BW module with Open Stack Swift.
-- [ ] Add Monitoring module and communicate with Open Stack Swift using RabbitMQ.
+- [ ] Communicate Storlet module with OpenStack Swift.
+- [ ] Communicate BW module with OpenStack Swift.
+- [ ] Add Monitoring module and communicate with OpenStack Swift using RabbitMQ.
