@@ -1,3 +1,9 @@
+import requests
+import ConfigParser
+try:
+    import simplejson as json
+except ImportError:
+    import json
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework.renderers import JSONRenderer
@@ -14,6 +20,17 @@ class JSONResponse(HttpResponse):
         kwargs['content_type'] = 'application/json'
         super(JSONResponse, self).__init__(content, **kwargs)
 
+def proxyaddres():
+    """
+    Reads the proxy address from the Swift-proxy.conf file.
+    """
+    conf = ConfigParser.ConfigParser()   
+    conf.read('Swift-proxy.conf')
+    proxyip = conf.get('proxy', 'proxyip')
+    proxyport = conf.get('proxy', 'proxyport')
+    proxy = "http://" + proxyip + ":" + proxyport
+    return proxy
+
 @csrf_exempt
 def bw_list(request):
     """
@@ -21,13 +38,10 @@ def bw_list(request):
     account and policy.
     """
     if request.method == 'GET':
-        #TODO Call swift to obtain the data
-        #example
-        '''
-        data = call_to_swift("proxyhost:proxyhost/bwdict/")
-        return data
-        '''
-        return None
+        address = proxyaddres() + "/bwdict/"
+        r = requests.get(address)
+        return HttpResponse(r.content, content_type = 'application/json', status=200)
+    return JSONResponse('Only HTTP GET /bw/ requests allowed.', status=405)
 
 @csrf_exempt
 def bw_detail(request, account):
@@ -35,14 +49,14 @@ def bw_detail(request, account):
     Ask the information of a certain tenant.
     """
     if request.method == 'GET':
-        #TODO Call swift to obtain the data
-        #example
-        '''
-        data = call_to_swift("proxyhost:proxyhost/bwdict/<account>")
-        return data
-        '''
-        return None
-    return None
+        dict_json = dict()
+        address = proxyaddres() + "/bwdict/"
+        r = requests.get(address)
+        data = json.loads(r.content)
+        for os in data:
+            dict_json[os] = { k : v for k,v in data[os].iteritems() if k == account}
+        return JSONResponse(json.dumps(dict_json), content_type = 'application/json', status=200)
+    return JSONResponse('Only HTTP GET /bw/<account>/ requests allowed.', status=405)
 
 @csrf_exempt
 def bw_clear_all(request):
@@ -50,13 +64,10 @@ def bw_clear_all(request):
     This call clears all the BW assignations for all accounts and policies.
     """
     if request.method == 'PUT':
-        #TODO Call swift to obtain the data
-        #example
-        '''
-        data = call_to_swift("<proxyip>:<proxyport>/bwmod/")
-        return data
-        '''
-        return None
+        address = proxyaddres() + "/bwmod/"
+        r = requests.get(address)
+        return HttpResponse(r.content, content_type = 'application/json', status=200)
+    return JSONResponse('Only HTTP PUT /bw/clear/ requests allowed.', status=405)
 
 @csrf_exempt
 def bw_clear_account(request, account):
@@ -64,13 +75,10 @@ def bw_clear_account(request, account):
     This call clears all the BW assignations entries for the selected account.
     """
     if request.method == 'PUT':
-        #TODO Call swift to obtain the data
-        #example
-        '''
-        data = call_to_swift("<proxyip>:<proxyport>/bwmod/<account>")
-        return data
-        '''
-        return None
+        address = proxyaddres() + "/bwmod/" + account + "/"
+        r = requests.get(address)
+        return HttpResponse(r.content, content_type = 'application/json', status=200)
+    return JSONResponse('Only HTTP PUT /bw/clear/<account>/ requests allowed.', status=405)
 
 @csrf_exempt
 def bw_clear_policy(request, account, policy):
@@ -79,13 +87,11 @@ def bw_clear_policy(request, account, policy):
     and policy.
     """
     if request.method == 'PUT':
-        #TODO Call swift to obtain the data
-        #example
-        '''
-        data = call_to_swift("<proxyip>:<proxyport>/bwmod/<account>/<policy>")
-        return data
-        '''
-        return None
+        address = proxyaddres() + "/bwmod/" + account + "/" + policy + "/"
+        r = requests.get(address)
+        return HttpResponse(r.content, content_type = 'application/json', status=200)
+    return JSONResponse('Only HTTP PUT /bw/clear/<account>/<policy>/ requests allowed.', status=405)
+
 
 @csrf_exempt
 def bw_update(request, account, bw_value):
@@ -94,16 +100,11 @@ def bw_update(request, account, bw_value):
     account
     '''
     if request.method == 'PUT':
-        #TODO Call swift to obtain the data
-        #example
-        '''
-        try:
-            response = call_to_swift("<proxyip>:<proxyport>/bwmod/<account>/<bw_value>")
-        except storlet.DoesNotExist:
-            return HttpResponse(status=404)
-        return Response(status=200)
-        '''
-        return None
+        address = proxyaddres() + "/bwmod/" + account + "/" + bw_value + "/"
+        r = requests.get(address)
+        return HttpResponse(r.content, content_type = 'application/json', status=200)
+    return JSONResponse('Only HTTP PUT /bw/<account>/<bw_value>/ requests allowed.', status=405)
+
 @csrf_exempt
 def bw_update_policy(request, account, policy, bw_value):
     '''
@@ -111,13 +112,19 @@ def bw_update_policy(request, account, policy, bw_value):
     account
     '''
     if request.method == 'PUT':
-        #TODO Call swift to obtain the data
-        #example
-        '''
-        try:
-            response = call_to_swift("<proxyip>:<proxyport>/bwmod/<account>/<policy>/bw_value")
-        except storlet.DoesNotExist:
-            return HttpResponse(status=404)
-        return Response(status=200)
-        '''
-        return None
+        address = proxyaddres() + "/bwmod/" + account + "/" + policy + "/" + bw_value + "/"
+        r = requests.get(address)
+        return HttpResponse(r.content, content_type = 'application/json', status=200)
+    return JSONResponse('Only HTTP PUT /bw/clear/<account>/<policy>/<bw_value>/ requests allowed.', status=405)
+
+
+@csrf_exempt
+def osinfo(request):
+    """
+    Ask the proxy server information about the current objects and its BW.
+    """
+    if request.method == 'GET':
+        address = proxyaddres() + "/osinfo/"
+        r = requests.get(address)
+        return HttpResponse(r.content, content_type = 'application/json', status=200)
+    return JSONResponse('Only HTTP GET /bw/osinfo/ requests allowed.', status=405)
