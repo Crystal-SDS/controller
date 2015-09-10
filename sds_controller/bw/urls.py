@@ -5,9 +5,10 @@ from . import views
 
 urlpatterns = [
     url(r'^/?$', views.bw_list),
-    
+
     url(r'^/clear/$', views.bw_clear_all),
     url(r'^/osinfo/$', views.osinfo),
+    url(r'^/test/$', views.test),
 
     url(r'^/(?P<account>\w+)/$', views.bw_detail),
 
@@ -18,7 +19,7 @@ urlpatterns = [
     url(r'^/(?P<account>\w+)/(?P<policy>\w+)/(?P<bw_value>[0-9]+)/$', views.bw_update_policy),
 
 
-    
+
     #Not implemented
     #url(r'^/osinfo/(?P<ip>)$', views.bw_delete),
 

@@ -8,6 +8,7 @@ from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework.renderers import JSONRenderer
 from rest_framework.parsers import JSONParser, FileUploadParser
+from filters_monitoring.tasks import add
 
 # Create your views here.
 
@@ -24,7 +25,7 @@ def proxyaddres():
     """
     Reads the proxy address from the Swift-proxy.conf file.
     """
-    conf = ConfigParser.ConfigParser()   
+    conf = ConfigParser.ConfigParser()
     conf.read('Swift-proxy.conf')
     proxyip = conf.get('proxy', 'proxyip')
     proxyport = conf.get('proxy', 'proxyport')
@@ -128,3 +129,8 @@ def osinfo(request):
         r = requests.get(address)
         return HttpResponse(r.content, content_type = 'application/json', status=200)
     return JSONResponse('Only HTTP GET /bw/osinfo/ requests allowed.', status=405)
+
+def test(request):
+    result = add.delay(4, 4)
+
+    return HttpResponse(result.result, content_type = 'application/json', status=200)

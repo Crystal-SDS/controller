@@ -40,7 +40,7 @@ INSTALLED_APPS = (
     'bootstrap3',
     'rest_framework',
     'storlet',
-    'bw',
+    'bw'
 )
 
 MIDDLEWARE_CLASSES = (

@@ -22,7 +22,22 @@ class { 'prepare':
 
 include prepare
 
-$sysPackages = ['git', 'curl', 'graphviz', 'tree', 'nodejs']
+class rabbitmq_server {
+  package { "rabbitmq-server":
+    ensure => "installed",
+    require  => Class['prepare'],
+    provider => "aptitude"
+  }
+
+  service { "rabbitmq-server":
+    ensure => running,
+    require => Package["rabbitmq-server"],
+  }
+}
+
+include rabbitmq_server
+
+$sysPackages = ['git', 'curl']
 package { $sysPackages:
   ensure => "installed",
   require  => Class['prepare']
@@ -51,5 +66,11 @@ package {
         provider => pip;
     "djangorestframework":
         ensure => "installed",
+        provider => pip;
+    "python-daemon":
+        ensure => "installed",
+        provider => pip;
+    "pika":
+        ensure => "0.9.8",
         provider => pip;
 }
