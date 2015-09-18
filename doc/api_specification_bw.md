@@ -3,6 +3,7 @@ SDS Controller API Specification - BW Differentiation
 **Table of Contents**
 
 - [Error handling](#error-handling)
+- [Authentication](#authentication)
 - [BW info](#bw-info)
   - [Get BW info about all accounts](#get-bw-info-about-all-accounts)
   - [Get BW info about an account](#get-bw-info-about-an-account)
@@ -28,6 +29,14 @@ CODE |  DESCRIPTION
 **404** | File or folder not found at the specified path.
 **405** | Request method not expected (generally should be GET or POST).
 **5xx** | Server error
+
+#Authentication
+
+After successfully receiving the credentials from keystone, it is necessary that all the calls of the API will be authenticated. To authenticate the calls, it needs to add the header explained in the next table:
+
+OAuth PARAMETER |  DESCRIPTION
+--- | ---
+**X-Auth-Token** | Admin token obtained after a successful authentication in keystone.
 
 # BW info
 

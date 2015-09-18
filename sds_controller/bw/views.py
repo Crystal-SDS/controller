@@ -8,7 +8,6 @@ from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework.renderers import JSONRenderer
 from rest_framework.parsers import JSONParser, FileUploadParser
-from filters_monitoring.tasks import add
 
 # Create your views here.
 
@@ -32,12 +31,23 @@ def proxyaddres():
     proxy = "http://" + proxyip + ":" + proxyport
     return proxy
 
+def is_valid_request(request):
+    headers = {}
+    try:
+        headers['X-Auth-Token'] = request.META['HTTP_X_AUTH_TOKEN']
+        return headers
+    except:
+        return None
+
 @csrf_exempt
 def bw_list(request):
     """
     Ask the proxy server information about the assigned BW to each
     account and policy.
     """
+    headers = is_valid_request(request)
+    if not headers:
+        return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
     if request.method == 'GET':
         address = proxyaddres() + "/bwdict/"
         r = requests.get(address)
@@ -49,6 +59,9 @@ def bw_detail(request, account):
     """
     Ask the information of a certain tenant.
     """
+    headers = is_valid_request(request)
+    if not headers:
+        return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
     if request.method == 'GET':
         dict_json = dict()
         address = proxyaddres() + "/bwdict/"
@@ -64,6 +77,9 @@ def bw_clear_all(request):
     """
     This call clears all the BW assignations for all accounts and policies.
     """
+    headers = is_valid_request(request)
+    if not headers:
+        return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
     if request.method == 'PUT':
         address = proxyaddres() + "/bwmod/"
         r = requests.get(address)
@@ -75,6 +91,9 @@ def bw_clear_account(request, account):
     """
     This call clears all the BW assignations entries for the selected account.
     """
+    headers = is_valid_request(request)
+    if not headers:
+        return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
     if request.method == 'PUT':
         address = proxyaddres() + "/bwmod/" + account + "/"
         r = requests.get(address)
@@ -87,6 +106,9 @@ def bw_clear_policy(request, account, policy):
     This call clears all the BW assignations entries for the selected account
     and policy.
     """
+    headers = is_valid_request(request)
+    if not headers:
+        return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
     if request.method == 'PUT':
         address = proxyaddres() + "/bwmod/" + account + "/" + policy + "/"
         r = requests.get(address)
@@ -100,6 +122,9 @@ def bw_update(request, account, bw_value):
     This call assigns the specified bw to all the policies of the selected
     account
     '''
+    headers = is_valid_request(request)
+    if not headers:
+        return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
     if request.method == 'PUT':
         address = proxyaddres() + "/bwmod/" + account + "/" + bw_value + "/"
         r = requests.get(address)
@@ -112,6 +137,9 @@ def bw_update_policy(request, account, policy, bw_value):
     This call assigns the specified bw to all the policies of the selected
     account
     '''
+    headers = is_valid_request(request)
+    if not headers:
+        return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
     if request.method == 'PUT':
         address = proxyaddres() + "/bwmod/" + account + "/" + policy + "/" + bw_value + "/"
         r = requests.get(address)
@@ -124,13 +152,11 @@ def osinfo(request):
     """
     Ask the proxy server information about the current objects and its BW.
     """
+    headers = is_valid_request(request)
+    if not headers:
+        return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
     if request.method == 'GET':
         address = proxyaddres() + "/osinfo/"
         r = requests.get(address)
         return HttpResponse(r.content, content_type = 'application/json', status=200)
     return JSONResponse('Only HTTP GET /bw/osinfo/ requests allowed.', status=405)
-
-def test(request):
-    result = add.delay(4, 4)
-
-    return HttpResponse(result.result, content_type = 'application/json', status=200)

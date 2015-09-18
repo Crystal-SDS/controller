@@ -40,7 +40,8 @@ INSTALLED_APPS = (
     'bootstrap3',
     'rest_framework',
     'storlet',
-    'bw'
+    'bw',
+    'swift'
 )
 
 MIDDLEWARE_CLASSES = (
@@ -108,3 +109,6 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/1.8/howto/static-files/
 
 STATIC_URL = '/static/'
+
+#Swift info
+KEYSTONE_URL = "http://10.30.232.232:35357/v2.0/"

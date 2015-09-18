@@ -8,8 +8,7 @@ urlpatterns = [
 
     url(r'^/clear/$', views.bw_clear_all),
     url(r'^/osinfo/$', views.osinfo),
-    url(r'^/test/$', views.test),
-
+    
     url(r'^/(?P<account>\w+)/$', views.bw_detail),
 
     url(r'^/clear/(?P<account>\w+)/$', views.bw_clear_account),

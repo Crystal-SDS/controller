@@ -20,4 +20,5 @@ urlpatterns = [
     url(r'^admin/', include(admin.site.urls)),
     url(r'^storlets', include('storlet.urls')),
     url(r'^bw', include('bw.urls')),
+    url(r'^swift', include('swift.urls'))
 ]
