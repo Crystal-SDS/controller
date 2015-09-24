@@ -6,7 +6,7 @@ with daemon.DaemonContext():
             host='localhost'))
     channel = connection.channel()
 
-    channel.queue_declare(queue='hello')
+    channel.queue_declare(queue='hello2')
 
     print ' [*] Waiting for messages. To exit press CTRL+C'
     f2 = open('/home/vagrant/src/v.txt', 'w')
@@ -16,7 +16,7 @@ with daemon.DaemonContext():
     def callback(ch, method, properties, body):
         f.write(" [x] Received "+str(body)+"\n")
     channel.basic_consume(callback,
-                          queue='hello',
+                          queue='hello2',
                           no_ack=True)
 
     channel.start_consuming()

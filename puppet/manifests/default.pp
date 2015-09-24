@@ -73,4 +73,7 @@ package {
     "pika":
         ensure => "0.9.8",
         provider => pip;
+    "python-swiftclient":
+        ensure => installed,
+        provider => pip;
 }

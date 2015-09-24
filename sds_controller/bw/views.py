@@ -51,7 +51,7 @@ def bw_list(request):
     if request.method == 'GET':
         address = proxyaddres() + "/bwdict/"
         r = requests.get(address)
-        return HttpResponse(r.content, content_type = 'application/json', status=200)
+        return JSONResponse(r.content, content_type = 'application/json', status=200)
     return JSONResponse('Only HTTP GET /bw/ requests allowed.', status=405)
 
 @csrf_exempt

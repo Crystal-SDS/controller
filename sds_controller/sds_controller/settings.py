@@ -15,7 +15,8 @@ import os
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-
+STORLET_DIR = os.path.join(BASE_DIR, "storlet", "storlets_jar")
+DEPENDENCY_DIR = os.path.join(BASE_DIR, "storlet", "dependencies_jar")
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.8/howto/deployment/checklist/
 
@@ -112,3 +113,4 @@ STATIC_URL = '/static/'
 
 #Swift info
 KEYSTONE_URL = "http://10.30.232.232:35357/v2.0/"
+SWIFT_URL= "http://10.30.232.232:8080/v1/"

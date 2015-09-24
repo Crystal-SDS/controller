@@ -1,6 +1,6 @@
 from django.forms import widgets
 from rest_framework import serializers
-from storlet.models import Storlet, Dependency
+from storlet.models import Storlet, Dependency, StorletUser
 
 
 # class StorletSerializer(serializers.Serializer):
@@ -25,11 +25,21 @@ from storlet.models import Storlet, Dependency
 class StorletSerializer(serializers.ModelSerializer):
     class Meta:
         model = Storlet
-        fields = ('id', 'name', 'path', 'deployed', 'lenguage',
-                  'interface_version', 'object_metadata', 'main',
+        fields = ('id', 'name', 'path', 'deployed', 'language',
+                  'interface_version', 'object_metadata', 'main_class',
                   'dependency', 'created_at')
 
 class DependencySerializer(serializers.ModelSerializer):
     class Meta:
         model = Dependency
         fields = ('name', 'deployed', 'version', 'path', 'permissions', 'created_at')
+
+class StorletUserSerializer(serializers.ModelSerializer):
+    storlet = serializers.SlugRelatedField(
+        many=True,
+        read_only=True,
+        slug_field='name'
+     )
+    class Meta:
+        model = StorletUser
+        fields = ('name', 'storlet','user_id', 'params','created_at')

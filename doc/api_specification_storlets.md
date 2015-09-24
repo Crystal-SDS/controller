@@ -321,7 +321,7 @@ An application can deploy the Storlet to Swift by issuing an HTTP PUT request.
 
 #### URL structure
 The URL that represents the storlet data resource. The URL is
-**/storlets/:storlet_id/deploy**
+**/storlets/:storlet_id/deploy/account**
 
 #### Method
 PUT
@@ -329,7 +329,7 @@ PUT
 #### HTTP Request Example
 
 ```
-PUT /storlets/:storlet_id/deploy
+PUT storlets/3/deploy/4f0279da74ef4584a29dc72c835fe2c9
 ```
 
 
@@ -339,7 +339,7 @@ PUT /storlets/:storlet_id/deploy
 
 ```json
 
-HTTP/1.1 200 OK
+HTTP/1.1 201 Created
 
 ```
 

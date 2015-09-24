@@ -23,3 +23,11 @@ class Storlet(models.Model):
     deployed = models.BooleanField(default=False)
     class Meta:
         ordering = ('created_at',)
+
+class StorletUser(models.Model):
+    created_at = models.DateTimeField(auto_now_add=True)
+    storlet = models.ForeignKey(Storlet, related_name='storlet')
+    user_id = models.CharField(max_length=200, blank=False)
+    parameters = models.CharField(max_length=400, blank=False, null=True)
+    class Meta:
+        ordering = ('created_at',)

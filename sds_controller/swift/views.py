@@ -23,7 +23,7 @@ def is_valid_request(request):
         return headers
     except:
         return None
-        
+
 @csrf_exempt
 def tenants_list(request):
     """
@@ -34,6 +34,6 @@ def tenants_list(request):
         if not headers:
             return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
         print request.META['HTTP_X_AUTH_TOKEN']
-        r = requests.get(settings.KEYSTONE_URL+"/tenants", headers=headers)
+        r = requests.get(settings.KEYSTONE_URL+"tenants", headers=headers)
         return HttpResponse(r.content, content_type = 'application/json', status=200)
     return JSONResponse('Only HTTP GET /tenants/ requests allowed.', status=405)
