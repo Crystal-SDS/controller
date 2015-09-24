@@ -44,6 +44,11 @@ Then, you will have a Virtual Machine with all that you need to start the Django
 
 You can start the server using the command into the source folder (src/sds_controller): ´python manage.py runserver 0.0.0.0:8000´. After that the server start, and if you prefer to call the SDS controller for your machine the port to use is `18000`. For instance to call to list the storlets from your machine the url will be: localhost:18000/storlets. *We have in the TODO list to configure vagrant and puppet to do a deploy of the SDS Controller in Apache each time that starts the Virtual Machine.*
 
+# Monitoring
+
+To enable the monitoring module you need to follow this steps. First create a new queue at openstack controller host. You need to be logged into the openstack controller host and run this command: `sudo rabbitmqadmin declare queue name="myQueue" durable=true auto_delete=false` and assign a binding to it with the service you want to monitor with `sudo rabbitmqadmin declare binding source="ceilometer" destination_type="queue" destination="myQueue" routing_key="metering.sample"` where myQueue will be the name of the queue to retrieve the events.
+
+`TODO:` Then, you need to edit the config file `x` and add the ip:port tuple of the rabbitmq at openstack controller host (by default `rabbitmq_host_ip:5672`) and the name of the queue that you created before, myQueue in this lines.
 
 # Future Work
 
