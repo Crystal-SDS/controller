@@ -2,7 +2,7 @@ from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework.renderers import JSONRenderer
 from rest_framework.parsers import JSONParser, FileUploadParser, MultiPartParser, FormParser
-from storlet.models import Storlet, Dependency
+from storlet.models import Storlet, Dependency, StorletUser
 from storlet.serializers import StorletSerializer, DependencySerializer, StorletUserSerializer
 from swiftclient import client as c
 from rest_framework.views import APIView
@@ -109,11 +109,7 @@ def storlet_detail(request, id):
 class StorletData(APIView):
     parser_classes = (MultiPartParser, FormParser,)
     def put(self, request, id, format=None):
-        print request
-        print request.FILES
-        print 'hallaa'
         file_obj = request.FILES['file']
-        print 'pepito'
         path = save_file(file_obj, settings.STORLET_DIR)
         try:
             storlet = Storlet.objects.get(id=id)
@@ -139,6 +135,10 @@ def storlet_deploy(request, id, account):
         if not headers:
             return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
 
+        #TODO: add params in the request body
+        data = JSONParser().parse(request)
+
+
         metadata = {'X-Object-Meta-Storlet-Language':'Java',
             'X-Object-Meta-Storlet-Interface-Version':'1.0',
             'X-Object-Meta-Storlet-Dependency': storlet.dependency,
@@ -148,16 +148,52 @@ def storlet_deploy(request, id, account):
         content_length = None
         response = dict()
         #Change to API Call
-        print 'fins aqui tot be'
         c.put_object(settings.SWIFT_URL+"AUTH_"+str(account), headers["X-Auth-Token"], 'storlet', storlet.name, f,
                      content_length, None, None,
                      "application/octet-stream", metadata,
                      None, None, None, response)
         f.close()
         status = response.get('status')
-        print 'status', status
-        #TODO: return response body
-        return JSONResponse(response.get('reason'), status=response.get('status'))
+        if status == 201:
+            try:
+                storlet_user = StorletUser.objects.get(storlet=storlet, user_id=account)
+                return JSONResponse("Already deployed", status=200)
+            except StorletUser.DoesNotExist:
+                storlet_user = StorletUser.objects.create(storlet_id=storlet.id, user_id=account, parameters=data["params"])
+                return JSONResponse("Deployed", status=201)
+
+        return JSONResponse("error", status=400)
+
+@csrf_exempt
+def storlet_list_deployed(request, account):
+
+    if request.method == 'GET':
+        try:
+            storlets = StorletUser.objects.filter(user_id=account)
+        except StorletUser.DoesNotExist:
+	           return JSONResponse('Any Storlet deployed', status=404)
+        serializer = StorletUserSerializer(storlets, many=True)
+        return JSONResponse(serializer.data, status=200)
+
+@csrf_exempt
+def storlet_undeploy(request, id, account):
+    try:
+        print 'hello'
+        storlet_user = StorletUser.objects.get(storlet_id=id, user_id=account,)
+    except Storlet.DoesNotExist:
+        return JSONResponse('Storlet does not exists', status=404)
+
+    if request.method == 'PUT':
+        headers = is_valid_request(request)
+        if not headers:
+            return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
+
+        print storlet_user.storlet.name
+        serializer = StorletUserSerializer(storlet_user)
+        data = serializer.data
+        data['storlet'] = [data['storlet']]
+        print data
+        return JSONResponse(serializer.data, status=200)
 
 @csrf_exempt
 def dependency_list(request):
