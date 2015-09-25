@@ -30,3 +30,11 @@ class StorletUser(models.Model):
     class Meta:
         ordering = ('created_at',)
         unique_together = ('storlet', 'user_id')
+
+class DependencyUser(models.Model):
+    created_at = models.DateTimeField(auto_now_add=True)
+    dependency = models.ForeignKey(Storlet, related_name='dependency')
+    user_id = models.CharField(max_length=200, blank=False)
+    class Meta:
+        ordering = ('created_at',)
+        unique_together = ('dependency', 'user_id')

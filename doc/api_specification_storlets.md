@@ -12,6 +12,8 @@ SDS Controller API Specification - Storlets
   - [List Storlets](#list-storlets)
   - [Update Storlet metadata](#update-storlet-metadata)
   - [Deploy a Storlet](#deploy-a-storlet)
+  - [Undeploy a Storlet](#undeploy-a-storlet)
+  - [List deployed Storlets of an account](#list-deployed-storlets-of-an-account)
 - [Dependencies](#dependencies)
   - [Create a Dependency](#create-a-dependency)
   - [Upload a Dependency Data](#upload-a-dependency-data)
@@ -20,6 +22,8 @@ SDS Controller API Specification - Storlets
   - [List Dependencies](#list-dependencies)
   - [Update Dependency metadata](#update-dependency-metadata)
   - [Deploy Dependency](#deploy_dependency)
+  - [Undeploy a Dependency](#undeploy-a-dependency)
+  - [List deployed Dependencies of an Account](#list-deployed-dependencies-of-an-account)
 
 #Error handling
 
@@ -275,7 +279,7 @@ FIELD |  DESCRIPTION
 
 #### HTTP Request Example
 
-```
+```json
 
 PUT /file/32565632156
 
@@ -321,17 +325,29 @@ An application can deploy the Storlet to Swift by issuing an HTTP PUT request.
 
 #### URL structure
 The URL that represents the storlet data resource. The URL is
-**/storlets/:storlet_id/deploy/account**
+**/storlets/:account/deploy/:storlet_id/**
 
 #### Method
 PUT
 
+#### Request Body
+JSON input that contains a dictionary with the following keys:
+
+FIELD |  DESCRIPTION
+--- | ---
+**params** | The parameters needed by the storlet execution. These parameters are codified as query string. 
+
+
 #### HTTP Request Example
 
-```
-PUT storlets/3/deploy/4f0279da74ef4584a29dc72c835fe2c9
-```
+```json
+Content-Type: application/json
+PUT storlets/4f0279da74ef4584a29dc72c835fe2c9/deploy/3
 
+{
+"params":"select=user_id",
+}
+```
 
 ### Response
 
@@ -340,6 +356,48 @@ PUT storlets/3/deploy/4f0279da74ef4584a29dc72c835fe2c9
 ```json
 
 HTTP/1.1 201 Created
+
+```
+## Undeploy Storlet
+
+An application can undeploy the Storlet of an account from Swift by issuing an HTTP PUT request.
+
+### Request
+
+#### URL structure
+The URL that represents the storlet data resource. The URL is
+**/storlets/:account/undeploy/:dependency_id/**
+
+#### Method
+PUT
+
+#### HTTP Request Example
+
+```json
+Content-Type: application/json
+POST /storlets/4f0279da74ef4584a29dc72c835fe2c9/undeploy/3
+
+```
+
+## List deployed Storlets of an Account
+
+An application can list all the deployed Storlets of an account to Swift by issuing an HTTP GET request.
+
+### Request
+
+#### URL structure
+The URL that represents the storlet data resource. The URL is
+**/storlets/:account/deploy/**
+
+#### Method
+GET
+
+#### HTTP Request Example
+
+```json
+Content-Length: 294
+Content-Type: application/json
+GET /storlets/123/deploy/
 
 ```
 
@@ -555,7 +613,7 @@ An application can update the Dependency metadata by issuing an HTTP PUT request
 
 #### URL structure
 
-The URL that represents the storlet data resource. The URL is
+The URL that represents the dependency data resource. The URL is
 **/storlets/dependencies/:dependency_id**
 
 
@@ -601,22 +659,64 @@ Content-Length: 248
 
 ## Deploy Dependency
 
-An application can deploy the Dependency to Swift by issuing an HTTP PUT request.
+An application can deploy a Dependency to an account to Swift by issuing an HTTP PUT request.
+
+### Request
+
+#### URL structure
+The URL that represents the dependency data resource. The URL is
+**/storlets/dependencies/:account/deploy/:dependency_id/**
+
+#### Method
+PUT
+
+#### HTTP Request Example
+
+```
+Content-Type: application/json
+PUT /storlets/dependencies/4f0279da74ef4584a29dc72c835fe2c9/deploy/3
+
+```
+
+## Undeploy Dependency
+
+An application can undeploy the Dependency of an account from Swift by issuing an HTTP PUT request.
+
+### Request
+
+#### URL structure
+The URL that represents the dependency data resource. The URL is
+**/storlets/dependencies/:account/undeploy/:dependency_id/**
+
+#### Method
+PUT
+
+#### HTTP Request Example
+
+```json
+Content-Type: application/json
+POST /storlets/dependencies/4f0279da74ef4584a29dc72c835fe2c9/undeploy/3
+
+```
+
+## List deployed Dependencies of an Account
+
+An application can list all the deployed Dependencies of an account to Swift by issuing an HTTP GET request.
 
 ### Request
 
 #### URL structure
 The URL that represents the storlet data resource. The URL is
-**/storlets/dependencies/:dependency_id/deploy**
+**/storlets/dependencies/:account/deploy/**
 
 #### Method
-POST
+GET
 
 #### HTTP Request Example
 
-```
+```json
 Content-Length: 294
 Content-Type: application/json
-POST /storlets/dependencies/123/deploy
+GET /storlets/dependencies/123/deploy/
 
 ```

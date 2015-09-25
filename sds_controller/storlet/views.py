@@ -1,6 +1,7 @@
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework.renderers import JSONRenderer
+from rest_framework.response import Response
 from rest_framework.parsers import JSONParser, FileUploadParser, MultiPartParser, FormParser
 from storlet.models import Storlet, Dependency, StorletUser
 from storlet.serializers import StorletSerializer, DependencySerializer, StorletUserSerializer
@@ -26,12 +27,10 @@ def is_valid_request(request):
     except:
         return None
 
-
 class StorletList(APIView):
     """
     List all storlets, or create a new storlet.
     """
-
     def get(self, request, format=None):
         storlets = Storlet.objects.all()
         serializer = StorletSerializer(storlets, many=True)
@@ -44,7 +43,6 @@ class StorletList(APIView):
             serializer.save()
             return JSONResponse(serializer.data, status=201)
         return JSONResponse(serializer.errors, status=400)
-
 
 @csrf_exempt
 def storlet_detail(request, id):
@@ -72,40 +70,6 @@ def storlet_detail(request, id):
         storlet.delete()
         return JSONResponse('Storlet has been deleted', status=204)
 
-
-# class StorletDetail(APIView):
-#
-#     """
-#     Retrieve, update or delete a storlet.
-#     """
-#     def get_object(self, id):
-#         try:
-#             return Storlet.objects.get(id=id)
-#         except Storlet.DoesNotExist:
-#             print 'hola que tal'
-#             return JSONResponse(status=200)
-#
-#
-#     def get(self, request, id, format=None):
-#         storlet = self.get_object(id)
-#         serializer = StorletSerializer(storlet)
-#         return JSONResponse(serializer.data, status=200)
-#
-#     def put(self, request, id, format=None):
-#         storlet = self.get_object(id)
-#         data = JSONParser().parse(request)
-#         serializer = StorletSerializer(storlet, data=data)
-#         if serializer.is_valid():
-#             serializer.save()
-#             return JSONResponse(serializer.data, status=200)
-#         return JSONResponse(serializer.errors, status=400)
-#
-#     def delete(self, request, id, format=None):
-#         storlet = self.get_object(id)
-#         storlet.delete()
-#         return JSONResponse('Storlet has been deleted', status=204)
-
-
 class StorletData(APIView):
     parser_classes = (MultiPartParser, FormParser,)
     def put(self, request, id, format=None):
@@ -120,8 +84,8 @@ class StorletData(APIView):
         return JSONResponse('Storlet has been updated', status=201)
     def get(self, request, id, format=None):
         #TODO Return the storlet data
-        return JSONResponse('Storlet does not exists',status=200)
-
+        data = "File"
+        return Response(data, status=None, template_name=None, headers=None, content_type=None)
 
 @csrf_exempt
 def storlet_deploy(request, id, account):
@@ -137,7 +101,6 @@ def storlet_deploy(request, id, account):
 
         #TODO: add params in the request body
         data = JSONParser().parse(request)
-
 
         metadata = {'X-Object-Meta-Storlet-Language':'Java',
             'X-Object-Meta-Storlet-Interface-Version':'1.0',
@@ -178,7 +141,6 @@ def storlet_list_deployed(request, account):
 @csrf_exempt
 def storlet_undeploy(request, id, account):
     try:
-        print 'hello'
         storlet_user = StorletUser.objects.get(storlet_id=id, user_id=account,)
     except Storlet.DoesNotExist:
         return JSONResponse('Storlet does not exists', status=404)
@@ -187,14 +149,21 @@ def storlet_undeploy(request, id, account):
         headers = is_valid_request(request)
         if not headers:
             return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
+        response = dict()
+        c.delete_object(settings.SWIFT_URL+"AUTH_"+str(account),headers["X-Auth-Token"],
+            'storlet', storlet_user.storlet.name, None, None, None, None, response)
 
-        print storlet_user.storlet.name
-        serializer = StorletUserSerializer(storlet_user)
-        data = serializer.data
-        data['storlet'] = [data['storlet']]
-        print data
-        return JSONResponse(serializer.data, status=200)
+        status = response.get('status')
+        if status == 200:
+            deleted = StorletUser.objects.delete(id=storlet_user.id)
+            return JSONResponse("The object has been deleted", status=status)
+        return JSONResponse(response.get["reason"], status=status)
 
+"""
+------------------------------
+DEPENDENCY PART
+------------------------------
+"""
 @csrf_exempt
 def dependency_list(request):
     """
@@ -260,16 +229,69 @@ def dependency_data(request, name):
         return JSONResponse('return data', status=200)
 
 @csrf_exempt
-def dependency_deploy(request, name):
+def dependency_deploy(request, name, account):
     try:
         dependency = Dependency.objects.get(name=name)
     except Dependency.DoesNotExist:
         return JSONResponse('Dependency does not exists', status=404)
 
     if request.method == 'PUT':
-        #TODO Call swift using storlets parameters to deploy it
-        return JSONResponse('Dependency does not exists',status=201)
+        headers = is_valid_request(request)
+        if not headers:
+            return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
+        data = JSONParser().parse(request)
 
+        metadata = {'X-Object-Meta-Storlet-Dependency-Version': str(dependency.version)}
+        f = open(dependency.path,'r')
+        content_length = None
+        response = dict()
+        c.put_object(settings.SWIFT_URL+"AUTH_"+str(account), headers["X-Auth-Token"], 'dependency', dependency.name, f,
+                     content_length, None, None, "application/octet-stream",
+                     metadata, None, None, None, response)
+        f.close()
+        status = response.get('status')
+        if 200 <= status < 300:
+            try:
+                #TODO: Control version, it's possible add call to updrade the version
+                storlet_user = DependencyUser.objects.get(dependency=dependency, user_id=account)
+                return JSONResponse("Already deployed", status=200)
+            except StorletUser.DoesNotExist:
+                storlet_user = StorletUser.objects.create(dependency_id=dependency.id, user_id=account)
+                return JSONResponse("Deployed", status=201)
+        return JSONResponse('ERROR',status=500)
+
+@csrf_exempt
+def dependency_list_deployed(request, account):
+
+    if request.method == 'GET':
+        try:
+            dependency = DependencyUser.objects.filter(user_id=account)
+        except StorletUser.DoesNotExist:
+	           return JSONResponse('Any Dependency deployed', status=404)
+        serializer = StorletUserSerializer(dependency, many=True)
+        return JSONResponse(serializer.data, status=200)
+
+@csrf_exempt
+def dependency_undeploy(request, name, account):
+    try:
+        dependency = Dependency.objects.get(name=name)
+        dependency_user = DependencyUser.objects.get(storlet_id=dependency.id, user_id=account)
+    except Storlet.DoesNotExist:
+        return JSONResponse('Dependency does not exists', status=404)
+
+    if request.method == 'PUT':
+        headers = is_valid_request(request)
+        if not headers:
+            return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
+        response = dict()
+        c.delete_object(settings.SWIFT_URL+"AUTH_"+str(account),headers["X-Auth-Token"],
+            'dependency', dependency.name, None, None, None, None, response)
+
+        status = response.get('status')
+        if status == 200:
+            deleted = StorletUser.objects.delete(id=dependency_user.id)
+            return JSONResponse("The object has been deleted", status=status)
+        return JSONResponse(response.get["reason"], status=status)
 
 def save_file(file, path=''):
     '''
