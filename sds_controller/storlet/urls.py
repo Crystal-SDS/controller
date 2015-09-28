@@ -13,11 +13,11 @@ urlpatterns = [
 
 
     url(r'^/dependencies/?$', views.dependency_list),
-    url(r'^/dependencies/(?P<name>\w+)/?$', views.dependency_detail),
-    url(r'^/dependencies/(?P<name>\w+)/data/?$', views.dependency_data),
+    url(r'^/dependencies/(?P<id>\w+)/?$', views.dependency_detail),
+    url(r'^/dependencies/(?P<id>\w+)/data/?$', views.DependencyData.as_view()),
     url(r'^/dependencies/(?P<account>\w+)/deploy/?$', views.dependency_list_deployed),
-    url(r'^/dependencies/(?P<account>\w+)/data/deploy/(?P<name>\w+)/?$', views.dependency_deploy),
-    url(r'^/dependencies/(?P<account>\w+)/data/undeploy/(?P<name>\w+)/?$', views.dependency_undeploy),
+    url(r'^/dependencies/(?P<account>\w+)/deploy/(?P<id>\w+)/?$', views.dependency_deploy),
+    url(r'^/dependencies/(?P<account>\w+)/undeploy/(?P<id>\w+)/?$', views.dependency_undeploy),
 
 
 ]

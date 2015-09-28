@@ -27,12 +27,12 @@ class StorletSerializer(serializers.ModelSerializer):
         model = Storlet
         fields = ('id', 'name', 'path', 'language',
                   'interface_version', 'object_metadata', 'main_class',
-                  'dependency', 'created_at')
+                  'dependencies', 'created_at')
 
 class DependencySerializer(serializers.ModelSerializer):
     class Meta:
         model = Dependency
-        fields = ('name', 'version', 'path', 'permissions', 'created_at')
+        fields = ('id', 'name', 'version', 'path', 'permissions', 'created_at')
 
 class StorletUserSerializer(serializers.ModelSerializer):
     storlet = serializers.SlugRelatedField(

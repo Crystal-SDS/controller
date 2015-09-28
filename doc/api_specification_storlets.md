@@ -1,19 +1,19 @@
-SDS Controller API Specification - Storlets
+SDS Controller API Specification - Filters
 ===========================================
 **Table of Contents**
 
 - [Error handling](#error-handling)
 - [Authentication](#authentication)
-- [Storlets](#storlets)
-  - [Create a Storlet](#create-a-storlet)
-  - [Upload a Storlet data](#upload-a-storlet-data)
-  - [Delete a Storlet](#delete-a-storlet)
-  - [Get Storlet metadata](#get-storlet-metadata)
-  - [List Storlets](#list-storlets)
-  - [Update Storlet metadata](#update-storlet-metadata)
-  - [Deploy a Storlet](#deploy-a-storlet)
-  - [Undeploy a Storlet](#undeploy-a-storlet)
-  - [List deployed Storlets of an account](#list-deployed-storlets-of-an-account)
+- [Filters](#Filters)
+  - [Create a Filter](#create-a-filter)
+  - [Upload a Filter data](#upload-a-filter-data)
+  - [Delete a Filter](#delete-a-filter)
+  - [Get Filter metadata](#get-filter-metadata)
+  - [List Filters](#list-filters)
+  - [Update Filter metadata](#update-filter-metadata)
+  - [Deploy a Filter](#deploy-a-filter)
+  - [Undeploy a Filter](#undeploy-a-filter)
+  - [List deployed Filters of an account](#list-deployed-filters-of-an-account)
 - [Dependencies](#dependencies)
   - [Create a Dependency](#create-a-dependency)
   - [Upload a Dependency Data](#upload-a-dependency-data)
@@ -49,17 +49,17 @@ OAuth PARAMETER |  DESCRIPTION
 --- | ---
 **X-Auth-Token** | Admin token obtained after a successful authentication in keystone.
 
-#Storlets
+#Filters
 
-## Create a Storlet
+## Create a filter
 
-An application can create a Storlet by issuing an HTTP POST request. The application needs to provide the Storlet metadata like json format. The binary file will be uploaded after this call, first it must upload the metadata fields.
+An application can create a filter by issuing an HTTP POST request. The application needs to provide the filter metadata like json format. The binary file will be uploaded after this call, first it must upload the metadata fields.
 
 ### Request
 
 #### URL structure
-The URL that represents the storlet data resource. The URL is
-**/storlets.**
+The URL that represents the filter data resource. The URL is
+**/filters.**
 
 #### Method
 POST
@@ -69,17 +69,17 @@ JSON input that contains a dictionary with the following keys:
 
 FIELD |  DESCRIPTION
 --- | ---
-**name** | The name of the storlet to be created.
+**name** | The name of the filter to be created.
 **language** |Currently must be 'java'
 **interface_version** | Currently we have a single version '1.0'
-**dependency** | A comma separated list of dependencies. Default: “ ”
+**dependencies** | A comma separated list of dependencies. Default: “ ”
 **object_metadata** | Currently, not in use, but must appear. Use the value 'no'
-**main** | The name of the class that implements the IStorlet API. In our case: 'com.ibm.storlet.identity.IdentityStorlet'
+**main** | The name of the class that implements the IStorlet API. In our case: 'com.ibm.filter.identity.Identityfilter'
 
 #### HTTP Request Example
 
 ```
-POST /storlets
+POST /filters
 ```
 
 ### Response
@@ -91,25 +91,26 @@ POST /storlets
 Response <201>
 {
 "id":1345,
-"name":"StorletName",
+"name":"filterName",
 "language":"Java",
 "interface_version":"1.0",
-"dependency":"’’",
+"dependencies":"’’",
 "object_metadata":"no",
-"main":"com.urv.storlet.uonetrace.UOneTraceStorlet",
+"main":"com.urv.filter.uonetrace.UOneTracefilter",
 "created_at":"2013-03-08 10:36:41.997",
 "deployed":"false"
 }
 ```
-## Upload a Storlet data
+## Upload a filter data
 
-An application can upload a Storlet data by issuing an HTTP PUT request. The application needs to provide the Storlet data like a binary file in the body content of the request.
+An application can upload a filter data by issuing an HTTP PUT request. The application needs to provide the filter data like  a QueryDicct with a single key 'file' containing the upload file.
+**media_type:** `multipart/form-data`
 
 ### Request
 
 #### URL structure
-The URL that represents the storlet data resource. The URL is
-**/storlets/:storlet_id/data**.
+The URL that represents the filter data resource. The URL is
+**/filters/:filter_id/data**.
 
 #### Method
 PUT
@@ -117,20 +118,21 @@ PUT
 #### HTTP Request Example
 
 ```
-POST /storlets/:storlet_id/data
+PUT /filters/:filter_id/data
+"media_type":"multipart/form-data"
+{'file':<binary file>} (QueryDicct)
 
-<binary file>
 ```
 
-## Delete a Storlet
+## Delete a filter
 
-An application can delete a Storlet by issuing an HTTP DELETE request. This call delete the Storlet from Swift and SDS Controller.
+An application can delete a filter by issuing an HTTP DELETE request. This call delete the filter from Swift and SDS Controller.
 
 ### Request
 
 #### URL structure
-The URL that represents the storlet data resource. The URL is
-**/storlets/:storlet_id.**
+The URL that represents the filter data resource. The URL is
+**/filters/:filter_id.**
 
 #### Method
 DELETE
@@ -138,20 +140,20 @@ DELETE
 #### HTTP Request Example
 
 ```
-DELETE /storlets/:storlet_id
+DELETE /filters/:filter_id
 
 ```
 
-## Get Storlet metadata
+## Get filter metadata
 
-An application can ask for the Storlet metadata by issuing an HTTP GET request.
+An application can ask for the filter metadata by issuing an HTTP GET request.
 
 
 ### Request
 
 #### URL structure
-The URL that represents the storlet data resource. The URL is
-**/storlets/:storlet_id**
+The URL that represents the filter data resource. The URL is
+**/filters/:filter_id**
 
 #### Method
 GET
@@ -159,7 +161,7 @@ GET
 #### HTTP Request Example
 
 ```
-GET /storlets/:storlet_id
+GET /filters/:filter_id
 ```
 ### Response
 
@@ -173,12 +175,12 @@ Content-Length: 248
 
 {
 "id":1345,
-"name":"StorletName",
+"name":"filterName",
 "language":"Java",
 "interface_version":"1.0",
-"dependency":"’’",
+"dependencies":"’’",
 "object_metadata":"no",
-"main":"com.urv.storlet.uonetrace.UOneTraceStorlet",
+"main":"com.urv.filter.uonetrace.UOneTracefilter",
 "created_at":"2013-03-08 10:36:41.997",
 "deployed":"true"
 }
@@ -186,15 +188,15 @@ Content-Length: 248
 
 ```
 
-## List Storlets
+## List Filters
 
-An application can list the Storlets by issuing an HTTP GET request.
+An application can list the Filters by issuing an HTTP GET request.
 
 ### Request
 
 #### URL structure
-The URL that represents the storlet data resource. The URL is
-**/sotrlets**
+The URL that represents the filter data resource. The URL is
+**/filters**
 
 #### Method
 GET
@@ -202,7 +204,7 @@ GET
 #### HTTP Request Example
 
 ```
-GET /storlets
+GET /filters
 
 ```
 
@@ -220,47 +222,47 @@ Content-Length: 248
 [
 {
 "id":1345,
-"name":"StorletName",
+"name":"filterName",
 "language":"Java",
 "interface_version":"1.0",
-"dependency":"’’",
+"dependencies":"’’",
 "object_metadata":"no",
-"main":"com.urv.storlet.uonetrace.UOneTraceStorlet",
+"main":"com.urv.filter.uonetrace.UOneTracefilter",
 "created_at":"2013-03-08 10:36:41.997",
 "deployed":"true"
 },{
 "id":1345,
-"name":"StorletName",
+"name":"filterName",
 "language":"Java",
 "interface_version":"1.0",
-"dependency":"’’",
+"dependencies":"’’",
 "object_metadata":"no",
-"main":"com.urv.storlet.uonetrace.UOneTraceStorlet",
+"main":"com.urv.filter.uonetrace.UOneTracefilter",
 "created_at":"2013-03-08 10:36:41.997",
 "deployed":"true"
 },{
 "id":1345,
-"name":"StorletName",
+"name":"filterName",
 "language":"Java",
 "interface_version":"1.0",
-"dependency":"’’",
+"dependencies":"’’",
 "object_metadata":"no",
-"main":"com.urv.storlet.uonetrace.UOneTraceStorlet",
+"main":"com.urv.filter.uonetrace.UOneTracefilter",
 "created_at":"2013-03-08 10:36:41.997",
 "deployed":"true"
 }
 ]
 
 ```
-## Update Storlet metadata
+## Update filter metadata
 
-An application can update the Storlet metadata by issuing an HTTP PUT request.
+An application can update the filter metadata by issuing an HTTP PUT request.
 
 ### Request
 
 #### URL structure
-The URL that represents the storlet data resource. The URL is
- **/storlets/:storlet_id**.
+The URL that represents the filter data resource. The URL is
+ **/filters/:filter_id**.
 
 #### Method
 PUT
@@ -270,29 +272,29 @@ JSON input that contains a dictionary with the following keys:
 
 FIELD |  DESCRIPTION
 --- | ---
-**name** | The name of the storlet to be created.
+**name** | The name of the filter to be created.
 **language** |Currently must be 'java'
 **interface_version** | Currently we have a single version '1.0'
-**dependency** | A comma separated list of dependencies. Default: “ ”
+**dependencies** | A comma separated list of dependencies. Default: “ ”
 **object_metadata** | Currently, not in use, but must appear. Use the value 'no'
-**main** | The name of the class that implements the IStorlet API. In our case: 'com.ibm.storlet.identity.IdentityStorlet'
+**main** | The name of the class that implements the Ifilter API. In our case: 'com.ibm.filter.identity.Identityfilter'
 
 #### HTTP Request Example
 
 ```json
 
-PUT /file/32565632156
+PUT filters/32565632156
 
 Content-Length: 294
 Content-Type: application/json
 
 {
-"name":"StorletName",
+"name":"filterName",
 "language":"Java",
 "interface_version":"1.0",
-"dependency":"’’",
+"dependencies":"’’",
 "object_metadata":"no",
-"main":"com.urv.storlet.uonetrace.UOneTraceStorlet",
+"main":"com.urv.filter.uonetrace.UOneTracefilter",
 }
 
 ```
@@ -307,25 +309,25 @@ Content-Type: application/json; charset=UTF-8
 Content-Length: 248
 
 {
-"name":"StorletName",
+"name":"filterName",
 "language":"Java",
 "interface_version":"1.0",
-"dependency":"’’",
+"dependencies":"’’",
 "object_metadata":"no",
-"main":"com.urv.storlet.uonetrace.UOneTraceStorlet",
+"main":"com.urv.filter.uonetrace.UOneTracefilter",
 }
 
 ```
 
-## Deploy a Storlet
+## Deploy a filter
 
-An application can deploy the Storlet to Swift by issuing an HTTP PUT request.
+An application can deploy the filter to Swift by issuing an HTTP PUT request.
 
 ### Request
 
 #### URL structure
-The URL that represents the storlet data resource. The URL is
-**/storlets/:account/deploy/:storlet_id/**
+The URL that represents the filter data resource. The URL is
+**/filters/:account/deploy/:filter_id/**
 
 #### Method
 PUT
@@ -335,14 +337,14 @@ JSON input that contains a dictionary with the following keys:
 
 FIELD |  DESCRIPTION
 --- | ---
-**params** | The parameters needed by the storlet execution. These parameters are codified as query string. 
+**params** | The parameters needed by the filter execution. These parameters are codified as query string.
 
 
 #### HTTP Request Example
 
 ```json
 Content-Type: application/json
-PUT storlets/4f0279da74ef4584a29dc72c835fe2c9/deploy/3
+PUT /filters/4f0279da74ef4584a29dc72c835fe2c9/deploy/3
 
 {
 "params":"select=user_id",
@@ -358,15 +360,15 @@ PUT storlets/4f0279da74ef4584a29dc72c835fe2c9/deploy/3
 HTTP/1.1 201 Created
 
 ```
-## Undeploy Storlet
+## Undeploy filter
 
-An application can undeploy the Storlet of an account from Swift by issuing an HTTP PUT request.
+An application can undeploy the filter of an account from Swift by issuing an HTTP PUT request.
 
 ### Request
 
 #### URL structure
-The URL that represents the storlet data resource. The URL is
-**/storlets/:account/undeploy/:dependency_id/**
+The URL that represents the filter data resource. The URL is
+**/filters/:account/undeploy/:dependency_id/**
 
 #### Method
 PUT
@@ -375,19 +377,19 @@ PUT
 
 ```json
 Content-Type: application/json
-POST /storlets/4f0279da74ef4584a29dc72c835fe2c9/undeploy/3
+POST /filters/4f0279da74ef4584a29dc72c835fe2c9/undeploy/3
 
 ```
 
-## List deployed Storlets of an Account
+## List deployed Filters of an Account
 
-An application can list all the deployed Storlets of an account to Swift by issuing an HTTP GET request.
+An application can list all the deployed Filters of an account to Swift by issuing an HTTP GET request.
 
 ### Request
 
 #### URL structure
-The URL that represents the storlet data resource. The URL is
-**/storlets/:account/deploy/**
+The URL that represents the filter data resource. The URL is
+**/filters/:account/deploy/**
 
 #### Method
 GET
@@ -397,7 +399,7 @@ GET
 ```json
 Content-Length: 294
 Content-Type: application/json
-GET /storlets/123/deploy/
+GET /filters/123/deploy/
 
 ```
 
@@ -409,8 +411,8 @@ An application can create a Dependency by issuing an HTTP POST request. The appl
 ### Request
 
 #### URL structure
-The URL that represents the storlet data resource. The URL is
-**/storlets/dependencies.**
+The URL that represents the filter data resource. The URL is
+**/filters/dependencies.**
 #### Method
 POST
 
@@ -421,12 +423,12 @@ FIELD |  DESCRIPTION
 --- | ---
 **name** | The name of the dependency to be created. It is a unique field.
 **version** | While the engine currently does not parse this header, it must appear.
-**permissions** | An optional metadata field, where the user can state the permissions given to the dependency when it is copied to the Linux container. This is helpful for binary dependencies invoked by the storlet. For a binary dependency once can specify: '0755'
+**permissions** | An optional metadata field, where the user can state the permissions given to the dependency when it is copied to the Linux container. This is helpful for binary dependencies invoked by the filter. For a binary dependency once can specify: '0755'
 
 #### HTTP Request Example
 
 ```
-POST /storlets/dependencies
+POST /filters/dependencies
 
 {
 "name":"DependencyName",
@@ -458,13 +460,15 @@ Content-Length: 248
 
 ## Upload a Dependency
 
-An application can upload a Dependency data by issuing an HTTP PUT request. The application needs to provide the Dependency data like a binary file in the body content of the request.
+An application can upload a Dependency data by issuing an HTTP PUT request. The application needs to provide the dependency data like  a QueryDicct with a single key 'file' containing the upload file.
+**media_type:** `multipart/form-data`
+
 
 ### Request
 
 #### URL structure
-The URL that represents the storlet data resource. The URL is
-**/storlets/dependencies/:dependency_id/data.**
+The URL that represents the filter data resource. The URL is
+**/filters/dependencies/:dependency_id/data.**
 
 #### Method
 PUT
@@ -472,9 +476,10 @@ PUT
 #### HTTP Request Example
 
 ```
-POST /storlets/dependencies/:dependency_id/data
+PUT /filters/dependencies/:dependency_id/data
+"media_type":"multipart/form-data"
 
-<binary file>
+{'file':<binary file>} (QueryDicct)
 ```
 
 ### Response
@@ -495,8 +500,8 @@ An application can delete a Dependency by issuing an HTTP DELETE request. This c
 
 #### URL structure
 
-The URL that represents the storlet data resource. The URL is
-**/storlets/dependencies/:storlet_id.**
+The URL that represents the filter data resource. The URL is
+**/filters/dependencies/:filter_id.**
 
 #### Method
 DELETE
@@ -505,7 +510,7 @@ DELETE
 #### HTTP Request Example
 
 ```
-DELETE /storlets/dependencies/:dependency_id
+DELETE /filters/dependencies/:dependency_id
 ```
 
 ## Get Dependency metadata
@@ -516,8 +521,8 @@ An application can ask for the Dependency metadata by issuing an HTTP GET reques
 
 #### URL structure
 
-The URL that represents the storlet data resource. The URL is
-**/storlets/dependencies/:storlet_id**
+The URL that represents the filter data resource. The URL is
+**/filters/dependencies/:filter_id**
 
 #### Method
 GET
@@ -525,7 +530,7 @@ GET
 #### HTTP Request Example
 
 ```
-GET /storlets/dependencies/:dependency_id
+GET /filters/dependencies/:dependency_id
 Content-Type: application/json; charset=UTF-8
 ```
 
@@ -556,7 +561,7 @@ An application can list the Dependencies by issuing an HTTP GET request.
 
 #### URL structure
 
-The URL that represents the storlet data resource. The URL is
+The URL that represents the filter data resource. The URL is
 **/sotrlets/dependencies**
 
 #### Method
@@ -566,7 +571,7 @@ GET
 
 ```
 Content-Type: application/json; charset=UTF-8
-GET /storlets
+GET /filters
 
 ```
 ### Response
@@ -614,7 +619,7 @@ An application can update the Dependency metadata by issuing an HTTP PUT request
 #### URL structure
 
 The URL that represents the dependency data resource. The URL is
-**/storlets/dependencies/:dependency_id**
+**/filters/dependencies/:dependency_id**
 
 
 #### Method
@@ -627,11 +632,11 @@ FIELD |  DESCRIPTION
 --- | ---
 **name** | The name of the dependency to be created. It is a unique field.
 **version** | While the engine currently does not parse this header, it must appear.
-**permissions** | An optional metadata field, where the user can state the permissions given to the dependency when it is copied to the Linux container. This is helpful for binary dependencies invoked by the storlet. For a binary dependency once can specify: '0755'
+**permissions** | An optional metadata field, where the user can state the permissions given to the dependency when it is copied to the Linux container. This is helpful for binary dependencies invoked by the filter. For a binary dependency once can specify: '0755'
 
 #### HTTP Request Example
 ```json
-PUT /storlets/dependencies/123
+PUT /filters/dependencies/123
 {
 "name":"DependencyName",
 "version":"1.0",
@@ -660,12 +665,11 @@ Content-Length: 248
 ## Deploy Dependency
 
 An application can deploy a Dependency to an account to Swift by issuing an HTTP PUT request.
-
 ### Request
 
 #### URL structure
 The URL that represents the dependency data resource. The URL is
-**/storlets/dependencies/:account/deploy/:dependency_id/**
+**/filters/dependencies/:account/deploy/:dependency_id/**
 
 #### Method
 PUT
@@ -674,7 +678,7 @@ PUT
 
 ```
 Content-Type: application/json
-PUT /storlets/dependencies/4f0279da74ef4584a29dc72c835fe2c9/deploy/3
+PUT /filters/dependencies/4f0279da74ef4584a29dc72c835fe2c9/deploy/3
 
 ```
 
@@ -686,7 +690,7 @@ An application can undeploy the Dependency of an account from Swift by issuing a
 
 #### URL structure
 The URL that represents the dependency data resource. The URL is
-**/storlets/dependencies/:account/undeploy/:dependency_id/**
+**/filters/dependencies/:account/undeploy/:dependency_id/**
 
 #### Method
 PUT
@@ -695,7 +699,7 @@ PUT
 
 ```json
 Content-Type: application/json
-POST /storlets/dependencies/4f0279da74ef4584a29dc72c835fe2c9/undeploy/3
+POST /filters/dependencies/4f0279da74ef4584a29dc72c835fe2c9/undeploy/3
 
 ```
 
@@ -706,8 +710,8 @@ An application can list all the deployed Dependencies of an account to Swift by 
 ### Request
 
 #### URL structure
-The URL that represents the storlet data resource. The URL is
-**/storlets/dependencies/:account/deploy/**
+The URL that represents the filter data resource. The URL is
+**/filters/dependencies/:account/deploy/**
 
 #### Method
 GET
@@ -717,6 +721,6 @@ GET
 ```json
 Content-Length: 294
 Content-Type: application/json
-GET /storlets/dependencies/123/deploy/
+GET /filters/dependencies/123/deploy/
 
 ```

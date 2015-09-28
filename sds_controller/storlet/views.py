@@ -3,8 +3,8 @@ from django.views.decorators.csrf import csrf_exempt
 from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 from rest_framework.parsers import JSONParser, FileUploadParser, MultiPartParser, FormParser
-from storlet.models import Storlet, Dependency, StorletUser
-from storlet.serializers import StorletSerializer, DependencySerializer, StorletUserSerializer
+from storlet.models import Storlet, Dependency, StorletUser, DependencyUser
+from storlet.serializers import StorletSerializer, DependencySerializer, StorletUserSerializer, DependencyUserSerializer
 from swiftclient import client as c
 from rest_framework.views import APIView
 from django.conf import settings
@@ -69,6 +69,7 @@ def storlet_detail(request, id):
     elif request.method == 'DELETE':
         storlet.delete()
         return JSONResponse('Storlet has been deleted', status=204)
+    return JSONResponse('Method '+str(request.method)+' not allowed.', status=405)
 
 class StorletData(APIView):
     parser_classes = (MultiPartParser, FormParser,)
@@ -104,7 +105,7 @@ def storlet_deploy(request, id, account):
 
         metadata = {'X-Object-Meta-Storlet-Language':'Java',
             'X-Object-Meta-Storlet-Interface-Version':'1.0',
-            'X-Object-Meta-Storlet-Dependency': storlet.dependency,
+            'X-Object-Meta-Storlet-Dependency': storlet.dependencies,
             'X-Object-Meta-Storlet-Object-Metadata':'no',
             'X-Object-Meta-Storlet-Main': storlet.main_class}
         f = open(storlet.path,'r')
@@ -126,6 +127,7 @@ def storlet_deploy(request, id, account):
                 return JSONResponse("Deployed", status=201)
 
         return JSONResponse("error", status=400)
+    return JSONResponse('Method '+str(request.method)+' not allowed.', status=405)
 
 @csrf_exempt
 def storlet_list_deployed(request, account):
@@ -137,27 +139,31 @@ def storlet_list_deployed(request, account):
 	           return JSONResponse('Any Storlet deployed', status=404)
         serializer = StorletUserSerializer(storlets, many=True)
         return JSONResponse(serializer.data, status=200)
-
+    return JSONResponse('Method '+str(request.method)+' not allowed.', status=405)
+    
 @csrf_exempt
 def storlet_undeploy(request, id, account):
     try:
         storlet_user = StorletUser.objects.get(storlet_id=id, user_id=account,)
-    except Storlet.DoesNotExist:
-        return JSONResponse('Storlet does not exists', status=404)
+    except StorletUser.DoesNotExist:
+        return JSONResponse('Storlet '+str(id)+' has not been deployed already', status=404)
 
     if request.method == 'PUT':
         headers = is_valid_request(request)
         if not headers:
             return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
         response = dict()
-        c.delete_object(settings.SWIFT_URL+"AUTH_"+str(account),headers["X-Auth-Token"],
-            'storlet', storlet_user.storlet.name, None, None, None, None, response)
-
+        try:
+            c.delete_object(settings.SWIFT_URL+"AUTH_"+str(account),headers["X-Auth-Token"],
+                'storlet', storlet_user.storlet.name, None, None, None, None, response)
+        except:
+            return JSONResponse(response.get("reason"), status=response.get('status'))
         status = response.get('status')
-        if status == 200:
-            deleted = StorletUser.objects.delete(id=storlet_user.id)
-            return JSONResponse("The object has been deleted", status=status)
-        return JSONResponse(response.get["reason"], status=status)
+        if 200 <= status < 300:
+            StorletUser.objects.get(id=storlet_user.id).delete()
+            return JSONResponse('The object has been deleted', status=status)
+        return JSONResponse(response.get("reason"), status=status)
+    return JSONResponse('Method '+str(request.method)+' not allowed.', status=405)
 
 """
 ------------------------------
@@ -181,14 +187,15 @@ def dependency_list(request):
             serializer.save()
             return JSONResponse(serializer.data, status=201)
         return JSONResponse(serializer.errors, status=400)
+    return JSONResponse('Method '+str(request.method)+' not allowed.', status=405)
 
 @csrf_exempt
-def dependency_detail(request, name):
+def dependency_detail(request, id):
     """
     Retrieve, update or delete a Dependency.
     """
     try:
-        dependency = Dependency.objects.get(name=name)
+        dependency = Dependency.objects.get(id=id)
     except Dependency.DoesNotExist:
         return JSONResponse('Dependency does not exists', status=404)
 
@@ -207,31 +214,32 @@ def dependency_detail(request, name):
     elif request.method == 'DELETE':
         dependency.delete()
         return JSONResponse('Dependency with id:'+str(id)+'has been deleted', status=204)
+    return JSONResponse('Method '+str(request.method)+' not allowed.', status=405)
 
-@csrf_exempt
-def dependency_data(request, name):
-
-    if request.method == 'PUT':
+class DependencyData(APIView):
+    parser_classes = (MultiPartParser, FormParser,)
+    def put(self, request, id, format=None):
         file_obj = request.FILES['file']
         path = save_file(file_obj, settings.DEPENDENCY_DIR)
         try:
-            dependency = Dependency.objects.get(name=name)
+            dependency = Dependency.objects.get(id=id)
             dependency.path = path
             dependency.save()
         except Dependency.DoesNotExist:
             return JSONResponse('Dependency does not exists', status=404)
-
-        #TODO Update the path field
         serializer = DependencySerializer(dependency)
         return JSONResponse(serializer.data, status=201)
-    if request.method == 'GET':
-        #TODO Return the dependency data
-        return JSONResponse('return data', status=200)
+    def get(self, request, id, format=None):
+        #TODO Return the storlet data
+        data = "File"
+        return Response(data, status=None, template_name=None, headers=None, content_type=None)
+
+
 
 @csrf_exempt
-def dependency_deploy(request, name, account):
+def dependency_deploy(request, id, account):
     try:
-        dependency = Dependency.objects.get(name=name)
+        dependency = Dependency.objects.get(id=id)
     except Dependency.DoesNotExist:
         return JSONResponse('Dependency does not exists', status=404)
 
@@ -239,7 +247,6 @@ def dependency_deploy(request, name, account):
         headers = is_valid_request(request)
         if not headers:
             return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
-        data = JSONParser().parse(request)
 
         metadata = {'X-Object-Meta-Storlet-Dependency-Version': str(dependency.version)}
         f = open(dependency.path,'r')
@@ -253,12 +260,13 @@ def dependency_deploy(request, name, account):
         if 200 <= status < 300:
             try:
                 #TODO: Control version, it's possible add call to updrade the version
-                storlet_user = DependencyUser.objects.get(dependency=dependency, user_id=account)
+                dependency_user = DependencyUser.objects.get(dependency=dependency, user_id=account)
                 return JSONResponse("Already deployed", status=200)
-            except StorletUser.DoesNotExist:
-                storlet_user = StorletUser.objects.create(dependency_id=dependency.id, user_id=account)
+            except DependencyUser.DoesNotExist:
+                dependency_user = DependencyUser.objects.create(dependency_id=dependency.id, user_id=account)
                 return JSONResponse("Deployed", status=201)
         return JSONResponse('ERROR',status=500)
+    return JSONResponse('Method '+str(request.method)+' not allowed.', status=405)
 
 @csrf_exempt
 def dependency_list_deployed(request, account):
@@ -266,17 +274,20 @@ def dependency_list_deployed(request, account):
     if request.method == 'GET':
         try:
             dependency = DependencyUser.objects.filter(user_id=account)
-        except StorletUser.DoesNotExist:
+        except DependencyUser.DoesNotExist:
 	           return JSONResponse('Any Dependency deployed', status=404)
-        serializer = StorletUserSerializer(dependency, many=True)
+        serializer = DependencyUserSerializer(dependency, many=True)
         return JSONResponse(serializer.data, status=200)
+    return JSONResponse('Method '+str(request.method)+' not allowed.', status=405)
 
 @csrf_exempt
-def dependency_undeploy(request, name, account):
+def dependency_undeploy(request, id, account):
     try:
-        dependency = Dependency.objects.get(name=name)
-        dependency_user = DependencyUser.objects.get(storlet_id=dependency.id, user_id=account)
-    except Storlet.DoesNotExist:
+        dependency = Dependency.objects.get(id=id)
+        dependency_user = DependencyUser.objects.get(dependency_id=dependency.id, user_id=account)
+    except DependencyUser.DoesNotExist:
+        return JSONResponse('Dependency '+str(id)+' has not been deployed', status=404)
+    except Dependency.DoesNotExist:
         return JSONResponse('Dependency does not exists', status=404)
 
     if request.method == 'PUT':
@@ -284,14 +295,17 @@ def dependency_undeploy(request, name, account):
         if not headers:
             return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
         response = dict()
-        c.delete_object(settings.SWIFT_URL+"AUTH_"+str(account),headers["X-Auth-Token"],
-            'dependency', dependency.name, None, None, None, None, response)
-
+        try:
+            c.delete_object(settings.SWIFT_URL+"AUTH_"+str(account),headers["X-Auth-Token"],
+                'dependency', dependency.name, None, None, None, None, response)
+        except:
+            return JSONResponse(response.get("reason"), status=response.get('status'))
         status = response.get('status')
-        if status == 200:
-            deleted = StorletUser.objects.delete(id=dependency_user.id)
+        if 200 <= status < 300:
+            DependencyUser.objects.get(id=dependency_user.id).delete()
             return JSONResponse("The object has been deleted", status=status)
-        return JSONResponse(response.get["reason"], status=status)
+        return JSONResponse(response.get("reason"), status=status)
+    return JSONResponse('Method '+str(request.method)+' not allowed.', status=405)
 
 def save_file(file, path=''):
     '''
