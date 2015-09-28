@@ -100,5 +100,5 @@ docs/_build/
 target/
 
 # Upload files
-sds_controller/storlets/storlets_jar/*
-sds_controller/storlets/dependencies_jar/*
+./sds_controller/storlets/storlets_jar/
+./sds_controller/storlets/dependencies_jar/
