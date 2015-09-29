@@ -112,11 +112,15 @@ def storlet_deploy(request, id, account):
         content_length = None
         response = dict()
         #Change to API Call
-        c.put_object(settings.SWIFT_URL+"AUTH_"+str(account), headers["X-Auth-Token"], 'storlet', storlet.name, f,
-                     content_length, None, None,
-                     "application/octet-stream", metadata,
-                     None, None, None, response)
-        f.close()
+        try:
+            c.put_object(settings.SWIFT_URL+"AUTH_"+str(account), headers["X-Auth-Token"], 'storlet', storlet.name, f,
+                         content_length, None, None,
+                         "application/octet-stream", metadata,
+                         None, None, None, response)
+        except:
+            return JSONResponse(response.get("reason"), status=response.get('status'))
+        finally:
+            f.close()
         status = response.get('status')
         if status == 201:
             try:
@@ -140,7 +144,7 @@ def storlet_list_deployed(request, account):
         serializer = StorletUserSerializer(storlets, many=True)
         return JSONResponse(serializer.data, status=200)
     return JSONResponse('Method '+str(request.method)+' not allowed.', status=405)
-    
+
 @csrf_exempt
 def storlet_undeploy(request, id, account):
     try:
@@ -252,10 +256,14 @@ def dependency_deploy(request, id, account):
         f = open(dependency.path,'r')
         content_length = None
         response = dict()
-        c.put_object(settings.SWIFT_URL+"AUTH_"+str(account), headers["X-Auth-Token"], 'dependency', dependency.name, f,
-                     content_length, None, None, "application/octet-stream",
-                     metadata, None, None, None, response)
-        f.close()
+        try:
+            c.put_object(settings.SWIFT_URL+"AUTH_"+str(account), headers["X-Auth-Token"], 'dependency', dependency.name, f,
+                         content_length, None, None, "application/octet-stream",
+                         metadata, None, None, None, response)
+        except:
+            return JSONResponse(response.get("reason"), status=response.get('status'))
+        finally:
+            f.close()
         status = response.get('status')
         if 200 <= status < 300:
             try:
