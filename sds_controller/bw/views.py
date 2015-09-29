@@ -20,7 +20,7 @@ class JSONResponse(HttpResponse):
         kwargs['content_type'] = 'application/json'
         super(JSONResponse, self).__init__(content, **kwargs)
 
-def proxyaddres():
+def proxyaddress():
     """
     Reads the proxy address from the Swift-proxy.conf file.
     """
@@ -49,9 +49,9 @@ def bw_list(request):
     if not headers:
         return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
     if request.method == 'GET':
-        address = proxyaddres() + "/bwdict/"
-        r = requests.get(address)
-        return JSONResponse(r.content, content_type = 'application/json', status=200)
+        address = proxyaddress() + "/bwdict/"
+        r = requests.get(address, headers=headers)
+        return JSONResponse(r.content, content_type = 'application/json', status=r.status_code)
     return JSONResponse('Only HTTP GET /bw/ requests allowed.', status=405)
 
 @csrf_exempt
@@ -64,12 +64,12 @@ def bw_detail(request, account):
         return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
     if request.method == 'GET':
         dict_json = dict()
-        address = proxyaddres() + "/bwdict/"
+        address = proxyaddress() + "/bwdict/"
         r = requests.get(address)
-        data = json.loads(r.content)
+        data = json.loads(r.content, headers=headers)
         for os in data:
             dict_json[os] = { k : v for k,v in data[os].iteritems() if k == account}
-        return JSONResponse(json.dumps(dict_json), content_type = 'application/json', status=200)
+        return JSONResponse(json.dumps(dict_json), content_type = 'application/json', status=r.status_code)
     return JSONResponse('Only HTTP GET /bw/<account>/ requests allowed.', status=405)
 
 @csrf_exempt
@@ -81,9 +81,9 @@ def bw_clear_all(request):
     if not headers:
         return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
     if request.method == 'PUT':
-        address = proxyaddres() + "/bwmod/"
-        r = requests.get(address)
-        return HttpResponse(r.content, content_type = 'application/json', status=200)
+        address = proxyaddress() + "/bwmod/"
+        r = requests.get(address, headers=headers)
+        return HttpResponse(r.content, content_type = 'application/json', status=r.status_code)
     return JSONResponse('Only HTTP PUT /bw/clear/ requests allowed.', status=405)
 
 @csrf_exempt
@@ -95,9 +95,9 @@ def bw_clear_account(request, account):
     if not headers:
         return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
     if request.method == 'PUT':
-        address = proxyaddres() + "/bwmod/" + account + "/"
-        r = requests.get(address)
-        return HttpResponse(r.content, content_type = 'application/json', status=200)
+        address = proxyaddress() + "/bwmod/" + account + "/"
+        r = requests.get(address,headers=headers)
+        return HttpResponse(r.content, content_type = 'application/json', status=r.status_code)
     return JSONResponse('Only HTTP PUT /bw/clear/<account>/ requests allowed.', status=405)
 
 @csrf_exempt
@@ -110,9 +110,9 @@ def bw_clear_policy(request, account, policy):
     if not headers:
         return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
     if request.method == 'PUT':
-        address = proxyaddres() + "/bwmod/" + account + "/" + policy + "/"
-        r = requests.get(address)
-        return HttpResponse(r.content, content_type = 'application/json', status=200)
+        address = proxyaddress() + "/bwmod/" + account + "/" + policy + "/"
+        r = requests.get(address, headers=headers)
+        return HttpResponse(r.content, content_type = 'application/json', status=r.status_code)
     return JSONResponse('Only HTTP PUT /bw/clear/<account>/<policy>/ requests allowed.', status=405)
 
 
@@ -126,9 +126,9 @@ def bw_update(request, account, bw_value):
     if not headers:
         return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
     if request.method == 'PUT':
-        address = proxyaddres() + "/bwmod/" + account + "/" + bw_value + "/"
-        r = requests.get(address)
-        return HttpResponse(r.content, content_type = 'application/json', status=200)
+        address = proxyaddress() + "/bwmod/" + account + "/" + bw_value + "/"
+        r = requests.get(address, headers=headers)
+        return HttpResponse(r.content, content_type = 'application/json', status=r.status_code)
     return JSONResponse('Only HTTP PUT /bw/<account>/<bw_value>/ requests allowed.', status=405)
 
 @csrf_exempt
@@ -141,9 +141,9 @@ def bw_update_policy(request, account, policy, bw_value):
     if not headers:
         return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
     if request.method == 'PUT':
-        address = proxyaddres() + "/bwmod/" + account + "/" + policy + "/" + bw_value + "/"
-        r = requests.get(address)
-        return HttpResponse(r.content, content_type = 'application/json', status=200)
+        address = proxyaddress() + "/bwmod/" + account + "/" + policy + "/" + bw_value + "/"
+        r = requests.get(address, headers)
+        return HttpResponse(r.content, content_type = 'application/json', status=r.status_code)
     return JSONResponse('Only HTTP PUT /bw/clear/<account>/<policy>/<bw_value>/ requests allowed.', status=405)
 
 
@@ -156,7 +156,7 @@ def osinfo(request):
     if not headers:
         return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
     if request.method == 'GET':
-        address = proxyaddres() + "/osinfo/"
-        r = requests.get(address)
-        return HttpResponse(r.content, content_type = 'application/json', status=200)
+        address = proxyaddress() + "/osinfo/"
+        r = requests.get(address, headers=headers)
+        return HttpResponse(r.content, content_type = 'application/json', status=r.status_code)
     return JSONResponse('Only HTTP GET /bw/osinfo/ requests allowed.', status=405)
