@@ -142,7 +142,7 @@ def bw_update_policy(request, account, policy, bw_value):
         return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
     if request.method == 'PUT':
         address = proxyaddress() + "/bwmod/" + account + "/" + policy + "/" + bw_value + "/"
-        r = requests.get(address, headers)
+        r = requests.get(address, headers=headers)
         return HttpResponse(r.content, content_type = 'application/json', status=r.status_code)
     return JSONResponse('Only HTTP PUT /bw/clear/<account>/<policy>/<bw_value>/ requests allowed.', status=405)
 
