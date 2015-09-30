@@ -1,22 +1,22 @@
 import pika
 import daemon
+import logging
 
 with daemon.DaemonContext():
+
+    logging.basicConfig(filename='/var/log/bw_consumer.log', format='%(asctime)s %(message)s', level=logging.INFO)
+
     connection = pika.BlockingConnection(pika.ConnectionParameters(
-            host='localhost'))
+            host='10.30.236.205'))
     channel = connection.channel()
 
-    channel.queue_declare(queue='hello2')
+    logging.info(' [*] Waiting for messages')
 
-    print ' [*] Waiting for messages. To exit press CTRL+C'
-    f2 = open('/home/vagrant/src/v.txt', 'w')
-    f2.write('[*] Waiting for messages. To exit press CTRL+C')
-    f2.close()
-    f = open('/home/vagrant/src/a.txt', 'wa')
     def callback(ch, method, properties, body):
-        f.write(" [x] Received "+str(body)+"\n")
+        logging.info(" [x] Received "+str(body)+"\n")
+        #Here we can call SDS Controller API.
     channel.basic_consume(callback,
-                          queue='hello2',
+                          queue='myQueue',
                           no_ack=True)
 
     channel.start_consuming()
