@@ -74,6 +74,12 @@ package {
         ensure => "0.9.8",
         provider => pip;
     "python-swiftclient":
-        ensure => installed,
+        ensure => "installed",
         provider => pip;
+    "redis":
+        ensure => "installed",
+        provider => pip,
+    "redisco":
+        ensure => "installed",
+        provider => pip,
 }
