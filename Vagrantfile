@@ -9,6 +9,7 @@ Vagrant.configure(2) do |config|
   config.vm.network "forwarded_port", guest: 8000, host: 18000 # Django
   config.vm.network "forwarded_port", guest: 5672, host: 25672 #rabitmq
   config.vm.network "forwarded_port", guest: 15672, host: 35672 #rabitmq
+  config.vm.network "forwarded_port", guest: 6379, host: 16379 #redis
 
   config.vm.synced_folder ".", "/home/vagrant/src"
 

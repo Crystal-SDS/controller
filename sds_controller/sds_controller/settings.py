@@ -112,5 +112,5 @@ USE_TZ = True
 STATIC_URL = '/static/'
 
 #Swift info
-KEYSTONE_URL = "http://10.30.232.232:35357/v2.0/"
-SWIFT_URL= "http://10.30.232.232:8080/v1/"
+KEYSTONE_URL = "http://10.30.235.235:35357/v2.0/"
+SWIFT_URL= "http://10.30.235.235:8080/v1/"

@@ -8,8 +8,9 @@ from storlet.serializers import StorletSerializer, DependencySerializer, Storlet
 from swiftclient import client as c
 from rest_framework.views import APIView
 from django.conf import settings
+import redis
 # Create your views here.
-
+r = redis.StrictRedis(host='localhost', port=6379, db=0)
 class JSONResponse(HttpResponse):
     """
     An HttpResponse that renders its content into JSON.
@@ -101,7 +102,7 @@ def storlet_deploy(request, id, account):
             return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
 
         #TODO: add params in the request body
-        data = JSONParser().parse(request)
+        params = JSONParser().parse(request)
 
         metadata = {'X-Object-Meta-Storlet-Language':'Java',
             'X-Object-Meta-Storlet-Interface-Version':'1.0',
@@ -123,34 +124,35 @@ def storlet_deploy(request, id, account):
             f.close()
         status = response.get('status')
         if status == 201:
-            try:
-                storlet_user = StorletUser.objects.get(storlet=storlet, user_id=account)
+            if r.get("AUTH_"+str(account)):
                 return JSONResponse("Already deployed", status=200)
-            except StorletUser.DoesNotExist:
-                storlet_user = StorletUser.objects.create(storlet_id=storlet.id, user_id=account, parameters=data["params"])
-                return JSONResponse("Deployed", status=201)
+
+            if r.lpush("AUTH_"+str(account), str(storlet.name)):
+                if r.hmset("AUTH_"+str(account)+":"+str(storlet.name), params):
+                    return JSONResponse("Deployed", status=201)
 
         return JSONResponse("error", status=400)
     return JSONResponse('Method '+str(request.method)+' not allowed.', status=405)
 
 @csrf_exempt
 def storlet_list_deployed(request, account):
-
     if request.method == 'GET':
-        try:
-            storlets = StorletUser.objects.filter(user_id=account)
-        except StorletUser.DoesNotExist:
-	           return JSONResponse('Any Storlet deployed', status=404)
-        serializer = StorletUserSerializer(storlets, many=True)
-        return JSONResponse(serializer.data, status=200)
+        result = r.lrange("AUTH_"+str(account), 0, -1)
+        if result:
+            return JSONResponse(result, status=200)
+        else:
+            return JSONResponse('Any Storlet deployed', status=404)
     return JSONResponse('Method '+str(request.method)+' not allowed.', status=405)
 
 @csrf_exempt
 def storlet_undeploy(request, id, account):
     try:
-        storlet_user = StorletUser.objects.get(storlet_id=id, user_id=account,)
-    except StorletUser.DoesNotExist:
-        return JSONResponse('Storlet '+str(id)+' has not been deployed already', status=404)
+        storlet = Storlet.objects.get(id=id)
+    except Storlet.DoesNotExist:
+        return JSONResponse('Storlet does not exists', status=404)
+
+    if not r.hgetall("AUTH_"+str(account)+":"+str(storlet.name)):
+        return JSONResponse('Filter '+str(storlet.name)+' has not been deployed already', status=404)
 
     if request.method == 'PUT':
         headers = is_valid_request(request)
@@ -159,12 +161,12 @@ def storlet_undeploy(request, id, account):
         response = dict()
         try:
             c.delete_object(settings.SWIFT_URL+"AUTH_"+str(account),headers["X-Auth-Token"],
-                'storlet', storlet_user.storlet.name, None, None, None, None, response)
+                'storlet', storlet.name, None, None, None, None, response)
         except:
             return JSONResponse(response.get("reason"), status=response.get('status'))
         status = response.get('status')
         if 200 <= status < 300:
-            StorletUser.objects.get(id=storlet_user.id).delete()
+            r.lrem("AUTH_"+str(account), 1, str(storlet.name))
             return JSONResponse('The object has been deleted', status=status)
         return JSONResponse(response.get("reason"), status=status)
     return JSONResponse('Method '+str(request.method)+' not allowed.', status=405)

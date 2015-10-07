@@ -37,7 +37,7 @@ class rabbitmq_server {
 
 include rabbitmq_server
 
-$sysPackages = ['git', 'curl']
+$sysPackages = ['git', 'curl', 'redis-server', 'redis-cli']
 package { $sysPackages:
   ensure => "installed",
   require  => Class['prepare']
@@ -57,6 +57,7 @@ postgresql::server::db { 'sds_controller':
 package { 'python-psycopg2':
     ensure => installed,
   }
+
 package {
     "django":
         ensure => "1.8.1",
@@ -78,8 +79,8 @@ package {
         provider => pip;
     "redis":
         ensure => "installed",
-        provider => pip,
+        provider => pip;
     "redisco":
         ensure => "installed",
-        provider => pip,
+        provider => pip;
 }

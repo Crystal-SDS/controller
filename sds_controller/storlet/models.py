@@ -17,7 +17,7 @@ class Storlet(models.Model):
     interface_version = models.CharField(max_length=10, blank=False)
     object_metadata = models.CharField(max_length=200, blank=False)
     main_class = models.CharField(max_length=200, blank=False)
-    dependencies = models.CharField(max_length=200, blank=False)
+    dependencies = models.CharField(max_length=200, blank=True)
     class Meta:
         ordering = ('created_at',)
 
