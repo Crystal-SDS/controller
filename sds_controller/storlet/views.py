@@ -225,9 +225,9 @@ def dependency_list(request):
 
     elif request.method == 'POST':
         data = JSONParser().parse(request)
-        storlet_id = r.incr("dependencies:id")
+        dependency_id = r.incr("dependencies:id")
         try:
-            r.hmset('dependency:'+str(storlet_id), data)
+            r.hmset('dependency:'+str(dependency_id), data)
             return JSONResponse(data, status=201)
         except:
             return JSONResponse("Error to save the filter", status=400)
@@ -257,7 +257,7 @@ def dependency_detail(request, id):
 
     elif request.method == 'DELETE':
         r.delete("storlet:"+str(id))
-        return JSONResponse('Filter has been deleted', status=204)
+        return JSONResponse('Dependency has been deleted', status=204)
     return JSONResponse('Method '+str(request.method)+' not allowed.', status=405)
 
 class DependencyData(APIView):
