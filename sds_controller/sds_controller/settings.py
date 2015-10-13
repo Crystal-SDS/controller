@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/1.8/ref/settings/
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 import os
+import redis
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -114,3 +115,6 @@ STATIC_URL = '/static/'
 #Swift info
 KEYSTONE_URL = "http://10.30.235.235:35357/v2.0/"
 SWIFT_URL= "http://10.30.235.235:8080/v1/"
+
+#redis
+REDIS_CON_POOL = redis.ConnectionPool(host='localhost', port=6379, db=0)

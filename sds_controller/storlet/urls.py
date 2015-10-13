@@ -4,7 +4,7 @@ from django.conf.urls import patterns, url
 from . import views
 
 urlpatterns = [
-    url(r'^/?$', views.StorletList.as_view()),
+    url(r'^/?$', views.storlet_list),
     url(r'^/(?P<id>[0-9]+)/?$', views.storlet_detail),
     url(r'^/(?P<id>[0-9]+)/data/?$', views.StorletData.as_view()),
     url(r'^/(?P<account>\w+)/deploy/?$', views.storlet_list_deployed),
