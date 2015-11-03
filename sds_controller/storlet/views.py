@@ -133,7 +133,10 @@ def storlet_deploy(request, id, account):
             'X-Object-Meta-Storlet-Dependency': storlet['dependencies'],
             'X-Object-Meta-Storlet-Object-Metadata':'no',
             'X-Object-Meta-Storlet-Main': storlet['main_class']}
-        f = open(storlet['path'],'r')
+        try:
+            f = open(storlet['path'],'r')
+        except:
+            return JSONResponse('Not found the filter data file', status=404)
         content_length = None
         response = dict()
         #Change to API Call
@@ -263,16 +266,16 @@ def dependency_detail(request, id):
 class DependencyData(APIView):
     parser_classes = (MultiPartParser, FormParser,)
     def put(self, request, id, format=None):
-    if r.exists("dependency:"+str(id)):
-        file_obj = request.FILES['file']
-        path = save_file(file_obj, settings.DEPENDENCY_DIR)
-        try:
-            r = get_redis_connection()
-            result = r.hset("dependency:"+str(id), "path", str(path))
-        except:
-            return JSONResponse('Problems connecting with DB', status=500)
-        return JSONResponse('Dependency has been updated', status=201)
-    return JSONResponse('Dependency does not exists', status=404)
+        if r.exists("dependency:"+str(id)):
+            file_obj = request.FILES['file']
+            path = save_file(file_obj, settings.DEPENDENCY_DIR)
+            try:
+                r = get_redis_connection()
+                result = r.hset("dependency:"+str(id), "path", str(path))
+            except:
+                return JSONResponse('Problems connecting with DB', status=500)
+            return JSONResponse('Dependency has been updated', status=201)
+        return JSONResponse('Dependency does not exists', status=404)
 
     def get(self, request, id, format=None):
         #TODO Return the storlet data

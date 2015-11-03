@@ -7,8 +7,10 @@ with daemon.DaemonContext():
     logging.basicConfig(filename='/var/log/bw_consumer.log', format='%(asctime)s %(message)s', level=logging.INFO)
 
     connection = pika.BlockingConnection(pika.ConnectionParameters(
-            host='10.30.236.205'))
+            host='localhost'))
     channel = connection.channel()
+
+    channel.queue_declare(queue='test_consumer')
 
     logging.info(' [*] Waiting for messages')
 
@@ -16,7 +18,7 @@ with daemon.DaemonContext():
         logging.info(" [x] Received "+str(body)+"\n")
         #Here we can call SDS Controller API.
     channel.basic_consume(callback,
-                          queue='myQueue',
+                          queue='test_consumer',
                           no_ack=True)
 
     channel.start_consuming()

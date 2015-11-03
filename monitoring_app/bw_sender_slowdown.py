@@ -21,11 +21,11 @@ while True:
 
     bw = (math.cos(sec)-1)*(-50)
 
-    message = json.dumps([{"tenant_id":tenant, "througput":bw}])
+    message = json.dumps([{"tenant_id":tenant, "slowdown":bw}])
     logging.info(' [*] Message sended is %s', message)
     channel.basic_publish(exchange='',
-                          routing_key='througput',
+                          routing_key='slowdown',
                           body=message)
 
-    sec +=  1
+    sec += 0.1
     time.sleep(1)
