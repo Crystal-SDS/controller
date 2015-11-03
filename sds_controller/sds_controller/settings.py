@@ -43,7 +43,8 @@ INSTALLED_APPS = (
     'rest_framework',
     'storlet',
     'bw',
-    'swift'
+    'swift',
+    'registy'
 )
 
 MIDDLEWARE_CLASSES = (
