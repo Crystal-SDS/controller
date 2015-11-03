@@ -1,4 +1,4 @@
-from metric import Througput
+from metric import Througput, Slowdown
 from rule import Rule
 import rules_parse as p
 import time
@@ -18,11 +18,15 @@ import operator
 # print operator.gt(10, 3)
 
 t = Througput("througput")
-r = p.parse("FOR 2312 WHEN slowdown > 3 DO compress")
+s = Slowdown("slowdown")
+# r = p.parse("FOR 2312 WHEN slowdown > 3 DO compress")
+r = p.parse("FOR 2312 WHEN througput < 3 OR slowdown == 1 AND througput == 5 OR througput == 6 DO action")
+
 print r.asList()
 rule = Rule(r)
 print 'rule created'
 print 'rule', rule.tenant
 t.attach(rule)
-time.sleep(10)
+s.attach(rule)
+time.sleep(40)
 t.stop_consuming()

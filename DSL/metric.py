@@ -1,13 +1,11 @@
 import pika
 import logging
 import json
-from threading import Thread, Event, RLock,current_thread, Lock, BoundedSemaphore
-
-
-class Metric(Thread):
+from pyactive.controller import init_host, serve_forever, start_controller, interval, sleep
+from pyactive.exception import TimeoutError, PyactiveError
+class Metric():
 
     def __init__(self):
-        threading.Thread.__init__(self)
         self._observers = {}
         self.value = None
         self.name = None
@@ -16,7 +14,7 @@ class Metric(Thread):
         #     host='localhost', port=25672)).channel()
 
     def attach(self, observer):
-        print "oberver", observer.tenant
+        print "observer", observer.tenant
         if not observer.tenant in self._observers.keys():
             self._observers[observer.tenant] = set()
         if not observer in self._observers[observer.tenant]:
@@ -39,6 +37,10 @@ class Metric(Thread):
                 pass
 
 class Througput(Metric):
+    _sync = {}
+    _async = ['get_value', 'attach', 'detach']
+    _ref = []
+    _parallel = []
 
     def __init__(self, queue):
         Metric.__init__(self)
@@ -53,6 +55,44 @@ class Througput(Metric):
         self.thread.start()
 
         self.name = "througput"
+        # Consumer("localhost", 25672, queue, self)
+        # thread1 = Consumer("localhost", 25672, queue, self)
+        # Start new Threads
+        # thread1.start()
+
+    def get_value(self):
+        return self.value
+
+    def start_consuming(self):
+        self.channel.start_consuming()
+
+    def stop_consuming(self):
+        self.channel.stop_consuming()
+        self.channel.close()
+
+    def callback(self, ch, method, properties, body):
+        print 'body', body
+        self.notify(body)
+
+class Slowdown(Metric):
+    _sync = {}
+    _async = ['get_value', 'attach', 'detach']
+    _ref = []
+    _parallel = []
+
+    def __init__(self, queue):
+        Metric.__init__(self)
+        # Queue name should be take from config file
+        self.channel = pika.BlockingConnection(pika.ConnectionParameters(
+            host='localhost', port=25672)).channel()
+        self.channel.queue_declare(queue=queue)
+        self.channel.basic_consume(self.callback,
+                              queue=queue,
+                              no_ack=True)
+        self.thread = Thread(target=self.start_consuming)
+        self.thread.start()
+
+        self.name = "slowdown"
         # Consumer("localhost", 25672, queue, self)
         # thread1 = Consumer("localhost", 25672, queue, self)
         # Start new Threads
@@ -98,8 +138,8 @@ class Consumer (Thread):
         consumer with RabbitMQ. We keep the value to use it when we want to
         cancel consuming. The on_message method is passed in as a callback pika
         will invoke when a message is fully received.
-
         """
+
         self.add_on_cancel_callback()
         self._consumer_tag = self._channel.basic_consume(self.callback,
                               queue=self.queue,
@@ -121,26 +161,6 @@ class Consumer (Thread):
         """
         LOGGER.info('Closing the channel')
         self._channel.close()
-
-    def callback(self, ch, method, properties, body):
-        print 'body', body
-        self.obj.notify(body)
-
-class Consumer2():
-    def __init__(self, host, port, queue, obj):
-        self.channel = pika.BlockingConnection(pika.ConnectionParameters(
-            host='localhost', port=25672)).channel()
-        self.obj = obj
-        self.channel.basic_consume(self.callback,
-                              queue=queue,
-                              no_ack=True)
-        self.start_consume()
-
-    def start_consume(self):
-        self.channel.start_consuming()
-
-    def stop_consume(self):
-        self.channel.stop_consuming()
 
     def callback(self, ch, method, properties, body):
         print 'body', body
