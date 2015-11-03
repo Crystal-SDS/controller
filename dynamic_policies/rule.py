@@ -41,13 +41,21 @@ class Rule(object):
         f.close()
         self.check_metrics(self.conditions)
 
+    """
+    The add_metric method subscribes the rule to all workload metrics that it
+    needs to check the conditions defined in the policy
+    """
     def add_metric(self, value):
         if value not in self.observers.keys():
             #Subscrive to metric observer
             observer = self.host.lookup(self.base_uri+'metrics.'+value+'/'+value.title()+'/'+value)
             observer.attach(self.proxy)
             self.observers[value] = None
-
+    """
+    The check_metrics method finds in the condition list all the metrics that it
+    needs to check the conditions, when find some metric that it needs, call the
+    method add_metric.
+    """
     def check_metrics(self, condition_list):
         if not isinstance(condition_list[0], list):
             self.add_metric(condition_list[0].lower())
@@ -55,13 +63,17 @@ class Rule(object):
             for element in condition_list:
                 if element is not "OR" and element is not "AND":
                     self.check_metrics(element)
-
+    """
+    The method update is called by the workloads metrics following the observer
+    pattern. This method is called to send to this actor the data updated.
+    """
     def update(self, metric, tenant_info):
 
         self.observers[metric]=tenant_info[metric]
         #TODO Check the last time updated the value
+        #Check the condition of the policy if all values are setted. If the condition
+        #result is true, it calls the method do_action
         if all(val!=None for val in self.observers.values()):
-            result = self.check_conditions(self.conditions)
             if self.check_conditions(self.conditions):
                 print self.do_action()
         else:
@@ -79,28 +91,38 @@ class Rule(object):
     def get_tenant(self):
         return self.tenant
 
+    """
+    The do_action method is called after the conditions are satisfied. So this method
+    is responsible to execute the action defined in the policy.
+    """
     def do_action(self):
-        # TODO: Call SDS Controller API functions
+        # TODO: Add registry to save the action. Here it needs to ask for the action in the registry
+
+        #create file to test
         f = open('actions_success_'+str(self.id)+'.txt', 'a')
         f.write(str(self.id)+": "+str(self.observers.values())+"\n")
 
         headers = {"X-Auth-Token":"3fc0ccfec1954f25bef393d2c39499e7"}
         if self.action_list.action == "SET":
             url = base_url+"filters/"+self.tenant+"/deploy/"+self.action_list.filter
-            print 'url: ', url
             response = requests.put(url, json.dumps(self.action_list.params), headers=headers)
+
             if 200 > response.status_code >= 300:
                 print 'ERROR RESPONSE'
             else:
                 print response.text, response.status_code
                 f.write(str(self.id)+": "+str(response.text)+"\n")
                 f.close()
+                return response.text
 
-        if self.action_list.action == "DELETE":
+        elif self.action_list.action == "DELETE":
             url = base_url+"filters/"+self.tenant+"/undeploy/"+self.action_list.filter
             response = requests.put(url, json.dumps(self.action_list.params), headers=headers)
+
             if 200 > response.status_code >= 300:
                 print 'ERROR RESPONSE'
             else:
                 print response.text, response.status_code
+                return response.text
+
         return 'Not action supported'

@@ -2,7 +2,7 @@ from abstract_metric import Metric
 
 class Slowdown(Metric):
     _sync = {}
-    _async = ['get_value', 'attach', 'detach', 'notify', 'start_consuming','stop_consuming', 'init_consum']
+    _async = ['get_value', 'attach', 'detach', 'notify', 'start_consuming','stop_consuming', 'init_consum', 'stop_actor']
     _ref = ['attach', 'detach']
     _parallel = []
 

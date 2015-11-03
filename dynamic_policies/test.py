@@ -47,9 +47,13 @@ def start_test():
     metrics = {}
     metrics["througput"] = host.spawn_id("througput", 'metrics.througput', 'Througput', ["througput", host])
     metrics["slowdown"] = host.spawn_id("slowdown", 'metrics.slowdown', 'Slowdown', ["slowdown", host])
-
-    metrics["througput"].init_consum()
-    metrics["slowdown"].init_consum()
+    try:
+        metrics["througput"].init_consum()
+        metrics["slowdown"].init_consum()
+    except Exception as e:
+        print e.args
+        for metric in metrics:
+            metric.stop_actor()
     # rules = {}
     # rules_string = """\
     # FOR 4f0279da74ef4584a29dc72c835fe2c9 WHEN througput < 3 OR slowdown == 1 AND througput == 5 OR througput == 6 DO SET 1 WITH param1=2
