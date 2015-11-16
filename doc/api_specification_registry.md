@@ -1,4 +1,4 @@
-SDS Controller API Specification - Filters
+SDS Controller API Specification - Registry
 ===========================================
 **Table of Contents**
 
@@ -330,6 +330,15 @@ The URL that represents the filter data resource. The URL is
 #### Method
 PUT
 
+
+#### Request Headers
+
+The request header includes the following information:
+
+FIELD |  DESCRIPTION
+--- | ---
+**X-Auth-Token** | Token to authenticate to OpenStack Swift as an **Admin**
+
 #### Request Body
 JSON input that contains a dictionary with the following keys:
 
@@ -371,6 +380,14 @@ The URL that represents the filter data resource. The URL is
 #### Method
 PUT
 
+#### Request Headers
+
+The request header includes the following information:
+
+FIELD |  DESCRIPTION
+--- | ---
+**X-Auth-Token** | Token to authenticate to OpenStack Swift as an **Admin**
+
 #### HTTP Request Example
 
 ```json
@@ -391,6 +408,14 @@ The URL that represents the filter data resource. The URL is
 
 #### Method
 GET
+
+#### Request Headers
+
+The request header includes the following information:
+
+FIELD |  DESCRIPTION
+--- | ---
+**X-Auth-Token** | Token to authenticate to OpenStack Swift as an **Admin**
 
 #### HTTP Request Example
 
@@ -454,7 +479,7 @@ Content-Length: 248
 
 ```
 
-## Upload a Dependency Data
+## Upload a Dependency
 
 An application can upload a Dependency data by issuing an HTTP PUT request. The application needs to provide the dependency data like  a QueryDicct with a single key 'file' containing the upload file.
 **media_type:** `multipart/form-data`
@@ -660,6 +685,14 @@ The URL that represents the dependency data resource. The URL is
 #### Method
 PUT
 
+#### Request Headers
+
+The request header includes the following information:
+
+FIELD |  DESCRIPTION
+--- | ---
+**X-Auth-Token** | Token to authenticate to OpenStack Swift as an **Admin**
+
 #### HTTP Request Example
 
 ```
@@ -680,6 +713,14 @@ The URL that represents the dependency data resource. The URL is
 
 #### Method
 PUT
+
+#### Request Headers
+
+The request header includes the following information:
+
+FIELD |  DESCRIPTION
+--- | ---
+**X-Auth-Token** | Token to authenticate to OpenStack Swift as an **Admin**
 
 #### HTTP Request Example
 
