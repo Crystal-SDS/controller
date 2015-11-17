@@ -83,4 +83,7 @@ package {
     "redisco":
         ensure => "installed",
         provider => pip;
+    "pyparsing":
+        ensure => "installed",
+        provider => pip;
 }

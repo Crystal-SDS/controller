@@ -1,5 +1,7 @@
 from pyparsing import *
 import abstract_metric
+import redis
+import json
 # By default, PyParsing treats \n as whitespace and ignores it
 # In our grammer, \n is significant, so tell PyParsing not to ignore it
 # ParserElement.setDefaultWhitespaceChars(" \t")
@@ -16,24 +18,34 @@ FOR Tenant WHEN"+ condition AND condition AND condition OR condition etc.+"DO"+a
 
 TODO: Parse = TRUE or = False or condicion number. Check to convert to float or convert to boolean.
 """
+r = redis.StrictRedis(host='10.30.103.250', port=16379, db=0)
 
 def parse(input_string):
-# tenant_list = Forward()
+    # tenant_list = Forward()
+        #Connect to redis
+    #Make all calls that we need to check the grammar
+    # metrics_workload = get_info_from_redis("metric")
+    # filters = get_info_from_redis("filter")
+    # gtenants = get_info_from_redis("gtenant")
+    # services = map(lambda x: x["name"].split(), metrics_workload)
+    #Change the parser to adapt in new information
     action = oneOf("SET DELETE")
     param = Word(alphanums)+ Suppress(Literal("=")) + Word(alphanums)
-    services = "slowdown througput"
+    metrics_workload = r.keys("metric:*")
+    services = map(lambda x: "".join(x.split(":")[1]), metrics_workload)
     services_options = oneOf(services)
     operand =  oneOf("< > == != <= >=")
     number = Regex(r"[+-]?\d+(:?\.\d*)?(:?[eE][+-]?\d+)?")
     word = Word(alphas)
     action = word
-    sfilter = Word(alphanums)
+    sfilters_list = r.keys("filter:*")
+    sfilter = map(lambda x: "".join(x.split(":")[1]), sfilters_list)
     when = Suppress(Literal("WHEN"))
     with_params = Suppress(Literal("WITH"))
     do = Suppress(Literal("DO"))
     for_tenant = Suppress(Literal("FOR"))
     tenant_id = Word(alphanums)
-    condition = Group(services_options("services_options") + operand("operand") + number("limit_value"))
+    condition = Group(services_options + operand("operand") + number("limit_value"))
     boolean_condition = oneOf("AND OR")
     tenant_list = tenant_id + ZeroOrMore(Suppress("AND")+tenant_id)
     params_list = delimitedList(param)
@@ -46,13 +58,30 @@ def parse(input_string):
     # joinTokens = lambda tokens : "".join(tokens)
     # stripCommas = lambda tokens : tokens[0].replace("=", ",")
     convertToDict = lambda tokens : dict(zip(*[iter(tokens)]*2))
+    check_service = lambda pepito : r.exists(tokens)
     # param.setParseAction(joinTokens)
     # param.setParseAction(stripCommas)
     params_list.setParseAction(convertToDict)
     # map(None, *[iter(l)]*2)
     rule_parse = for_tenant + Group(tenant_list)("tenants") + when +\
                 condition_list("condition_list") + do + Group(action("action") + \
-                sfilter("filter") + Optional(with_params + params_list("params")))("action_list")
+                oneOf(sfilter)("filter") + Optional(with_params + params_list("params")))("action_list")
+
+
+    # parsed_rule = rule_parse.parseString(input_string)
+    # print parsed_rule
+    # if parsed_rule.action_list.params:
+    #     filter_info = r.hgetall("filter:"+str(parsed_rule.action_list.filter))
+    #     # x = filter_info["params"].replace("'", "\"")
+    #
+    #     # json.loads(filter_info["params"].replace("'", "\""))
+    #     print 'keys', parsed_rule.action_list.params.keys()
+    #     result = set(parsed_rule.action_list.params.keys()).intersection(filter_info["params"])
+    #     print 'result', result
+    #     if len(result) == len(parsed_rule.action_list.params.keys()):
+    #         return parsed_rule
+    #     else:
+    #         raise Exception
 
     return rule_parse.parseString(input_string)
 
@@ -89,18 +118,21 @@ def parse(input_string):
 # Return Rule object ?? or return parseString and create rule in other side
     # return rule_parse.parseString(input_string)
 #
-# rules = """\
-#     FOR 4f0279da74ef4584a29dc72c835fe2c9 WHEN througput < 3 OR slowdown == 1 AND througput == 5 OR througput == 6 DO SET 1 WITH param1=2
-#     FOR 2312 WHEN slowdown > 3 OR slowdown > 3 AND slowdown == 5 OR slowdown <= 6 DO SET storlet WITH param1=2, param2=3
-#     FOR 2312 WHEN slowdown > 3 AND slowdown > 50 DO SET storlet""".splitlines()
 
-# for rule in rules:
-#     try:
-#         stats = rule_parse.parseString(rule)
-#     except:
-#         print 'This rule ***'+rule+'  *** could not be parsed'
-#     else:
-#         print stats.asList()
+# acction:1 = {"name":"compress", "params":{"param1":"boolean", "param2":"integer"}}
+rules = """\
+    FOR 4f0279da74ef4584a29dc72c835fe2c9 WHEN througput < 3 OR slowdown == 1 AND througput == 5 OR througput == 6 DO SET compression WITH param1=2
+    FOR 2312 WHEN slowdown > 3 OR slowdown > 3 AND slowdown == 5 OR slowdown <= 6 DO SET compression WITH param1=2, param2=3
+    FOR 2312 WHEN slowdown > 3 AND slowdown > 50 DO SET compression WITH""".splitlines()
+
+for rule in rules:
+    stats = parse(rule)
+    # try:
+    #     stats = parse(rule)
+    # except:
+    #     print 'This rule ***'+rule+'  *** could not be parsed'
+    # else:
+    #     print stats.asList()
 
 # for rule in rules:
 #
