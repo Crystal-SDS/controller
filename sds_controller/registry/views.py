@@ -5,7 +5,6 @@ from rest_framework.parsers import JSONParser, FileUploadParser
 from django.conf import settings
 import redis
 
-
 class JSONResponse(HttpResponse):
     """
     An HttpResponse that renders its content into JSON.
@@ -97,7 +96,6 @@ def add_dynamic_filter(request):
         return JSONResponse(dynamic_filters, status=200)
 
     if request.method == 'POST':
-        
         data = JSONParser().parse(request)
         name = data.pop("name", None)
         if not name:

@@ -2,6 +2,8 @@ from pyparsing import *
 import abstract_metric
 import redis
 import json
+import ast
+
 # By default, PyParsing treats \n as whitespace and ignores it
 # In our grammer, \n is significant, so tell PyParsing not to ignore it
 # ParserElement.setDefaultWhitespaceChars(" \t")
@@ -43,11 +45,18 @@ def parse(input_string):
     when = Suppress(Literal("WHEN"))
     with_params = Suppress(Literal("WITH"))
     do = Suppress(Literal("DO"))
-    for_tenant = Suppress(Literal("FOR"))
+    literal_for = Suppress(Literal("FOR"))
     tenant_id = Word(alphanums)
     condition = Group(services_options + operand("operand") + number("limit_value"))
     boolean_condition = oneOf("AND OR")
+    #For tenant or group of tenants
+    group_id = Word(nums)
+    tenant_group = Group(Literal("G:") + group_id)
+    tenant_group_list = tenant_group + ZeroOrMore(Suppress("AND")+tenant_group)
     tenant_list = tenant_id + ZeroOrMore(Suppress("AND")+tenant_id)
+
+    subject = Group(tenant_list ^ tenant_group_list)
+    #Action part
     params_list = delimitedList(param)
     # tenant_list << (tenant_id ^ (tenant_id + "AND" + OneOrMore(tenant_list)))
     # condition_list << ( condition ^ ( condition + boolean_condition + OneOrMore(condition_list)) )
@@ -58,32 +67,28 @@ def parse(input_string):
     # joinTokens = lambda tokens : "".join(tokens)
     # stripCommas = lambda tokens : tokens[0].replace("=", ",")
     convertToDict = lambda tokens : dict(zip(*[iter(tokens)]*2))
-    check_service = lambda pepito : r.exists(tokens)
     # param.setParseAction(joinTokens)
     # param.setParseAction(stripCommas)
     params_list.setParseAction(convertToDict)
     # map(None, *[iter(l)]*2)
-    rule_parse = for_tenant + Group(tenant_list)("tenants") + when +\
+    rule_parse = literal_for + subject("subject") + when +\
                 condition_list("condition_list") + do + Group(action("action") + \
                 oneOf(sfilter)("filter") + Optional(with_params + params_list("params")))("action_list")
 
+    parsed_rule = rule_parse.parseString(input_string)
 
-    # parsed_rule = rule_parse.parseString(input_string)
-    # print parsed_rule
-    # if parsed_rule.action_list.params:
-    #     filter_info = r.hgetall("filter:"+str(parsed_rule.action_list.filter))
-    #     # x = filter_info["params"].replace("'", "\"")
-    #
-    #     # json.loads(filter_info["params"].replace("'", "\""))
-    #     print 'keys', parsed_rule.action_list.params.keys()
-    #     result = set(parsed_rule.action_list.params.keys()).intersection(filter_info["params"])
-    #     print 'result', result
-    #     if len(result) == len(parsed_rule.action_list.params.keys()):
-    #         return parsed_rule
-    #     else:
-    #         raise Exception
+    if parsed_rule.action_list.params:
+        filter_info = r.hgetall("filter:"+str(parsed_rule.action_list.filter))
+        # x = filter_info["params"].replace("'", "\"")
+        # json.loads(filter_info["params"].replace("'", "\""))
+        params = eval(filter_info["params"])
+        result = set(parsed_rule.action_list.params.keys()).intersection(params.keys())
+        if len(result) == len(parsed_rule.action_list.params.keys()):
+            return parsed_rule
+        else:
+            raise Exception
 
-    return rule_parse.parseString(input_string)
+    return parsed_rule
 
 # alphaword = Word(alphas)
 # integer = Word(nums)
@@ -122,11 +127,13 @@ def parse(input_string):
 # acction:1 = {"name":"compress", "params":{"param1":"boolean", "param2":"integer"}}
 rules = """\
     FOR 4f0279da74ef4584a29dc72c835fe2c9 WHEN througput < 3 OR slowdown == 1 AND througput == 5 OR througput == 6 DO SET compression WITH param1=2
-    FOR 2312 WHEN slowdown > 3 OR slowdown > 3 AND slowdown == 5 OR slowdown <= 6 DO SET compression WITH param1=2, param2=3
+    FOR G:2312 AND G:456 WHEN slowdown > 3 OR slowdown > 3 AND slowdown == 5 OR slowdown <= 6 DO SET compression WITH param1=2, param2=3
     FOR 2312 WHEN slowdown > 3 AND slowdown > 50 DO SET compression WITH""".splitlines()
 
 for rule in rules:
     stats = parse(rule)
+    print stats.asList()
+    print stats.subject
     # try:
     #     stats = parse(rule)
     # except:
