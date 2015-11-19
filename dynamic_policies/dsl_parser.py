@@ -22,6 +22,13 @@ TODO: Parse = TRUE or = False or condicion number. Check to convert to float or 
 """
 r = redis.StrictRedis(host='10.30.103.250', port=16379, db=0)
 
+def parse_group_tenants(tokens):
+    print 'tokens, ', tokens
+    data = r.lrange(tokens[0], 0, -1)
+    return eval(data[0])
+    print 'data_parse_group_tenant', data
+
+
 def parse(input_string):
     # tenant_list = Forward()
         #Connect to redis
@@ -31,59 +38,68 @@ def parse(input_string):
     # gtenants = get_info_from_redis("gtenant")
     # services = map(lambda x: x["name"].split(), metrics_workload)
     #Change the parser to adapt in new information
-    action = oneOf("SET DELETE")
+
+    #Support words to construct the grammar.
+    word = Word(alphas)
+    when = Suppress(Literal("WHEN"))
+    literal_for = Suppress(Literal("FOR"))
+    boolean_condition = oneOf("AND OR")
+
+    #Condition part
     param = Word(alphanums)+ Suppress(Literal("=")) + Word(alphanums)
     metrics_workload = r.keys("metric:*")
     services = map(lambda x: "".join(x.split(":")[1]), metrics_workload)
     services_options = oneOf(services)
     operand =  oneOf("< > == != <= >=")
     number = Regex(r"[+-]?\d+(:?\.\d*)?(:?[eE][+-]?\d+)?")
-    word = Word(alphas)
-    action = word
-    sfilters_list = r.keys("filter:*")
-    sfilter = map(lambda x: "".join(x.split(":")[1]), sfilters_list)
-    when = Suppress(Literal("WHEN"))
-    with_params = Suppress(Literal("WITH"))
-    do = Suppress(Literal("DO"))
-    literal_for = Suppress(Literal("FOR"))
-    tenant_id = Word(alphanums)
     condition = Group(services_options + operand("operand") + number("limit_value"))
-    boolean_condition = oneOf("AND OR")
-    #For tenant or group of tenants
-    group_id = Word(nums)
-    tenant_group = Group(Literal("G:") + group_id)
-    tenant_group_list = tenant_group + ZeroOrMore(Suppress("AND")+tenant_group)
-    tenant_list = tenant_id + ZeroOrMore(Suppress("AND")+tenant_id)
-
-    subject = Group(tenant_list ^ tenant_group_list)
-    #Action part
-    params_list = delimitedList(param)
-    # tenant_list << (tenant_id ^ (tenant_id + "AND" + OneOrMore(tenant_list)))
-    # condition_list << ( condition ^ ( condition + boolean_condition + OneOrMore(condition_list)) )
     condition_list = operatorPrecedence(condition,[
                                 ("AND", 2, opAssoc.LEFT, ),
                                 ("OR", 2, opAssoc.LEFT, ),
                                 ])
-    # joinTokens = lambda tokens : "".join(tokens)
-    # stripCommas = lambda tokens : tokens[0].replace("=", ",")
+
+    #For tenant or group of tenants
+    tenant_id = Word(alphanums)
+    group_id = Word(nums)
+    tenant_group = Combine(Literal("G:") + group_id)
+    tenant_group_list = tenant_group + ZeroOrMore(Suppress("AND")+tenant_group)
+    tenant_list = tenant_id + ZeroOrMore(Suppress("AND")+tenant_id)
+    subject = Group(tenant_list ^ tenant_group_list)
+
+    #Action part
+    action = oneOf("SET DELETE")
+    sfilters_list = r.keys("filter:*")
+    sfilter = map(lambda x: "".join(x.split(":")[1]), sfilters_list)
+
+    with_params = Suppress(Literal("WITH"))
+    do = Suppress(Literal("DO"))
+    params_list = delimitedList(param)
+
+
+    #Functions post-parsed
     convertToDict = lambda tokens : dict(zip(*[iter(tokens)]*2))
-    # param.setParseAction(joinTokens)
-    # param.setParseAction(stripCommas)
+    remove_repeted_elements = lambda tokens : [list(set(tokens[0]))]
+
     params_list.setParseAction(convertToDict)
-    # map(None, *[iter(l)]*2)
+    subject.setParseAction(remove_repeted_elements)
+    tenant_group.setParseAction(parse_group_tenants)
+
+    #Final rule structure
     rule_parse = literal_for + subject("subject") + when +\
                 condition_list("condition_list") + do + Group(action("action") + \
                 oneOf(sfilter)("filter") + Optional(with_params + params_list("params")))("action_list")
 
+    #Parse the rule
     parsed_rule = rule_parse.parseString(input_string)
 
+    #Pos-parsed validation
     if parsed_rule.action_list.params:
         filter_info = r.hgetall("filter:"+str(parsed_rule.action_list.filter))
-        # x = filter_info["params"].replace("'", "\"")
-        # json.loads(filter_info["params"].replace("'", "\""))
+
         params = eval(filter_info["params"])
         result = set(parsed_rule.action_list.params.keys()).intersection(params.keys())
         if len(result) == len(parsed_rule.action_list.params.keys()):
+            #TODO Check params types.
             return parsed_rule
         else:
             raise Exception
@@ -127,13 +143,15 @@ def parse(input_string):
 # acction:1 = {"name":"compress", "params":{"param1":"boolean", "param2":"integer"}}
 rules = """\
     FOR 4f0279da74ef4584a29dc72c835fe2c9 WHEN througput < 3 OR slowdown == 1 AND througput == 5 OR througput == 6 DO SET compression WITH param1=2
-    FOR G:2312 AND G:456 WHEN slowdown > 3 OR slowdown > 3 AND slowdown == 5 OR slowdown <= 6 DO SET compression WITH param1=2, param2=3
-    FOR 2312 WHEN slowdown > 3 AND slowdown > 50 DO SET compression WITH""".splitlines()
+    FOR G:2 WHEN slowdown > 3 OR slowdown > 3 AND slowdown == 5 OR slowdown <= 6 DO SET compression WITH param1=2, param2=3
+    FOR G:5 AND G:2 WHEN slowdown > 3 AND slowdown > 50 DO SET compression WITH""".splitlines()
 
 for rule in rules:
     stats = parse(rule)
-    print stats.asList()
-    print stats.subject
+    print 'as_list', stats.asList()
+    print stats
+    print 'subject', stats.subject
+    print "group", stats.subject.tenant_group_list
     # try:
     #     stats = parse(rule)
     # except:

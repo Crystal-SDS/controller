@@ -4,6 +4,7 @@ from rest_framework.renderers import JSONRenderer
 from rest_framework.parsers import JSONParser, FileUploadParser
 from django.conf import settings
 import redis
+import json
 
 class JSONResponse(HttpResponse):
     """
@@ -141,17 +142,17 @@ def add_tenants_group(request):
         return JSONResponse('Error connecting with DB', status=500)
 
     if request.method == 'GET':
-        keys = r.keys("gtenants:*")
+        keys = r.keys("G:*")
         gtenants = []
         for key in keys:
-            gtenant = r.hgetall(key)
-            gtenants.append(gtenant)
+            gtenant = r.lrange(key, 0, -1)
+            gtenants.extend(eval(gtenant[0]))
         return JSONResponse(gtenants, status=200)
 
     if request.method == 'POST':
         gtenant_id = r.incr("gtenant:id")
         data = JSONParser().parse(request)
-        r.lpush('gtenant:'+str(gtenant_id), data)
+        r.lpush('G:'+str(gtenant_id), data)
         return JSONResponse('Tenants group has been added in the registy', status=201)
 
     return JSONResponse('Method '+str(request.method)+' not allowed.', status=405)
@@ -164,18 +165,20 @@ def tenants_group_detail(request, gtenant_id):
         return JSONResponse('Error connecting with DB', status=500)
 
     if request.method == 'GET':
-        gtenant = r.hgetall("gtenants:"+str(gtenant_id))
-        return JSONResponse(gtenant, status=200)
+        gtenant = r.lrange("G:"+str(gtenant_id), 0, -1)
+
+        # r.hgetall("gtenants:"+str(gtenant_id))
+        return JSONResponse(eval(gtenant[0]), status=200)
 
     if request.method == 'PUT':
         if not r.exists('filter:'+str(id)):
             return JSONResponse('Dynamic filter with id:  '+str(id)+' not exists.', status=404)
         data = JSONParser().parse(request)
-        r.lpush('gtenant:'+str(gtenant_id), data)
+        r.lpush('G:'+str(gtenant_id), data)
         return JSONResponse('The metadata of the dynamic filter with id: '+str(id)+' has been updated', status=201)
 
     if request.method == 'DELETE':
-        r.delete("gtenant:"+str(gtenant_id))
+        r.delete("G:"+str(gtenant_id))
         return JSONResponse('Dynamic filter has been deleted', status=204)
     return JSONResponse('Method '+str(request.method)+' not allowed.', status=405)
 
