@@ -8,7 +8,6 @@ import json
 mappings = {'>': operator.gt, '>=': operator.ge,
         '==': operator.eq, '<=': operator.le, '<': operator.lt,
         '!=':operator.ne, "OR":operator.or_, "AND":operator.and_}
-base_url = "http://localhost:18000/"
 
 
 """
@@ -101,11 +100,15 @@ class Rule(object):
         #create file to test
         f = open('actions_success_'+str(self.id)+'.txt', 'a')
         f.write(str(self.id)+": "+str(self.observers.values())+"\n")
-
+        #TODO: Handle the token generation. Auto-login when this token expires. Take credentials from config file.
         headers = {"X-Auth-Token":"3fc0ccfec1954f25bef393d2c39499e7"}
+        dynamic_filter = r.hgetall("filter:"+str(self.action_list.filter))
 
         if self.action_list.action == "SET":
-            url = base_url+"filters/"+self.tenant+"/deploy/"+self.action_list.filter
+
+            #TODO Review if this tenant has already deployed this filter. Not deploy the same filter more than one time.
+
+            url = dynamic_filter["activation_url"]+self.tenant+"/deploy/"+str(dynamic_filter["identifier"])
             response = requests.put(url, json.dumps(self.action_list.params), headers=headers)
 
             if 200 > response.status_code >= 300:
@@ -117,7 +120,8 @@ class Rule(object):
                 return response.text
 
         elif self.action_list.action == "DELETE":
-            url = base_url+"filters/"+self.tenant+"/undeploy/"+self.action_list.filter
+
+            url = dynamic_filter["activation_url"]+self.tenant+"/undeploy/"+str(dynamic_filter["identifier"])
             response = requests.put(url, json.dumps(self.action_list.params), headers=headers)
 
             if 200 > response.status_code >= 300:

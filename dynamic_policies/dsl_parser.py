@@ -25,19 +25,16 @@ r = redis.StrictRedis(host='localhost', port=6379, db=0)
 def parse_group_tenants(tokens):
     print 'tokens, ', tokens
     data = r.lrange(tokens[0], 0, -1)
-    return eval(data[0])
+    return data
     print 'data_parse_group_tenant', data
 
 
 def parse(input_string):
-    # tenant_list = Forward()
-        #Connect to redis
-    #Make all calls that we need to check the grammar
-    # metrics_workload = get_info_from_redis("metric")
-    # filters = get_info_from_redis("filter")
-    # gtenants = get_info_from_redis("gtenant")
-    # services = map(lambda x: x["name"].split(), metrics_workload)
-    #Change the parser to adapt in new information
+    #TODO Add error control.
+    #TODO Raise an exception if not metrics or not action registred
+    #TODO Raise an exception if group of tenants don't exists.
+    #TODO Add transcient option
+
 
     #Support words to construct the grammar.
     word = Word(alphas)
@@ -106,73 +103,22 @@ def parse(input_string):
 
     return parsed_rule
 
-# alphaword = Word(alphas)
-# integer = Word(nums)
-# sexp = Forward()
-# LPAREN = Suppress("(")
-# RPAREN = Suppress(")")
-# sexp << ( alphaword | integer | ( LPAREN + ZeroOrMore(sexp) + RPAREN ) )
-#
-# services = "slowdown througput"
-# services_options = oneOf(services)
-# operand =  oneOf("< > == <= >=")
-# and_operand = Keyword("AND")
-# limit_value = Word(nums)
-# pk = Forward()
-# condition = services_options("services_options") + operand("operand") + limit_value("limit_value")
-# pk << ( condition ^ ( condition + and_operand + OneOrMore(pk)) )
-#
-# tests = """\
-#     slowdown > 3 AND slowdown > 5""".splitlines()
-#
-# for t in tests:
-#     print t
-#     print pk.parseString(t)
-#     print
-#
-# w = Word(alphas)
-# e = Forward()
-# e << (w ^ (w + e))
-# print e.parseString('das fas dos')
 
 
-# Return Rule object ?? or return parseString and create rule in other side
-    # return rule_parse.parseString(input_string)
+# rules = """\
+#     FOR 4f0279da74ef4584a29dc72c835fe2c9 WHEN througput < 3 OR slowdown == 1 AND througput == 5 OR througput == 6 DO SET compression WITH param1=2
+#     FOR G:4 WHEN slowdown > 3 OR slowdown > 3 AND slowdown == 5 OR slowdown <= 6 DO SET compression WITH param1=2, param2=3
+#     FOR G:4 AND G:4 WHEN slowdown > 3 AND slowdown > 50 DO SET compression WITH""".splitlines()
 #
-
-# acction:1 = {"name":"compress", "params":{"param1":"boolean", "param2":"integer"}}
-rules = """\
-    FOR 4f0279da74ef4584a29dc72c835fe2c9 WHEN througput < 3 OR slowdown == 1 AND througput == 5 OR througput == 6 DO SET compression WITH param1=2
-    FOR G:2 WHEN slowdown > 3 OR slowdown > 3 AND slowdown == 5 OR slowdown <= 6 DO SET compression WITH param1=2, param2=3
-    FOR G:5 AND G:2 WHEN slowdown > 3 AND slowdown > 50 DO SET compression WITH""".splitlines()
-
-for rule in rules:
-    stats = parse(rule)
-    print 'as_list', stats.asList()
-    print stats
-    print 'subject', stats.subject
-    print "group", stats.subject.tenant_group_list
+# for rule in rules:
+#     stats = parse(rule)
+#     print 'as_list', stats.asList()
+#     print stats
+#     print 'subject', stats.subject
+#     print "group", stats.subject.tenant_group_list
     # try:
     #     stats = parse(rule)
     # except:
     #     print 'This rule ***'+rule+'  *** could not be parsed'
     # else:
     #     print stats.asList()
-
-# for rule in rules:
-#
-#     stats = rule_parse.parseString(rule)
-#     print stats.asList()
-#     print stats.action_list.params
-
-
-    # print 'action: ', stats.action_list.action
-    # print "WHEN %s %s %s DO %s" % (stats.services_options, stats.operand, stats.number, stats.action_list)
-    # print "*************"
-    #
-    # print "condition", stats.condition, "condition2", stats.condition_list
-    # print "*************"
-    # print "*************"
-    # print "*************"
-# "FOR 4f0279da74ef4584a29dc72c835fe2c9 WHEN througput < 3 OR slowdown == 1 AND througput == 5 OR througput == 6 DO SET 1 WITH param1=2"
-    # print "*************"
