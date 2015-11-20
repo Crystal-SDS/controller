@@ -68,9 +68,8 @@ JSON input that contains a dictionary with the following keys:
 
 FIELD |  DESCRIPTION
 --- | ---
-**name** | The name is the keyword to be used in condition clauses of storage policy
-definitions. Workload metric names should be unique and self-descriptive to ease the design of storage policies.
-**network location** |This requires the metadata information of a workload metric to provide the network location to reach the process and obtain the computed metric.
+**name** | The name is the keyword to be used in condition clauses of storage policy definitions. Workload metric names should be unique and self-descriptive to ease the design of storage policies.
+**network location** | This requires the metadata information of a workload metric to provide the network location to reach the process and obtain the computed metric.
 **metric type** | Workload metric’s metadata should define the type of metric produces, such a integer or a boolean, to enable the DSL syntax checker to infer if values in condition clauses belong to the appropriate type.
 
 #### HTTP Request Example
