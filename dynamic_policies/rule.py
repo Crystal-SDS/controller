@@ -103,6 +103,7 @@ class Rule(object):
         f.write(str(self.id)+": "+str(self.observers.values())+"\n")
 
         headers = {"X-Auth-Token":"3fc0ccfec1954f25bef393d2c39499e7"}
+
         if self.action_list.action == "SET":
             url = base_url+"filters/"+self.tenant+"/deploy/"+self.action_list.filter
             response = requests.put(url, json.dumps(self.action_list.params), headers=headers)
