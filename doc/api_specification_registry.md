@@ -90,7 +90,7 @@ TODO
 ```
 ## Get all workload metrics
 
-An application can get all the metrics registered by issuing an HTTP PUT request.
+An application can get all the metrics registered by issuing an HTTP GET request.
 
 ### Request
 
@@ -460,14 +460,14 @@ Response <201>
 }
 ```
 
-## Get all filters
+## Get all tenants group
 
-An application can get all filters registered by issuing an HTTP PUT request.
+An application can get all tenant groups registered by issuing an HTTP GET request.
 
 ### Request
 
 #### URL structure
-The URL is **/registry/filters**
+The URL is **/registry/gtenants**
 
 
 #### Method
@@ -476,7 +476,7 @@ GET
 #### HTTP Request Example
 
 ```
-GET /registry/filters
+GET /registry/gtenants
 
 ```
 ### Response
@@ -486,27 +486,61 @@ GET /registry/filters
 ```json
 
 Response <201>
-[{
-  "name":"compress",
-  "identifier":2,
-  "activation_url":"http://sds_controller/filters/1",
-  "valid_parameters":{"param1":"bool", "param2":"integer"}
-},{
-  "name":"compress_gzip",
-  "identifier":2,
-  "activation_url":"http://sds_controller/filters/1",
-  "valid_parameters":{"param1":"bool", "param2":"integer"}
-}]
+{
+  "G:2": [
+    "4",
+    "5",
+    "6"
+  ],
+  "G:1": [
+    "1",
+    "2",
+    "3"
+  ]
+}
 ```
 
-## Update a filter
+## Get tenants of a group
 
-An application can update the metadata of a filter by issuing an HTTP PUT request.
+An application can get all tenants of a group registered by issuing an HTTP GET request.
 
 ### Request
 
 #### URL structure
-The URL is **/registry/filters/:filter_name**
+The URL is **/registry/gtenants/gtenant_id**
+
+
+#### Method
+GET
+
+#### HTTP Request Example
+
+```
+GET /registry/gtenants/1
+
+```
+### Response
+
+#### Response example
+
+```json
+
+Response <201>
+[
+  "4",
+  "5",
+  "6"
+]
+```
+
+## Add a member to a tenants group
+
+An application can add members to a group by issuing an HTTP PUT request.
+
+### Request
+
+#### URL structure
+The URL is **/registry/gtenants/gtenant_id**
 
 #### Method
 PUT
@@ -514,10 +548,10 @@ PUT
 #### HTTP Request Example
 
 ```json
-PUT /registry/filters/compress
-{
-"activation_url":"http://sds_controller/filters/2"
-}
+PUT /registry/gtenants/2
+
+["8", "9"]
+
 ```
 
 ### Response
@@ -527,57 +561,18 @@ PUT /registry/filters/compress
 ```json
 
 Response <201>
-{
-  "name":"compress",
-  "identifier":2,
-  "activation_url":"http://sds_controller/filters/2",
-  "valid_parameters":{"param1":"bool", "param2":"integer"}
-}
+
+The members of the tenants group with id: 2 has been updated
 ```
 
-## Get filter metadata
+## Delete a tenants group
 
-An application can ask for a filter metadata by issuing an HTTP GET request.
+An application can delete a tenants group by issuing an HTTP DELETE request.
 
 ### Request
 
 #### URL structure
-The URL is **/registry/filters/:filter_name**
-
-#### Method
-GET
-
-#### HTTP Request Example
-
-```
-GET /registry/filters/compress
-```
-### Response
-
-#### Response example
-
-```json
-
-HTTP/1.1 200 OK
-Content-Type: application/json; charset=UTF-8
-Content-Length: 248
-
-{
-  "name":"compress",
-  "identifier":2,
-  "activation_url":"http://sds_controller/filters/2",
-  "valid_parameters":{"param1":"bool", "param2":"integer"}
-}
-```
-
-## Delete a filter
-
-An application can delete a filter by issuing an HTTP GET request.
-
-### Request
-
-#### URL structure
-The URL is **/registry/filters/:filter_name**
+The URL is **/registry/gtenants/:gtenant_id**
 
 #### Method
 DELETE
@@ -585,7 +580,7 @@ DELETE
 #### HTTP Request Example
 
 ```
-DELETE /registry/filters/compress
+DELETE /registry/gtenants/2
 
 ```
 
@@ -595,9 +590,35 @@ DELETE /registry/filters/compress
 
 ```json
 
+HTTP/1.1 204 NO CONTENT
 
-HTTP/1.1 204 OK
-Content-Type: application/json; charset=UTF-8
-Content-Length: 248
+```
+
+## Delete a member of a tenants group
+
+An application can delete a member of a tenants group by issuing an HTTP DELETE request.
+
+### Request
+
+#### URL structure
+The URL is **/registry/gtenants/:gtenant_id/tenants/:tenant_id**
+
+#### Method
+DELETE
+
+#### HTTP Request Example
+
+```
+DELETE /registry/gtenants/2/tenants/2
+
+```
+
+### Response
+
+#### Response example
+
+```json
+
+HTTP/1.1 204 NO CONTENT
 
 ```

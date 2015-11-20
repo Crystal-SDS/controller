@@ -20,7 +20,7 @@ FOR Tenant WHEN"+ condition AND condition AND condition OR condition etc.+"DO"+a
 
 TODO: Parse = TRUE or = False or condicion number. Check to convert to float or convert to boolean.
 """
-r = redis.StrictRedis(host='10.30.103.250', port=16379, db=0)
+r = redis.StrictRedis(host='localhost', port=6379, db=0)
 
 def parse_group_tenants(tokens):
     print 'tokens, ', tokens

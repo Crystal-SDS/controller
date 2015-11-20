@@ -143,16 +143,17 @@ def add_tenants_group(request):
 
     if request.method == 'GET':
         keys = r.keys("G:*")
-        gtenants = []
+        gtenants = {}
         for key in keys:
             gtenant = r.lrange(key, 0, -1)
-            gtenants.extend(eval(gtenant[0]))
+            gtenants[key] = gtenant
+            #gtenants.extend(eval(gtenant[0]))
         return JSONResponse(gtenants, status=200)
 
     if request.method == 'POST':
         gtenant_id = r.incr("gtenant:id")
         data = JSONParser().parse(request)
-        r.lpush('G:'+str(gtenant_id), data)
+        r.lpush('G:'+str(gtenant_id), *data)
         return JSONResponse('Tenants group has been added in the registy', status=201)
 
     return JSONResponse('Method '+str(request.method)+' not allowed.', status=405)
@@ -168,18 +169,19 @@ def tenants_group_detail(request, gtenant_id):
         gtenant = r.lrange("G:"+str(gtenant_id), 0, -1)
 
         # r.hgetall("gtenants:"+str(gtenant_id))
-        return JSONResponse(eval(gtenant[0]), status=200)
+        return JSONResponse(gtenant, status=200)
 
     if request.method == 'PUT':
-        if not r.exists('filter:'+str(id)):
-            return JSONResponse('Dynamic filter with id:  '+str(id)+' not exists.', status=404)
+        if not r.exists('G:'+str(gtenant_id)):
+            return JSONResponse('The members of the tenants group with id:  '+str(gtenant_id)+' not exists.', status=404)
         data = JSONParser().parse(request)
-        r.lpush('G:'+str(gtenant_id), data)
-        return JSONResponse('The metadata of the dynamic filter with id: '+str(id)+' has been updated', status=201)
+        #for tenant in data:
+        r.lpush('G:'+str(gtenant_id), *data)
+        return JSONResponse('The members of the tenants group with id: '+str(gtenant_id)+' has been updated', status=201)
 
     if request.method == 'DELETE':
         r.delete("G:"+str(gtenant_id))
-        return JSONResponse('Dynamic filter has been deleted', status=204)
+        return JSONResponse('Tenants grpup has been deleted', status=204)
     return JSONResponse('Method '+str(request.method)+' not allowed.', status=405)
 
 @csrf_exempt
@@ -189,6 +191,6 @@ def gtenants_tenant_detail(request, gtenant_id, tenant_id):
     except:
         return JSONResponse('Error connecting with DB', status=500)
     if request.method == 'DELETE':
-        r.lrem("gtenant:"+str(gtenant_id), str(tenant_id), 1)
+        r.lrem("G:"+str(gtenant_id), str(tenant_id), 1)
         return JSONResponse('Tenant'+str(tenant_id)+'has been deleted from group with the id: '+str(gtenant_id), status=204)
     return JSONResponse('Method '+str(request.method)+' not allowed.', status=405)
