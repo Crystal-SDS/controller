@@ -4,11 +4,12 @@ from pyactive.exception import TimeoutError, PyactiveError
 import requests
 import operator
 import json
-
+import redis
 mappings = {'>': operator.gt, '>=': operator.ge,
         '==': operator.eq, '<=': operator.le, '<': operator.lt,
         '!=':operator.ne, "OR":operator.or_, "AND":operator.and_}
 
+r = redis.StrictRedis(host='localhost', port=6379, db=0)
 
 """
 Rule: Each policy of each tenant is compiled as Rule. Rule is an Actor and it will be subscribed
@@ -24,11 +25,11 @@ class Rule(object):
     _parallel = []
 
     def __init__(self, rule_parsed, tenant, host, host_ip, host_port, host_transport):
+
         self.rule_parsed = rule_parsed
         self.tenant = tenant
         self.conditions = rule_parsed.condition_list.asList()
         self.observers = {}
-
         self.base_uri = host_transport+'://'+host_ip+':'+str(host_port)+'/'
         tcpconf = (host_transport,(host_ip, host_port))
         self.host = host
@@ -68,7 +69,7 @@ class Rule(object):
     """
     def update(self, metric, tenant_info):
 
-        self.observers[metric]=tenant_info[metric]
+        self.observers[metric]=tenant_info.value
         #TODO Check the last time updated the value
         #Check the condition of the policy if all values are setted. If the condition
         #result is true, it calls the method do_action

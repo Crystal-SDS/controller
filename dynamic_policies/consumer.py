@@ -1,4 +1,6 @@
 import pika
+import logging
+logging.basicConfig()
 
 class Consumer(object):
     _sync = {}
@@ -6,16 +8,28 @@ class Consumer(object):
     _ref = []
     _parallel = []
 
-    def __init__(self, host, port, queue, obj):
+    def __init__(self, host, port, exchange, queue, routing_key, obj):
         self._channel = pika.BlockingConnection(pika.ConnectionParameters(
-            host='localhost', port=25672)).channel()
+            host=host, port=port)).channel()
+
         self.obj = obj
         self.queue = queue
+
+        print 'exchange', exchange
+        # result = channel.queue_declare(exclusive=True)
         self._channel.queue_declare(queue=queue)
-        self.consumer = self._channel.basic_consume(self.callback,
-                                        queue=queue,
-                                        no_ack=True)
-        print 'consumer initialized'
+        # queue_name = result.method.queue
+        print 'routing_key', routing_key
+        if routing_key:
+            self._channel.queue_bind(exchange=exchange,
+                               queue=queue,
+                               routing_key=routing_key)
+
+            self.consumer = self._channel.basic_consume(self.callback,
+                                            queue=queue,
+                                            no_ack=True)
+        else:
+            print "You must entry a routing key"
     def callback(self, ch, method, properties, body):
         self.obj.notify(body)
 

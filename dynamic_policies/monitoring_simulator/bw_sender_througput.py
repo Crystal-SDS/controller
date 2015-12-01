@@ -15,13 +15,13 @@ channel = connection.channel()
 
 logging.info('[*] Start to publish messages')
 sec = 0
-tenant = "4f0279da74ef4584a29dc72c835fe2c9"
+tenant = "2312"
 tenant2 = "2321"
 while True:
 
     bw = (math.cos(sec)-1)*(-50)
 
-    message = json.dumps([{"tenant_id":tenant, "througput":bw}])
+    message = json.dumps([{"tenant_id":tenant, "througput":bw}, {"tenant_id":tenant2, "througput":bw}])
     logging.info(' [*] Message sended is %s', message)
     channel.basic_publish(exchange='',
                           routing_key='througput',

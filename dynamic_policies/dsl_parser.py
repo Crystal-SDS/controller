@@ -23,10 +23,8 @@ TODO: Parse = TRUE or = False or condicion number. Check to convert to float or 
 r = redis.StrictRedis(host='localhost', port=6379, db=0)
 
 def parse_group_tenants(tokens):
-    print 'tokens, ', tokens
     data = r.lrange(tokens[0], 0, -1)
     return data
-    print 'data_parse_group_tenant', data
 
 
 def parse(input_string):
@@ -107,7 +105,7 @@ def parse(input_string):
 
 # rules = """\
 #     FOR 4f0279da74ef4584a29dc72c835fe2c9 WHEN througput < 3 OR slowdown == 1 AND througput == 5 OR througput == 6 DO SET compression WITH param1=2
-#     FOR G:4 WHEN slowdown > 3 OR slowdown > 3 AND slowdown == 5 OR slowdown <= 6 DO SET compression WITH param1=2, param2=3
+#     FOR G:1 WHEN slowdown > 3 OR slowdown > 3 AND slowdown == 5 OR slowdown <= 6 DO SET compression WITH param1=2, param2=3
 #     FOR G:4 AND G:4 WHEN slowdown > 3 AND slowdown > 50 DO SET compression WITH""".splitlines()
 #
 # for rule in rules:
@@ -116,9 +114,9 @@ def parse(input_string):
 #     print stats
 #     print 'subject', stats.subject
 #     print "group", stats.subject.tenant_group_list
-    # try:
-    #     stats = parse(rule)
-    # except:
-    #     print 'This rule ***'+rule+'  *** could not be parsed'
-    # else:
-    #     print stats.asList()
+#     try:
+#         stats = parse(rule)
+#     except:
+#         print 'This rule ***'+rule+'  *** could not be parsed'
+#     else:
+#         print stats.asList()

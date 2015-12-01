@@ -45,50 +45,60 @@ def start_test():
     tcpconf = ('tcp', ('127.0.0.1', 6375))
     host = init_host(tcpconf)
     metrics = {}
-    metrics["througput"] = host.spawn_id("througput", 'metrics.througput', 'Througput', ["througput", host])
-    metrics["slowdown"] = host.spawn_id("slowdown", 'metrics.slowdown', 'Slowdown', ["slowdown", host])
+    metrics["get_ops_tenant"] = host.spawn_id("get_ops_tenant", 'metrics.get_ops_tenant', 'Get_ops_tenant', ["amq.topic", "get_ops_tenant", "collectd.*.groupingtail.swift_metrics.*.get_ops_tenant.#",host])
+    # metrics["througput"] = host.spawn_id("througput", 'metrics.througput', 'Througput', ["througput", host])
+    # metrics["slowdown"] = host.spawn_id("slowdown", 'metrics.slowdown', 'Slowdown', ["slowdown", host])
     try:
-        metrics["througput"].init_consum()
-        metrics["slowdown"].init_consum()
+        metrics["get_ops_tenant"].init_consum()
+        # metrics["slowdown"].init_consum()
     except Exception as e:
         print e.args
         for metric in metrics:
             metric.stop_actor()
+
+    # sleep(10)
     # rules = {}
     # rules_string = """\
-    # FOR 4f0279da74ef4584a29dc72c835fe2c9 WHEN througput < 3 OR slowdown == 1 AND througput == 5 OR througput == 6 DO SET 1 WITH param1=2
-    # FOR 2312 WHEN througput > 3 AND slowdown >= 1 DO SET storlet WITH param1=2
-    # FOR 2321 WHEN slowdown < 40 DO SET storlet WITH param1=2
-    # FOR 2312 AND 2321 WHEN througput > 20 AND througput < 40 DO SET storlet WITH param1=2
-    # FOR 2321 WHEN througput > 15.5 AND througput < 16 DO SET storlet WITH param1=2
-    # FOR 2312 WHEN slowdown < 3 AND slowdown > 1 DO SET storlet WITH param1=2""".splitlines()
-    #
-    # rules_string = ["FOR 4f0279da74ef4584a29dc72c835fe2c9 WHEN througput < 3 OR slowdown == 1 AND througput == 5 OR througput == 6 DO SET 1 WITH param1=2"]
+    # FOR 2312 WHEN througput < 3 OR slowdown == 1 AND througput == 5 OR througput == 6 DO SET compression WITH param1=2
+    # FOR 2312 WHEN througput > 3 AND slowdown >= 1 DO SET compression WITH param1=2
+    # FOR 2321 WHEN slowdown < 40 DO SET compression
+    # FOR 2312 AND 2321 WHEN througput > 20 AND througput < 40 DO SET compression WITH param1=2
+    # FOR 2321 WHEN througput > 15.5 AND througput < 16 DO SET compression WITH param1=2
+    # FOR G:1 WHEN slowdown < 3 AND slowdown > 1 DO SET compression WITH param1=2""".splitlines()
+    # #
+    # # rules_string = ["FOR 4f0279da74ef4584a29dc72c835fe2c9 WHEN througput < 3 OR slowdown == 1 AND througput == 5 OR througput == 6 DO SET 1 WITH param1=2"]
+    # # cont = 0
+    # #
     # cont = 0
-    #
     # for rule in rules_string:
+    #     print 'Next rule to parse: '+rule
     #     rules_to_parse = {}
-    #     parsed_rule = p.parse(rule)
-    #     print parsed_rule.tenants
-    #     for tenant in parsed_rule.tenants:
-    #         print 'tenant', tenant
-    #         rules_to_parse[tenant] = parsed_rule
+    #     try:
+    #         parsed_rule = p.parse(rule)
+    #     except Exception as e:
+    #         print "The rule: "+rule+"cannot be parsed"
+    #         print "Exception message", e
+    #     else:
+    #         for tenant in parsed_rule.subject:
+    #             print 'tenant', tenant
+    #             rules_to_parse[tenant] = parsed_rule
     #
     #
-    #     for key in rules_to_parse.keys():
-    #         print 'rule ', key
-    #         rules[cont] =  host.spawn_id(str(cont), 'rule', 'Rule', [rules_to_parse[key], key, host, '127.0.0.1', 6375, 'tcp'])
-    #         rules[cont].start_rule()
-    #         cont += 1
-    #
-    #
-    #     # metrics["througput"].attach(rules[0])
-    #     # metrics["slowdown"].attach(rules[0])
+    #         for key in rules_to_parse.keys():
+    #             print 'rule ', key
+    #             rules[cont] =  host.spawn_id(str(cont), 'rule', 'Rule', [rules_to_parse[key], key, host, '127.0.0.1', 6375, 'tcp'])
+    #             rules[cont].start_rule()
+    #             cont += 1
+
+
+        # metrics["througput"].attach(rules[0])
+        # metrics["slowdown"].attach(rules[0])
 
 
 def main():
     start_controller('pyactive_thread')
     serve_forever(start_test)
+
 def main2():
     # export TOKEN=$(curl -d '{"auth":{"tenantName": "service", "passwordCredentials": {"username": "swift", "password": "urv"}}}' -H "Content-type: application/json" http://swift_mdw:5000/v2.0/tokens -s | jq '.access.token.id' | tr -d '"')
     data = {'auth':{'tenantName': 'service', 'passwordCredentials': {'username': 'swift', 'password': 'urv'}}}
