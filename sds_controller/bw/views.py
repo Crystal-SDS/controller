@@ -5,6 +5,7 @@ try:
 except ImportError:
     import json
 from django.http import HttpResponse
+from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework.renderers import JSONRenderer
 from rest_framework.parsers import JSONParser, FileUploadParser
@@ -22,14 +23,9 @@ class JSONResponse(HttpResponse):
 
 def proxyaddress():
     """
-    Reads the proxy address from the Swift-proxy.conf file.
+    Reads the proxy address from django settings.
     """
-    conf = ConfigParser.ConfigParser()
-    conf.read('Swift-proxy.conf')
-    proxyip = conf.get('proxy', 'proxyip')
-    proxyport = conf.get('proxy', 'proxyport')
-    proxy = "http://" + proxyip + ":" + proxyport
-    return proxy
+    return settings.SWIFT_URL
 
 def is_valid_request(request):
     headers = {}
