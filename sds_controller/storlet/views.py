@@ -45,6 +45,7 @@ def storlet_list(request):
         storlets = []
         for key in keys:
             storlet = r.hgetall(key)
+            storlet
             storlets.append(storlet)
         return JSONResponse(storlets, status=200)
 
@@ -52,6 +53,7 @@ def storlet_list(request):
         data = JSONParser().parse(request)
         storlet_id = r.incr("storlets:id")
         try:
+            data["id"] = storlet_id
             r.hmset('storlet:'+str(storlet_id), data)
             return JSONResponse(data, status=201)
         except:
@@ -142,6 +144,7 @@ def storlet_deploy(request, id, account):
         #Change to API Call
         try:
             print storlet['name']
+            print "token", headers["X-Auth-Token"]
             c.put_object(settings.SWIFT_URL+"AUTH_"+str(account), headers["X-Auth-Token"], 'storlet', storlet['name'], f,
                          content_length, None, None,
                          "application/octet-stream", metadata,
@@ -230,6 +233,7 @@ def dependency_list(request):
         data = JSONParser().parse(request)
         dependency_id = r.incr("dependencies:id")
         try:
+            data["id"] = dependency_id
             r.hmset('dependency:'+str(dependency_id), data)
             return JSONResponse(data, status=201)
         except:

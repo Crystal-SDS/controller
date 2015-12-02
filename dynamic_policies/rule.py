@@ -20,7 +20,7 @@ also defined in the policy.
 class Rule(object):
 
     _sync = {'get_tenant':'2'}
-    _async = ['update', 'start_rule']
+    _async = ['update', 'start_rule', 'stop_actor']
     _ref = []
     _parallel = []
 
@@ -29,11 +29,17 @@ class Rule(object):
         self.rule_parsed = rule_parsed
         self.tenant = tenant
         self.conditions = rule_parsed.condition_list.asList()
-        self.observers = {}
+        self.observers_values = {}
+        self.observers_proxies = {}
         self.base_uri = host_transport+'://'+host_ip+':'+str(host_port)+'/'
         tcpconf = (host_transport,(host_ip, host_port))
         self.host = host
         self.action_list = rule_parsed.action_list
+
+    def stop_actor(self):
+        for observer in self.observers_proxies.values():
+            observer.detach(self.proxy)
+        self._atom.stop()
 
     def start_rule(self):
         f = open('actions_success_'+str(self.id)+'.txt', 'a')
@@ -46,11 +52,14 @@ class Rule(object):
     needs to check the conditions defined in the policy
     """
     def add_metric(self, value):
-        if value not in self.observers.keys():
+        if value not in self.observers_values.keys():
             #Subscrive to metric observer
+            print 'hola add metric', self.base_uri+'metrics.'+value+'/'+value.title()+'/'+value
             observer = self.host.lookup(self.base_uri+'metrics.'+value+'/'+value.title()+'/'+value)
             observer.attach(self.proxy)
-            self.observers[value] = None
+            self.observers_proxies[value] = observer
+            self.observers_values[value] = None
+
     """
     The check_metrics method finds in the condition list all the metrics that it
     needs to check the conditions, when find some metric that it needs, call the
@@ -68,20 +77,21 @@ class Rule(object):
     pattern. This method is called to send to this actor the data updated.
     """
     def update(self, metric, tenant_info):
+        print 'Success update:  ', tenant_info
 
-        self.observers[metric]=tenant_info.value
+        self.observers_values[metric]=tenant_info.value
         #TODO Check the last time updated the value
         #Check the condition of the policy if all values are setted. If the condition
         #result is true, it calls the method do_action
-        if all(val!=None for val in self.observers.values()):
+        if all(val!=None for val in self.observers_values.values()):
             if self.check_conditions(self.conditions):
                 print self.do_action()
         else:
-            print 'not all values setted', self.observers.values()
+            print 'not all values setted', self.observers_values.values()
 
     def check_conditions(self, condition_list):
         if not isinstance(condition_list[0], list):
-            result = mappings[condition_list[1]](float(self.observers[condition_list[0].lower()]), float(condition_list[2]))
+            result = mappings[condition_list[1]](float(self.observers_values[condition_list[0].lower()]), float(condition_list[2]))
         else:
             result = self.check_conditions(condition_list[0])
             for i in range(1, len(condition_list)-1, 2):
@@ -100,9 +110,9 @@ class Rule(object):
 
         #create file to test
         f = open('actions_success_'+str(self.id)+'.txt', 'a')
-        f.write(str(self.id)+": "+str(self.observers.values())+"\n")
+        f.write(str(self.id)+": "+str(self.observers_values.values())+"\n")
         #TODO: Handle the token generation. Auto-login when this token expires. Take credentials from config file.
-        headers = {"X-Auth-Token":"3fc0ccfec1954f25bef393d2c39499e7"}
+        headers = {"X-Auth-Token":"c2633386b09a461a806845a100facbf0"}
         dynamic_filter = r.hgetall("filter:"+str(self.action_list.filter))
 
         if self.action_list.action == "SET":
@@ -118,6 +128,7 @@ class Rule(object):
                 print response.text, response.status_code
                 f.write(str(self.id)+": "+str(response.text)+"\n")
                 f.close()
+                self.stop_actor()
                 return response.text
 
         elif self.action_list.action == "DELETE":
@@ -129,6 +140,7 @@ class Rule(object):
                 print 'ERROR RESPONSE'
             else:
                 print response.text, response.status_code
+                self.stop_actor()
                 return response.text
 
         return 'Not action supported'

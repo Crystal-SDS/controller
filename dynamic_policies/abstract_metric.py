@@ -29,13 +29,14 @@ class Metric(object):
 
     def init_consum(self):
         try:
-            self.consumer = self.host.spawn_id(self.id + "_consumer", "consumer", "Consumer", ["localhost", 25672, self.queue, self.proxy])
+            self.consumer = self.host.spawn_id(self.id + "_consumer", "consumer", "Consumer", ["localhost", 5672, self.exchange, self.queue, self.routing_key, self.proxy])
             self.start_consuming()
         except:
             raise Exception("Problems to connect to RabbitMQ server")
 
 
     def stop_actor(self):
+        self.consumer.stop_consuming()
         self._atom.stop()
 
     def start_consuming(self):

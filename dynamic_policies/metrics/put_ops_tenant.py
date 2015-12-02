@@ -1,6 +1,6 @@
 from abstract_metric import Metric
 from metrics_parser import SwiftMetricsParse
-class Get_Ops_Tenant(Metric):
+class Put_Ops_Tenant(Metric):
     _sync = {}
     _async = ['get_value', 'attach', 'detach', 'notify', 'start_consuming','stop_consuming', 'init_consum', 'stop_actor']
     _ref = ['attach', 'detach']
@@ -12,10 +12,10 @@ class Get_Ops_Tenant(Metric):
         self.host = host
         self.queue = queue
         self.routing_key = routing_key
-        self.name = "get_ops_tenant"
+        self.name = "put_ops_tenant"
         self.exchange = exchange
         self.parser_instance = SwiftMetricsParse()
-        print 'Get ops tenant initialized'
+        print 'Put ops tenant initialized'
 
     def notify(self, body):
         """

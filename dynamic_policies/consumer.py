@@ -1,6 +1,7 @@
 import pika
 import logging
 logging.basicConfig()
+from threading import Thread
 
 class Consumer(object):
     _sync = {}
@@ -35,8 +36,12 @@ class Consumer(object):
 
     def start_consuming(self):
         print 'start to consume!!! :D'
-        self._channel.start_consuming()
+        self.thread = Thread(target=self._channel.start_consuming)
+        self.thread.start()
 
     def stop_consuming(self):
+        print 'intro stop consuming'
         self._channel.stop_consuming()
         self._channel.close()
+        print 'after close_cannel'
+        self._atom.stop()

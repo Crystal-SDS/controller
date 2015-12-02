@@ -69,8 +69,8 @@ JSON input that contains a dictionary with the following keys:
 FIELD |  DESCRIPTION
 --- | ---
 **name** | The name is the keyword to be used in condition clauses of storage policy definitions. Workload metric names should be unique and self-descriptive to ease the design of storage policies.
-**network location** | This requires the metadata information of a workload metric to provide the network location to reach the process and obtain the computed metric.
-**metric type** | Workload metric’s metadata should define the type of metric produces, such a integer or a boolean, to enable the DSL syntax checker to infer if values in condition clauses belong to the appropriate type.
+**network_location** | This requires the metadata information of a workload metric to provide the network location to reach the process and obtain the computed metric.
+**metric_type** | Workload metric’s metadata should define the type of metric produces, such a integer or a boolean, to enable the DSL syntax checker to infer if values in condition clauses belong to the appropriate type.
 
 #### HTTP Request Example
 
@@ -131,7 +131,7 @@ An application can update the metadata of a workload metric by issuing an HTTP P
 ### Request
 
 #### URL structure
-The URL is **/registry/metrics/:metric_id**
+The URL is **/registry/metrics/:metric_name**
 
 #### Method
 PUT
@@ -166,7 +166,7 @@ An application can ask for a workload metric metadata by issuing an HTTP GET req
 ### Request
 
 #### URL structure
-The URL is **/registry/metrics/:metric_id**
+The URL is **/registry/metrics/:metric_name**
 
 #### Method
 GET
@@ -200,7 +200,7 @@ An application can delete a workload metric by issuing an HTTP GET request.
 ### Request
 
 #### URL structure
-The URL is **/registry/metrics/:metric_id**
+The URL is **/registry/metrics/:metric_name**
 
 #### Method
 DELETE
@@ -244,7 +244,7 @@ JSON input that contains a dictionary with the following keys:
 FIELD |  DESCRIPTION
 --- | ---
 **name** | Filter names should be unique and self-descriptive to ease the design of storage policies.
-**identifier** | The identifier field is only required by out filter framework for object storage based on Storlets **(Optional)**
+**identifier** | The identifier field is only required by our filter framework for object storage based on Storlets **(Optional)**
 **activation_url** | Different filter types may have distinct calls from the SDS Controller API viewpoint, we need to provide the base URL to be used to trigger the filter activation.
 **valid_parameters** | Dictionary where the keys are the parameters accepted by the filter, and the values are the type (i.e. boolean, integer) of each parameter.
 
@@ -506,7 +506,7 @@ An application can get all tenants of a group registered by issuing an HTTP GET 
 ### Request
 
 #### URL structure
-The URL is **/registry/gtenants/gtenant_id**
+The URL is **/registry/gtenants/:gtenant_id**
 
 
 #### Method
@@ -539,7 +539,7 @@ An application can add members to a group by issuing an HTTP PUT request.
 ### Request
 
 #### URL structure
-The URL is **/registry/gtenants/gtenant_id**
+The URL is **/registry/gtenants/:gtenant_id**
 
 #### Method
 PUT
