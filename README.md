@@ -1,3 +1,4 @@
+[![Stories in Ready](https://badge.waffle.io/iostackproject/SDS-Controller-for-Object-Storage.png?label=ready&title=Ready)](https://waffle.io/iostackproject/SDS-Controller-for-Object-Storage)
 SDS Controller for Object Storage in the IOStack architecture
 =============================================================
 
