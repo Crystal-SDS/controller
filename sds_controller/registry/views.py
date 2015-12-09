@@ -5,6 +5,7 @@ from rest_framework.parsers import JSONParser, FileUploadParser
 from django.conf import settings
 import redis
 import json
+from . import dsl_parser
 
 class JSONResponse(HttpResponse):
     """
@@ -192,5 +193,42 @@ def gtenants_tenant_detail(request, gtenant_id, tenant_id):
         return JSONResponse('Error connecting with DB', status=500)
     if request.method == 'DELETE':
         r.lrem("G:"+str(gtenant_id), str(tenant_id), 1)
+        return JSONResponse('Tenant'+str(tenant_id)+'has been deleted from group with the id: '+str(gtenant_id), status=204)
+    return JSONResponse('Method '+str(request.method)+' not allowed.', status=405)
+
+@csrf_exempt
+def add_policy(request):
+    try:
+        r = get_redis_connection()
+    except:
+        return JSONResponse('Error connecting with DB', status=500)
+    # if request.method == 'PUT':
+    #     data = request.body
+    #     rules = []
+    #     print 'data'
+    #     cont = 0
+    #     host = remote_host
+    #     for rule in rules_string:
+    #         print 'Next rule to parse: '+rule
+    #         rules_to_parse = {}
+    #         try:
+    #             parsed_rule = p.parse(rule)
+    #         except Exception as e:
+    #             print "The rule: "+rule+"cannot be parsed"
+    #             print "Exception message", e
+    #             return JSONResponse(str(e), status=401)
+    #         else:
+    #             for tenant in parsed_rule.subject:
+    #                 print 'tenant', tenant
+    #                 rules_to_parse[tenant] = parsed_rule
+    #             for key in rules_to_parse.keys():
+    #                 print 'rule ', rules_to_parse[key]
+    #                 rules[cont] =  host.spawn_id(str(cont), 'rule', 'Rule', [rules_to_parse[key], key, host, '127.0.0.1', 6375, 'tcp'])
+    #                 rules[cont].start_rule()
+    #                 cont += 1
+    #
+    #
+    #     for line in data:
+    #         rules.append(dsl_parser(line))
         return JSONResponse('Tenant'+str(tenant_id)+'has been deleted from group with the id: '+str(gtenant_id), status=204)
     return JSONResponse('Method '+str(request.method)+' not allowed.', status=405)
