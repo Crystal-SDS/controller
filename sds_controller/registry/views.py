@@ -6,6 +6,8 @@ from django.conf import settings
 import redis
 import json
 from . import dsl_parser
+from pyactive.controller import init_host, serve_forever, start_controller, interval, sleep
+from pyactive.exception import TimeoutError, PyactiveError
 
 class JSONResponse(HttpResponse):
     """
@@ -196,39 +198,57 @@ def gtenants_tenant_detail(request, gtenant_id, tenant_id):
         return JSONResponse('Tenant'+str(tenant_id)+'has been deleted from group with the id: '+str(gtenant_id), status=204)
     return JSONResponse('Method '+str(request.method)+' not allowed.', status=405)
 
+
 @csrf_exempt
-def add_policy(request):
+def policy_list(request):
+    """
+    List all policies.
+    """
     try:
         r = get_redis_connection()
     except:
         return JSONResponse('Error connecting with DB', status=500)
-    # if request.method == 'PUT':
-    #     data = request.body
-    #     rules = []
-    #     print 'data'
-    #     cont = 0
-    #     host = remote_host
-    #     for rule in rules_string:
-    #         print 'Next rule to parse: '+rule
-    #         rules_to_parse = {}
-    #         try:
-    #             parsed_rule = p.parse(rule)
-    #         except Exception as e:
-    #             print "The rule: "+rule+"cannot be parsed"
-    #             print "Exception message", e
-    #             return JSONResponse(str(e), status=401)
-    #         else:
-    #             for tenant in parsed_rule.subject:
-    #                 print 'tenant', tenant
-    #                 rules_to_parse[tenant] = parsed_rule
-    #             for key in rules_to_parse.keys():
-    #                 print 'rule ', rules_to_parse[key]
-    #                 rules[cont] =  host.spawn_id(str(cont), 'rule', 'Rule', [rules_to_parse[key], key, host, '127.0.0.1', 6375, 'tcp'])
-    #                 rules[cont].start_rule()
-    #                 cont += 1
-    #
-    #
-    #     for line in data:
-    #         rules.append(dsl_parser(line))
-        return JSONResponse('Tenant'+str(tenant_id)+'has been deleted from group with the id: '+str(gtenant_id), status=204)
+    if request.method == 'GET':
+        keys = r.keys("policy:*")
+        policies = []
+        for key in keys:
+            policy = r.hgetall(key)
+            policies.append(policy)
+        return JSONResponse(policies, status=200)
+
+    if request.method == 'POST':
+        rules_string = request.body.splitlines()
+        for rule in rules_string:
+            parsed_rules = []
+            try:
+                parsed_rules.append(p.parse(rule))
+            except Exception as e:
+                print "The rule: "+rule+"cannot be parsed"
+                print "Exception message", e
+                return JSONResponse("Error in rule: "+rule+" Error message --> "+str(e), status=401)
+        #TODO: Test rule deploy process. (remote_host?)
+        start_controller("pyactive_thread")
+        launch(deploy_policy, [r, parsed_rules])
+        return JSONResponse('Policies added successfully!', status=201)
+
     return JSONResponse('Method '+str(request.method)+' not allowed.', status=405)
+def deploy_policy(r, rules):
+    # self.aref = 'atom://' + self.dispatcher.name + '/controller/Host/0'
+    rules = []
+    print 'data'
+    cont = 0
+    #TODO: review the init_host without parameters.
+    host = init_host()
+    remote_host = host.lookup(settings.PYACTIVE_URL+'/controller/Host/0')
+    for rule in rules:
+        rules_to_parse = {}
+        for tenant in rule.subject:
+            rules_to_parse[tenant] = rule
+        for key in rules_to_parse.keys():
+            policy_id = r.incr("policies:id")
+            #TODO: Review rules parameters
+            rules[cont] = remote_host.spawn_id(str(policy_id), 'rule', 'Rule', [rules_to_parse[key], key, remote_host, '127.0.0.1', 6375, 'tcp'])
+            rules[cont].start_rule()
+            #Add policy
+            r.hmset('policy:'+str(policy_id), {"policy_description":rule, "policy_location":settings.PYACTIVE_URL+"/rule/Rule/"+str(policy_id), "alive":True})
+            cont += 1

@@ -45,7 +45,6 @@ def storlet_list(request):
         storlets = []
         for key in keys:
             storlet = r.hgetall(key)
-            storlet
             storlets.append(storlet)
         return JSONResponse(storlets, status=200)
 

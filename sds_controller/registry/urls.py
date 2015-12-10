@@ -14,5 +14,5 @@ urlpatterns = [
     url(r'^/gtenants/(?P<gtenant_id>\w+)/?$', views.tenants_group_detail),
     url(r'^/gtenants/(?P<gtenant_id>\w+)/tenants/(?P<tenant_id>\w+)/?$', views.gtenants_tenant_detail),
 
-    url(r'^/policy/?$', views.add_policy),
+    url(r'^/policy/?$', views.policy_list),
 ]

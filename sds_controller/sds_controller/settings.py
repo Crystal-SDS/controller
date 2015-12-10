@@ -119,3 +119,6 @@ SWIFT_URL= "http://10.30.235.235:8080/v1/"
 
 #redis
 REDIS_CON_POOL = redis.ConnectionPool(host='localhost', port=6379, db=0)
+
+#pyactive
+PYACTIVE_URL = "tcp://127.0.0.1:6375/"
