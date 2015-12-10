@@ -42,13 +42,19 @@ import signal
 # t.stop_consuming()
 def signal_handler(signal, frame):
     print 'You pressed Ctrl+C!'
-    for rule in rules.values():
-        rule.stop_actor()
-    for metric in metrics.values():
-        print metric
-        metric.stop_actor()
+    try:
+        for rule in rules.values():
+            rule.stop_actor()
+    except:
+        None
+    try:
+        for metric in metrics.values():
+            metric.stop_actor()
+    except:
+        None
     host.shutdown()
     sys.exit(0)
+
 def start_test():
     tcpconf = ('tcp', ('127.0.0.1', 6375))
     global host
@@ -72,39 +78,39 @@ def start_test():
             print 'metric!', metric
             metric.stop_actor()
 
-    global rules
-    rules = {}
-    rules_string = """\
-    FOR 4f0279da74ef4584a29dc72c835fe2c9 WHEN get_ops_tenant > 4 DO SET compression WITH param1=2
-    FOR 4f0279da74ef4584a29dc72c835fe2c9 WHEN put_ops_tenant > 4 DO SET compression WITH param1=2
-    FOR 4f0279da74ef4584a29dc72c835fe2c9 WHEN head_ops_tenant > 4 DO SET compression WITH param1=2""".splitlines()
-
+    # global rules
+    # rules = {}
     # rules_string = """\
+    # FOR 4f0279da74ef4584a29dc72c835fe2c9 WHEN get_ops_tenant > 4 DO SET compression WITH param1=2
+    # FOR 4f0279da74ef4584a29dc72c835fe2c9 WHEN put_ops_tenant > 4 DO SET compression WITH param1=2
     # FOR 4f0279da74ef4584a29dc72c835fe2c9 WHEN head_ops_tenant > 4 DO SET compression WITH param1=2""".splitlines()
     #
-    # rules_string = ["FOR 4f0279da74ef4584a29dc72c835fe2c9 WHEN througput < 3 OR slowdown == 1 AND througput == 5 OR througput == 6 DO SET 1 WITH param1=2"]
+    # # rules_string = """\
+    # # FOR 4f0279da74ef4584a29dc72c835fe2c9 WHEN head_ops_tenant > 4 DO SET compression WITH param1=2""".splitlines()
+    # #
+    # # rules_string = ["FOR 4f0279da74ef4584a29dc72c835fe2c9 WHEN througput < 3 OR slowdown == 1 AND througput == 5 OR througput == 6 DO SET 1 WITH param1=2"]
+    # # cont = 0
+    # #
     # cont = 0
+    # for rule in rules_string:
+    #     print 'Next rule to parse: '+rule
+    #     rules_to_parse = {}
+    #     try:
+    #         parsed_rule = p.parse(rule)
+    #     except Exception as e:
+    #         print "The rule: "+rule+"cannot be parsed"
+    #         print "Exception message", e
+    #     else:
+    #         for tenant in parsed_rule.subject:
+    #             print 'tenant', tenant
+    #             rules_to_parse[tenant] = parsed_rule
     #
-    cont = 0
-    for rule in rules_string:
-        print 'Next rule to parse: '+rule
-        rules_to_parse = {}
-        try:
-            parsed_rule = p.parse(rule)
-        except Exception as e:
-            print "The rule: "+rule+"cannot be parsed"
-            print "Exception message", e
-        else:
-            for tenant in parsed_rule.subject:
-                print 'tenant', tenant
-                rules_to_parse[tenant] = parsed_rule
-
-
-            for key in rules_to_parse.keys():
-                print 'rule ', rules_to_parse[key]
-                rules[cont] =  host.spawn_id(str(cont), 'rule', 'Rule', [rules_to_parse[key], key, host, '127.0.0.1', 6375, 'tcp'])
-                rules[cont].start_rule()
-                cont += 1
+    #
+    #         for key in rules_to_parse.keys():
+    #             print 'rule ', rules_to_parse[key]
+    #             rules[cont] =  host.spawn_id(str(cont), 'rule', 'Rule', [rules_to_parse[key], key, host, '127.0.0.1', 6375, 'tcp'])
+    #             rules[cont].start_rule()
+    #             cont += 1
 
 
     signal.signal(signal.SIGINT, signal_handler)

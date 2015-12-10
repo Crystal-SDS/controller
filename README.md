@@ -56,6 +56,6 @@ To enable the monitoring module you need to follow this steps. First create a ne
 
 # Future Work
 
-- [ ] Communicate Storlet module with OpenStack Swift.
-- [ ] Communicate BW module with OpenStack Swift.
-- [ ] Add Monitoring module and communicate with OpenStack Swift using RabbitMQ.
+- [x] Communicate Storlet module with OpenStack Swift.
+- [x] Communicate BW module with OpenStack Swift.
+- [x] Add Monitoring module and communicate with OpenStack Swift using RabbitMQ.

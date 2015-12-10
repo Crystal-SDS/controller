@@ -14,7 +14,9 @@ class Metric(object):
         self.name = None
 
     def attach(self, observer):
+        print 'attach new observer', observer
         tenant = observer.get_tenant()
+        print 'observer tenant', tenant
         if not tenant in self._observers.keys():
             self._observers[tenant] = set()
         if not observer in self._observers[tenant]:

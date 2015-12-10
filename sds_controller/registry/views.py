@@ -218,37 +218,43 @@ def policy_list(request):
 
     if request.method == 'POST':
         rules_string = request.body.splitlines()
+        print 'rules_string', rules_string
+        parsed_rules = []
         for rule in rules_string:
-            parsed_rules = []
             try:
-                parsed_rules.append(p.parse(rule))
+                rule_parsed = dsl_parser.parse(rule)
+                print 'rule_parsed', rule_parsed.asList()
+                parsed_rules.append(rule_parsed)
             except Exception as e:
                 print "The rule: "+rule+"cannot be parsed"
                 print "Exception message", e
                 return JSONResponse("Error in rule: "+rule+" Error message --> "+str(e), status=401)
-        #TODO: Test rule deploy process. (remote_host?)
+        print 'parsed_rules', parsed_rules
         start_controller("pyactive_thread")
-        launch(deploy_policy, [r, parsed_rules])
+        deploy_policy(r, parsed_rules)
+        # launch(deploy_policy, [r, parsed_rules])
         return JSONResponse('Policies added successfully!', status=201)
 
     return JSONResponse('Method '+str(request.method)+' not allowed.', status=405)
-def deploy_policy(r, rules):
+
+def deploy_policy(r, parsed_rules):
     # self.aref = 'atom://' + self.dispatcher.name + '/controller/Host/0'
     rules = []
-    print 'data'
     cont = 0
     #TODO: review the init_host without parameters.
-    host = init_host()
-    remote_host = host.lookup(settings.PYACTIVE_URL+'/controller/Host/0')
-    for rule in rules:
+    tcpconf = ('tcp', ('127.0.0.1', 9999))
+    host = init_host(tcpconf)
+    remote_host = host.lookup(settings.PYACTIVE_URL+'controller/Host/0')
+    for rule in parsed_rules:
         rules_to_parse = {}
         for tenant in rule.subject:
             rules_to_parse[tenant] = rule
         for key in rules_to_parse.keys():
             policy_id = r.incr("policies:id")
             #TODO: Review rules parameters
-            rules[cont] = remote_host.spawn_id(str(policy_id), 'rule', 'Rule', [rules_to_parse[key], key, remote_host, '127.0.0.1', 6375, 'tcp'])
+            rules[cont] = remote_host.spawn_id(str(policy_id), 'rule', 'Rule', [rules_to_parse[key], key, remote_host, settings.PYACTIVE_IP, settings.PYACTIVE_PORT, settings.PYACTIVE_TRANSPORT])
             rules[cont].start_rule()
+            remote_host.shutdown()
             #Add policy
             r.hmset('policy:'+str(policy_id), {"policy_description":rule, "policy_location":settings.PYACTIVE_URL+"/rule/Rule/"+str(policy_id), "alive":True})
             cont += 1

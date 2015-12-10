@@ -1,8 +1,6 @@
 from pyparsing import *
-import abstract_metric
 import redis
 import json
-import ast
 
 # By default, PyParsing treats \n as whitespace and ignores it
 # In our grammer, \n is significant, so tell PyParsing not to ignore it
