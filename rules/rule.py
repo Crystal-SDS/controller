@@ -11,6 +11,7 @@ mappings = {'>': operator.gt, '>=': operator.ge,
         '==': operator.eq, '<=': operator.le, '<': operator.lt,
         '!=':operator.ne, "OR":operator.or_, "AND":operator.and_}
 
+#TODO: Add the redis connection into rule object
 r = redis.StrictRedis(host='localhost', port=6379, db=0)
 logging.basicConfig(filename='/home/vagrant/src/rule.log', format='%(asctime)s %(message)s', level=logging.INFO)
 
@@ -111,11 +112,7 @@ class Rule(object):
     is responsible to execute the action defined in the policy.
     """
     def do_action(self):
-        # TODO: Add registry to save the action. Here it needs to ask for the action in the registry
 
-        #create file to test
-        f = open('actions_success_'+str(self.id)+'.txt', 'a')
-        f.write(str(self.id)+": "+str(self.observers_values.values())+"\n")
         #TODO: Handle the token generation. Auto-login when this token expires. Take credentials from config file.
         headers = {"X-Auth-Token":"c2633386b09a461a806845a100facbf0"}
         dynamic_filter = r.hgetall("filter:"+str(self.action_list.filter))

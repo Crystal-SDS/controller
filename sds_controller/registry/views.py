@@ -24,7 +24,8 @@ class JSONResponse(HttpResponse):
 
 def get_redis_connection():
     return redis.Redis(connection_pool=settings.REDIS_CON_POOL)
-
+    
+#TODO: Improve the implementation to create the host connection
 def create_host():
     start_controller("pyactive_thread")
     tcpconf = ('tcp', ('127.0.0.1', 9899))
@@ -228,21 +229,17 @@ def policy_list(request):
         return JSONResponse(policies, status=200)
 
     if request.method == 'POST':
-        print 'rule_arrived',
         rules_string = request.body.splitlines()
-        print 'rules_string', rules_string
         parsed_rules = []
         for rule in rules_string:
             try:
 
                 rule_parsed = dsl_parser.parse(rule)
-                print 'rule_parsed', rule_parsed.asList()
                 parsed_rules.append(rule_parsed)
             except Exception as e:
                 print "The rule: "+rule+"cannot be parsed"
                 print "Exception message", e
                 return JSONResponse("Error in rule: "+rule+" Error message --> "+str(e), status=401)
-        print 'parsed_rules', parsed_rules
         deploy_policy(r, parsed_rules)
         # launch(deploy_policy, [r, parsed_rules])
         return JSONResponse('Policies added successfully!', status=201)
@@ -253,7 +250,6 @@ def deploy_policy(r, parsed_rules):
     # self.aref = 'atom://' + self.dispatcher.name + '/controller/Host/0'
     rules = {}
     cont = 0
-    #TODO: review the init_host without parameters.
     if not host or not remote_host:
         create_host()
     for rule in parsed_rules:
@@ -262,9 +258,8 @@ def deploy_policy(r, parsed_rules):
             rules_to_parse[tenant] = rule
         for key in rules_to_parse.keys():
             policy_id = r.incr("policies:id")
-            #TODO: Review rules parameters
             rules[cont] = remote_host.spawn_id(str(policy_id), 'rule', 'Rule', [rules_to_parse[key], key, remote_host, settings.PYACTIVE_IP, settings.PYACTIVE_PORT, settings.PYACTIVE_TRANSPORT])
             rules[cont].start_rule()
-            #Add policy
+            #Add policy into redis
             r.hmset('policy:'+str(policy_id), {"id":policy_id, "policy_description":rule, "policy_location":settings.PYACTIVE_URL+"/rule/Rule/"+str(policy_id), "alive":True})
             cont += 1
