@@ -239,7 +239,7 @@ def policy_list(request):
 
 def deploy_policy(r, parsed_rules):
     # self.aref = 'atom://' + self.dispatcher.name + '/controller/Host/0'
-    rules = []
+    rules = {}
     cont = 0
     #TODO: review the init_host without parameters.
     tcpconf = ('tcp', ('127.0.0.1', 9999))
