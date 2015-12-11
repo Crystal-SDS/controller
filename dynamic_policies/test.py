@@ -3,7 +3,6 @@ import os.path
 
 from metrics.througput import Througput
 from metrics.slowdown import Slowdown
-from rule import Rule
 import dsl_parser as p
 import time
 import operator

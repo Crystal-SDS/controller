@@ -9,6 +9,9 @@ from . import dsl_parser
 from pyactive.controller import init_host, serve_forever, start_controller, interval, sleep
 from pyactive.exception import TimeoutError, PyactiveError
 
+host = None
+remote_host = None
+
 class JSONResponse(HttpResponse):
     """
     An HttpResponse that renders its content into JSON.
@@ -21,6 +24,14 @@ class JSONResponse(HttpResponse):
 
 def get_redis_connection():
     return redis.Redis(connection_pool=settings.REDIS_CON_POOL)
+
+def create_host():
+    start_controller("pyactive_thread")
+    tcpconf = ('tcp', ('127.0.0.1', 9899))
+    global host
+    host = init_host(tcpconf)
+    global remote_host
+    remote_host = host.lookup(settings.PYACTIVE_URL+'controller/Host/0')
 
 """
 Metric Workload part
@@ -217,11 +228,13 @@ def policy_list(request):
         return JSONResponse(policies, status=200)
 
     if request.method == 'POST':
+        print 'rule_arrived',
         rules_string = request.body.splitlines()
         print 'rules_string', rules_string
         parsed_rules = []
         for rule in rules_string:
             try:
+
                 rule_parsed = dsl_parser.parse(rule)
                 print 'rule_parsed', rule_parsed.asList()
                 parsed_rules.append(rule_parsed)
@@ -230,7 +243,6 @@ def policy_list(request):
                 print "Exception message", e
                 return JSONResponse("Error in rule: "+rule+" Error message --> "+str(e), status=401)
         print 'parsed_rules', parsed_rules
-        start_controller("pyactive_thread")
         deploy_policy(r, parsed_rules)
         # launch(deploy_policy, [r, parsed_rules])
         return JSONResponse('Policies added successfully!', status=201)
@@ -242,9 +254,8 @@ def deploy_policy(r, parsed_rules):
     rules = {}
     cont = 0
     #TODO: review the init_host without parameters.
-    tcpconf = ('tcp', ('127.0.0.1', 9999))
-    host = init_host(tcpconf)
-    remote_host = host.lookup(settings.PYACTIVE_URL+'controller/Host/0')
+    if not host or not remote_host:
+        create_host()
     for rule in parsed_rules:
         rules_to_parse = {}
         for tenant in rule.subject:
@@ -254,7 +265,6 @@ def deploy_policy(r, parsed_rules):
             #TODO: Review rules parameters
             rules[cont] = remote_host.spawn_id(str(policy_id), 'rule', 'Rule', [rules_to_parse[key], key, remote_host, settings.PYACTIVE_IP, settings.PYACTIVE_PORT, settings.PYACTIVE_TRANSPORT])
             rules[cont].start_rule()
-            remote_host.shutdown()
             #Add policy
-            r.hmset('policy:'+str(policy_id), {"policy_description":rule, "policy_location":settings.PYACTIVE_URL+"/rule/Rule/"+str(policy_id), "alive":True})
+            r.hmset('policy:'+str(policy_id), {"id":policy_id, "policy_description":rule, "policy_location":settings.PYACTIVE_URL+"/rule/Rule/"+str(policy_id), "alive":True})
             cont += 1

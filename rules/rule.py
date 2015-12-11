@@ -12,7 +12,7 @@ mappings = {'>': operator.gt, '>=': operator.ge,
         '!=':operator.ne, "OR":operator.or_, "AND":operator.and_}
 
 r = redis.StrictRedis(host='localhost', port=6379, db=0)
-logging.basicConfig(filename='./rule.log', format='%(asctime)s %(message)s', level=logging.INFO)
+logging.basicConfig(filename='/home/vagrant/src/rule.log', format='%(asctime)s %(message)s', level=logging.INFO)
 
 """
 Rule: Each policy of each tenant is compiled as Rule. Rule is an Actor and it will be subscribed
@@ -43,6 +43,7 @@ class Rule(object):
     def stop_actor(self):
         for observer in self.observers_proxies.values():
             observer.detach(self.proxy)
+        r.hset("policy:"+str(self.id), "alive", False)
         self._atom.stop()
 
     def start_rule(self):
