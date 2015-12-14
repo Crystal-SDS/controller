@@ -82,16 +82,16 @@ WSGI_APPLICATION = 'sds_controller.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/1.8/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        'NAME': 'sds_controller',
-        'USER': 'sds_controller_user',
-        'PASSWORD': 'sds_controller_pass',
-        'HOST': 'localhost',
-        'PORT': '5432',
-    }
-}
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql_psycopg2',
+#         'NAME': 'sds_controller',
+#         'USER': 'sds_controller_user',
+#         'PASSWORD': 'sds_controller_pass',
+#         'HOST': 'localhost',
+#         'PORT': '5432',
+#     }
+# }
 
 
 # Internationalization
