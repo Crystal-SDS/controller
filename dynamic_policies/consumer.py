@@ -10,8 +10,13 @@ class Consumer(object):
     _parallel = []
 
     def __init__(self, host, port, exchange, queue, routing_key, obj):
+        #TODO: Create config file to add credentials, host and port.
+        username = put_rabbitmq_username
+        password = put_rabbitmq_password
+        
+        credentials = pika.PlainCredentials(username, password)
         self._channel = pika.BlockingConnection(pika.ConnectionParameters(
-            host=host, port=port)).channel()
+            host=host, port=port, credentials=credentials)).channel()
 
         self.obj = obj
         self.queue = queue
