@@ -133,7 +133,7 @@ def storlet_deploy(request, id, account):
             'X-Object-Meta-Storlet-Interface-Version':'1.0',
             'X-Object-Meta-Storlet-Dependency': storlet['dependencies'],
             'X-Object-Meta-Storlet-Object-Metadata':'no',
-            'X-Object-Meta-Storlet-Main': storlet['main_class']}
+            'X-Object-Meta-Storlet-Main': storlet['main']}
         try:
             f = open(storlet['path'],'r')
         except:
@@ -158,9 +158,13 @@ def storlet_deploy(request, id, account):
                 return JSONResponse("Already deployed", status=200)
 
             if r.lpush("AUTH_"+str(account), str(storlet['name'])):
-                if r.hmset("AUTH_"+str(account)+":"+str(storlet['name']), params):
-                    return JSONResponse("Deployed", status=201)
-
+                if not params:
+                    #TODO: Solve the problem with empty params.
+                    if r.hmset("AUTH_"+str(account)+":"+str(storlet["name"]), {"storlet":"compression"}):
+                        return JSONResponse("Deployed", status=201)
+                else:
+                    if r.hmset("AUTH_"+str(account)+":"+str(storlet['name']), params):
+                        return JSONResponse("Deployed", status=201)
         return JSONResponse("error", status=400)
     return JSONResponse('Method '+str(request.method)+' not allowed.', status=405)
 
@@ -369,36 +373,7 @@ def dependency_undeploy(request, id, account):
         return JSONResponse(response.get("reason"), status=status)
     return JSONResponse('Method '+str(request.method)+' not allowed.', status=405)
 
-    @csrf_exempt
-    def storlet_undeploy(request, id, account):
-        try:
-            r = get_redis_connection()
-        except:
-            return JSONResponse('Problems to connect with the DB', status=500)
-        storlet = r.hgetall("storlet:"+str(id))
-        if not storlet:
-            return JSONResponse('Filter does not exists', status=404)
-        if not r.exists("AUTH_"+str(account)+":"+str(storlet["name"])):
-            return JSONResponse('Filter '+str(storlet["name"])+' has not been deployed already', status=404)
 
-        if request.method == 'PUT':
-            headers = is_valid_request(request)
-            if not headers:
-                return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
-            response = dict()
-            try:
-                c.delete_object(settings.SWIFT_URL+"AUTH_"+str(account),headers["X-Auth-Token"],
-                    'storlet', storlet["name"], None, None, None, None, response)
-                print 'response, ', response
-            except:
-                return JSONResponse(response.get("reason"), status=response.get('status'))
-            status = response.get('status')
-            if 200 <= status < 300:
-                r.delete("AUTH_"+str(account)+":"+str(storlet["name"]))
-                r.lrem("AUTH_"+str(account), str(storlet["name"]), 1)
-                return JSONResponse('The object has been deleted', status=status)
-            return JSONResponse(response.get("reason"), status=status)
-        return JSONResponse('Method '+str(request.method)+' not allowed.', status=405)
 
 
 def save_file(file, path=''):

@@ -24,7 +24,7 @@ class JSONResponse(HttpResponse):
 
 def get_redis_connection():
     return redis.Redis(connection_pool=settings.REDIS_CON_POOL)
-    
+
 #TODO: Improve the implementation to create the host connection
 def create_host():
     start_controller("pyactive_thread")
@@ -237,7 +237,7 @@ def policy_list(request):
                 rule_parsed = dsl_parser.parse(rule)
                 parsed_rules.append(rule_parsed)
             except Exception as e:
-                print "The rule: "+rule+"cannot be parsed"
+                print "The rule: "+rule+" cannot be parsed"
                 print "Exception message", e
                 return JSONResponse("Error in rule: "+rule+" Error message --> "+str(e), status=401)
         deploy_policy(r, parsed_rules)

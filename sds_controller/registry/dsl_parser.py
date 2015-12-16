@@ -1,6 +1,7 @@
 from pyparsing import *
 import redis
 import json
+from django.conf import settings
 
 # By default, PyParsing treats \n as whitespace and ignores it
 # In our grammer, \n is significant, so tell PyParsing not to ignore it
@@ -18,7 +19,10 @@ FOR Tenant WHEN"+ condition AND condition AND condition OR condition etc.+"DO"+a
 
 TODO: Parse = TRUE or = False or condicion number. Check to convert to float or convert to boolean.
 """
-r = redis.StrictRedis(host='localhost', port=6379, db=0)
+#TODO: take this value from configuration
+
+def get_redis_connection():
+    return redis.Redis(connection_pool=settings.REDIS_CON_POOL)
 
 def parse_group_tenants(tokens):
     data = r.lrange(tokens[0], 0, -1)
@@ -30,7 +34,7 @@ def parse(input_string):
     #TODO Raise an exception if not metrics or not action registred
     #TODO Raise an exception if group of tenants don't exists.
     #TODO Add transcient option
-
+    r = get_redis_connection()
 
     #Support words to construct the grammar.
     word = Word(alphas)
