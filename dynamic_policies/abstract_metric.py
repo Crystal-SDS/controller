@@ -1,5 +1,6 @@
 import json
 import redis
+import ConfigParser
 """
 Metric: This is an abstract class. This class is the responsible to consume messages
 from rabbitMQ and send the data to each observer subscribed to it. This class also
@@ -13,8 +14,8 @@ class Metric(object):
         self._observers = {}
         self.value = None
         self.name = None
-        Config = ConfigParser.ConfigParser()
-        Config.read("./dynamic_policies.config")
+        settings = ConfigParser.ConfigParser()
+        settings.read("./dynamic_policies.config")
 
         self.rmq_user =  settings.get('rabbitmq', 'username')
         self.rmq_pass = settings.get('rabbitmq', 'password')

@@ -2,7 +2,7 @@ import pika
 import logging
 logging.basicConfig()
 from threading import Thread
-import ConfigParser
+
 
 class Consumer(object):
     _sync = {}

@@ -15,7 +15,7 @@ class Get_Bw_Tenant(Metric):
         self.name = "get_bw_tenant"
         self.exchange = exchange
         self.parser_instance = SwiftMetricsParse()
-        print 'Throughput tenant initialized'
+        print 'GET BW tenant initialized'
 
     def notify(self, body):
         """

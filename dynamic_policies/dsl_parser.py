@@ -3,7 +3,7 @@ import abstract_metric
 import redis
 import json
 import ast
-
+import ConfigParser
 # By default, PyParsing treats \n as whitespace and ignores it
 # In our grammer, \n is significant, so tell PyParsing not to ignore it
 # ParserElement.setDefaultWhitespaceChars(" \t")
@@ -20,7 +20,14 @@ FOR Tenant WHEN"+ condition AND condition AND condition OR condition etc.+"DO"+a
 
 TODO: Parse = TRUE or = False or condicion number. Check to convert to float or convert to boolean.
 """
-r = redis.StrictRedis(host='localhost', port=6379, db=0)
+
+settings = ConfigParser.ConfigParser()
+settings.read("./dynamic_policies.config")
+
+redis_host = settings.get('redis', 'host')
+redis_port = settings.get('redis', 'port')
+redis_db = settings.get('redis', 'db')
+r = redis.StrictRedis(host=redis_host, port=redis_port, db=redis_db)
 
 def parse_group_tenants(tokens):
     data = r.lrange(tokens[0], 0, -1)
