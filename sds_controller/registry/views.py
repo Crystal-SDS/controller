@@ -8,6 +8,7 @@ import json
 from . import dsl_parser
 from pyactive.controller import init_host, serve_forever, start_controller, interval, sleep
 from pyactive.exception import TimeoutError, PyactiveError
+from storlet.views import storlet_deploy, storlet_undeploy
 
 host = None
 remote_host = None
@@ -21,6 +22,13 @@ class JSONResponse(HttpResponse):
         kwargs['content_type'] = 'application/json'
         super(JSONResponse, self).__init__(content, **kwargs)
 
+def is_valid_request(request):
+    headers = {}
+    try:
+        headers['X-Auth-Token'] = request.META['HTTP_X_AUTH_TOKEN']
+        return headers
+    except:
+        return None
 
 def get_redis_connection():
     return redis.Redis(connection_pool=settings.REDIS_CON_POOL)
@@ -139,7 +147,7 @@ def dynamic_filter_detail(request, name):
         return JSONResponse('The metadata of the dynamic filter with name: '+str(name)+' has been updated', status=201)
 
     if request.method == 'DELETE':
-        r.delete("filter:"+str(filter_id))
+        r.delete("filter:"+str(name))
         return JSONResponse('Dynamic filter has been deleted', status=204)
     return JSONResponse('Method '+str(request.method)+' not allowed.', status=405)
 
@@ -229,13 +237,18 @@ def policy_list(request):
         return JSONResponse(policies, status=200)
 
     if request.method == 'POST':
+        headers = is_valid_request(request)
+        if not headers:
+            return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
         rules_string = request.body.splitlines()
         parsed_rules = []
         for rule in rules_string:
             try:
-
-                rule_parsed = dsl_parser.parse(rule)
-                parsed_rules.append(rule_parsed)
+                condition_list, rule_parsed = dsl_parser.parse(rule)
+                if condition_list:
+                    parsed_rules.append(rule_parsed)
+                else:
+                    do_action(request, r, rule_parsed, headers)
             except Exception as e:
                 print "The rule: "+rule+" cannot be parsed"
                 print "Exception message", e
@@ -246,6 +259,29 @@ def policy_list(request):
 
     return JSONResponse('Method '+str(request.method)+' not allowed.', status=405)
 
+def do_action(request, r, rule_parsed, headers):
+    dynamic_filter = r.hgetall("filter:"+str(rule_parsed.action_list.filter))
+
+    if rule_parsed.action_list.action == "SET":
+
+        #TODO Review if this tenant has already deployed this filter. Not deploy the same filter more than one time.
+
+        response = storlet_deploy(request, dynamic_filter["identifier"], rule_parsed.tenant)
+        if 200 > response.status_code >= 300:
+            print False
+        else:
+            print response
+            return True
+
+    elif rule_parsed.action_list.action == "DELETE":
+
+        response = storlet_undeploy(request, dynamic_filter["identifier"], rule_parsed.tenant)
+        if 200 > response.status_code >= 300:
+            print False
+        else:
+            print response
+            return True
+            
 def deploy_policy(r, parsed_rules):
     # self.aref = 'atom://' + self.dispatcher.name + '/controller/Host/0'
     rules = {}

@@ -82,8 +82,8 @@ def parse(input_string):
     tenant_group.setParseAction(parse_group_tenants)
 
     #Final rule structure
-    rule_parse = literal_for + subject("subject") + when +\
-                condition_list("condition_list") + do + Group(action("action") + \
+    rule_parse = literal_for + subject("subject") + Optional(when +\
+                condition_list("condition_list")) + do + Group(action("action") + \
                 oneOf(sfilter)("filter") + Optional(with_params + params_list("params")))("action_list")
 
     #Parse the rule
@@ -100,8 +100,9 @@ def parse(input_string):
             return parsed_rule
         else:
             raise Exception
-
-    return parsed_rule
+    if not parsed_rule.condition_list:
+        return False, parsed_rule
+    return True, parsed_rule
 
 
 # rules ="""FOR 4f0279da74ef4584a29dc72c835fe2c9 WHEN get_ops_tenant < 3 OR get_ops_tenant == 1 AND get_ops_tenant == 5 OR get_ops_tenant == 6 DO SET compression WITH param1=2""".splitlines()

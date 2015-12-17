@@ -2,6 +2,7 @@ import pika
 import logging
 logging.basicConfig()
 from threading import Thread
+import ConfigParser
 
 class Consumer(object):
     _sync = {}
@@ -10,10 +11,13 @@ class Consumer(object):
     _parallel = []
 
     def __init__(self, host, port, exchange, queue, routing_key, obj):
+
+        Config = ConfigParser.ConfigParser()
+        Config.read("./dynamic_policies.config")
         #TODO: Create config file to add credentials, host and port.
-        username = put_rabbitmq_username
-        password = put_rabbitmq_password
-        
+        username =  settings.get('rabbitmq', 'username')
+        password = settings.get('rabbitmq', 'password')
+
         credentials = pika.PlainCredentials(username, password)
         self._channel = pika.BlockingConnection(pika.ConnectionParameters(
             host=host, port=port, credentials=credentials)).channel()

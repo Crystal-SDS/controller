@@ -128,8 +128,6 @@ class Rule(object):
                 print 'ERROR RESPONSE'
             else:
                 print response.text, response.status_code
-                f.write(str(self.id)+": "+str(response.text)+"\n")
-                f.close()
                 self.stop_actor()
                 return response.text
 
