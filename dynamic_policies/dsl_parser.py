@@ -33,7 +33,6 @@ def parse(input_string):
     #TODO Raise an exception if group of tenants don't exists.
     #TODO Add transcient option
 
-
     #Support words to construct the grammar.
     word = Word(alphas)
     when = Suppress(Literal("WHEN"))
@@ -80,43 +79,41 @@ def parse(input_string):
     tenant_group.setParseAction(parse_group_tenants)
 
     #Final rule structure
-    rule_parse = literal_for + subject("subject") + when +\
-                condition_list("condition_list") + do + Group(action("action") + \
+    rule_parse = literal_for + subject("subject") + Optional(when +\
+                condition_list("condition_list")) + do + Group(action("action") + \
                 oneOf(sfilter)("filter") + Optional(with_params + params_list("params")))("action_list")
 
     #Parse the rule
     parsed_rule = rule_parse.parseString(input_string)
 
     #Pos-parsed validation
+    has_condition_list = True
+    if not parsed_rule.condition_list:
+        has_condition_list = False
+
     if parsed_rule.action_list.params:
         filter_info = r.hgetall("filter:"+str(parsed_rule.action_list.filter))
-
-        params = eval(filter_info["params"])
-        result = set(parsed_rule.action_list.params.keys()).intersection(params.keys())
-        if len(result) == len(parsed_rule.action_list.params.keys()):
-            #TODO Check params types.
-            return parsed_rule
+        if "params" in filter_info.keys():
+            params = eval(filter_info["params"])
+            result = set(parsed_rule.action_list.params.keys()).intersection(params.keys())
+            if len(result) == len(parsed_rule.action_list.params.keys()):
+                #TODO Check params types.
+                return has_condition_list, parsed_rule
+            else:
+                raise Exception
         else:
             raise Exception
 
-    return parsed_rule
+    return has_condition_list, parsed_rule
 
 
-# rules ="""FOR 4f0279da74ef4584a29dc72c835fe2c9 WHEN get_ops_tenant < 3 DO SET test_compress""".splitlines()
+rules ="""FOR 4f0279da74ef4584a29dc72c835fe2c9 DO SET compression WITH param1=2""".splitlines()
 # rules = """\
 #     FOR 4f0279da74ef4584a29dc72c835fe2c9 WHEN througput < 3 OR slowdown == 1 AND througput == 5 OR througput == 6 DO SET compression WITH param1=2
 #     FOR G:1 WHEN slowdown > 3 OR slowdown > 3 AND slowdown == 5 OR slowdown <= 6 DO SET compression WITH param1=2, param2=3
 #     FOR G:4 AND G:4 WHEN slowdown > 3 AND slowdown > 50 DO SET compression WITH""".splitlines()
 #
-# for rule in rules:
-#     stats = parse(rule)
-#     print 'as_list', stats.asList()
-#     print stats
-#     print 'subject', stats.subject
-#     print "group", stats.subject.tenant_group_list
-#     try:
-#         stats = parse(rule)
-#     except:
-#         print 'This rule ***'+rule+'  *** could not be parsed'
-#     else:
-#         print stats.asList()
+for rule in rules:
+    _, stats = parse(rule)
+    print stats
+    print 'subject', stats.subject

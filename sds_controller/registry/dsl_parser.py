@@ -90,19 +90,24 @@ def parse(input_string):
     parsed_rule = rule_parse.parseString(input_string)
 
     #Pos-parsed validation
+    has_condition_list = True
+    if not parsed_rule.condition_list:
+        has_condition_list = False
+
     if parsed_rule.action_list.params:
         filter_info = r.hgetall("filter:"+str(parsed_rule.action_list.filter))
-
-        params = eval(filter_info["params"])
-        result = set(parsed_rule.action_list.params.keys()).intersection(params.keys())
-        if len(result) == len(parsed_rule.action_list.params.keys()):
-            #TODO Check params types.
-            return parsed_rule
+        if "params" in filter_info.keys():
+            params = eval(filter_info["params"])
+            result = set(parsed_rule.action_list.params.keys()).intersection(params.keys())
+            if len(result) == len(parsed_rule.action_list.params.keys()):
+                #TODO Check params types.
+                return has_condition_list, parsed_rule
+            else:
+                raise Exception
         else:
             raise Exception
-    if not parsed_rule.condition_list:
-        return False, parsed_rule
-    return True, parsed_rule
+
+    return has_condition_list, parsed_rule
 
 
 # rules ="""FOR 4f0279da74ef4584a29dc72c835fe2c9 WHEN get_ops_tenant < 3 OR get_ops_tenant == 1 AND get_ops_tenant == 5 OR get_ops_tenant == 6 DO SET compression WITH param1=2""".splitlines()

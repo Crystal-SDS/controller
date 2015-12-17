@@ -8,7 +8,7 @@ import json
 from . import dsl_parser
 from pyactive.controller import init_host, serve_forever, start_controller, interval, sleep
 from pyactive.exception import TimeoutError, PyactiveError
-from storlet.views import storlet_deploy, storlet_undeploy
+from storlet.views import deploy, storlet_undeploy
 
 host = None
 remote_host = None
@@ -248,7 +248,10 @@ def policy_list(request):
                 if condition_list:
                     parsed_rules.append(rule_parsed)
                 else:
-                    do_action(request, r, rule_parsed, headers)
+                    print 'rule_parsed', rule_parsed
+                    for tenant in rule_parsed.subject:
+                        response = do_action(request, r, tenant, rule_parsed, headers)
+                    print "pepito", response
             except Exception as e:
                 print "The rule: "+rule+" cannot be parsed"
                 print "Exception message", e
@@ -259,19 +262,22 @@ def policy_list(request):
 
     return JSONResponse('Method '+str(request.method)+' not allowed.', status=405)
 
-def do_action(request, r, rule_parsed, headers):
+def do_action(request, r, tenant, rule_parsed, headers):
     dynamic_filter = r.hgetall("filter:"+str(rule_parsed.action_list.filter))
 
     if rule_parsed.action_list.action == "SET":
 
         #TODO Review if this tenant has already deployed this filter. Not deploy the same filter more than one time.
-
-        response = storlet_deploy(request, dynamic_filter["identifier"], rule_parsed.tenant)
-        if 200 > response.status_code >= 300:
-            print False
+        storlet = r.hgetall("storlet:"+dynamic_filter["identifier"])
+        if not storlet:
+            return JSONResponse('Filter does not exists', status=404)
+        if rule_parsed.action_list.params:
+            response = deploy(r, storlet, tenant, rule_parsed.action_list.params, headers)
         else:
-            print response
-            return True
+            response = deploy(r, storlet, tenant, {}, headers)
+
+        return response
+
 
     elif rule_parsed.action_list.action == "DELETE":
 
@@ -281,7 +287,7 @@ def do_action(request, r, rule_parsed, headers):
         else:
             print response
             return True
-            
+
 def deploy_policy(r, parsed_rules):
     # self.aref = 'atom://' + self.dispatcher.name + '/controller/Host/0'
     rules = {}

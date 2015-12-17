@@ -128,44 +128,9 @@ def storlet_deploy(request, id, account):
         if not storlet:
             return JSONResponse('Filter does not exists', status=404)
         params = JSONParser().parse(request)
+        print 'params', params
+        return deploy(r, storlet, account, params, headers)
 
-        metadata = {'X-Object-Meta-Storlet-Language':'Java',
-            'X-Object-Meta-Storlet-Interface-Version':'1.0',
-            'X-Object-Meta-Storlet-Dependency': storlet['dependencies'],
-            'X-Object-Meta-Storlet-Object-Metadata':'no',
-            'X-Object-Meta-Storlet-Main': storlet['main']}
-        try:
-            f = open(storlet['path'],'r')
-        except:
-            return JSONResponse('Not found the filter data file', status=404)
-        content_length = None
-        response = dict()
-        #Change to API Call
-        try:
-            print storlet['name']
-            print "token", headers["X-Auth-Token"]
-            c.put_object(settings.SWIFT_URL+"AUTH_"+str(account), headers["X-Auth-Token"], 'storlet', storlet['name'], f,
-                         content_length, None, None,
-                         "application/octet-stream", metadata,
-                         None, None, None, response)
-        except:
-            return JSONResponse(response.get("reason"), status=response.get('status'))
-        finally:
-            f.close()
-        status = response.get('status')
-        if status == 201:
-            if r.exists("AUTH_"+str(account)+":"+str(storlet['name'])):
-                return JSONResponse("Already deployed", status=200)
-
-            if r.lpush("AUTH_"+str(account), str(storlet['name'])):
-                if not params:
-                    #TODO: Solve the problem with empty params.
-                    if r.hmset("AUTH_"+str(account)+":"+str(storlet["name"]), {"storlet":"compression"}):
-                        return JSONResponse("Deployed", status=201)
-                else:
-                    if r.hmset("AUTH_"+str(account)+":"+str(storlet['name']), params):
-                        return JSONResponse("Deployed", status=201)
-        return JSONResponse("error", status=400)
     return JSONResponse('Method '+str(request.method)+' not allowed.', status=405)
 
 @csrf_exempt
@@ -374,7 +339,44 @@ def dependency_undeploy(request, id, account):
     return JSONResponse('Method '+str(request.method)+' not allowed.', status=405)
 
 
+def deploy(r, storlet, account, params, headers):
+    metadata = {'X-Object-Meta-Storlet-Language':'Java',
+        'X-Object-Meta-Storlet-Interface-Version':'1.0',
+        'X-Object-Meta-Storlet-Dependency': storlet['dependencies'],
+        'X-Object-Meta-Storlet-Object-Metadata':'no',
+        'X-Object-Meta-Storlet-Main': storlet['main']}
+    try:
+        f = open(storlet['path'],'r')
+    except:
+        return JSONResponse('Not found the filter data file', status=404)
+    content_length = None
+    response = dict()
+    #Change to API Call
+    try:
+        print storlet['name']
+        print "token", headers["X-Auth-Token"]
+        c.put_object(settings.SWIFT_URL+"AUTH_"+str(account), headers["X-Auth-Token"], 'storlet', storlet['name'], f,
+                     content_length, None, None,
+                     "application/octet-stream", metadata,
+                     None, None, None, response)
+    except:
+        return JSONResponse(response.get("reason"), status=response.get('status'))
+    finally:
+        f.close()
+    status = response.get('status')
+    if status == 201:
+        if r.exists("AUTH_"+str(account)+":"+str(storlet['name'])):
+            return JSONResponse("Already deployed", status=200)
 
+        if r.lpush("AUTH_"+str(account), str(storlet['name'])):
+            if not params:
+                #TODO: Solve the problem with empty params.
+                if r.hmset("AUTH_"+str(account)+":"+str(storlet["name"]), {"storlet":"compression"}):
+                    return JSONResponse("Deployed", status=201)
+            else:
+                if r.hmset("AUTH_"+str(account)+":"+str(storlet['name']), params):
+                    return JSONResponse("Deployed", status=201)
+    return JSONResponse("error", status=400)
 
 def save_file(file, path=''):
     '''

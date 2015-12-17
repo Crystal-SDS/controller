@@ -1,4 +1,5 @@
 import json
+import redis
 """
 Metric: This is an abstract class. This class is the responsible to consume messages
 from rabbitMQ and send the data to each observer subscribed to it. This class also
@@ -14,11 +15,17 @@ class Metric(object):
         self.name = None
         Config = ConfigParser.ConfigParser()
         Config.read("./dynamic_policies.config")
-        #TODO: Create config file to add credentials, host and port.
+
         self.rmq_user =  settings.get('rabbitmq', 'username')
         self.rmq_pass = settings.get('rabbitmq', 'password')
         self.rmq_host = settings.get('rabbitmq', 'host')
         self.rmq_port = settings.get('rabbitmq', 'port')
+        self.redis_host = settings.get('redis', 'host')
+        self.redis_port = settings.get('redis', 'port')
+        self.redis_db = settings.get('redis', 'db')
+
+        self.redis_pool = redis.ConnectionPool(host=self.redis_host, port=self.redis_port, db=self.redis_db)
+
     def attach(self, observer):
         print 'attach new observer', observer
         tenant = observer.get_tenant()
@@ -37,6 +44,7 @@ class Metric(object):
 
     def init_consum(self):
         try:
+            redis.Redis(self.redis_pool).hmset("metric:"+self.name, {"network_location":self._atom.aref, "type":"integer"})
             self.consumer = self.host.spawn_id(self.id + "_consumer", "consumer", "Consumer", [self.rmq_host, int(self.rmq_port), self.rmq_user, self.rmq_pass, self.exchange, self.queue, self.routing_key, self.proxy])
             self.start_consuming()
         except:
