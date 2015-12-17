@@ -12,7 +12,13 @@ class Metric(object):
         self._observers = {}
         self.value = None
         self.name = None
-
+        Config = ConfigParser.ConfigParser()
+        Config.read("./dynamic_policies.config")
+        #TODO: Create config file to add credentials, host and port.
+        self.rmq_user =  settings.get('rabbitmq', 'username')
+        self.rmq_pass = settings.get('rabbitmq', 'password')
+        self.rmq_host = settings.get('rabbitmq', 'host')
+        self.rmq_port = settings.get('rabbitmq', 'port')
     def attach(self, observer):
         print 'attach new observer', observer
         tenant = observer.get_tenant()
@@ -31,7 +37,7 @@ class Metric(object):
 
     def init_consum(self):
         try:
-            self.consumer = self.host.spawn_id(self.id + "_consumer", "consumer", "Consumer", ["localhost", 5672, self.exchange, self.queue, self.routing_key, self.proxy])
+            self.consumer = self.host.spawn_id(self.id + "_consumer", "consumer", "Consumer", [self.rmq_host, int(self.rmq_port), self.rmq_user, self.rmq_pass, self.exchange, self.queue, self.routing_key, self.proxy])
             self.start_consuming()
         except:
             raise Exception("Problems to connect to RabbitMQ server")

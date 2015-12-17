@@ -10,13 +10,7 @@ class Consumer(object):
     _ref = []
     _parallel = []
 
-    def __init__(self, host, port, exchange, queue, routing_key, obj):
-
-        Config = ConfigParser.ConfigParser()
-        Config.read("./dynamic_policies.config")
-        #TODO: Create config file to add credentials, host and port.
-        username =  settings.get('rabbitmq', 'username')
-        password = settings.get('rabbitmq', 'password')
+    def __init__(self, host, port, username, password, exchange, queue, routing_key, obj):
 
         credentials = pika.PlainCredentials(username, password)
         self._channel = pika.BlockingConnection(pika.ConnectionParameters(

@@ -35,5 +35,5 @@ def tenants_list(request):
             return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
         print request.META['HTTP_X_AUTH_TOKEN']
         r = requests.get(settings.KEYSTONE_URL+"tenants", headers=headers)
-        return HttpResponse(r.content, content_type = 'application/json', status=200)
+        return HttpResponse(r.content, content_type = 'application/json', status=r.status_code)
     return JSONResponse('Only HTTP GET /tenants/ requests allowed.', status=405)
