@@ -13,7 +13,7 @@ mappings = {'>': operator.gt, '>=': operator.ge,
 
 #TODO: Add the redis connection into rule object
 r = redis.StrictRedis(host='localhost', port=6379, db=0)
-logging.basicConfig(filename='/home/vagrant/src/rule.log', format='%(asctime)s %(message)s', level=logging.INFO)
+logging.basicConfig(filename='./rule.log', format='%(asctime)s %(message)s', level=logging.INFO)
 
 """
 Rule: Each policy of each tenant is compiled as Rule. Rule is an Actor and it will be subscribed
