@@ -25,8 +25,6 @@ class Metric(object):
         self.redis_port = settings.get('redis', 'port')
         self.redis_db = settings.get('redis', 'db')
 
-        self.redis_pool = redis.ConnectionPool(host=self.redis_host, port=self.redis_port, db=self.redis_db)
-
     def attach(self, observer):
         print 'attach new observer', observer
         tenant = observer.get_tenant()
@@ -45,8 +43,11 @@ class Metric(object):
 
     def init_consum(self):
         try:
-            redis.Redis(self.redis_pool).hmset("metric:"+self.name, {"network_location":self._atom.aref, "type":"integer"})
-            self.consumer = self.host.spawn_id(self.id + "_consumer", "consumer", "Consumer", [self.rmq_host, int(self.rmq_port), self.rmq_user, self.rmq_pass, self.exchange, self.queue, self.routing_key, self.proxy])
+
+            r = redis.StrictRedis(host=self.redis_host, port=int(self.redis_port), db=int(self.redis_db))
+            r.hmset("metric:"+self.name, {"network_location":self._atom.aref.replace("atom:", "tcp:", 1), "type":"integer"})
+            self.consumer = self.host.spawn_id(self.id + "_consumer", "consumer", "Consumer", [str(self.rmq_host), int(self.rmq_port), str(self.rmq_user), str(self.rmq_pass), self.exchange, self.queue, self.routing_key, self.proxy])
+
             self.start_consuming()
         except:
             raise Exception("Problems to connect to RabbitMQ server")

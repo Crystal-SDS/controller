@@ -121,7 +121,8 @@ class Rule(object):
 
             #TODO Review if this tenant has already deployed this filter. Not deploy the same filter more than one time.
 
-            url = dynamic_filter["activation_url"]+self.tenant+"/deploy/"+str(dynamic_filter["identifier"])
+            url = dynamic_filter["activation_url"]+"/"+self.tenant+"/deploy/"+str(dynamic_filter["identifier"])
+            print 'params: ', self.action_list.params
             response = requests.put(url, json.dumps(self.action_list.params), headers=headers)
 
             if 200 > response.status_code >= 300:
@@ -133,7 +134,7 @@ class Rule(object):
 
         elif self.action_list.action == "DELETE":
 
-            url = dynamic_filter["activation_url"]+self.tenant+"/undeploy/"+str(dynamic_filter["identifier"])
+            url = dynamic_filter["activation_url"]+"/"+self.tenant+"/undeploy/"+str(dynamic_filter["identifier"])
             response = requests.put(url, json.dumps(self.action_list.params), headers=headers)
 
             if 200 > response.status_code >= 300:

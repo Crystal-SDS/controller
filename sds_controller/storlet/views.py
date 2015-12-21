@@ -161,18 +161,7 @@ def storlet_undeploy(request, id, account):
         if not headers:
             return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
         response = dict()
-        try:
-            c.delete_object(settings.SWIFT_URL+"AUTH_"+str(account),headers["X-Auth-Token"],
-                'storlet', storlet["name"], None, None, None, None, response)
-            print 'response, ', response
-        except:
-            return JSONResponse(response.get("reason"), status=response.get('status'))
-        status = response.get('status')
-        if 200 <= status < 300:
-            r.delete("AUTH_"+str(account)+":"+str(storlet["name"]))
-            r.lrem("AUTH_"+str(account), str(storlet["name"]), 1)
-            return JSONResponse('The object has been deleted', status=status)
-        return JSONResponse(response.get("reason"), status=status)
+	return undeploy(r, storlet, account, headers)
     return JSONResponse('Method '+str(request.method)+' not allowed.', status=405)
 
 """
@@ -338,7 +327,6 @@ def dependency_undeploy(request, id, account):
         return JSONResponse(response.get("reason"), status=status)
     return JSONResponse('Method '+str(request.method)+' not allowed.', status=405)
 
-
 def deploy(r, storlet, account, params, headers):
     metadata = {'X-Object-Meta-Storlet-Language':'Java',
         'X-Object-Meta-Storlet-Interface-Version':'1.0',
@@ -371,12 +359,27 @@ def deploy(r, storlet, account, params, headers):
         if r.lpush("AUTH_"+str(account), str(storlet['name'])):
             if not params:
                 #TODO: Solve the problem with empty params.
-                if r.hmset("AUTH_"+str(account)+":"+str(storlet["name"]), {"storlet":"compression"}):
+                if r.hmset("AUTH_"+str(account)+":"+str(storlet["name"]), {"params":{}}):
                     return JSONResponse("Deployed", status=201)
             else:
-                if r.hmset("AUTH_"+str(account)+":"+str(storlet['name']), params):
+                if r.hmset("AUTH_"+str(account)+":"+str(storlet['name']), {"params":params}):
                     return JSONResponse("Deployed", status=201)
     return JSONResponse("error", status=400)
+
+def undeploy(r, storlet, account, headers):
+    response = dict()
+    try:
+        c.delete_object(settings.SWIFT_URL+"AUTH_"+str(account),headers["X-Auth-Token"],
+            'storlet', storlet["name"], None, None, None, None, response)
+        print 'response, ', response
+    except:
+        return JSONResponse(response.get("reason"), status=response.get('status'))
+    status = response.get('status')
+    if 200 <= status < 300:
+        r.delete("AUTH_"+str(account)+":"+str(storlet["name"]))
+        r.lrem("AUTH_"+str(account), str(storlet["name"]), 1)
+        return JSONResponse('The object has been deleted', status=status)
+    return JSONResponse(response.get("reason"), status=status)
 
 def save_file(file, path=''):
     '''

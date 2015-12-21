@@ -20,6 +20,7 @@ FOR Tenant WHEN"+ condition AND condition AND condition OR condition etc.+"DO"+a
 TODO: Parse = TRUE or = False or condicion number. Check to convert to float or convert to boolean.
 """
 #TODO: take this value from configuration
+r = redis.StrictRedis(host="localhost", port=6379, db=0)
 
 def get_redis_connection():
     return redis.Redis(connection_pool=settings.REDIS_CON_POOL)
@@ -34,7 +35,6 @@ def parse(input_string):
     #TODO Raise an exception if not metrics or not action registred
     #TODO Raise an exception if group of tenants don't exists.
     #TODO Add transcient option
-    r = get_redis_connection()
 
     #Support words to construct the grammar.
     word = Word(alphas)
@@ -43,7 +43,7 @@ def parse(input_string):
     boolean_condition = oneOf("AND OR")
 
     #Condition part
-    param = Word(alphanums)+ Suppress(Literal("=")) + Word(alphanums)
+    param = Word(alphanums+"_")+ Suppress(Literal("=")) + Word(alphanums+"_")
     metrics_workload = r.keys("metric:*")
     services = map(lambda x: "".join(x.split(":")[1]), metrics_workload)
     services_options = oneOf(services)
@@ -96,8 +96,8 @@ def parse(input_string):
 
     if parsed_rule.action_list.params:
         filter_info = r.hgetall("filter:"+str(parsed_rule.action_list.filter))
-        if "params" in filter_info.keys():
-            params = eval(filter_info["params"])
+        if "valid_parameters" in filter_info.keys():
+            params = eval(filter_info["valid_parameters"])
             result = set(parsed_rule.action_list.params.keys()).intersection(params.keys())
             if len(result) == len(parsed_rule.action_list.params.keys()):
                 #TODO Check params types.

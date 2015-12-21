@@ -47,7 +47,7 @@ def parse(input_string):
     boolean_condition = oneOf("AND OR")
 
     #Condition part
-    param = Word(alphanums)+ Suppress(Literal("=")) + Word(alphanums)
+    param = Word(alphanums+"_")+ Suppress(Literal("=")) + Word(alphanums+"_")
     metrics_workload = r.keys("metric:*")
     services = map(lambda x: "".join(x.split(":")[1]), metrics_workload)
     services_options = oneOf(services)
@@ -100,8 +100,8 @@ def parse(input_string):
 
     if parsed_rule.action_list.params:
         filter_info = r.hgetall("filter:"+str(parsed_rule.action_list.filter))
-        if "params" in filter_info.keys():
-            params = eval(filter_info["params"])
+        if "valid_parameters" in filter_info.keys():
+            params = eval(filter_info["valid_parameters"])
             result = set(parsed_rule.action_list.params.keys()).intersection(params.keys())
             if len(result) == len(parsed_rule.action_list.params.keys()):
                 #TODO Check params types.

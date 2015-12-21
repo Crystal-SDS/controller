@@ -8,7 +8,7 @@ import json
 from . import dsl_parser
 from pyactive.controller import init_host, serve_forever, start_controller, interval, sleep
 from pyactive.exception import TimeoutError, PyactiveError
-from storlet.views import deploy, storlet_undeploy
+from storlet.views import deploy, undeploy
 
 host = None
 remote_host = None
@@ -228,6 +228,7 @@ def policy_list(request):
         r = get_redis_connection()
     except:
         return JSONResponse('Error connecting with DB', status=500)
+
     if request.method == 'GET':
         keys = r.keys("policy:*")
         policies = []
@@ -243,7 +244,10 @@ def policy_list(request):
         rules_string = request.body.splitlines()
         parsed_rules = []
         for rule in rules_string:
+
+
             try:
+
                 condition_list, rule_parsed = dsl_parser.parse(rule)
                 if condition_list:
                     parsed_rules.append(rule_parsed)
@@ -261,7 +265,7 @@ def policy_list(request):
         return JSONResponse('Policies added successfully!', status=201)
 
     return JSONResponse('Method '+str(request.method)+' not allowed.', status=405)
-
+"""
 def do_action(request, r, tenant, rule_parsed, headers):
     dynamic_filter = r.hgetall("filter:"+str(rule_parsed.action_list.filter))
 
@@ -287,7 +291,30 @@ def do_action(request, r, tenant, rule_parsed, headers):
         else:
             print response
             return True
+"""
+def do_action(request, r, tenant, rule_parsed, headers):
+    dynamic_filter = r.hgetall("filter:"+str(rule_parsed.action_list.filter))
+    storlet = r.hgetall("storlet:"+dynamic_filter["identifier"])
+    if not storlet:
+        return JSONResponse('Filter does not exists', status=404)
 
+    if rule_parsed.action_list.action == "SET":
+
+        #TODO Review if this tenant has already deployed this filter. Not deploy the same filter more than one time.
+
+        if rule_parsed.action_list.params:
+            response = deploy(r, storlet, tenant, rule_parsed.action_list.params, headers)
+        else:
+            response = deploy(r, storlet, tenant, {}, headers)
+
+        return response
+
+
+    elif rule_parsed.action_list.action == "DELETE":
+
+        #TODO Review if this tenant has already deployed this filter. Not deploy the same filter more than one time.
+        response = undeploy(r, storlet, tenant, headers)
+        return response
 def deploy_policy(r, parsed_rules):
     # self.aref = 'atom://' + self.dispatcher.name + '/controller/Host/0'
     rules = {}
