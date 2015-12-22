@@ -79,7 +79,7 @@ class Rule(object):
 
     def add_metric(self, workload_name):
         """
-        The add_metric method subscribes the rule to all workload metrics that it
+        The `add_metric()` method subscribes the rule to all workload metrics that it
         needs to check the conditions defined in the policy
 
         :param workload_name: The name that identifies the workload metric.
@@ -168,6 +168,7 @@ class Rule(object):
         """
         The do_action method is called after the conditions are satisfied. So this method
         is responsible to execute the action defined in the policy.
+
         """
         #TODO: Handle the token generation. Auto-login when this token expires. Take credentials from config file.
         headers = {"X-Auth-Token":"c2633386b09a461a806845a100facbf0"}
