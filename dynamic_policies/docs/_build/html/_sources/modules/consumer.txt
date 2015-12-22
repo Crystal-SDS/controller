@@ -1,0 +1,4 @@
+Consumer
+========
+.. automodule:: consumer
+    :members:

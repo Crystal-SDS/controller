@@ -30,7 +30,6 @@ def is_valid_request(request):
 def get_redis_connection():
     return redis.Redis(connection_pool=settings.REDIS_CON_POOL)
 
-
 @csrf_exempt
 def storlet_list(request):
     """

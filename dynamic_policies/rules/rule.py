@@ -15,14 +15,14 @@ mappings = {'>': operator.gt, '>=': operator.ge,
 r = redis.StrictRedis(host='localhost', port=6379, db=0)
 logging.basicConfig(filename='./rule.log', format='%(asctime)s %(message)s', level=logging.INFO)
 
-"""
-Rule: Each policy of each tenant is compiled as Rule. Rule is an Actor and it will be subscribed
-in the workloads metrics. When the data received from the workloads metrics satisfies
-the conditions defined in the policy,the Rule actor executes an Action that it is
-also defined in the policy.
-"""
-class Rule(object):
 
+class Rule(object):
+    """
+    Rule: Each policy of each tenant is compiled as Rule. Rule is an Actor and it will be subscribed
+    in the workloads metrics. When the data received from the workloads metrics satisfies
+    the conditions defined in the policy,the Rule actor executes an Action that it is
+    also defined in the policy.
+    """
     _sync = {'get_tenant':'2'}
     _async = ['update', 'start_rule', 'stop_actor']
     _ref = []
@@ -53,11 +53,12 @@ class Rule(object):
         f.close()
         self.check_metrics(self.conditions)
 
-    """
-    The add_metric method subscribes the rule to all workload metrics that it
-    needs to check the conditions defined in the policy
-    """
+
     def add_metric(self, value):
+        """
+        The add_metric method subscribes the rule to all workload metrics that it
+        needs to check the conditions defined in the policy
+        """
         if value not in self.observers_values.keys():
             #Subscrive to metric observer
             print 'hola add metric', self.base_uri+'metrics.'+value+'/'+value.title()+'/'+value
@@ -66,23 +67,25 @@ class Rule(object):
             self.observers_proxies[value] = observer
             self.observers_values[value] = None
 
-    """
-    The check_metrics method finds in the condition list all the metrics that it
-    needs to check the conditions, when find some metric that it needs, call the
-    method add_metric.
-    """
+
     def check_metrics(self, condition_list):
+        """
+        The check_metrics method finds in the condition list all the metrics that it
+        needs to check the conditions, when find some metric that it needs, call the
+        method add_metric.
+        """
         if not isinstance(condition_list[0], list):
             self.add_metric(condition_list[0].lower())
         else:
             for element in condition_list:
                 if element is not "OR" and element is not "AND":
                     self.check_metrics(element)
-    """
-    The method update is called by the workloads metrics following the observer
-    pattern. This method is called to send to this actor the data updated.
-    """
+
     def update(self, metric, tenant_info):
+        """
+        The method update is called by the workloads metrics following the observer
+        pattern. This method is called to send to this actor the data updated.
+        """
         print 'Success update:  ', tenant_info
 
         self.observers_values[metric]=tenant_info.value
@@ -107,12 +110,12 @@ class Rule(object):
     def get_tenant(self):
         return self.tenant
 
-    """
-    The do_action method is called after the conditions are satisfied. So this method
-    is responsible to execute the action defined in the policy.
-    """
-    def do_action(self):
 
+    def do_action(self):
+        """
+        The do_action method is called after the conditions are satisfied. So this method
+        is responsible to execute the action defined in the policy.
+        """
         #TODO: Handle the token generation. Auto-login when this token expires. Take credentials from config file.
         headers = {"X-Auth-Token":"c2633386b09a461a806845a100facbf0"}
         dynamic_filter = r.hgetall("filter:"+str(self.action_list.filter))

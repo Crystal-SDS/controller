@@ -80,7 +80,7 @@ package {
     "redis":
         ensure => "installed",
         provider => pip;
-    "redisco":
+    "Sphinx":
         ensure => "installed",
         provider => pip;
     "pyparsing":

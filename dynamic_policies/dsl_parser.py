@@ -27,6 +27,7 @@ settings.read("./dynamic_policies.config")
 redis_host = settings.get('redis', 'host')
 redis_port = settings.get('redis', 'port')
 redis_db = settings.get('redis', 'db')
+
 r = redis.StrictRedis(host=redis_host, port=redis_port, db=redis_db)
 
 def parse_group_tenants(tokens):

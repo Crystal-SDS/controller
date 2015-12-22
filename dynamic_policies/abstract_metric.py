@@ -1,15 +1,15 @@
 import json
 import redis
 import ConfigParser
-"""
-Metric: This is an abstract class. This class is the responsible to consume messages
-from rabbitMQ and send the data to each observer subscribed to it. This class also
-treats each tenant as a topic, so it is able to distinguish for each observer in
-that tenant is subscribed. In this way, the metric actor only sends the necessary
-information to each observer.
-"""
-class Metric(object):
 
+class Metric(object):
+    """
+    Metric: This is an abstract class. This class is the responsible to consume messages
+    from rabbitMQ and send the data to each observer subscribed to it. This class also
+    treats each tenant as a topic, so it is able to distinguish for each observer in
+    that tenant is subscribed. In this way, the metric actor only sends the necessary
+    information to each observer.
+    """
     def __init__(self):
         self._observers = {}
         self.value = None

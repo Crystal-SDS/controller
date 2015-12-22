@@ -265,33 +265,7 @@ def policy_list(request):
         return JSONResponse('Policies added successfully!', status=201)
 
     return JSONResponse('Method '+str(request.method)+' not allowed.', status=405)
-"""
-def do_action(request, r, tenant, rule_parsed, headers):
-    dynamic_filter = r.hgetall("filter:"+str(rule_parsed.action_list.filter))
 
-    if rule_parsed.action_list.action == "SET":
-
-        #TODO Review if this tenant has already deployed this filter. Not deploy the same filter more than one time.
-        storlet = r.hgetall("storlet:"+dynamic_filter["identifier"])
-        if not storlet:
-            return JSONResponse('Filter does not exists', status=404)
-        if rule_parsed.action_list.params:
-            response = deploy(r, storlet, tenant, rule_parsed.action_list.params, headers)
-        else:
-            response = deploy(r, storlet, tenant, {}, headers)
-
-        return response
-
-
-    elif rule_parsed.action_list.action == "DELETE":
-
-        response = storlet_undeploy(request, dynamic_filter["identifier"], rule_parsed.tenant)
-        if 200 > response.status_code >= 300:
-            print False
-        else:
-            print response
-            return True
-"""
 def do_action(request, r, tenant, rule_parsed, headers):
     dynamic_filter = r.hgetall("filter:"+str(rule_parsed.action_list.filter))
     storlet = r.hgetall("storlet:"+dynamic_filter["identifier"])
