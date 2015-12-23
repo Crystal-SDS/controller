@@ -65,6 +65,26 @@ needs to check the conditions defined in the policy</p>
 </dd></dl>
 
 <dl class="method">
+<dt id="rules.rule.Rule.check_conditions">
+<code class="descname">check_conditions</code><span class="sig-paren">(</span><em>condition_list</em><span class="sig-paren">)</span><a class="headerlink" href="#rules.rule.Rule.check_conditions" title="Permalink to this definition">¶</a></dt>
+<dd><p>The method <strong>check_conditions()</strong> runs the ternary tree of conditions to check if the
+<strong>self.observers_values</strong> complies the conditions. If the values comply the conditions return
+True, else return False.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>condition_list</strong> (<strong>any</strong> List type) &#8211; A list of all the conditions</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">If the values comply the conditions</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body">boolean type.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
 <dt id="rules.rule.Rule.check_metrics">
 <code class="descname">check_metrics</code><span class="sig-paren">(</span><em>condition_list</em><span class="sig-paren">)</span><a class="headerlink" href="#rules.rule.Rule.check_metrics" title="Permalink to this definition">¶</a></dt>
 <dd><p>The check_metrics method finds in the condition list all the metrics that it
@@ -80,10 +100,28 @@ is responsible to execute the action defined in the policy.</p>
 </dd></dl>
 
 <dl class="method">
+<dt id="rules.rule.Rule.get_tenant">
+<code class="descname">get_tenant</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#rules.rule.Rule.get_tenant" title="Permalink to this definition">¶</a></dt>
+<dd><p>Retrun the tenant assigned to this rule.</p>
+</dd></dl>
+
+<dl class="method">
 <dt id="rules.rule.Rule.update">
 <code class="descname">update</code><span class="sig-paren">(</span><em>metric</em>, <em>tenant_info</em><span class="sig-paren">)</span><a class="headerlink" href="#rules.rule.Rule.update" title="Permalink to this definition">¶</a></dt>
 <dd><p>The method update is called by the workloads metrics following the observer
 pattern. This method is called to send to this actor the data updated.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>metric</strong> (<strong>any</strong> String type) &#8211; The name that identifies the workload metric.</li>
+<li><strong>tenant_info</strong> (<strong>any</strong> PyParsing type) &#8211; Contains the timestamp and the value sent from workload metric.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 </dd></dl>

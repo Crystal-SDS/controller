@@ -61,7 +61,7 @@ def storlet_list(request):
 @csrf_exempt
 def storlet_detail(request, id):
     """
-    Retrieve, update or delete a Dependency.
+    Retrieve, update or delete a Storlet.
     """
     try:
         r = get_redis_connection()
@@ -86,6 +86,9 @@ def storlet_detail(request, id):
     return JSONResponse('Method '+str(request.method)+' not allowed.', status=405)
 
 class StorletData(APIView):
+    """
+    Upload or get a storlet data.
+    """
     parser_classes = (MultiPartParser, FormParser,)
 
     def put(self, request, id, format=None):
@@ -114,6 +117,9 @@ class StorletData(APIView):
 
 @csrf_exempt
 def storlet_deploy(request, id, account):
+    """
+    Deploy a storlet to a specific swift account.
+    """
     try:
         r = get_redis_connection()
     except:
@@ -134,6 +140,9 @@ def storlet_deploy(request, id, account):
 
 @csrf_exempt
 def storlet_list_deployed(request, account):
+    """
+    List all the storlets deployed.
+    """
     if request.method == 'GET':
         r = get_redis_connection()
         result = r.lrange("AUTH_"+str(account), 0, -1)
@@ -145,6 +154,9 @@ def storlet_list_deployed(request, account):
 
 @csrf_exempt
 def storlet_undeploy(request, id, account):
+    """
+    Undeploy a storlet from a specific swift account.
+    """
     try:
         r = get_redis_connection()
     except:

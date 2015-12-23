@@ -26,6 +26,15 @@ class Metric(object):
         self.redis_db = settings.get('redis', 'db')
 
     def attach(self, observer):
+        """
+        Asyncronous method. This method allows to be called remotelly. It is called from
+        observers in order to subscribe in this workload metric. This observer will be
+        saved in a dictionary type structure where the key will be the tenant assigned in the observer,
+        and the value will be the PyActive proxy to connect to the observer.
+
+        :param observer: The PyActive proxy of the oberver rule that calls this method.
+        :type observer: **any** PyActive Proxy type
+        """
         print 'attach new observer', observer
         tenant = observer.get_tenant()
         print 'observer tenant', tenant
@@ -35,6 +44,13 @@ class Metric(object):
             self._observers[tenant].add(observer)
 
     def detach(self, observer):
+        """
+        Asyncronous method. This method allows to be called remotelly. It is called from
+        observers in order to unsubscribe from this workload metric.
+
+        :param observer: The PyActive proxy of the oberver rule that calls this method.
+        :type observer: **any** PyActive Proxy type
+        """
         tenant = observer.get_tenant()
         try:
             self._observers[tenant].remove(observer)
@@ -42,6 +58,13 @@ class Metric(object):
             pass
 
     def init_consum(self):
+        """
+        Asynchronous method. This method allows to be called remotelly. This method registries the workload
+        metric in the redis database. Also create a new consumer actor in order to consume from a specific
+        rabbitmq queue.
+
+        :raises Exception: Raise an exception when a problem to create the consumer appear.
+        """
         try:
 
             r = redis.StrictRedis(host=self.redis_host, port=int(self.redis_port), db=int(self.redis_db))
@@ -54,16 +77,30 @@ class Metric(object):
 
 
     def stop_actor(self):
+        """
+        Asynchronous method. This method allows to be called remotelly. This method ends the workload execution and
+        kills the actor.
+        """
         self.consumer.stop_consuming()
         self._atom.stop()
 
     def start_consuming(self):
+        """
+        Start the consumer.
+        """
         self.consumer.start_consuming()
 
     def stop_consuming(self):
+        """
+        Stop the consumer.
+        """
         self.consumer.stop_consuming()
 
     def notify(self, body):
+        """
+        Method called from the consumer to indicate the value consumed from the rabbitmq queue. After receive the value, 
+        this value is communicated to all the observers subscribed to this metric.
+        """
         data = json.loads(body)
         for tenant_info in data:
             try:

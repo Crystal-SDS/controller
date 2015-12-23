@@ -115,13 +115,13 @@ def parse(input_string):
     return has_condition_list, parsed_rule
 
 
-rules ="""FOR 4f0279da74ef4584a29dc72c835fe2c9 DO SET compression WITH param1=2""".splitlines()
-# rules = """\
-#     FOR 4f0279da74ef4584a29dc72c835fe2c9 WHEN througput < 3 OR slowdown == 1 AND througput == 5 OR througput == 6 DO SET compression WITH param1=2
-#     FOR G:1 WHEN slowdown > 3 OR slowdown > 3 AND slowdown == 5 OR slowdown <= 6 DO SET compression WITH param1=2, param2=3
-#     FOR G:4 AND G:4 WHEN slowdown > 3 AND slowdown > 50 DO SET compression WITH""".splitlines()
-#
-for rule in rules:
-    _, stats = parse(rule)
-    print stats
-    print 'subject', stats.subject
+# rules ="""FOR 4f0279da74ef4584a29dc72c835fe2c9 DO SET compression WITH param1=2""".splitlines()
+# # rules = """\
+# #     FOR 4f0279da74ef4584a29dc72c835fe2c9 WHEN througput < 3 OR slowdown == 1 AND througput == 5 OR througput == 6 DO SET compression WITH param1=2
+# #     FOR G:1 WHEN slowdown > 3 OR slowdown > 3 AND slowdown == 5 OR slowdown <= 6 DO SET compression WITH param1=2, param2=3
+# #     FOR G:4 AND G:4 WHEN slowdown > 3 AND slowdown > 50 DO SET compression WITH""".splitlines()
+# #
+# for rule in rules:
+#     _, stats = parse(rule)
+#     print stats
+#     print 'subject', stats.subject

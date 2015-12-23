@@ -75,6 +75,9 @@ def add_metric(request):
 
 @csrf_exempt
 def metric_detail(request, name):
+    """
+    Get, update or delete a metric workload from the registry.
+    """
     try:
         r = get_redis_connection()
     except:
@@ -104,7 +107,7 @@ Dynamic Filters part
 @csrf_exempt
 def add_dynamic_filter(request):
     """
-    Add a filter with its default parameters in the registry (redis)
+    Add a filter with its default parameters in the registry (redis). List all the dynamic filters registered.
     """
     try:
         r = get_redis_connection()
@@ -130,6 +133,9 @@ def add_dynamic_filter(request):
 
 @csrf_exempt
 def dynamic_filter_detail(request, name):
+    """
+    Get, update or delete a dynamic filter from the registry.
+    """
     try:
         r = get_redis_connection()
     except:
@@ -157,7 +163,7 @@ Tenants group part
 @csrf_exempt
 def add_tenants_group(request):
     """
-    Add a filter with its default parameters in the registry (redis)
+    Add a filter with its default parameters in the registry (redis). List all the tenants groups saved in the registry.
     """
     try:
         r = get_redis_connection()
@@ -183,6 +189,9 @@ def add_tenants_group(request):
 
 @csrf_exempt
 def tenants_group_detail(request, gtenant_id):
+    """
+    Get, update or delete a tenants group from the registry.
+    """
     try:
         r = get_redis_connection()
     except:
@@ -209,6 +218,9 @@ def tenants_group_detail(request, gtenant_id):
 
 @csrf_exempt
 def gtenants_tenant_detail(request, gtenant_id, tenant_id):
+    """
+    Delete a member from a tenants group.
+    """
     try:
         r = get_redis_connection()
     except:
@@ -222,7 +234,7 @@ def gtenants_tenant_detail(request, gtenant_id, tenant_id):
 @csrf_exempt
 def policy_list(request):
     """
-    List all policies.
+    List all policies. Deploy new policies.
     """
     try:
         r = get_redis_connection()
@@ -289,6 +301,7 @@ def do_action(request, r, tenant, rule_parsed, headers):
         #TODO Review if this tenant has already deployed this filter. Not deploy the same filter more than one time.
         response = undeploy(r, storlet, tenant, headers)
         return response
+        
 def deploy_policy(r, parsed_rules):
     # self.aref = 'atom://' + self.dispatcher.name + '/controller/Host/0'
     rules = {}
