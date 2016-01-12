@@ -115,8 +115,8 @@ STATIC_URL = '/static/'
 
 #Swift info
 KEYSTONE_URL = "http://10.30.235.235:35357/v2.0/"
-SWIFT_URL= "http://10.30.235.235:8080/v1/"
-
+SWIFT_URL= "http://10.30.235.235:8080/"
+SWIFT_API_VERSION = "v1"
 #redis
 REDIS_CON_POOL = redis.ConnectionPool(host='localhost', port=6379, db=0)
 

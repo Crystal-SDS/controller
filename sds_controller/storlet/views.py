@@ -276,7 +276,7 @@ def dependency_deploy(request, id, account):
         content_length = None
         response = dict()
         try:
-            c.put_object(settings.SWIFT_URL+"AUTH_"+str(account), headers["X-Auth-Token"], 'dependency', dependency["name"], f,
+            c.put_object(settings.SWIFT_URL+settings.SWIFT_API_VERSION+"/"+"AUTH_"+str(account), headers["X-Auth-Token"], 'dependency', dependency["name"], f,
                          content_length, None, None, "application/octet-stream",
                          metadata, None, None, None, response)
         except:
@@ -326,7 +326,7 @@ def dependency_undeploy(request, id, account):
             return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
         response = dict()
         try:
-            c.delete_object(settings.SWIFT_URL+"AUTH_"+str(account),headers["X-Auth-Token"],
+            c.delete_object(settings.SWIFT_URL+settings.SWIFT_API_VERSION+"/"+"AUTH_"+str(account),headers["X-Auth-Token"],
                 'dependency', dependency["name"], None, None, None, None, response)
         except:
             return JSONResponse(response.get("reason"), status=response.get('status'))
@@ -354,7 +354,7 @@ def deploy(r, storlet, account, params, headers):
     try:
         print storlet['name']
         print "token", headers["X-Auth-Token"]
-        c.put_object(settings.SWIFT_URL+"AUTH_"+str(account), headers["X-Auth-Token"], 'storlet', storlet['name'], f,
+        c.put_object(settings.SWIFT_URL+settings.SWIFT_API_VERSION+"/"+"AUTH_"+str(account), headers["X-Auth-Token"], 'storlet', storlet['name'], f,
                      content_length, None, None,
                      "application/octet-stream", metadata,
                      None, None, None, response)
@@ -380,7 +380,7 @@ def deploy(r, storlet, account, params, headers):
 def undeploy(r, storlet, account, headers):
     response = dict()
     try:
-        c.delete_object(settings.SWIFT_URL+"AUTH_"+str(account),headers["X-Auth-Token"],
+        c.delete_object(settings.SWIFT_URL+settings.SWIFT_API_VERSION+"/"+"AUTH_"+str(account),headers["X-Auth-Token"],
             'storlet', storlet["name"], None, None, None, None, response)
         print 'response, ', response
     except:

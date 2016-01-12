@@ -25,7 +25,7 @@ def proxyaddress():
     """
     Reads the proxy address from django settings.
     """
-    return settings.SWIFT_URL
+    return settings.SWIFT_URL+settings.SWIFT_API_VERSION+"/"
 
 def is_valid_request(request):
     headers = {}

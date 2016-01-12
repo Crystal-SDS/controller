@@ -37,3 +37,20 @@ def tenants_list(request):
         r = requests.get(settings.KEYSTONE_URL+"tenants", headers=headers)
         return HttpResponse(r.content, content_type = 'application/json', status=r.status_code)
     return JSONResponse('Only HTTP GET /tenants/ requests allowed.', status=405)
+
+@csrf_exempt
+def locality_list(request, account, container=None, swift_object=None):
+    """
+    List all code snippets, or create a new snippet.
+    """
+    if request.method == 'GET':
+        print account, container, swift_object
+        if not container:
+            r = requests.get(settings.SWIFT_URL+"endpoints/v2/"+account)
+        elif not swift_object:
+            r = requests.get(settings.SWIFT_URL+"endpoints/v2/"+account+"/"+container)
+        elif container and swift_object:
+            r = requests.get(settings.SWIFT_URL+"endpoints/v2/"+account+"/"+container+"/"+swift_object)
+
+        return HttpResponse(r.content, content_type = 'application/json', status=r.status_code)
+    return JSONResponse('Only HTTP GET /tenants/ requests allowed.', status=405)
