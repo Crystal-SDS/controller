@@ -27,7 +27,7 @@ def is_valid_request(request):
 @csrf_exempt
 def tenants_list(request):
     """
-    List all code snippets, or create a new snippet.
+    List swift tenants.
     """
     if request.method == 'GET':
         headers = is_valid_request(request)
@@ -41,7 +41,8 @@ def tenants_list(request):
 @csrf_exempt
 def locality_list(request, account, container=None, swift_object=None):
     """
-    List all code snippets, or create a new snippet.
+    Shows the nodes where the account/container/object is stored. In the case that 
+    the account/container/object does not exist, return the nodes where it will be save.
     """
     if request.method == 'GET':
         print account, container, swift_object

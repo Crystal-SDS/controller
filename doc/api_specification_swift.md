@@ -34,12 +34,12 @@ OAuth PARAMETER |  DESCRIPTION
 
 ## List tenants
 
-An application can ask for tenant list by issuing an HTTP POST request.
+An application can ask for tenant list by issuing an HTTP GET request.
 
 ### Request
 
 #### URL structure
-The URL that represents the storlet data resource. The URL is
+The URL that represents the tenant list resource is
 **/swift/tenants.**
 
 #### Method
@@ -82,6 +82,47 @@ Response <200>
       "id": "f29b760ad46447db99ea11f7afc0ed9f",
       "name": "admin"
     }
+  ]
+}
+```
+## Locality
+
+An application can ask for the location of specific account/container/object by issuing an HTTP GET request.
+
+### Request
+
+#### URL structure
+The URL that represents the locality resource is
+**/swift/locality/:account/:container/:swift_object.**
+**Note:** Minimum it's mandatory enter the account. However the container and swift_object
+is optional.
+
+#### Method
+GET
+
+#### HTTP Request Example
+
+```
+Content-Type: application/json
+Content-Length: 180
+GET /swift/locality/AUTH_151542dfdsa541asd455fasf1/test1/file.txt
+```
+
+### Response
+
+#### Response example
+
+```json
+
+Response <200>
+{
+  "headers": {
+    "X-Backend-Storage-Policy-Index": "0"
+  },
+  "endpoints": [
+    "http://127.0.0.1:6010/sdb1/867/AUTH_151542dfdsa541asd455fasf1/test1/file.txt",
+    "http://127.0.0.1:6020/sdb2/867/AUTH_151542dfdsa541asd455fasf1/test1/file.txt",
+    "http://127.0.0.1:6040/sdb4/867/AUTH_151542dfdsa541asd455fasf1/test1/file.txt"
   ]
 }
 ```
