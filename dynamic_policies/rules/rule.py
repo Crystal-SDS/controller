@@ -73,7 +73,7 @@ class Rule(object):
         """
         body = json.dumps({"auth":{"tenantName": self.openstack_tenant, "passwordCredentials": {"username": self.openstack_user, "password": self.openstack_pass}}})
         headers = {"Content-type":"application/json"}
-        r = requests.get(self.openstack_keystone_url, body, headers)
+        r = requests.post(self.openstack_keystone_url, data=body, headers=headers)
         if r.status_code == 200:
             self.token = r.json()["access"]["token"]["id"]
         else:
@@ -107,7 +107,7 @@ class Rule(object):
         :type workload_name: **any** String type
 
         """
-        if value not in self.observers_values.keys():
+        if workload_name not in self.observers_values.keys():
             #Subscrive to metric observer
             print 'hola add metric', self.base_uri+'metrics.'+workload_name+'/'+workload_name.title()+'/'+workload_name
             observer = self.host.lookup(self.base_uri+'metrics.'+workload_name+'/'+workload_name.title()+'/'+workload_name)
