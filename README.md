@@ -7,7 +7,7 @@ SDS Controller for Object Storage in the IOStack architecture
 
 # Introduction
 
-This repository contains the code of the SDS Controller for Object Storage in the IOStack architecture. The SDS Controller is a Django project that implements the REST API needed to handle the Storlets and the BW Differentiation.
+This repository contains the code of the SDS Controller for Object Storage in the IOStack architecture. The SDS Controller repository contains two differentiated parts: **The SDS Controller API** and the **Dynamic Policies**. The **SDS Controller API** is a Django project that implements the REST API needed to handle the Storlets and the BW Differentiation. Otherwise, **Dynamic Policies** is a set of python processes who use the [PyActive middleware](https://github.com/cloudspaces/pyactive) (an Object Oriented implementation of the Actor model). This part allows to create simple policies using a DSL (integrated in the SDS Controller API) and deploys them as an actor process, whose analyze the system data, thanks to the monitoring system, allows to set or remove filters to tenants depending of the policy established.
 
 The repository is structured with the next folders:
 
@@ -18,6 +18,8 @@ The repository is structured with the next folders:
 * **scripts:** The scripts folder contains all the scripts needed for the project. The file vagrant-init.sh will be executed each time that you start the virtual machine using vagrant.
 
 * **sds_controller:** The sds_controller contains the source code. It's structure follows a standard Django project structure.
+
+* **dynamic_policies** The dynamic_policies contains the source code of this part.
 
 * **Vagrantfile:** This is the vagrant config file, where we define all the information that vagrant need to start a virtual machine with all the requirements.  
 
@@ -36,23 +38,22 @@ That's all! You don't need Django or Python... Vagrant resolves this problem for
 
 Once you have already installed the requirements, you only need to go in the folder location using a terminal, and execute the command: `vagrant up`. First time, the process may take a few minutes because Vagrant downloads the Operative System to create the Virtual Machine. The other times the process will be faster.
 
-The Virtual Machine that we started has all the tools that we need to run the server. First of all, we need to create the tables in the Postgres database. Using Django, we can synchronize our models to the database. We only need to navigate to sds_controller folder and run the command: `python manage.py syncdb` Using this command, we are creating the database model. Also we can use Django migrations, you can found more information [here](https://docs.djangoproject.com/en/1.8/topics/migrations/).
+The Virtual Machine that we started has all the tools that we need to run the server. To connect to this machine you only need to run the command `vagrant ssh`. The repository folder is synchronized between your machine and the Virtual Machine, so you can develop the code in your local machine with your prefer IDE, and run the project in the Virtual Machine.
 
-To check whether the database is created we can connect to the database following next steps:
+You can start the server using the command into the source folder (src/sds_controller): ´python manage.py runserver 0.0.0.0:8000´. After that the server starts, and if you prefer to call the SDS controller for your machine the port to use is `18000`. For instance, to call to list the Storlets from your machine the url will be: localhost:18000/storlets. *We have in the TODO list to configure vagrant and puppet to do a deploy of the SDS Controller in Apache each time that starts the Virtual Machine.*
 
-1. Run the command `psql -h localhost -d sds_controller sds_controller_user`
-2. Introduce the password. Default password: `sds_controller_pass`
-3. Now we are connected into the DB. Running the command `\dt` we can see all the tables that are created.
+If some problem appear, make sure..
 
-Then, you will have a Virtual Machine with all that you need to start the Django server. To connect to this machine you only need to run the command `vagrant ssh`. The folder sds_controller are synchronized between your machine and the Virtual Machine, so you can develop the code in your local machine with your prefer IDE, and run the project in the Virtual Machine.
+1. redis-server service is running? Start this service, because the SDS Controller API stores the meta-data information in redis.
+2. is PyActive in the PYTHONPATH? At home folder you can found the pyactive folder, where you can find another install.txt, please follow this steps.
+3. review the settings file from SDS Controller and make sure to write the correct IPs (Swift IP, Keystone IP, PyActive IP)
 
-You can start the server using the command into the source folder (src/sds_controller): ´python manage.py runserver 0.0.0.0:8000´. After that the server start, and if you prefer to call the SDS controller for your machine the port to use is `18000`. For instance to call to list the storlets from your machine the url will be: localhost:18000/storlets. *We have in the TODO list to configure vagrant and puppet to do a deploy of the SDS Controller in Apache each time that starts the Virtual Machine.*
 
 # Monitoring
+<!-- out of date -->
+To enable the monitoring module you need to follow this steps. First create a new queue at OpenStack controller host. You need to be logged into the OpenStack controller host and run this command: `sudo rabbitmqadmin declare queue name="myQueue" durable=true auto_delete=false` and assign a binding to it with the service you want to monitor with `sudo rabbitmqadmin declare binding source="ceilometer" destination_type="queue" destination="myQueue" routing_key="metering.sample"` where myQueue will be the name of the queue to retrieve the events.
 
-To enable the monitoring module you need to follow this steps. First create a new queue at openstack controller host. You need to be logged into the openstack controller host and run this command: `sudo rabbitmqadmin declare queue name="myQueue" durable=true auto_delete=false` and assign a binding to it with the service you want to monitor with `sudo rabbitmqadmin declare binding source="ceilometer" destination_type="queue" destination="myQueue" routing_key="metering.sample"` where myQueue will be the name of the queue to retrieve the events.
-
-`TODO:` Then, you need to edit the config file `x` and add the ip:port tuple of the rabbitmq at openstack controller host (by default `rabbitmq_host_ip:5672`) and the name of the queue that you created before, myQueue in this lines.
+`TODO:` Then, you need to edit the config file `x` and add the ip:port tuple of the RabbitMQ at OpenStack controller host (by default `rabbitmq_host_ip:5672`) and the name of the queue that you created before, myQueue in this lines.
 
 # Future Work
 

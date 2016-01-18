@@ -48,6 +48,14 @@ class Rule(object):
         """
         logging.info('Rule init: OK')
         logging.info('Rule: %s', rule_parsed.asList())
+
+        settings = ConfigParser.ConfigParser()
+        settings.read("../dynamic_policies.config")
+        self.openstack_tenant = settings.get('openstack', 'admin_tenant')
+        self.openstack_user = settings.get('openstack', 'admin_name')
+        self.openstack_pass = settings.get('openstack', 'admin_pass')
+        self.openstack_keystone_url = settings.get('openstack', 'keystone_url')
+
         self.rule_parsed = rule_parsed
         self.tenant = tenant
         self.conditions = rule_parsed.condition_list.asList()
@@ -57,6 +65,19 @@ class Rule(object):
         tcpconf = (host_transport,(host_ip, host_port))
         self.host = host
         self.action_list = rule_parsed.action_list
+        self.token = None
+
+    def admin_login(self):
+        """
+        Method called to obtain the admin credentials, which we need to deploy filters in accounts.
+        """
+        body = json.dumps({"auth":{"tenantName": self.openstack_tenant, "passwordCredentials": {"username": self.openstack_user, "password": self.openstack_pass}}})
+        headers = {"Content-type":"application/json"}
+        r = requests.get(self.openstack_keystone_url, body, headers)
+        if r.status_code == 200:
+            self.token = r.json()["access"]["token"]["id"]
+        else:
+            raise Exception("Problems with the admin user credentials located in the config file")
 
     def stop_actor(self):
         """
@@ -170,8 +191,11 @@ class Rule(object):
         is responsible to execute the action defined in the policy.
 
         """
-        #TODO: Handle the token generation. Auto-login when this token expires. Take credentials from config file.
-        headers = {"X-Auth-Token":"c2633386b09a461a806845a100facbf0"}
+
+        if not self.token:
+            self.admin_login()
+
+        headers = {"X-Auth-Token":self.token}
         dynamic_filter = r.hgetall("filter:"+str(self.action_list.filter))
 
         if self.action_list.action == "SET":

@@ -98,7 +98,7 @@ class Metric(object):
 
     def notify(self, body):
         """
-        Method called from the consumer to indicate the value consumed from the rabbitmq queue. After receive the value, 
+        Method called from the consumer to indicate the value consumed from the rabbitmq queue. After receive the value,
         this value is communicated to all the observers subscribed to this metric.
         """
         data = json.loads(body)
