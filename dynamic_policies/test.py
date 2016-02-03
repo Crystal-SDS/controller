@@ -38,20 +38,6 @@ import signal
 # s.attach(rule)
 # time.sleep(40)
 # t.stop_consuming()
-def signal_handler(signal, frame):
-    print 'You pressed Ctrl+C!'
-    try:
-        for rule in rules.values():
-            rule.stop_actor()
-    except:
-        None
-    try:
-        for metric in metrics.values():
-            metric.stop_actor()
-    except:
-        None
-    host.shutdown()
-    sys.exit(0)
 
 def start_test():
     tcpconf = ('tcp', ('127.0.0.1', 6375))
@@ -85,8 +71,8 @@ def start_test():
     # FOR 4f0279da74ef4584a29dc72c835fe2c9 WHEN put_ops_tenant > 4 DO SET compression WITH param1=2
     # FOR 4f0279da74ef4584a29dc72c835fe2c9 WHEN head_ops_tenant > 4 DO SET compression WITH param1=2""".splitlines()
     #
-    # # rules_string = """\
-    # # FOR 4f0279da74ef4584a29dc72c835fe2c9 WHEN head_ops_tenant > 4 DO SET compression WITH param1=2""".splitlines()
+#rules_string = """\
+#FOR 4f0279da74ef4584a29dc72c835fe2c9 DO SET io_bandwidth WITH bw=2""".splitlines()
     # #
     # # rules_string = ["FOR 4f0279da74ef4584a29dc72c835fe2c9 WHEN througput < 3 OR slowdown == 1 AND througput == 5 OR througput == 6 DO SET 1 WITH param1=2"]
     # # cont = 0
@@ -112,13 +98,6 @@ def start_test():
     #             rules[cont].start_rule()
     #             cont += 1
 
-
-    signal.signal(signal.SIGINT, signal_handler)
-    print 'Press Ctrl+C to kill the execution'
-    while True:
-        sleep(1)
-
-        # metrics["througput"].attach(rules[0])
         # metrics["slowdown"].attach(rules[0])
 
 
@@ -136,4 +115,4 @@ def main2():
     print resp
 
 if __name__ == "__main__":
-    main()
+   main()

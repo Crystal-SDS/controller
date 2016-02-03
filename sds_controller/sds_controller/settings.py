@@ -18,6 +18,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 STORLET_DIR = os.path.join(BASE_DIR, "storlet", "storlets_jar")
 DEPENDENCY_DIR = os.path.join(BASE_DIR, "storlet", "dependencies_jar")
+ANSIBLE_DIR = os.path.join(BASE_DIR, "swift", "ansible")
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.8/howto/deployment/checklist/
 
@@ -114,9 +115,16 @@ USE_TZ = True
 STATIC_URL = '/static/'
 
 #Swift info
+KEYSTONE_ADMIN_URL = "http://10.30.235.235:5000/v2.0/"
 KEYSTONE_URL = "http://10.30.235.235:35357/v2.0/"
 SWIFT_URL= "http://10.30.235.235:8080/"
 SWIFT_API_VERSION = "v1"
+
+#swift admin
+MANAGMENT_ACCOUNT = "storlet_management"
+MANAGMENT_ADMIN_USERNAME = "storlet_manager"
+MANAGMENT_ADMIN_PASSWORD = "storlet_manager"
+
 #redis
 REDIS_CON_POOL = redis.ConnectionPool(host='localhost', port=6379, db=0)
 

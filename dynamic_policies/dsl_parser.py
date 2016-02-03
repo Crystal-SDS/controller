@@ -1,9 +1,8 @@
 from pyparsing import *
-import abstract_metric
 import redis
 import json
-import ast
-import ConfigParser
+from django.conf import settings
+
 # By default, PyParsing treats \n as whitespace and ignores it
 # In our grammer, \n is significant, so tell PyParsing not to ignore it
 # ParserElement.setDefaultWhitespaceChars(" \t")
@@ -20,15 +19,11 @@ FOR Tenant WHEN"+ condition AND condition AND condition OR condition etc.+"DO"+a
 
 TODO: Parse = TRUE or = False or condicion number. Check to convert to float or convert to boolean.
 """
+#TODO: take this value from configuration
+r = redis.StrictRedis(host="localhost", port=6379, db=0)
 
-settings = ConfigParser.ConfigParser()
-settings.read("./dynamic_policies.config")
-
-redis_host = settings.get('redis', 'host')
-redis_port = settings.get('redis', 'port')
-redis_db = settings.get('redis', 'db')
-
-r = redis.StrictRedis(host=redis_host, port=redis_port, db=redis_db)
+def get_redis_connection():
+    return redis.Redis(connection_pool=settings.REDIS_CON_POOL)
 
 def parse_group_tenants(tokens):
     data = r.lrange(tokens[0], 0, -1)
@@ -113,6 +108,27 @@ def parse(input_string):
             raise Exception
 
     return has_condition_list, parsed_rule
+
+
+rules ="""FOR 4f0279da74ef4584a29dc72c835fe2c9 DO SET io_bandwidth WITH bw=2""".splitlines()
+# rules = """\
+#     FOR 4f0279da74ef4584a29dc72c835fe2c9 WHEN througput < 3 OR slowdown == 1 AND througput == 5 OR througput == 6 DO SET compression WITH param1=2
+#     FOR G:1 WHEN slowdown > 3 OR slowdown > 3 AND slowdown == 5 OR slowdown <= 6 DO SET compression WITH param1=2, param2=3
+#     FOR G:4 AND G:4 WHEN slowdown > 3 AND slowdown > 50 DO SET compression WITH""".splitlines()
+#
+for rule in rules:
+     has_condition_list, stats = parse(rule)
+     #print 'as_list', stats.asList()
+     print stats
+     print 'subject', stats.subject
+     print "group", stats.subject.tenant_group_list
+#     try:
+#         stats = parse(rule)
+#     except:
+#         print 'This rule ***'+rule+'  *** could not be parsed'
+#     else:
+#         print stats.asList()
+
 
 
 # rules ="""FOR 4f0279da74ef4584a29dc72c835fe2c9 DO SET compression WITH param1=2""".splitlines()
