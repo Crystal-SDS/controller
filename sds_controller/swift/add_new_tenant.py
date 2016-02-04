@@ -25,6 +25,7 @@ from . import storlet_mgmt_common
 from django.conf import settings
 def add_new_tenant(tenant_name, user_name, user_password):
     storlet_mgmt_common.get_hosts_object()
+    print 'ansible-playbook ','-s',' -i', settings.ANSIBLE_DIR+"/playbook/swift_cluster_nodes", settings.ANSIBLE_DIR+'/playbook/storlets_add_new_tenant.yml', ' -e', 'tenant_name=' + tenant_name,' -e', 'user_name=' + user_name,' -e', 'user_password=' + user_password,' -e', 'storlets_image_name_suffix=' + 'ubuntu_14.04_jre7_storlets'
     p = subprocess.Popen(['ansible-playbook',
                                 '-s',
     				'-i', settings.ANSIBLE_DIR+"/playbook/swift_cluster_nodes",

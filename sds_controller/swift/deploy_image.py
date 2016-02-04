@@ -30,8 +30,8 @@ def deploy_image(tenant_name, tar_object_name, tenant_image_name):
 
     p = subprocess.Popen(['ansible-playbook',
                           '-s',
-                          '-i', '/opt/ibm/ansible/playbook/swift_cluster_nodes',
-                          '/opt/ibm/ansible/playbook/push_tenant_image.yml',
+                          '-i', settings.ANSIBLE_DIR+'/playbook/swift_cluster_nodes',
+                          settings.ANSIBLE_DIR+'/playbook/push_tenant_image.yml',
                           '-e', 'tar_object_name=' + tar_object_name,
                           '-e', 'tenant_name=' + tenant_name,
                           '-e', 'tenant_image_name=' + tenant_image_name],
@@ -41,8 +41,8 @@ def deploy_image(tenant_name, tar_object_name, tenant_image_name):
     storlet_mgmt_common.monitor_playbook_execution(p)
     p = subprocess.Popen(['ansible-playbook',
                           '-s',
-                          '-i', '/opt/ibm/ansible/playbook/swift_cluster_nodes',
-                          '/opt/ibm/ansible/playbook/pull_tenant_image.yml',
+                          '-i', settings.ANSIBLE_DIR+'/playbook/swift_cluster_nodes',
+                          settings.ANSIBLE_DIR+'/playbook/pull_tenant_image.yml',
                           '-e', 'tenant_name=' + tenant_name],
                           env={"ANSIBLE_HOST_KEY_CHECKING" : "False"},
                           stdout=subprocess.PIPE,

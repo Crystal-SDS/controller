@@ -17,7 +17,7 @@
 - hosts: storlet-mgmt
 
   vars_files:
-   - ./ansible/playbook/common.yml
+   - ./common.yml
 
   roles:
    - add_new_tenant
