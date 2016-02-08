@@ -43,16 +43,19 @@ def tenants_list(request):
         headers = is_valid_request(request)
         if not headers:
             return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
-            data = JSONParser().parse(request)
-            try:
-                add_new_tenant.add_new_tenant(data["tenant_name"], data["user_name"], data["user_password"])
-            except:
-                return JSONResponse('Error appear when creats an account.', status=500)
-            try:
-                deploy_image.deploy_image(data["tenant_name"], data["tar_object_name"], data["tenant_image_name"])
-            except:
-                return JSONResponse('Error appear when deploy storlet image.', status=500)
-            return  JSONResponse('Account created successfully', status=201)
+        
+	data = JSONParser().parse(request)
+        try:
+            add_new_tenant.add_new_tenant(data["tenant_name"], data["user_name"], data["user_password"])
+        except Exception, e:
+	    print e
+            return JSONResponse('Error appear when creats an account.', status=500)
+        try:
+            deploy_image.deploy_image(data["tenant_name"], "ubuntu_14.04_jre8_storlets.tar", "192.168.2.1:5001/ubuntu_14.04_jre8_storlets" )
+        except Exception, e:
+	    print e
+            return JSONResponse('Error appear when deploy storlet image.', status=500)
+        return  JSONResponse('Account created successfully', status=201)
         #TODO call the scripts
     return JSONResponse('Only HTTP GET /tenants/ requests allowed.', status=405)
 
