@@ -158,6 +158,33 @@ def dynamic_filter_detail(request, name):
     return JSONResponse('Method '+str(request.method)+' not allowed.', status=405)
 
 """
+Storage nodes
+"""
+@csrf_exempt
+def list_storage_node(request):
+    try:
+        r = get_redis_connection()
+    except:
+        return JSONResponse('Error connecting with DB', status=500)
+
+    if request.method == "GET":
+        keys = r.keys("SN:*")
+        print 'keys', keys
+        storage_nodes = []
+        for k in keys:
+            sn = r.hgetall(k)
+            sn["id"]=k.split(":")[1]
+            storage_nodes.append(sn)
+        return JSONResponse(storage_nodes, status=200)
+
+    if request.method == "POST":
+        sn_id = r.incr("storage_nodes:id")
+        data = JSONParser().parse(request)
+        r.hmset('SN:'+str(sn_id), data)
+        return JSONResponse('Tenants group has been added in the registy', status=201)
+    return JSONResponse('Method '+str(request.method)+' not allowed.', status=405)
+
+"""
 Tenants group part
 """
 @csrf_exempt
@@ -199,7 +226,6 @@ def tenants_group_detail(request, gtenant_id):
 
     if request.method == 'GET':
         gtenant = r.lrange("G:"+str(gtenant_id), 0, -1)
-
         # r.hgetall("gtenants:"+str(gtenant_id))
         return JSONResponse(gtenant, status=200)
 
@@ -230,7 +256,6 @@ def gtenants_tenant_detail(request, gtenant_id, tenant_id):
         return JSONResponse('Tenant'+str(tenant_id)+'has been deleted from group with the id: '+str(gtenant_id), status=204)
     return JSONResponse('Method '+str(request.method)+' not allowed.', status=405)
 
-
 @csrf_exempt
 def policy_list(request):
     """
@@ -257,9 +282,7 @@ def policy_list(request):
         parsed_rules = []
         for rule in rules_string:
 
-
             try:
-
                 condition_list, rule_parsed = dsl_parser.parse(rule)
                 if condition_list:
                     parsed_rules.append(rule_parsed)
@@ -301,7 +324,7 @@ def do_action(request, r, tenant, rule_parsed, headers):
         #TODO Review if this tenant has already deployed this filter. Not deploy the same filter more than one time.
         response = undeploy(r, storlet, tenant, headers)
         return response
-        
+
 def deploy_policy(r, parsed_rules):
     # self.aref = 'atom://' + self.dispatcher.name + '/controller/Host/0'
     rules = {}

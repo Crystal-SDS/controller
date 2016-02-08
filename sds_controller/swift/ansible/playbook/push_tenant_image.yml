@@ -16,7 +16,7 @@
 - hosts: storlet-mgmt
 
   vars_files:
-   - ./ansible/playbook/common.yml
+   - ./common.yml
 
   roles:
    - push_tenant_image
