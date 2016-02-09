@@ -35,7 +35,6 @@ def tenants_list(request):
         headers = is_valid_request(request)
         if not headers:
             return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
-        print request.META['HTTP_X_AUTH_TOKEN']
         r = requests.get(settings.KEYSTONE_URL+"tenants", headers=headers)
         return HttpResponse(r.content, content_type = 'application/json', status=r.status_code)
 
@@ -56,19 +55,31 @@ def tenants_list(request):
     return JSONResponse('Only HTTP GET /tenants/ requests allowed.', status=405)
 
 @csrf_exempt
+def storage_policies(request):
+    """
+    Creates a storage policy to swift with an specific ring.
+    Allows create replication storage policies and erasure code storage policies
+    """
+    if request.method == "POST":
+        headers = is_valid_request(request)
+        if not headers:
+            return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
+        data = JSONParser().parse(request)
+        try:
+            create_storage_policies.create_storage_policy()
+
+@csrf_exempt
 def locality_list(request, account, container=None, swift_object=None):
     """
     Shows the nodes where the account/container/object is stored. In the case that
     the account/container/object does not exist, return the nodes where it will be save.
     """
     if request.method == 'GET':
-        print account, container, swift_object
         if not container:
             r = requests.get(settings.SWIFT_URL+"endpoints/v2/"+account)
         elif not swift_object:
             r = requests.get(settings.SWIFT_URL+"endpoints/v2/"+account+"/"+container)
         elif container and swift_object:
             r = requests.get(settings.SWIFT_URL+"endpoints/v2/"+account+"/"+container+"/"+swift_object)
-
         return HttpResponse(r.content, content_type = 'application/json', status=r.status_code)
     return JSONResponse('Only HTTP GET /tenants/ requests allowed.', status=405)

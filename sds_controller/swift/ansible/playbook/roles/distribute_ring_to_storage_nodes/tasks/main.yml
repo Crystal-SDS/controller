@@ -1,0 +1,15 @@
+
+- name: Distribute swift.conf to all storage nodes (from serverA to serverB)
+  synchronize: mode=pull src=/etc/swift/swift.conf dest=/etc/swift/ group=swift user=swift
+  delegate_to: storlet-mgmt
+
+- name: Distribute rings to all storage nodes (from serverA to serverB)
+  synchronize: mode=pull src=/etc/swift/*.gz dest=/etc/swift/ group=swift user=swift
+  delegate_to: storlet-mgmt
+
+- name: Distribute rings to all storage nodes (from serverA to serverB)
+  shell: swift-init all restart
+
+- name: Restart proxy
+  shell: swift-init all restart
+  delegate_to: storlet-mgmt
