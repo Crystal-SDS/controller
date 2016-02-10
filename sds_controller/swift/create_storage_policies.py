@@ -22,7 +22,7 @@ def create_storage_policy(tenant_name, user_name, user_password):
     p = subprocess.Popen(['ansible-playbook',
                           '-s',
                           '-i', settings.ANSIBLE_DIR+'/playbook/swift_cluster_nodes',
-                          settings.ANSIBLE_DIR+'/playbook/distibute_ring_to_storage_node'],
+                          settings.ANSIBLE_DIR+'/playbook/distibute_ring_to_storage_node.yml'],
                           env={"ANSIBLE_HOST_KEY_CHECKING" : "False"},
                           stdout=subprocess.PIPE,
                           stderr=subprocess.PIPE)
