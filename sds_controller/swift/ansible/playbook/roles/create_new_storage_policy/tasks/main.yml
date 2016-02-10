@@ -1,17 +1,5 @@
-- name: create new policy
-  shell: echo -e "[storage-policy:{{ policy_id }}]\nname = {{ policy_name }}" >> /etc/swift/swift.conf
+- name: Transfer the script
+  copy: src=./create_policy.sh dest=/etc/swift/ mode=0755
 
-- name: create ring
-  chdir: /etc/swift/
-  shell: swift-ring-builder object-{{ policy_id }}\.builder create {{ paritions }} {{ replicas }} {{ time }}
-
-- name: add storage nodes to ring
-  chdir: /etc/swift/
-  shell: swift-ring-builder object-{{policy_id}}\.builder add {{ item }}
-  with_items: "{{storage_nodes}}"
-
-- name: rebalance the ring
-  chdir: /etc/swift/
-  shell: swift-ring-builder object-{{policy_id}}\.builder rebalance
-
-  
+- name: Execute the script
+  command: sh /etc/swift/create_policy.sh {{policy_id}} {{name}} {{partitions}} {{replicas}} {{time}} {{storage_node}}
