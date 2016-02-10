@@ -2,4 +2,4 @@
   copy: src=./create_policy.sh dest=/etc/swift/ mode=0755
 
 - name: Execute the script
-  command: sh /etc/swift/create_policy.sh {{policy_id}} {{name}} {{partitions}} {{replicas}} {{time}} {{storage_node}}
+  command: /etc/swift/create_policy.sh {{policy_id}} {{name}} {{partitions}} {{replicas}} {{time}} {{storage_node}}

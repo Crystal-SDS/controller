@@ -6,7 +6,7 @@ from django.conf import settings
 import requests
 from . import add_new_tenant
 from . import deploy_image
-
+from . import create_storage_policies
 # Create your views here.
 
 class JSONResponse(HttpResponse):
@@ -65,6 +65,9 @@ def storage_policies(request):
         if not headers:
             return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
         data = JSONParser().parse(request)
+        storage_nodes_list=[]
+        [storage_nodes_list.extend([k,v]) for k,v in data["storage_node"].items()]
+        data["storage_node"] = storage_nodes_list
         try:
             create_storage_policies.create_storage_policy(data)
         except Exception, e:
