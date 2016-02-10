@@ -66,7 +66,11 @@ def storage_policies(request):
             return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
         data = JSONParser().parse(request)
         try:
-            create_storage_policies.create_storage_policy()
+            create_storage_policies.create_storage_policy(data)
+        except Exception, e:
+            return JSONResponse('Error creating the Storage Policy', status=500)
+        return  JSONResponse('Account created successfully', status=201)
+    return JSONResponse('Only HTTP GET /tenants/ requests allowed.', status=405)
 
 @csrf_exempt
 def locality_list(request, account, container=None, swift_object=None):
