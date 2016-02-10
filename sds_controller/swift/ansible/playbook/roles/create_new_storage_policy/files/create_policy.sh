@@ -6,7 +6,7 @@ policyName=$2
 paritions=$3
 replicas=$4
 time=$5
-echo $6
+
 IFS=',' read -r -a storage_nodes <<< "$6"
 
 if [ $# -eq 6 ]
@@ -31,9 +31,11 @@ cd /etc/swift
 
 swift-ring-builder object-$policyID\.builder create $paritions $replicas $time
 #swift-ring-builder object-$policyID\.builder add $storage_node
-for i in {0..${storage_nodes[@]}..2}
+
+for i in $(seq 0 2 ${#storage_nodes[@]})
   do
      let "j= $i + 1"
      swift-ring-builder object-$policyID\.builder add ${storage_nodes[$i]} ${storage_nodes[$j]}
  done
+
 swift-ring-builder object-$policyID\.builder rebalance

@@ -1,15 +1,21 @@
+- name: Transfer swift.conf to all storage nodes
+  copy:
+    src: /tmp/swift.conf
+    dest: /tmp/swift.conf
 
-- name: Distribute swift.conf to all storage nodes (from serverA to serverB)
-  synchronize: mode=pull src=/etc/swift/swift.conf dest=/etc/swift/ group=swift user=swift
-  delegate_to: storlet-mgmt
+- name: Move swift.conf
+  command: rsync --remove-source-files -avz /tmp/swift.conf /etc/swift
 
-- name: Distribute rings to all storage nodes (from serverA to serverB)
-  synchronize: mode=pull src=/etc/swift/*.gz dest=/etc/swift/ group=swift user=swift
-  delegate_to: storlet-mgmt
+- name: Transfer ring to all storage nodes
+  copy:
+    src: /tmp/object-{{policy_id }}.ring.gz
+    dest: /tmp/object-{{policy_id }}.ring.gz
 
-- name: Distribute rings to all storage nodes (from serverA to serverB)
-  shell: swift-init all restart
+- name: move ring file
+  command: rsync --remove-source-files -avz /tmp/object-{{policy_id }}.ring.gz /etc/swift
 
-- name: Restart proxy
-  shell: swift-init all restart
-  delegate_to: storlet-mgmt
+- name: vim permissions
+  file: path=/etc/swift/swift.conf owner=swift group=swift
+
+- name: vim permissions two
+  file: path=/etc/swift/object-{{policy_id }}.ring.gz owner=swift group=swift
