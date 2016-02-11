@@ -19,3 +19,10 @@
 
 - name: vim permissions two
   file: path=/etc/swift/object-{{policy_id }}.ring.gz owner=swift group=swift
+
+- name: Restart all storage nodes
+  shell: swift-init all restart
+
+- name: Restart proxy
+  shell: swift-init all restart
+  delegate_to: controller_address
