@@ -66,8 +66,9 @@ def storage_policies(request):
             return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
         data = JSONParser().parse(request)
         storage_nodes_list=[]
-        [storage_nodes_list.extend([k,v]) for k,v in data["storage_node"].items()]
-        data["storage_node"] = storage_nodes_list
+        if isinstance(data["storage_node"], dict):
+            [storage_nodes_list.extend([k,v]) for k,v in data["storage_node"].items()]
+            data["storage_node"] = storage_nodes_list
         try:
             create_storage_policies.create_storage_policy(data)
         except Exception, e:
