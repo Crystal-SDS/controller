@@ -366,14 +366,9 @@ def deploy(r, storlet, account, params, headers):
     if status == 201:
         if r.exists("AUTH_"+str(account)+":"+str(storlet['name'])):
             return JSONResponse("Already deployed", status=200)
-
         if r.lpush("AUTH_"+str(account), str(storlet['name'])):
-            if not params:
-                #TODO: Solve the problem with empty params.
-                if r.hmset("AUTH_"+str(account)+":"+str(storlet["name"]), {"params":{}}):
-                    return JSONResponse("Deployed", status=201)
-            else:
-                if r.hmset("AUTH_"+str(account)+":"+str(storlet['name']), {"params":params}):
+                params["storlet_id"] = storlet["id"]
+                if r.hmset("AUTH_"+str(account)+":"+str(storlet['name']), params):
                     return JSONResponse("Deployed", status=201)
     return JSONResponse("error", status=400)
 
