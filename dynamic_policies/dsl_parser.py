@@ -56,11 +56,13 @@ def parse(input_string):
                                 ])
 
     #For tenant or group of tenants
-    tenant_id = Word(alphanums)
+    alphanums = Word(alphanums)
     group_id = Word(nums)
     tenant_group = Combine(Literal("G:") + group_id)
     tenant_group_list = tenant_group + ZeroOrMore(Suppress("AND")+tenant_group)
-    tenant_list = tenant_id + ZeroOrMore(Suppress("AND")+tenant_id)
+    tenant_list = alphanums + ZeroOrMore(Suppress("AND")+alphanums)
+    container = Combine(Literal("CONTAINER:") + alphanums)
+    obj = Combine(Literal("OBJECT:") + alphanums)
     subject = Group(tenant_list ^ tenant_group_list)
 
     #Action part
@@ -110,18 +112,18 @@ def parse(input_string):
     return has_condition_list, parsed_rule
 
 
-rules ="""FOR 4f0279da74ef4584a29dc72c835fe2c9 DO SET io_bandwidth WITH bw=2""".splitlines()
+# rules ="""FOR 4f0279da74ef4584a29dc72c835fe2c9 DO SET io_bandwidth WITH bw=2""".splitlines()
 # rules = """\
 #     FOR 4f0279da74ef4584a29dc72c835fe2c9 WHEN througput < 3 OR slowdown == 1 AND througput == 5 OR througput == 6 DO SET compression WITH param1=2
 #     FOR G:1 WHEN slowdown > 3 OR slowdown > 3 AND slowdown == 5 OR slowdown <= 6 DO SET compression WITH param1=2, param2=3
 #     FOR G:4 AND G:4 WHEN slowdown > 3 AND slowdown > 50 DO SET compression WITH""".splitlines()
 #
-for rule in rules:
-     has_condition_list, stats = parse(rule)
-     #print 'as_list', stats.asList()
-     print stats
-     print 'subject', stats.subject
-     print "group", stats.subject.tenant_group_list
+# for rule in rules:
+#      has_condition_list, stats = parse(rule)
+#      #print 'as_list', stats.asList()
+#      print stats
+#      print 'subject', stats.subject
+#      print "group", stats.subject.tenant_group_list
 #     try:
 #         stats = parse(rule)
 #     except:

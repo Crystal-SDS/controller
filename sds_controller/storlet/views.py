@@ -238,6 +238,10 @@ def dependency_detail(request, id):
 class DependencyData(APIView):
     parser_classes = (MultiPartParser, FormParser,)
     def put(self, request, id, format=None):
+        try:
+            r = get_redis_connection()
+        except:
+            return JSONResponse('Problems to connect with the DB', status=500)
         if r.exists("dependency:"+str(id)):
             file_obj = request.FILES['file']
             path = save_file(file_obj, settings.DEPENDENCY_DIR)
