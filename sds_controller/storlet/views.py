@@ -238,6 +238,10 @@ def dependency_detail(request, id):
 class DependencyData(APIView):
     parser_classes = (MultiPartParser, FormParser,)
     def put(self, request, id, format=None):
+        try:
+            r = get_redis_connection()
+        except:
+            return JSONResponse('Problems to connect with the DB', status=500)
         if r.exists("dependency:"+str(id)):
             file_obj = request.FILES['file']
             path = save_file(file_obj, settings.DEPENDENCY_DIR)
@@ -366,14 +370,9 @@ def deploy(r, storlet, account, params, headers):
     if status == 201:
         if r.exists("AUTH_"+str(account)+":"+str(storlet['name'])):
             return JSONResponse("Already deployed", status=200)
-
         if r.lpush("AUTH_"+str(account), str(storlet['name'])):
-            if not params:
-                #TODO: Solve the problem with empty params.
-                if r.hmset("AUTH_"+str(account)+":"+str(storlet["name"]), {"params":{}}):
-                    return JSONResponse("Deployed", status=201)
-            else:
-                if r.hmset("AUTH_"+str(account)+":"+str(storlet['name']), {"params":params}):
+                params["storlet_id"] = storlet["id"]
+                if r.hmset("AUTH_"+str(account)+":"+str(storlet['name']), params):
                     return JSONResponse("Deployed", status=201)
     return JSONResponse("error", status=400)
 

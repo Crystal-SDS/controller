@@ -15,4 +15,6 @@ urlpatterns = [
     url(r'^/gtenants/(?P<gtenant_id>\w+)/tenants/(?P<tenant_id>\w+)/?$', views.gtenants_tenant_detail),
 
     url(r'^/policy/?$', views.policy_list),
+    url(r'^/snode/?$', views.list_storage_node),
+
 ]

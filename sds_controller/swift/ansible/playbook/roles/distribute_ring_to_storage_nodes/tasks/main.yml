@@ -1,0 +1,28 @@
+- name: Transfer swift.conf to all storage nodes
+  copy:
+    src: /tmp/swift.conf
+    dest: /tmp/swift.conf
+
+- name: Move swift.conf
+  command: rsync --remove-source-files -avz /tmp/swift.conf /etc/swift
+
+- name: Transfer ring to all storage nodes
+  copy:
+    src: /tmp/object-{{policy_id }}.ring.gz
+    dest: /tmp/object-{{policy_id }}.ring.gz
+
+- name: move ring file
+  command: rsync --remove-source-files -avz /tmp/object-{{policy_id }}.ring.gz /etc/swift
+
+- name: vim permissions
+  file: path=/etc/swift/swift.conf owner=swift group=swift
+
+- name: vim permissions two
+  file: path=/etc/swift/object-{{policy_id }}.ring.gz owner=swift group=swift
+
+- name: Restart all storage nodes
+  shell: swift-init all restart
+
+- name: Restart proxy
+  shell: swift-init all restart
+  delegate_to: controller_address

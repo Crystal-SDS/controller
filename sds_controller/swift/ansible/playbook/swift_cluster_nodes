@@ -37,3 +37,4 @@ ansible_ssh_pass = pass
 [storlet-storage:vars]
 ansible_ssh_user = user_name
 ansible_ssh_pass = pass
+controller_address = 192.168.2.1
