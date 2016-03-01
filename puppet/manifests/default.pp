@@ -10,10 +10,10 @@ class prepare {
     }
     class { 'python' :
       version    => 'system',
-      pip        => true,
-      dev        => true,
-      virtualenv => true,
-      gunicorn   => true,
+      pip        => present,
+      dev        => present,
+      virtualenv => present,
+      gunicorn   => present,
     }
 }
 class { 'prepare':
@@ -37,7 +37,7 @@ class rabbitmq_server {
 
 include rabbitmq_server
 
-$sysPackages = ['git', 'curl', 'redis-server', 'redis-cli']
+$sysPackages = ['git', 'curl', 'redis-server']
 package { $sysPackages:
   ensure => "installed",
   require  => Class['prepare']
