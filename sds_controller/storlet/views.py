@@ -231,7 +231,7 @@ def dependency_detail(request, id):
             return JSONResponse("Error updating data", status=400)
 
     elif request.method == 'DELETE':
-        r.delete("storlet:"+str(id))
+        r.delete("dependency:"+str(id))
         return JSONResponse('Dependency has been deleted', status=204)
     return JSONResponse('Method '+str(request.method)+' not allowed.', status=405)
 
