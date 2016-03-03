@@ -31,7 +31,6 @@ def parse_group_tenants(tokens):
 
 
 def parse(input_string):
-    #TODO Add error control.
     #TODO Raise an exception if not metrics or not action registred
     #TODO Raise an exception if group of tenants don't exists.
     #TODO Add transcient option
@@ -56,14 +55,17 @@ def parse(input_string):
                                 ])
 
     #For tenant or group of tenants
-    alphanums = Word(alphanums)
     group_id = Word(nums)
+    container = Combine(Literal("CONTAINER:") + Word(alphanums) + Literal("/") + Word(alphanums+"_-"))
+    obj = Combine(Literal("OBJECT:") + Word(alphanums)+Literal("/")+ Word(alphanums+"_-")+Literal("/")+ Word(alphanums+"_-."))
+    tenant = Combine(Literal("TENANT:") + Word(alphanums))
     tenant_group = Combine(Literal("G:") + group_id)
+
     tenant_group_list = tenant_group + ZeroOrMore(Suppress("AND")+tenant_group)
-    tenant_list = alphanums + ZeroOrMore(Suppress("AND")+alphanums)
-    container = Combine(Literal("CONTAINER:") + alphanums)
-    obj = Combine(Literal("OBJECT:") + alphanums)
-    subject = Group(tenant_list ^ tenant_group_list)
+    tenant_list = tenant + ZeroOrMore(Suppress("AND")+tenant)
+    container_list = container + ZeroOrMore(Suppress("AND")+container)
+    obj_list = obj + ZeroOrMore(Suppress("AND")+obj)
+    target = Group(tenant_list ^ tenant_group_list ^ container_list ^ obj_list)
 
     #Action part
     action = oneOf("SET DELETE")
@@ -73,20 +75,30 @@ def parse(input_string):
     with_params = Suppress(Literal("WITH"))
     do = Suppress(Literal("DO"))
     params_list = delimitedList(param)
+    server_execution = oneOf("PROXY OBJECT")
+    action = Group(action("action") + oneOf(sfilter)("filter") + Optional(with_params + params_list("params") + \
+            Optional(Suppress("ON")+server_execution)))
 
+    action_list = Group(delimitedList(action))
+
+    #Object types
+    operand_object =  oneOf("< > == = != <= >=")
+    object_parameter = oneOf("OBJECT_TYPE OBJECT_SIZE")
+    object_list = Group(object_parameter("object_parameter") + operand_object("operand") + Word(alphanums)("object_value"))
+    to = Suppress("TO")
 
     #Functions post-parsed
     convertToDict = lambda tokens : dict(zip(*[iter(tokens)]*2))
     remove_repeted_elements = lambda tokens : [list(set(tokens[0]))]
 
     params_list.setParseAction(convertToDict)
-    subject.setParseAction(remove_repeted_elements)
+    target.setParseAction(remove_repeted_elements)
     tenant_group.setParseAction(parse_group_tenants)
 
+
     #Final rule structure
-    rule_parse = literal_for + subject("subject") + Optional(when +\
-                condition_list("condition_list")) + do + Group(action("action") + \
-                oneOf(sfilter)("filter") + Optional(with_params + params_list("params")))("action_list")
+    rule_parse = literal_for + target("target") + Optional(when +\
+                condition_list("condition_list")) + do + action_list("action_list") + Optional(to + object_list("object_list"))
 
     #Parse the rule
     parsed_rule = rule_parse.parseString(input_string)
@@ -112,34 +124,23 @@ def parse(input_string):
     return has_condition_list, parsed_rule
 
 
-# rules ="""FOR 4f0279da74ef4584a29dc72c835fe2c9 DO SET io_bandwidth WITH bw=2""".splitlines()
+# rules ="""FOR OBJECT:4f0279da74ef4584a29dc72c835fe2c9/pepito/pep.jpg DO SET compression WITH bw=2 ON OBJECT, SET uonetrace WITH bw=2 ON PROXY TO OBJECT_TYPE>2 """.splitlines()
 # rules = """\
 #     FOR 4f0279da74ef4584a29dc72c835fe2c9 WHEN througput < 3 OR slowdown == 1 AND througput == 5 OR througput == 6 DO SET compression WITH param1=2
 #     FOR G:1 WHEN slowdown > 3 OR slowdown > 3 AND slowdown == 5 OR slowdown <= 6 DO SET compression WITH param1=2, param2=3
 #     FOR G:4 AND G:4 WHEN slowdown > 3 AND slowdown > 50 DO SET compression WITH""".splitlines()
 #
 # for rule in rules:
-#      has_condition_list, stats = parse(rule)
-#      #print 'as_list', stats.asList()
-#      print stats
-#      print 'subject', stats.subject
-#      print "group", stats.subject.tenant_group_list
+#     _, parsed_rule = parse(rule)
+#     print parsed_rule
+#     print parsed_rule.action_list[0].params
+#     print 'as_list', stats.asList()
+#     print stats
+#     print 'subject', stats.subject
+#     print "group", stats.subject.tenant_group_list
 #     try:
 #         stats = parse(rule)
 #     except:
 #         print 'This rule ***'+rule+'  *** could not be parsed'
 #     else:
 #         print stats.asList()
-
-
-
-# rules ="""FOR 4f0279da74ef4584a29dc72c835fe2c9 DO SET compression WITH param1=2""".splitlines()
-# # rules = """\
-# #     FOR 4f0279da74ef4584a29dc72c835fe2c9 WHEN througput < 3 OR slowdown == 1 AND througput == 5 OR througput == 6 DO SET compression WITH param1=2
-# #     FOR G:1 WHEN slowdown > 3 OR slowdown > 3 AND slowdown == 5 OR slowdown <= 6 DO SET compression WITH param1=2, param2=3
-# #     FOR G:4 AND G:4 WHEN slowdown > 3 AND slowdown > 50 DO SET compression WITH""".splitlines()
-# #
-# for rule in rules:
-#     _, stats = parse(rule)
-#     print stats
-#     print 'subject', stats.subject

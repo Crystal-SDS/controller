@@ -281,9 +281,19 @@ def policy_list(request):
         rules_string = request.body.splitlines()
         parsed_rules = []
         for rule in rules_string:
+            """
+            Rules improved:
+            TODO: Handle the new parameters of the rule
+            Add containers and object in rules
+            Add execution server in rules
+            Add object type in rules
 
+
+            """
             try:
+
                 condition_list, rule_parsed = dsl_parser.parse(rule)
+
                 if condition_list:
                     parsed_rules.append(rule_parsed)
                 else:
@@ -315,7 +325,6 @@ def do_action(request, r, tenant, rule_parsed, headers):
             response = deploy(r, storlet, tenant, rule_parsed.action_list.params, headers)
         else:
             response = deploy(r, storlet, tenant, {}, headers)
-
         return response
 
 
