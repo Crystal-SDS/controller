@@ -287,19 +287,16 @@ def policy_list(request):
             Add containers and object in rules
             Add execution server in rules
             Add object type in rules
-
-
             """
             try:
-
                 condition_list, rule_parsed = dsl_parser.parse(rule)
 
                 if condition_list:
                     parsed_rules.append(rule_parsed)
                 else:
                     print 'rule_parsed', rule_parsed
-                    for tenant in rule_parsed.subject:
-                        response = do_action(request, r, tenant, rule_parsed, headers)
+                    for target in rule_parsed.target:
+                        response = do_action(request, r, target, rule_parsed, headers)
                     print "pepito", response
             except Exception as e:
                 print "The rule: "+rule+" cannot be parsed"

@@ -123,7 +123,7 @@ def parse(input_string):
 
     return has_condition_list, parsed_rule
 
-# rules ="""FOR 4f0279da74ef4584a29dc72c835fe2c9 WHEN get_ops_tenant < 3 OR get_ops_tenant == 1 AND get_ops_tenant == 5 OR get_ops_tenant == 6 DO SET compression WITH param1=2""".splitlines()
+# rules ="""FOR CONTAINER:4f0279da74ef4584a29dc72c835fe2c9/container AND TENANT: compression WITH param1=2 ON PROXY, encrìption TO OBJECT_SIZE=DOCS """.splitlines()
 # rules = """\
 #     FOR 4f0279da74ef4584a29dc72c835fe2c9 WHEN througput < 3 OR slowdown == 1 AND througput == 5 OR througput == 6 DO SET compression WITH param1=2
 #     FOR G:1 WHEN slowdown > 3 OR slowdown > 3 AND slowdown == 5 OR slowdown <= 6 DO SET compression WITH param1=2, param2=3
