@@ -295,8 +295,7 @@ def policy_list(request):
                     parsed_rules.append(rule_parsed)
                 else:
                     print 'rule_parsed', rule_parsed
-                    for target in rule_parsed.target:
-                        response = do_action(request, r, target, rule_parsed, headers)
+                    response = do_action(request, r, rule_parsed, headers)
                     print "pepito", response
             except Exception as e:
                 print "The rule: "+rule+" cannot be parsed"
@@ -308,28 +307,27 @@ def policy_list(request):
 
     return JSONResponse('Method '+str(request.method)+' not allowed.', status=405)
 
-def do_action(request, r, tenant, rule_parsed, headers):
-    dynamic_filter = r.hgetall("filter:"+str(rule_parsed.action_list.filter))
-    storlet = r.hgetall("storlet:"+dynamic_filter["identifier"])
-    if not storlet:
-        return JSONResponse('Filter does not exists', status=404)
+def do_action(request, r, rule_parsed, headers):
 
-    if rule_parsed.action_list.action == "SET":
+    for target in rule_parsed.target:
+        for action_info in rule_parsed.action_list:
 
-        #TODO Review if this tenant has already deployed this filter. Not deploy the same filter more than one time.
+            dynamic_filter = r.hgetall("filter:"+str(action_info.filter))
+            storlet = r.hgetall("storlet:"+dynamic_filter["identifier"])
 
-        if rule_parsed.action_list.params:
-            response = deploy(r, storlet, tenant, rule_parsed.action_list.params, headers)
-        else:
-            response = deploy(r, storlet, tenant, {}, headers)
-        return response
+            if not storlet:
+                resonse = JSONResponse('Filter does not exists', status=404)
+                break
 
+            if action_info.action == "SET":
+                #TODO: What happends if any of each parameters are None or ''? Review the default parameters.
+                prams = {"params":action_info.params, "execution_server":action_info.execution_server, "target_objects":rule_parsed.object_list}
+                #TODO Review if this tenant has already deployed this filter. Not deploy the same filter more than one time.
+                response = deploy(r, storlet, target[1], params, headers)
+            elif raction_info.action == "DELETE":
+                response = undeploy(r, storlet, target[1], headers)
 
-    elif rule_parsed.action_list.action == "DELETE":
-
-        #TODO Review if this tenant has already deployed this filter. Not deploy the same filter more than one time.
-        response = undeploy(r, storlet, tenant, headers)
-        return response
+    return response
 
 def deploy_policy(r, parsed_rules):
     # self.aref = 'atom://' + self.dispatcher.name + '/controller/Host/0'

@@ -341,8 +341,10 @@ def dependency_undeploy(request, id, account):
             return JSONResponse('The dependency has been deleted', status=status)
         return JSONResponse(response.get("reason"), status=status)
     return JSONResponse('Method '+str(request.method)+' not allowed.', status=405)
+deploy(r, storlet, target, action_info, headers, rule_parsed.object_list)
+def deploy(r, storlet, target, params, headers):
+    account, container, swift_object = target.split('/', 3)
 
-def deploy(r, storlet, account, params, headers):
     metadata = {'X-Object-Meta-Storlet-Language':'Java',
         'X-Object-Meta-Storlet-Interface-Version':'1.0',
         'X-Object-Meta-Storlet-Dependency': storlet['dependencies'],
@@ -368,15 +370,18 @@ def deploy(r, storlet, account, params, headers):
         f.close()
     status = response.get('status')
     if status == 201:
-        if r.exists("AUTH_"+str(account)+":"+str(storlet['name'])):
+        if r.exists("AUTH_"+str(target)+":"+str(storlet['name'])):
             return JSONResponse("Already deployed", status=200)
-        if r.lpush("AUTH_"+str(account), str(storlet['name'])):
+        if r.lpush("AUTH_"+str(target), str(storlet['name'])):
                 params["storlet_id"] = storlet["id"]
-                if r.hmset("AUTH_"+str(account)+":"+str(storlet['name']), params):
+                if r.hmset("AUTH_"+str(target)+":"+str(storlet['name']), params):
                     return JSONResponse("Deployed", status=201)
     return JSONResponse("error", status=400)
 
-def undeploy(r, storlet, account, headers):
+def undeploy(r, target, account, headers):
+
+    account, container, swift_object = target.split('/', 3)
+
     response = dict()
     try:
         c.delete_object(settings.SWIFT_URL+settings.SWIFT_API_VERSION+"/"+"AUTH_"+str(account),headers["X-Auth-Token"],
@@ -386,8 +391,8 @@ def undeploy(r, storlet, account, headers):
         return JSONResponse(response.get("reason"), status=response.get('status'))
     status = response.get('status')
     if 200 <= status < 300:
-        r.delete("AUTH_"+str(account)+":"+str(storlet["name"]))
-        r.lrem("AUTH_"+str(account), str(storlet["name"]), 1)
+        r.delete("AUTH_"+str(target)+":"+str(storlet["name"]))
+        r.lrem("AUTH_"+str(target), str(storlet["name"]), 1)
         return JSONResponse('The object has been deleted', status=status)
     return JSONResponse(response.get("reason"), status=status)
 

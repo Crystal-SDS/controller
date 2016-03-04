@@ -9,6 +9,9 @@ urlpatterns = [
     url(r'^/(?P<id>[0-9]+)/data/?$', views.StorletData.as_view()),
     url(r'^/(?P<account>\w+)/deploy/?$', views.storlet_list_deployed),
     url(r'^/(?P<account>\w+)/deploy/(?P<id>[0-9]+)/?$', views.storlet_deploy),
+    """**** Adapt api to deploy storlets to container and objects*****"""
+    url(r'^/(?P<account>\w+)/(?P<container>\w+)/deploy/(?P<id>[0-9]+)/?$', views.storlet_deploy),
+    url(r'^/(?P<account>\w+)/(?P<container>\w+)/(?P<object>\w+)/deploy/(?P<id>[0-9]+)/?$', views.storlet_deploy),
     url(r'^/(?P<account>\w+)/undeploy/(?P<id>[0-9]+)/?$', views.storlet_undeploy),
 
 

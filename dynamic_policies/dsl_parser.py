@@ -56,9 +56,9 @@ def parse(input_string):
 
     #For tenant or group of tenants
     group_id = Word(nums)
-    container = Combine(Literal("CONTAINER:") + Word(alphanums) + Literal("/") + Word(alphanums+"_-"))
-    obj = Combine(Literal("OBJECT:") + Word(alphanums)+Literal("/")+ Word(alphanums+"_-")+Literal("/")+ Word(alphanums+"_-."))
-    tenant = Combine(Literal("TENANT:") + Word(alphanums))
+    container = Group(Literal("CONTAINER")("type") + Suppress(":") + Combine(Word(alphanums) + Literal("/") + Word(alphanums+"_-")))
+    obj = Group(Literal("OBJECT")("type") + Suppress(":") + Combine(Word(alphanums)+Literal("/")+ Word(alphanums+"_-")+Literal("/")+ Word(alphanums+"_-.")))
+    tenant = Group(Literal("TENANT")("type")+ Suppress(":")  + Combine(Word(alphanums)))
     tenant_group = Combine(Literal("G:") + group_id)
 
     tenant_group_list = tenant_group + ZeroOrMore(Suppress("AND")+tenant_group)
@@ -77,7 +77,7 @@ def parse(input_string):
     params_list = delimitedList(param)
     server_execution = oneOf("PROXY OBJECT")
     action = Group(action("action") + oneOf(sfilter)("filter") + Optional(with_params + params_list("params") + \
-            Optional(Suppress("ON")+server_execution)))
+            Optional(Suppress("ON")+server_execution("server_execution"))))
 
     action_list = Group(delimitedList(action))
 
@@ -124,16 +124,20 @@ def parse(input_string):
     return has_condition_list, parsed_rule
 
 
-# rules ="""FOR OBJECT:4f0279da74ef4584a29dc72c835fe2c9/pepito/pep.jpg DO SET compression WITH bw=2 ON OBJECT, SET uonetrace WITH bw=2 ON PROXY TO OBJECT_TYPE>2 """.splitlines()
-# rules = """\
-#     FOR 4f0279da74ef4584a29dc72c835fe2c9 WHEN througput < 3 OR slowdown == 1 AND througput == 5 OR througput == 6 DO SET compression WITH param1=2
-#     FOR G:1 WHEN slowdown > 3 OR slowdown > 3 AND slowdown == 5 OR slowdown <= 6 DO SET compression WITH param1=2, param2=3
-#     FOR G:4 AND G:4 WHEN slowdown > 3 AND slowdown > 50 DO SET compression WITH""".splitlines()
-#
+# rules ="""FOR OBJECT:4f0279da74ef4584a29dc72c835fe2c9/2/2 AND OBJECT:4f0279da74ef4584a29dc72c835fe2c9/2/2 DO SET compression WITH bw=2 ON OBJECT, SET uonetrace WITH bw=2 ON PROXY """.splitlines()
+# # rules = """\
+# #     FOR 4f0279da74ef4584a29dc72c835fe2c9 WHEN througput < 3 OR slowdown == 1 AND througput == 5 OR througput == 6 DO SET compression WITH param1=2
+# #     FOR G:1 WHEN slowdown > 3 OR slowdown > 3 AND slowdown == 5 OR slowdown <= 6 DO SET compression WITH param1=2, param2=3
+# #     FOR G:4 AND G:4 WHEN slowdown > 3 AND slowdown > 50 DO SET compression WITH""".splitlines()
+# #
 # for rule in rules:
-#     _, parsed_rule = parse(rule)
-#     print parsed_rule
-#     print parsed_rule.action_list[0].params
+#      _, parsed_rule = parse(rule)
+#      print parsed_rule.target[1][1].split('/', 3)
+#      print parsed_rule.action_list
+#      print "object", parsed_rule.object_list
+#      for target in parsed_rule.target:
+#         if target.type is "OBJECT":
+#             print target[1]
 #     print 'as_list', stats.asList()
 #     print stats
 #     print 'subject', stats.subject
