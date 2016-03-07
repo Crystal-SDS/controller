@@ -4,7 +4,7 @@ SDS Controller API Specification - Filters
 
 - [Error handling](#error-handling)
 - [Authentication](#authentication)
-- [Filters](#Filters)
+- [Filters](#filters)
   - [Create a Filter](#create-a-filter)
   - [Upload a Filter data](#upload-a-filter-data)
   - [Delete a Filter](#delete-a-filter)
@@ -271,7 +271,7 @@ JSON input that contains a dictionary with the following keys:
 FIELD |  DESCRIPTION
 --- | ---
 **name** | The name of the filter to be created.
-**language** |Currently must be 'java'
+**language** | Currently must be 'java'
 **interface_version** | Currently we have a single version '1.0'
 **dependencies** | A comma separated list of dependencies. Default: “ ”
 **object_metadata** | Currently, not in use, but must appear. Use the value 'no'
