@@ -276,6 +276,8 @@ def dependency_deploy(request, id, account):
         if not dependency:
             return JSONResponse('Dependency does not exists', status=404)
         metadata = {'X-Object-Meta-Storlet-Dependency-Version': str(dependency["version"])}
+        if not r.hexists("dependency:"+str(id), "path"):
+            return JSONResponse('Dependency path does not exists', status=404)
         f = open(dependency["path"],'r')
         content_length = None
         response = dict()
@@ -293,7 +295,6 @@ def dependency_deploy(request, id, account):
                 return JSONResponse("Already deployed", status=200)
 
             if r.lpush("AUTH_"+str(account)+":dependencies", str(dependency['name'])):
-                r.set("AUTH_"+str(account)+":dependency:"+str(dependency['name']), 1)
                 return JSONResponse("Deployed", status=201)
 
         return JSONResponse("error", status=400)
