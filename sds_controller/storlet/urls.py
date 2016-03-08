@@ -12,12 +12,12 @@ urlpatterns = [
     #Deploy to tenant container or object
     url(r'^/(?P<account>\w+)/deploy/(?P<id>[0-9]+)/?$', views.storlet_deploy),
     url(r'^/(?P<account>\w+)/(?P<container>\w+)/deploy/(?P<id>[0-9]+)/?$', views.storlet_deploy),
-    url(r'^/(?P<account>\w+)/(?P<container>\w+)/(?P<object>\w+)/deploy/(?P<id>[0-9]+)/?$', views.storlet_deploy),
+    url(r'^/(?P<account>\w+)/(?P<container>\w+)/(?P<swift_object>\w+)/deploy/(?P<id>[0-9]+)/?$', views.storlet_deploy),
 
     #Undeploy to tenant container or object
     url(r'^/(?P<account>\w+)/undeploy/(?P<id>[0-9]+)/?$', views.storlet_undeploy),
-    # url(r'^/(?P<account>\w+)/(?P<container>\w+)/undeploy/(?P<id>[0-9]+)/?$', views.storlet_undeploy),
-    # url(r'^/(?P<account>\w+)/(?P<container>\w+)/(?P<object>\w+)/undeploy/(?P<id>[0-9]+)/?$', views.storlet_undeploy),
+    url(r'^/(?P<account>\w+)/(?P<container>\w+)/undeploy/(?P<id>[0-9]+)/?$', views.storlet_undeploy),
+    url(r'^/(?P<account>\w+)/(?P<container>\w+)/(?P<swift_object>\w+)/undeploy/(?P<id>[0-9]+)/?$', views.storlet_undeploy),
 
     url(r'^/dependencies/?$', views.dependency_list),
     url(r'^/dependencies/(?P<id>\w+)/?$', views.dependency_detail),

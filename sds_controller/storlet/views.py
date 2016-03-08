@@ -136,6 +136,7 @@ def storlet_deploy(request, id, account, container=None, swift_object=None):
             return JSONResponse('Invalid parameters', status=401)
         params = JSONParser().parse(request)
 
+        #TODO: Try to improve this part
         if container and swift_object:
             target = account + "/" + container +"/"+swift_object
         elif container:
@@ -162,7 +163,7 @@ def storlet_list_deployed(request, account):
     return JSONResponse('Method '+str(request.method)+' not allowed.', status=405)
 
 @csrf_exempt
-def storlet_undeploy(request, id, account):
+def storlet_undeploy(request, id, account, container=None, swift_object=None):
     """
     Undeploy a storlet from a specific swift account.
     """
@@ -181,7 +182,15 @@ def storlet_undeploy(request, id, account):
         if not headers:
             return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
         response = dict()
-	return undeploy(r, storlet, account, headers)
+
+        if container and swift_object:
+            target = account + "/" + container +"/"+swift_object
+        elif container:
+            target = account + "/" + container
+        else:
+            target = account
+
+        return undeploy(r, storlet, target, headers)
     return JSONResponse('Method '+str(request.method)+' not allowed.', status=405)
 
 """
@@ -389,7 +398,7 @@ def deploy(r, storlet, target, params, headers):
                     return JSONResponse("Deployed", status=201)
     return JSONResponse("error", status=400)
 
-def undeploy(r, target, account, headers):
+def undeploy(r, storlet, target, headers):
 
     account, container, swift_object = target.split('/', 3)
 
