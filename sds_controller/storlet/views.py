@@ -116,7 +116,7 @@ class StorletData(APIView):
         return Response(data, status=None, template_name=None, headers=None, content_type=None)
 
 @csrf_exempt
-def storlet_deploy(request, id, account):
+def storlet_deploy(request, id, account, container=None, swift_object=None):
     """
     Deploy a storlet to a specific swift account.
     """
@@ -132,9 +132,18 @@ def storlet_deploy(request, id, account):
         storlet = r.hgetall("storlet:"+str(id))
         if not storlet:
             return JSONResponse('Filter does not exists', status=404)
+        if not params:
+            return JSONResponse('Invalid parameters', status=401)
         params = JSONParser().parse(request)
-        print 'params', params
-        return deploy(r, storlet, account, params, headers)
+
+        if container and swift_object:
+            target = account + "/" + container +"/"+swift_object
+        elif container:
+            target = account + "/" + container
+        else:
+            target = account
+
+        return deploy(r, storlet, target, params, headers)
 
     return JSONResponse('Method '+str(request.method)+' not allowed.', status=405)
 
@@ -276,7 +285,8 @@ def dependency_deploy(request, id, account):
         if not dependency:
             return JSONResponse('Dependency does not exists', status=404)
         metadata = {'X-Object-Meta-Storlet-Dependency-Version': str(dependency["version"])}
-        if not r.hexists("dependency:"+str(id), "path"):
+        # if not r.hexists("dependency:"+str(id), "path"):
+        if not "path" in dependecy.keys()
             return JSONResponse('Dependency path does not exists', status=404)
         f = open(dependency["path"],'r')
         content_length = None
@@ -342,7 +352,7 @@ def dependency_undeploy(request, id, account):
             return JSONResponse('The dependency has been deleted', status=status)
         return JSONResponse(response.get("reason"), status=status)
     return JSONResponse('Method '+str(request.method)+' not allowed.', status=405)
-deploy(r, storlet, target, action_info, headers, rule_parsed.object_list)
+
 def deploy(r, storlet, target, params, headers):
     account, container, swift_object = target.split('/', 3)
 
