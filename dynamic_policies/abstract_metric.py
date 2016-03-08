@@ -35,9 +35,9 @@ class Metric(object):
         :param observer: The PyActive proxy of the oberver rule that calls this method.
         :type observer: **any** PyActive Proxy type
         """
-        print 'attach new observer', observer
-        tenant = observer.get_tenant()
-        print 'observer tenant', tenant
+        #TODO: Add the possibility to subscribe to container or object
+        tenant = observer.get_target()
+
         if not tenant in self._observers.keys():
             self._observers[tenant] = set()
         if not observer in self._observers[tenant]:

@@ -28,14 +28,14 @@ class Rule(object):
     _ref = []
     _parallel = []
 
-    def __init__(self, rule_parsed, tenant, host, host_ip, host_port, host_transport):
+    def __init__(self, rule_parsed, target, host, host_ip, host_port, host_transport):
         """
         Inicialize all the variables needed for the rule.
 
         :param rule_parsed: The rule parsed by the dsl_parser.
         :type rule_parsed: **any** PyParsing type
-        :param tenant: The tenant id assigned to this rule.
-        :type tenant_info: **any** String type
+        :param target: The target assigned to this rule.
+        :type target: **any** String type
         :param host: The proxy host provided by the PyActive Middleware.
         :type host: **any** PyActive Proxy type
         :param host_ip: The host ip adress.
@@ -57,7 +57,7 @@ class Rule(object):
         self.openstack_keystone_url = settings.get('openstack', 'keystone_url')
 
         self.rule_parsed = rule_parsed
-        self.tenant = tenant
+        self.target = target
         self.conditions = rule_parsed.condition_list.asList()
         self.observers_values = {}
         self.observers_proxies = {}
@@ -175,14 +175,14 @@ class Rule(object):
                 result = mappings[condition_list[i]](result, self.check_conditions(condition_list[i+1]))
         return result
 
-    def get_tenant(self):
+    def get_target(self):
         """
-        Retrun the tenant assigned to this rule.
+        Retrun the target assigned to this rule.
 
-        :return: Return the tenant id assigned to this rule
+        :return: Return the target id assigned to this rule
         :rtype: String type.
         """
-        return self.tenant
+        return self.target
 
 
     def do_action(self):
@@ -202,7 +202,7 @@ class Rule(object):
 
             #TODO Review if this tenant has already deployed this filter. Not deploy the same filter more than one time.
 
-            url = dynamic_filter["activation_url"]+"/"+self.tenant+"/deploy/"+str(dynamic_filter["identifier"])
+            url = dynamic_filter["activation_url"]+"/"+self.target+"/deploy/"+str(dynamic_filter["identifier"])
             print 'params: ', self.action_list.params
             response = requests.put(url, json.dumps(self.action_list.params), headers=headers)
 
@@ -215,7 +215,7 @@ class Rule(object):
 
         elif self.action_list.action == "DELETE":
 
-            url = dynamic_filter["activation_url"]+"/"+self.tenant+"/undeploy/"+str(dynamic_filter["identifier"])
+            url = dynamic_filter["activation_url"]+"/"+self.target+"/undeploy/"+str(dynamic_filter["identifier"])
             response = requests.put(url, json.dumps(self.action_list.params), headers=headers)
 
             if 200 > response.status_code >= 300:

@@ -337,8 +337,8 @@ def deploy_policy(r, parsed_rules):
         create_host()
     for rule in parsed_rules:
         rules_to_parse = {}
-        for tenant in rule.subject:
-            rules_to_parse[tenant] = rule
+        for t_type, target in rule.target.items():
+            rules_to_parse[target] = rule
         for key in rules_to_parse.keys():
             policy_id = r.incr("policies:id")
             rules[cont] = remote_host.spawn_id(str(policy_id), 'rule', 'Rule', [rules_to_parse[key], key, remote_host, settings.PYACTIVE_IP, settings.PYACTIVE_PORT, settings.PYACTIVE_TRANSPORT])

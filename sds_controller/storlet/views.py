@@ -130,11 +130,13 @@ def storlet_deploy(request, id, account, container=None, swift_object=None):
         if not headers:
             return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
         storlet = r.hgetall("storlet:"+str(id))
+
         if not storlet:
             return JSONResponse('Filter does not exists', status=404)
+
+        params = JSONParser().parse(request)
         if not params:
             return JSONResponse('Invalid parameters', status=401)
-        params = JSONParser().parse(request)
 
         #TODO: Try to improve this part
         if container and swift_object:
@@ -294,8 +296,8 @@ def dependency_deploy(request, id, account):
         if not dependency:
             return JSONResponse('Dependency does not exists', status=404)
         metadata = {'X-Object-Meta-Storlet-Dependency-Version': str(dependency["version"])}
-        # if not r.hexists("dependency:"+str(id), "path"):
-        if not "path" in dependecy.keys()
+
+        if "path" not in dependecy.keys():
             return JSONResponse('Dependency path does not exists', status=404)
         f = open(dependency["path"],'r')
         content_length = None
@@ -363,7 +365,8 @@ def dependency_undeploy(request, id, account):
     return JSONResponse('Method '+str(request.method)+' not allowed.', status=405)
 
 def deploy(r, storlet, target, params, headers):
-    account, container, swift_object = target.split('/', 3)
+
+    target_list = target.split('/', 3)
 
     metadata = {'X-Object-Meta-Storlet-Language':'Java',
         'X-Object-Meta-Storlet-Interface-Version':'1.0',
@@ -380,7 +383,7 @@ def deploy(r, storlet, target, params, headers):
     try:
         print storlet['name']
         print "token", headers["X-Auth-Token"]
-        c.put_object(settings.SWIFT_URL+settings.SWIFT_API_VERSION+"/"+"AUTH_"+str(account), headers["X-Auth-Token"], 'storlet', storlet['name'], f,
+        c.put_object(settings.SWIFT_URL+settings.SWIFT_API_VERSION+"/"+"AUTH_"+str(target_list[0]), headers["X-Auth-Token"], 'storlet', storlet['name'], f,
                      content_length, None, None,
                      "application/octet-stream", metadata,
                      None, None, None, response)
@@ -392,7 +395,7 @@ def deploy(r, storlet, target, params, headers):
     if status == 201:
         if r.exists("AUTH_"+str(target)+":"+str(storlet['name'])):
             return JSONResponse("Already deployed", status=200)
-        if r.lpush("AUTH_"+str(target), str(storlet['name'])):
+        if r.lpush("pipeline:AUTH_"+str(target), str(storlet['name'])):
                 params["storlet_id"] = storlet["id"]
                 if r.hmset("AUTH_"+str(target)+":"+str(storlet['name']), params):
                     return JSONResponse("Deployed", status=201)
@@ -400,11 +403,11 @@ def deploy(r, storlet, target, params, headers):
 
 def undeploy(r, storlet, target, headers):
 
-    account, container, swift_object = target.split('/', 3)
+    target_list = target.split('/', 3)
 
     response = dict()
     try:
-        c.delete_object(settings.SWIFT_URL+settings.SWIFT_API_VERSION+"/"+"AUTH_"+str(account),headers["X-Auth-Token"],
+        c.delete_object(settings.SWIFT_URL+settings.SWIFT_API_VERSION+"/"+"AUTH_"+str(target_list[0]),headers["X-Auth-Token"],
             'storlet', storlet["name"], None, None, None, None, response)
         print 'response, ', response
     except:
@@ -412,7 +415,7 @@ def undeploy(r, storlet, target, headers):
     status = response.get('status')
     if 200 <= status < 300:
         r.delete("AUTH_"+str(target)+":"+str(storlet["name"]))
-        r.lrem("AUTH_"+str(target), str(storlet["name"]), 1)
+        r.lrem("pipeline:AUTH_"+str(target), str(storlet["name"]), 1)
         return JSONResponse('The object has been deleted', status=status)
     return JSONResponse(response.get("reason"), status=status)
 
