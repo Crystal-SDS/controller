@@ -9,7 +9,7 @@ class Put_Bw_Tenant(Metric):
     def __init__(self, exchange, queue, routing_key, host):
         Metric.__init__(self)
 
-        self.host = host
+        self._host = host
         self.queue = queue
         self.routing_key = routing_key
         self.name = "put_bw_tenant"
@@ -23,7 +23,7 @@ class Put_Bw_Tenant(Metric):
         """
         body_parsed = self.parser_instance.parse(body)
         try:
-            for observer in self._observers[body_parsed.tenant_id]:
+            for observer in self._observers[body_parsed.target]:
                 observer.update(self.name, body_parsed)
         except:
             print "fail", body_parsed

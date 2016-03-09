@@ -65,15 +65,16 @@ class Metric(object):
 
         :raises Exception: Raise an exception when a problem to create the consumer appear.
         """
-        try:
+        # try:
 
-            r = redis.StrictRedis(host=self.redis_host, port=int(self.redis_port), db=int(self.redis_db))
-            r.hmset("metric:"+self.name, {"network_location":self._atom.aref.replace("atom:", "tcp:", 1), "type":"integer"})
-            self.consumer = self.host.spawn_id(self.id + "_consumer", "consumer", "Consumer", [str(self.rmq_host), int(self.rmq_port), str(self.rmq_user), str(self.rmq_pass), self.exchange, self.queue, self.routing_key, self.proxy])
-
-            self.start_consuming()
-        except:
-            raise Exception("Problems to connect to RabbitMQ server")
+        r = redis.StrictRedis(host=self.redis_host, port=int(self.redis_port), db=int(self.redis_db))
+        r.hmset("metric:"+self.name, {"network_location":self._atom.aref.replace("atom:", "tcp:", 1), "type":"integer"})
+        print 'before consumer'
+        self.consumer = self._host.spawn_id(self.id + "_consumer", "consumer", "Consumer", [str(self.rmq_host), int(self.rmq_port), str(self.rmq_user), str(self.rmq_pass), self.exchange, self.queue, self.routing_key, self.proxy])
+        print 'hola que tal'
+        self.start_consuming()
+        # except:
+        #     raise Exception("Problems to connect to RabbitMQ server")
 
 
     def stop_actor(self):

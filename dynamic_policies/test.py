@@ -1,8 +1,6 @@
 import sys
 import os.path
 
-from metrics.througput import Througput
-from metrics.slowdown import Slowdown
 import dsl_parser as p
 import time
 import operator
@@ -50,6 +48,8 @@ def start_test():
     metrics["head_ops_tenant"] = host.spawn_id("head_ops_tenant", 'metrics.head_ops_tenant', 'Head_Ops_Tenant', ["amq.topic", "head_ops_tenant", "collectd.*.groupingtail.tenant_metrics.*.head_ops_tenant.#",host])
     metrics["get_bw_tenant"] = host.spawn_id("get_bw_tenant", 'metrics.get_bw_tenant', 'Get_Bw_Tenant', ["amq.topic", "get_bw_tenant", "collectd.*.groupingtail.tenant_metrics.*.get_bw_tenant.#",host])
     metrics["put_bw_tenant"] = host.spawn_id("put_bw_tenant", 'metrics.put_bw_tenant', 'Put_Bw_Tenant', ["amq.topic", "put_bw_tenant", "collectd.*.groupingtail.tenant_metrics.*.put_bw_tenant.#",host])
+    metrics["get_ops_container"] = host.spawn_id("get_ops_container", 'metrics.get_ops_container', 'Get_Ops_Container', ["amq.topic", "get_ops_container", "collectd.*.groupingtail.container_metrics.*.get_ops_container.#",host])
+
 
     # metrics["througput"] = host.spawn_id("througput", 'metrics.througput', 'Througput', ["througput", host])
 

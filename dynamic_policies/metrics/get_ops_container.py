@@ -1,6 +1,6 @@
 from abstract_metric import Metric
 from metrics_parser import SwiftMetricsParse
-class Head_Ops_Tenant(Metric):
+class Get_Ops_Container(Metric):
     _sync = {}
     _async = ['get_value', 'attach', 'detach', 'notify', 'start_consuming','stop_consuming', 'init_consum', 'stop_actor']
     _ref = ['attach', 'detach']
@@ -12,7 +12,7 @@ class Head_Ops_Tenant(Metric):
         self._host = host
         self.queue = queue
         self.routing_key = routing_key
-        self.name = "head_ops_tenant"
+        self.name = "get_ops_container"
         self.exchange = exchange
         self.parser_instance = SwiftMetricsParse()
         print 'Get ops tenant initialized'
@@ -29,11 +29,5 @@ class Head_Ops_Tenant(Metric):
             print "fail", body_parsed
             pass
 
-
-
     def get_value(self):
         return self.value
-
-    # def callback(self, ch, method, properties, body):
-    #     print 'body', body
-    #     self.notify(body)

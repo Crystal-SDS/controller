@@ -10,9 +10,15 @@ class SwiftMetricsParse():
     def __init__(self):
         word = Word(alphas,alphanums+'_'+"-")
         number = Regex(r"[+-]?\d+(:?\.\d*)?(:?[eE][+-]?\d+)?")
-        tenant_id = Word(alphanums)
+
+        container =Combine(Word(alphanums) + Literal("/") + Word(alphanums+"_-"))
+        obj = Combine(Word(alphanums)+Literal("/")+ Word(alphanums+"_-")+Literal("/")+ Word(alphanums+"_-."))
+        tenant = Combine(Word(alphanums))
+
+        target = (tenant ^ container ^ obj)
+
         PUTVAL = Suppress(Literal("PUTVAL"))
-        name = word + Suppress("/") + word + Suppress("*") + tenant_id("tenant_id") + Suppress("*") + word("operation") + Suppress("/")+ word("type")
+        name = word + Suppress("/") + word + Suppress("*") + target("target") + Suppress("*") + word("operation") + Suppress("/")+ word("type")
         interval = Suppress(Literal("interval")) + Suppress("=") + number("interval")
         metric_value = number("timestamp") + Suppress(":") + number("value")
 
@@ -21,7 +27,7 @@ class SwiftMetricsParse():
     def parse(self, input_string):
         """
         Structure
-        PUTVAL swift_mdw/groupingtail-swift_metrics*4f0279da74ef4584a29dc72c835fe2c9*get_ops_tenant/counter
+        PUTVAL swift_mdw/groupingtail-swift_metrics*4f0279da74ef4584a29dc72c835fe2c9/container*get_ops_tenant/counter
         interval=5.000 1448970311.983:510
         """
 
