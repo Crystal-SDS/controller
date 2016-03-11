@@ -43,12 +43,12 @@ def start_test():
     host = init_host(tcpconf)
     global metrics
     metrics = {}
-    metrics["get_ops_tenant"] = host.spawn_id("get_ops_tenant", 'metrics.get_ops_tenant', 'Get_Ops_Tenant', ["amq.topic", "get_ops_tenant", "collectd.*.groupingtail.tenant_metrics.*.get_ops_tenant.#",host])
-    metrics["put_ops_tenant"] = host.spawn_id("put_ops_tenant", 'metrics.put_ops_tenant', 'Put_Ops_Tenant', ["amq.topic", "put_ops_tenant", "collectd.*.groupingtail.tenant_metrics.*.put_ops_tenant.#",host])
-    metrics["head_ops_tenant"] = host.spawn_id("head_ops_tenant", 'metrics.head_ops_tenant', 'Head_Ops_Tenant', ["amq.topic", "head_ops_tenant", "collectd.*.groupingtail.tenant_metrics.*.head_ops_tenant.#",host])
-    metrics["get_bw_tenant"] = host.spawn_id("get_bw_tenant", 'metrics.get_bw_tenant', 'Get_Bw_Tenant', ["amq.topic", "get_bw_tenant", "collectd.*.groupingtail.tenant_metrics.*.get_bw_tenant.#",host])
-    metrics["put_bw_tenant"] = host.spawn_id("put_bw_tenant", 'metrics.put_bw_tenant', 'Put_Bw_Tenant', ["amq.topic", "put_bw_tenant", "collectd.*.groupingtail.tenant_metrics.*.put_bw_tenant.#",host])
-    metrics["get_ops_container"] = host.spawn_id("get_ops_container", 'metrics.get_ops_container', 'Get_Ops_Container', ["amq.topic", "get_ops_container", "collectd.*.groupingtail.container_metrics.*.get_ops_container.#",host])
+    metrics["get_ops_tenant"] = host.spawn_id("get_ops_tenant", 'metrics.collectd_metric', 'CollectdMetric', ["amq.topic", "get_ops_tenant", "collectd.*.groupingtail.tm.*.get_ops.#",host])
+    metrics["put_ops_tenant"] = host.spawn_id("put_ops_tenant", 'metrics.collectd_metric', 'CollectdMetric', ["amq.topic", "put_ops_tenant", "collectd.*.groupingtail.tm.*.put_ops.#",host])
+    metrics["head_ops_tenant"] = host.spawn_id("head_ops_tenant", 'metrics.collectd_metric', 'CollectdMetric', ["amq.topic", "head_ops_tenant", "collectd.*.groupingtail.tm.*.head_ops.#",host])
+    metrics["get_bw_tenant"] = host.spawn_id("get_bw_tenant", 'metrics.collectd_metric', 'CollectdMetric', ["amq.topic", "get_bw_tenant", "collectd.*.groupingtail.tm.*.get_bw.#",host])
+    metrics["put_bw_tenant"] = host.spawn_id("put_bw_tenant", 'metrics.collectd_metric', 'CollectdMetric', ["amq.topic", "put_bw_tenant", "collectd.*.groupingtail.tm.*.put_bw.#",host])
+    metrics["get_ops_container"] = host.spawn_id("get_ops_container", 'metrics.collectd_metric', 'CollectdMetric', ["amq.topic", "get_ops_container", "collectd.*.groupingtail.cm.*.get_ops.#",host])
 
 
     # metrics["througput"] = host.spawn_id("througput", 'metrics.througput', 'Througput', ["througput", host])

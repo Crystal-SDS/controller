@@ -408,9 +408,8 @@ def do_action(request, r, rule_parsed, headers):
                 #TODO: What happends if any of each parameters are None or ''? Review the default parameters.
                 params = {"params":action_info.params, "execution_server":action_info.execution_server, "target_objects":rule_parsed.object_list}
                 #TODO Review if this tenant has already deployed this filter. Not deploy the same filter more than one time.
-                print 'params', params
                 response = deploy(r, storlet, target[1], params, headers)
-            elif raction_info.action == "DELETE":
+            elif action_info.action == "DELETE":
                 response = undeploy(r, storlet, target[1], headers)
 
     return response
