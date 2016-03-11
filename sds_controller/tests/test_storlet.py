@@ -43,19 +43,27 @@ class Test_Storlet(unittest.TestCase):
         self.assertEquals(req.status_code, 400)
 
     def test_post_with_wrong_parameters_sending_id(self):
-        # POST request without parameters
+        # POST request with wrong parameters sending id
         req = requests.post(storlet_url, json.dumps(self.storlet_data_wrong_id), headers=headers_param)
         self.assertEquals(req.status_code, 400)
 
     def test_post_with_wrong_parameters_sending_path(self):
-        # POST request without parameters
+        # POST request with wrong parameters sending path
         req = requests.post(storlet_url, json.dumps(self.storlet_data_wrong_path), headers=headers_param)
         self.assertEquals(req.status_code, 400)
 
     def test_post_with_correct_parameters(self):
-        # POST request without parameters
+        # POST request with correct parameters
         req = requests.post(storlet_url, json.dumps(self.storlet_data_correct), headers=headers_param)
         self.assertEquals(req.status_code, 201)
+
+    # if test_post_with_wrong_parameters_sending_path is ok, data not contains path, so don't check if data contains path
+    def test_return_post_with_correct_parameters_and_data_not_contains_path(self):
+        # POST request to get return with correct parameters
+        req = requests.post(storlet_url, json.dumps(self.storlet_data_correct), headers=headers_param)
+        content = req.json()
+        for key in self.storlet_keys[:-1]: # Without path
+            self.assertEquals(content.has_key(key), True)
 
 
 
