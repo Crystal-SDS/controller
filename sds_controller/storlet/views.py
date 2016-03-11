@@ -365,7 +365,7 @@ def dependency_undeploy(request, id, account):
     return JSONResponse('Method '+str(request.method)+' not allowed.', status=405)
 
 def deploy(r, storlet, target, params, headers):
-
+    print 'into deploy', params
     target_list = target.split('/', 3)
 
     metadata = {'X-Object-Meta-Storlet-Language':'Java',

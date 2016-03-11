@@ -40,7 +40,7 @@ def create_host():
     global host
     host = init_host(tcpconf)
     global remote_host
-    remote_host = host.lookup(settings.PYACTIVE_URL+'controller/Host/0')
+    remote_host = host.lookup_remote_host(settings.PYACTIVE_URL+'controller/Host/0')
 
 """
 Metric Workload part
@@ -256,6 +256,91 @@ def gtenants_tenant_detail(request, gtenant_id, tenant_id):
         return JSONResponse('Tenant'+str(tenant_id)+'has been deleted from group with the id: '+str(gtenant_id), status=204)
     return JSONResponse('Method '+str(request.method)+' not allowed.', status=405)
 
+"""
+Object Type part
+"""
+
+@csrf_exempt
+def object_type_list(request):
+    """
+    GET: List all object types.
+    POST: Bind new object types.
+    """
+    try:
+        r = get_redis_connection()
+    except:
+        return JSONResponse('Error connecting with DB', status=500)
+
+    if request.method == 'GET':
+        keys = r.keys("object_type:*")
+        object_types = []
+        for key in keys:
+            object_type = r.lrange(key, 0, -1)
+            object_types.append(policy)
+        return JSONResponse(object_types, status=200)
+
+    if request.method == "POST":
+        data = JSONParser().parse(request)
+        name = data.pop("name", None)
+        if not name:
+            return JSONResponse('Object type must have a name as identifier', status=400)
+        if not "types_list" in data:
+            return JSONResponse('Object type must have a types_list defining the valid object types', status=400)
+
+        if r.lpush('object_type:'+str(name), data["types_list"]):
+            return JSONResponse('Object type has been added in the registy', status=201)
+        return JSONResponse('Error storing the object type in the DB', status=500)
+
+    return JSONResponse('Method '+str(request.method)+' not allowed.', status=405)
+
+@csrf_exempt
+def object_type_detail(request, object_type_name):
+    """
+    GET: List extensions allowed about an object type word registered.
+    PUT: Updata the object type word registered.
+    DELETE: Delete the object type word registered.
+    """
+    try:
+        r = get_redis_connection()
+    except:
+        return JSONResponse('Error connecting with DB', status=500)
+
+    if request.method == 'GET':
+        if r.exists("object_type:"+object_type_name):
+            object_type = r.lrange("object_type:"+object_type_name, 0, -1)
+            return JSONResponse(object_type, status=200)
+        return JSONResponse("Object type not found", status=404)
+
+    if request.method == "PUT":
+        if not r.exists("object_type:"+object_type_name):
+            return JSONResponse('The members of the tenants group with id:  '+str(gtenant_id)+' not exists.', status=404)
+        data = JSONParser().parse(request)
+        #for tenant in data:
+        if r.lpush("object_type:"+object_type_name, *data):
+            return JSONResponse('The object type '+str(object_type_name)+' has been updated', status=201)
+        return JSONResponse('Error storing the object type in the DB', status=500)
+
+    if request.method == "DELETE":
+        if r.exists("object_type:"+object_type_name):
+            object_type = r.delete("object_type:"+object_type_name)
+            return JSONResponse(object_type, status=200)
+        return JSONResponse("Object type not found", status=404)
+    return JSONResponse('Method '+str(request.method)+' not allowed.', status=405)
+
+@csrf_exempt
+def object_type_items_detail(request, object_type_name, item_name):
+    """
+    Delete a extencion from a object type definition.
+    """
+    try:
+        r = get_redis_connection()
+    except:
+        return JSONResponse('Error connecting with DB', status=500)
+    if request.method == 'DELETE':
+        r.lrem("object_type:"+str(object_type_name), str(item_name), 1)
+        return JSONResponse('Tenant'+str(tenant_id)+'has been deleted from group with the id: '+str(gtenant_id), status=204)
+    return JSONResponse('Method '+str(request.method)+' not allowed.', status=405)
+
 @csrf_exempt
 def policy_list(request):
     """
@@ -290,18 +375,17 @@ def policy_list(request):
             """
             try:
                 condition_list, rule_parsed = dsl_parser.parse(rule)
-
                 if condition_list:
                     parsed_rules.append(rule_parsed)
                 else:
-                    print 'rule_parsed', rule_parsed
                     response = do_action(request, r, rule_parsed, headers)
-                    print "pepito", response
+
             except Exception as e:
                 print "The rule: "+rule+" cannot be parsed"
                 print "Exception message", e
                 return JSONResponse("Error in rule: "+rule+" Error message --> "+str(e), status=401)
-        deploy_policy(r, parsed_rules)
+        if parsed_rules:
+            deploy_policy(r, parsed_rules)
         # launch(deploy_policy, [r, parsed_rules])
         return JSONResponse('Policies added successfully!', status=201)
 
@@ -320,9 +404,11 @@ def do_action(request, r, rule_parsed, headers):
                 break
 
             if action_info.action == "SET":
+                print 'SET'
                 #TODO: What happends if any of each parameters are None or ''? Review the default parameters.
-                prams = {"params":action_info.params, "execution_server":action_info.execution_server, "target_objects":rule_parsed.object_list}
+                params = {"params":action_info.params, "execution_server":action_info.execution_server, "target_objects":rule_parsed.object_list}
                 #TODO Review if this tenant has already deployed this filter. Not deploy the same filter more than one time.
+                print 'params', params
                 response = deploy(r, storlet, target[1], params, headers)
             elif raction_info.action == "DELETE":
                 response = undeploy(r, storlet, target[1], headers)

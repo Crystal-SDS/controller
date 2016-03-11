@@ -110,7 +110,8 @@ class Rule(object):
         if workload_name not in self.observers_values.keys():
             #Subscrive to metric observer
             print 'hola add metric', self.base_uri+'metrics.'+workload_name+'/'+workload_name.title()+'/'+workload_name
-            observer = self.host.lookup(self.base_uri+'metrics.'+workload_name+'/'+workload_name.title()+'/'+workload_name)
+            #Trying the new PyActive version. New lookup function.
+            observer = self.host.lookup(workload_name)
             observer.attach(self.proxy)
             self.observers_proxies[workload_name] = observer
             self.observers_values[workload_name] = None

@@ -65,7 +65,8 @@ def parse(input_string):
     tenant_list = tenant + ZeroOrMore(Suppress("AND")+tenant)
     container_list = container + ZeroOrMore(Suppress("AND")+container)
     obj_list = obj + ZeroOrMore(Suppress("AND")+obj)
-    target = Group(tenant_list ^ tenant_group_list ^ container_list ^ obj_list)
+    target = Group(delimitedList(tenant) ^ delimitedList(obj) ^ delimitedList(container) ^ delimitedList(tenant_group))
+    # Group(tenant_list ^ tenant_group_list ^ container_list ^ obj_list)
 
     #Action part
     action = oneOf("SET DELETE")
@@ -125,14 +126,16 @@ def parse(input_string):
 
 
 # rules ="""FOR OBJECT:4f0279da74ef4584a29dc72c835fe2c9/2/2 AND OBJECT:4f0279da74ef4584a29dc72c835fe2c9/2/2 DO SET compression WITH bw=2 ON OBJECT, SET uonetrace WITH bw=2 ON PROXY """.splitlines()
+rules ="""FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9, TENANT:2 DO SET compression""".splitlines()
+
 # # rules = """\
 # #     FOR 4f0279da74ef4584a29dc72c835fe2c9 WHEN througput < 3 OR slowdown == 1 AND througput == 5 OR througput == 6 DO SET compression WITH param1=2
 # #     FOR G:1 WHEN slowdown > 3 OR slowdown > 3 AND slowdown == 5 OR slowdown <= 6 DO SET compression WITH param1=2, param2=3
 # #     FOR G:4 AND G:4 WHEN slowdown > 3 AND slowdown > 50 DO SET compression WITH""".splitlines()
 # #
-# for rule in rules:
-#      _, parsed_rule = parse(rule)
-#      print parsed_rule.target[1][1].split('/', 3)
+for rule in rules:
+     _, parsed_rule = parse(rule)
+     print 'parsed_rule', parsed_rule.target[0].type
 #      print parsed_rule.action_list
 #      print "object", parsed_rule.object_list
 #      for target in parsed_rule.target:
