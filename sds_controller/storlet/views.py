@@ -48,6 +48,8 @@ def storlet_list(request):
         return JSONResponse(storlets, status=200)
 
     if request.method == 'POST':
+        if not request.body:
+            return JSONResponse("Invalid parameters, empty request", status=400)
         data = JSONParser().parse(request)
         storlet_id = r.incr("storlets:id")
         try:
