@@ -16,7 +16,6 @@ class SwiftMetricsParse():
         tenant = Combine(Word(alphanums))
 
         target = (tenant ^ container ^ obj)
-
         PUTVAL = Suppress(Literal("PUTVAL"))
         name = word + Suppress("/") + word + Suppress("*") + target("target") + Suppress("*") + word("operation") + Suppress("/")+ word("type")
         interval = Suppress(Literal("interval")) + Suppress("=") + number("interval")
@@ -27,7 +26,7 @@ class SwiftMetricsParse():
     def parse(self, input_string):
         """
         Structure
-        PUTVAL swift_mdw/groupingtail-swift_metrics*4f0279da74ef4584a29dc72c835fe2c9/container*get_ops_tenant/counter
+        PUTVAL swift_mdw/groupingtail-tm*4f0279da74ef4584a29dc72c835fe2c9*get_sent/bytes interval=5.000 1457720927.886:1010
         interval=5.000 1448970311.983:510
         """
 
