@@ -32,7 +32,7 @@ class Test_Storlet(unittest.TestCase):
 
     def test_put_with_parameters(self):
         # PUT request with parameters
-        req = requests.put(storlet_url, self.storlet_data_correct, headers=headers_param)
+        req = requests.put(storlet_url, json.dumps(self.storlet_data_correct), headers=headers_param)
         self.assertEquals(req.status_code, 405)
 
 
@@ -41,6 +41,21 @@ class Test_Storlet(unittest.TestCase):
         # POST request without parameters
         req = requests.post(storlet_url, headers=headers_param)
         self.assertEquals(req.status_code, 400)
+
+    def test_post_with_wrong_parameters_sending_id(self):
+        # POST request without parameters
+        req = requests.post(storlet_url, json.dumps(self.storlet_data_wrong_id), headers=headers_param)
+        self.assertEquals(req.status_code, 400)
+
+    def test_post_with_wrong_parameters_sending_path(self):
+        # POST request without parameters
+        req = requests.post(storlet_url, json.dumps(self.storlet_data_wrong_path), headers=headers_param)
+        self.assertEquals(req.status_code, 400)
+
+    def test_post_with_correct_parameters(self):
+        # POST request without parameters
+        req = requests.post(storlet_url, json.dumps(self.storlet_data_correct), headers=headers_param)
+        self.assertEquals(req.status_code, 201)
 
 
 

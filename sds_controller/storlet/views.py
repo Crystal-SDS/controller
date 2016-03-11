@@ -3,6 +3,7 @@ from django.views.decorators.csrf import csrf_exempt
 from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 from rest_framework.parsers import JSONParser, FileUploadParser, MultiPartParser, FormParser
+from rest_framework.exceptions import ParseError
 
 from swiftclient import client as c
 from rest_framework.views import APIView
@@ -48,12 +49,14 @@ def storlet_list(request):
         return JSONResponse(storlets, status=200)
 
     if request.method == 'POST':
-        if not request.body:
-            return JSONResponse("Invalid parameters, empty request", status=400)
-        data = JSONParser().parse(request)
+        try:
+            data = JSONParser().parse(request)
+        except ParseError:
+            return JSONResponse("Invalid format or empty request", status=400)
+
         storlet_id = r.incr("storlets:id")
         try:
-            data["id"] = storlet_id
+            data['id'] = storlet_id
             r.hmset('storlet:'+str(storlet_id), data)
             return JSONResponse(data, status=201)
         except:
