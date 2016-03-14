@@ -9,6 +9,13 @@ from swiftclient import client as c
 from rest_framework.views import APIView
 from django.conf import settings
 import redis
+
+
+""" TODO create a common file and put this into the new file """
+""" Start Common """
+STORLET_KEYS = ('id', 'name', 'language', 'interface_version', 'dependencies', 'object_metadata', 'main', 'is_put', 'is_get', 'has_reverse', 'execution_server_default', 'execution_server_reverse', 'path')
+DEPENDENCY_KEYS = ('id', 'name', 'version', 'permissions', 'path')
+
 # Create your views here.
 
 class JSONResponse(HttpResponse):
@@ -30,6 +37,11 @@ def is_valid_request(request):
 
 def get_redis_connection():
     return redis.Redis(connection_pool=settings.REDIS_CON_POOL)
+
+def check_keys(data, keys):
+    return sorted(list(data)) == sorted(list(keys))
+
+""" End Common """
 
 @csrf_exempt
 def storlet_list(request):
@@ -53,6 +65,9 @@ def storlet_list(request):
             data = JSONParser().parse(request)
         except ParseError:
             return JSONResponse("Invalid format or empty request", status=400)
+
+        if not check_keys(data.keys(), STORLET_KEYS[1:-1]):
+            return JSONResponse("Invalid parameters in request", status=400)
 
         storlet_id = r.incr("storlets:id")
         try:
