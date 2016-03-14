@@ -25,7 +25,7 @@ import signal
 
 # t = Througput("througput")
 # s = Slowdown("slowdown")
-# # r = p.parse("FOR 2312 WHEN slowdown > 3 DO compress")
+# # r = p.parse("FOR 2312 WHEN slowdown  > 3 DO compress")
 # r = p.parse("FOR 2312 WHEN througput < 3 OR slowdown == 1 AND througput == 5 OR througput == 6 DO action")
 #
 # print r.asList()
@@ -39,8 +39,9 @@ import signal
 
 def start_test():
     tcpconf = ('tcp', ('127.0.0.1', 6375))
+    momconf = ('mom',{'name':'metric_host','ip':'127.0.0.1','port':61613, 'namespace':'/topic/iostack'})
     global host
-    host = init_host(tcpconf)
+    host = init_host(momconf)
     global metrics
     metrics = {}
     metrics["get_ops_tenant"] = host.spawn_id("get_ops_tenant", 'metrics.collectd_metric', 'CollectdMetric', ["amq.topic", "get_ops_tenant", "collectd.*.groupingtail.tm.*.get_ops.#",host])

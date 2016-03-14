@@ -129,7 +129,7 @@ MANAGMENT_ADMIN_PASSWORD = "storlet_manager"
 REDIS_CON_POOL = redis.ConnectionPool(host='localhost', port=6379, db=0)
 
 #pyactive
-PYACTIVE_URL = "tcp://127.0.0.1:6375/"
+PYACTIVE_URL = "mom://metric_host/"
 PYACTIVE_IP = "127.0.0.1"
 PYACTIVE_PORT = 6375
 PYACTIVE_TRANSPORT = "tcp"

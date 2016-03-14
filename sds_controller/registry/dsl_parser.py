@@ -28,7 +28,7 @@ def get_redis_connection():
 def parse_group_tenants(tokens):
     data = r.lrange(tokens[0], 0, -1)
     return data
-    
+
 def parse(input_string):
     #TODO Raise an exception if not metrics or not action registred
     #TODO Raise an exception if group of tenants don't exists.
@@ -81,10 +81,15 @@ def parse(input_string):
     action_list = Group(delimitedList(action))
 
     #Object types
-    operand_object =  oneOf("< > == = != <= >=")
+    operand_object =  oneOf("< > == != <= >=")
     object_parameter = oneOf("OBJECT_TYPE OBJECT_SIZE")
-    object_list = Group(object_parameter("object_parameter") + operand_object("operand") + Word(alphanums)("object_value"))
+    object_type = Group(Literal("OBJECT_TYPE")("type") + Literal("=") + word(alphanums)("object_value"))("object_type")
+    object_size = Group(Literal("OBJECT_SIZE")("type") + operand_object("operand") + number("object_value"))("object_size")
+    object_list = Group(object_type ^ object_size ^ object_type +","+ object_size ^ object_size +","+ object_type)
     to = Suppress("TO")
+
+    #TRANSCIENT
+    transient = Literal("TRANSIENT")
 
     #Functions post-parsed
     convertToDict = lambda tokens : dict(zip(*[iter(tokens)]*2))
@@ -97,7 +102,8 @@ def parse(input_string):
 
     #Final rule structure
     rule_parse = literal_for + target("target") + Optional(when +\
-                condition_list("condition_list")) + do + action_list("action_list") + Optional(to + object_list("object_list"))
+                condition_list("condition_list")) + do + action_list("action_list") +\
+                Optional(to + object_list("object_list")) + Optional(transient("transient"))
 
     #Parse the rule
     parsed_rule = rule_parse.parseString(input_string)

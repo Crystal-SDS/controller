@@ -37,8 +37,9 @@ def get_redis_connection():
 def create_host():
     start_controller("pyactive_thread")
     tcpconf = ('tcp', ('127.0.0.1', 9899))
+    momconf = ('mom',{'name':'api_host','ip':'127.0.0.1','port':61613, 'namespace':'/topic/iostack'})
     global host
-    host = init_host(tcpconf)
+    host = init_host(momconf)
     global remote_host
     remote_host = host.lookup_remote_host(settings.PYACTIVE_URL+'controller/Host/0')
 
@@ -406,9 +407,19 @@ def do_action(request, r, rule_parsed, headers):
             if action_info.action == "SET":
                 print 'SET'
                 #TODO: What happends if any of each parameters are None or ''? Review the default parameters.
-                params = {"params":action_info.params, "execution_server":action_info.execution_server, "target_objects":rule_parsed.object_list}
+                params = {}
+                if rule_parsed.object_list:
+                    if rule_parsed.object_list.object_type:
+                        params["object_type"] =  rule_parsed.object_list.object_type.value
+                    if rule_parsed.object_list.object_size:
+                        params["object_size"] =  [rule_parsed.object_list.object_type.operand, rule_parsed.object_list.object_type.value]
+                if action_info.params:
+                    params["params"] = action_info.params
+                if action_info.execution_server:
+                    params["execution_server"] = action_info.execution_server
                 #TODO Review if this tenant has already deployed this filter. Not deploy the same filter more than one time.
                 response = deploy(r, storlet, target[1], params, headers)
+
             elif action_info.action == "DELETE":
                 response = undeploy(r, storlet, target[1], headers)
 
