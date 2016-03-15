@@ -1,12 +1,10 @@
-"""
-Author: Raul Casanova Marques <raul.casanova@estudiants.urv.cat>
-"""
 import requests
 import json
 import unittest
 
 
 storlet_url = 'http://localhost:18000/filters/'
+#TODO: Try to obtain the token automatically before start the tests. setUpClass method.
 auth_token = 'f07c1ad8d8864c6e842a6e01a9573dd3'
 headers_param = {'X-Auth-Token':auth_token, 'Content-Type':"application/json"}
 
