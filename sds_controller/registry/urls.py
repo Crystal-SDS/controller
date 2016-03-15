@@ -17,8 +17,8 @@ urlpatterns = [
     url(r'^/policy/?$', views.policy_list),
     url(r'^/snode/?$', views.list_storage_node),
 
-    url(r'^/object-type/?$', views.object_type_list),
-    url(r'^/object-type/(?P<object_type_name>\w+)/?$', views.object_type_detail),
+    url(r'^/object_type/?$', views.object_type_list),
+    url(r'^/object_type/(?P<object_type_name>\w+)/?$', views.object_type_detail),
 
 
 ]

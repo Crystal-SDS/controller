@@ -28,7 +28,7 @@ class Rule(object):
     _ref = []
     _parallel = []
 
-    def __init__(self, rule_parsed, target, host, host_ip, host_port, host_transport):
+    def __init__(self, rule_parsed, target):
         """
         Inicialize all the variables needed for the rule.
 
@@ -61,9 +61,6 @@ class Rule(object):
         self.conditions = rule_parsed.condition_list.asList()
         self.observers_values = {}
         self.observers_proxies = {}
-        self.base_uri = host_transport+'://'+host_ip+':'+str(host_port)+'/'
-        tcpconf = (host_transport,(host_ip, host_port))
-        self.host = host
         self.action_list = rule_parsed.action_list
         self.token = None
 
@@ -108,8 +105,6 @@ class Rule(object):
 
         """
         if workload_name not in self.observers_values.keys():
-            #Subscrive to metric observer
-            print 'hola add metric', self.base_uri+'metrics.'+workload_name+'/'+workload_name.title()+'/'+workload_name
             #Trying the new PyActive version. New lookup function.
             observer = self.host.lookup(workload_name)
             observer.attach(self.proxy)

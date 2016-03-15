@@ -437,7 +437,7 @@ def deploy_policy(r, parsed_rules):
             rules_to_parse[target] = rule
         for key in rules_to_parse.keys():
             policy_id = r.incr("policies:id")
-            rules[cont] = remote_host.spawn_id(str(policy_id), 'rule', 'Rule', [rules_to_parse[key], key, remote_host, settings.PYACTIVE_IP, settings.PYACTIVE_PORT, settings.PYACTIVE_TRANSPORT])
+            rules[cont] = remote_host.spawn_id(str(policy_id), 'rule', 'Rule', [rules_to_parse[key], key, settings.PYACTIVE_URL])
             rules[cont].start_rule()
             #Add policy into redis
             r.hmset('policy:'+str(policy_id), {"id":policy_id, "policy_description":rule, "policy_location":settings.PYACTIVE_URL+"/rule/Rule/"+str(policy_id), "alive":True})

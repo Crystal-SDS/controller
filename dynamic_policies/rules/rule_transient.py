@@ -28,7 +28,7 @@ class TransientRule(Rule):
     _ref = []
     _parallel = []
 
-    def __init__(self, rule_parsed, target, host, host_ip, host_port, host_transport):
+    def __init__(self, rule_parsed, target):
         """
         Initialize all the variables needed for the rule.
 
@@ -46,7 +46,7 @@ class TransientRule(Rule):
         :type host_transport: **any** String type.
         """
         self.execution_stat = False
-        super(TrancientRule, self).__init__(rule_parsed, target, host, host_ip, host_port, host_transport)
+        super(TrancientRule, self).__init__(rule_parsed, target)
 
 
     def update(self, metric, tenant_info):
