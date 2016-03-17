@@ -5,7 +5,7 @@ Vagrant.configure(2) do |config|
   config.vm.box = "ubuntu/trusty32"
   config.vm.hostname = "sds-controller-vm"
 
-  config.vm.network "forwarded_port", guest: 5432, host: 15432 # Postgresql
+  # config.vm.network "forwarded_port", guest: 5432, host: 15432 # Postgresql
   config.vm.network "forwarded_port", guest: 8000, host: 18000 # Django
   config.vm.network "forwarded_port", guest: 5672, host: 25672 #rabitmq
   config.vm.network "forwarded_port", guest: 15672, host: 35672 #rabitmq

@@ -43,17 +43,18 @@ package { $sysPackages:
   require  => Class['prepare']
 }
 
+/*
+	class { 'postgresql::server':
+		ip_mask_allow_all_users    => '0.0.0.0/0',
+		listen_addresses           => '*',
+		postgres_password          => 'postgres',
+	}
 
-class { 'postgresql::server':
-    ip_mask_allow_all_users    => '0.0.0.0/0',
-    listen_addresses           => '*',
-    postgres_password          => 'postgres',
-}
-
-postgresql::server::db { 'sds_controller':
-  user     => 'sds_controller_user',
-  password => postgresql_password('sds_controller_user', 'sds_controller_pass');
-}
+	postgresql::server::db { 'sds_controller':
+	  user     => 'sds_controller_user',
+	  password => postgresql_password('sds_controller_user', 'sds_controller_pass');
+	}
+*/
 package { 'python-psycopg2':
     ensure => installed,
   }
