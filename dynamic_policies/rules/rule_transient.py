@@ -18,10 +18,11 @@ logging.basicConfig(filename='./rule.log', format='%(asctime)s %(message)s', lev
 
 class TransientRule(Rule):
     """
-    Rule: Each policy of each tenant is compiled as Rule. Rule is an Actor and it will be subscribed
+    TransientRule: Each policy of each tenant is compiled as Rule. Rule is an Actor and it will be subscribed
     in the workloads metrics. When the data received from the workloads metrics satisfies
     the conditions defined in the policy,the Rule actor executes an Action that it is
-    also defined in the policy.
+    also defined in the policy. Once executed the action, if change the condition evaluation
+    the rule will execute the reverse action (if action is SET, the will execute DELETE)
     """
     _sync = {'get_tenant':'2'}
     _async = ['update', 'start_rule', 'stop_actor']
@@ -36,14 +37,6 @@ class TransientRule(Rule):
         :type rule_parsed: **any** PyParsing type
         :param target: The target assigned to this rule.
         :type target: **any** String type
-        :param host: The proxy host provided by the PyActive Middleware.
-        :type host: **any** PyActive Proxy type
-        :param host_ip: The host ip adress.
-        :type host_ip: **any** String type
-        :param host_port: The host port address.
-        :type host_port: **any** Numeric type.
-        :param host_transport: The host transport used for the comunication.
-        :type host_transport: **any** String type.
         """
         self.execution_stat = False
         super(TrancientRule, self).__init__(rule_parsed, target)
