@@ -13,7 +13,6 @@ import redis
 
 """ TODO create a common file and put this into the new file """
 """ Start Common """
-#TODO: Review this tuple. Check the values.
 STORLET_KEYS = ('id', 'name', 'language', 'interface_version', 'dependencies', 'object_metadata', 'main', 'is_put', 'is_get', 'has_reverse', 'execution_server_default', 'execution_server_reverse', 'path')
 DEPENDENCY_KEYS = ('id', 'name', 'version', 'permissions', 'path')
 
@@ -39,7 +38,6 @@ def is_valid_request(request):
 def get_redis_connection():
     return redis.Redis(connection_pool=settings.REDIS_CON_POOL)
 
-#TODO: Check this method.
 def check_keys(data, keys):
     return sorted(list(data)) == sorted(list(keys))
 
@@ -68,9 +66,8 @@ def storlet_list(request):
         except ParseError:
             return JSONResponse("Invalid format or empty request", status=400)
 
-        #TODO: Review this part, not work correctlly 
-        # if not check_keys(data.keys(), STORLET_KEYS[1:-1]):
-        #     return JSONResponse("Invalid parameters in request", status=400)
+        if not check_keys(data.keys(), STORLET_KEYS[1:-1]):
+            return JSONResponse("Invalid parameters in request", status=400)
 
         storlet_id = r.incr("storlets:id")
         try:
