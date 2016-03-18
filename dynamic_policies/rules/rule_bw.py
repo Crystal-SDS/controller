@@ -62,7 +62,6 @@ class RuleBw(Rule):
             return Response('Error connecting with DB', status=500)
         self.last_bw = self.load_last_bw()
 
-        super(RuleBw, self).__init__(rule_parsed, target)
 
     def add_metric(self, workload_name):
         """

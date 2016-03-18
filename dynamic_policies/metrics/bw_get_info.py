@@ -36,11 +36,13 @@ class BwGetInfo(Metric):
         if bw_obs:
             self.bw_observer = observer
         else:
-            tenant = observer.get_tenant()
+            tenant, policy = observer.get_topic_subsribe()
             if not tenant in self._observers.keys():
-                self._observers[tenant] = set()
-            if not observer in self._observers[tenant]:
-                self._observers[tenant].add(observer)
+                self._observers[tenant] = {}
+                if not policy in self._observers[tenant].keys():
+                    self._observers[tenant][policy] = set()
+            if not observer in self._observers[tenant][policy]:
+                self._observers[tenant][policy].add(observer)
 
     def notify(self, body):
         try:
@@ -49,11 +51,12 @@ class BwGetInfo(Metric):
         except:
             print "Not bw_observer"
 
-        for tenant, observer_set in self._observers.items():
+        for tenant in self._observers.keys():
             if tenant in self.count.keys():
-                for observer in observer_set:
-                    #TODO: return a numeric value (e.g bw=20)
-                    observer.update(self.name, self.count[tenant])
+                for policy, observers in self._observers[tenant].items():
+                    if policy in self.count[tenant].keys()
+                        for oberver in observers:
+                            observer.update(self.name, self.count[tenant][policy]["bw"])
 
 
     def parse_osinfo(self, osinfo):
