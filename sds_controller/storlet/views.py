@@ -97,7 +97,7 @@ def storlet_detail(request, id):
     try:
         r = get_redis_connection()
     except:
-        return JSONResponse('Error connecting with DB', status=500)
+        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     if request.method == 'GET':
         storlet = r.hgetall("storlet:" + str(id))
@@ -114,7 +114,7 @@ def storlet_detail(request, id):
     elif request.method == 'DELETE':
         r.delete("storlet:" + str(id))
         return JSONResponse('Filter has been deleted', status=204)
-    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
 class StorletData(APIView):

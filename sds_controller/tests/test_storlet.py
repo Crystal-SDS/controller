@@ -44,52 +44,64 @@ class Test_Storlet(unittest.TestCase):
         self.storlet_keys = ('id', 'name', 'language', 'interface_version', 'dependencies', 'object_metadata', 'main', 'is_put', 'is_get',
                              'has_reverse', 'execution_server_default', 'execution_server_reverse', 'path')
 
-    """ PUT """
+    """ Storlet List - PUT """
 
-    def test_put_without_parameters(self):
+    def _test_storlet_list_put_without_parameters(self):
         # PUT request without parameters
         req = requests.put(storlet_url, headers=headers_param)
         self.assertEquals(req.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
-    def test_put_with_parameters(self):
+    def _test_storlet_list_put_with_parameters(self):
         # PUT request with parameters
         req = requests.put(storlet_url, json.dumps(self.storlet_data_correct), headers=headers_param)
         self.assertEquals(req.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
-    """ POST """
+    """ Storlet List - POST """
 
-    def test_post_without_parameters(self):
+    def _test_storlet_list_post_without_parameters(self):
         # POST request without parameters
         req = requests.post(storlet_url, headers=headers_param)
         self.assertEquals(req.status_code, status.HTTP_400_BAD_REQUEST)
 
-    def test_post_with_wrong_parameters_sending_id(self):
+    def _test_storlet_list_post_with_wrong_parameters_sending_id(self):
         # POST request with wrong parameters sending id
         req = requests.post(storlet_url, json.dumps(self.storlet_data_wrong_id), headers=headers_param)
         self.assertEquals(req.status_code, status.HTTP_400_BAD_REQUEST)
 
-    def test_post_with_wrong_parameters_sending_path(self):
+    def _test_storlet_list_post_with_wrong_parameters_sending_path(self):
         # POST request with wrong parameters sending path
         req = requests.post(storlet_url, json.dumps(self.storlet_data_wrong_path), headers=headers_param)
         self.assertEquals(req.status_code, status.HTTP_400_BAD_REQUEST)
 
-    def test_post_with_correct_parameters(self):
+    def _test_storlet_list_post_with_correct_parameters(self):
         # POST request with correct parameters
         req = requests.post(storlet_url, json.dumps(self.storlet_data_correct), headers=headers_param)
         self.assertEquals(req.status_code, status.HTTP_201_CREATED)
 
-    def test_post_with_less_correct_parameters(self):
+    def _test_storlet_list_post_with_less_correct_parameters(self):
         # POST request with less correct parameters
         req = requests.post(storlet_url, json.dumps(self.storlet_less_data), headers=headers_param)
         self.assertEquals(req.status_code, status.HTTP_400_BAD_REQUEST)
 
     # if test_post_with_wrong_parameters_sending_path is ok, data not contains path, so don't check if data contains path
-    def test_return_post_with_correct_parameters_and_data_not_contains_path(self):
+    def _test_storlet_list_return_post_with_correct_parameters_and_data_not_contains_path(self):
         # POST request to get return with correct parameters
         req = requests.post(storlet_url, json.dumps(self.storlet_data_correct), headers=headers_param)
         content = req.json()
         for key in self.storlet_keys[:-1]:  # Without path
             self.assertEquals(content.has_key(key), True)
+
+    """ Storlet Detail - POST """
+
+    def test_storlet_detail_post_without_parameters(self):
+        # POST request without parameters
+        req = requests.post(storlet_url + '1/', headers=headers_param)
+        self.assertEquals(req.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    def test_storlet_detail_post_with_parameters(self):
+        # POST request with parameters
+        req = requests.post(storlet_url + '1/', json.dumps(self.storlet_data_correct), headers=headers_param)
+        self.assertEquals(req.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
 if __name__ == "__main__":
