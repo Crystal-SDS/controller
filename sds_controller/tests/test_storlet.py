@@ -23,13 +23,13 @@ class Test_Storlet(unittest.TestCase):
                                      'has_reverse': True, 'execution_server_default': 'localhost',
                                      'execution_server_reverse': 'localhost'}
 
-        self.storlet_data_wrong_id = {'id': 1, 'name': 'test.jar', 'language': 'java', 'interface_version': 1.0,
+        self.storlet_data_with_id = {'id': 1, 'name': 'test.jar', 'language': 'java', 'interface_version': 1.0,
                                       'dependencies': ' ', 'object_metadata': 'no',
                                       'main': 'com.ibm.filter.identity.Identityfilter', 'is_put': True, 'is_get': True,
                                       'has_reverse': True, 'execution_server_default': 'localhost',
                                       'execution_server_reverse': 'localhost'}
 
-        self.storlet_data_wrong_path = {'name': 'test.jar', 'language': 'java', 'interface_version': 1.0,
+        self.storlet_data_with_path = {'name': 'test.jar', 'language': 'java', 'interface_version': 1.0,
                                         'dependencies': ' ', 'object_metadata': 'no',
                                         'main': 'com.ibm.filter.identity.Identityfilter', 'is_put': True,
                                         'is_get': True, 'has_reverse': True, 'execution_server_default': 'localhost',
@@ -65,12 +65,12 @@ class Test_Storlet(unittest.TestCase):
 
     def _test_storlet_list_post_with_wrong_parameters_sending_id(self):
         # POST request with wrong parameters sending id
-        req = requests.post(storlet_url, json.dumps(self.storlet_data_wrong_id), headers=headers_param)
+        req = requests.post(storlet_url, json.dumps(self.storlet_data_with_id), headers=headers_param)
         self.assertEquals(req.status_code, status.HTTP_400_BAD_REQUEST)
 
     def _test_storlet_list_post_with_wrong_parameters_sending_path(self):
         # POST request with wrong parameters sending path
-        req = requests.post(storlet_url, json.dumps(self.storlet_data_wrong_path), headers=headers_param)
+        req = requests.post(storlet_url, json.dumps(self.storlet_data_with_path), headers=headers_param)
         self.assertEquals(req.status_code, status.HTTP_400_BAD_REQUEST)
 
     def _test_storlet_list_post_with_correct_parameters(self):
@@ -103,6 +103,8 @@ class Test_Storlet(unittest.TestCase):
         req = requests.post(storlet_url + '1/', json.dumps(self.storlet_data_correct), headers=headers_param)
         self.assertEquals(req.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
+    """ Storlet Detail - GET """
+
     def test_storlet_detail_get_if_resource_exists(self):
         # GET request if resource exists
         req = requests.get(storlet_url + '1/', headers=headers_param)
@@ -113,6 +115,37 @@ class Test_Storlet(unittest.TestCase):
         req = requests.get(storlet_url + '404/', headers=headers_param)
         self.assertEquals(req.status_code, status.HTTP_404_NOT_FOUND)
 
+    """ Storlet Detail - PUT """
+
+    def test_storlet_detail_put_without_parameters_if_resource_not_exists(self):
+        # GET request if resource not exists
+        req = requests.put(storlet_url + '404/', headers=headers_param)
+        self.assertEquals(req.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_storlet_detail_put_with_wrong_parameters_if_resource_not_exists(self):
+        # GET request if resource not exists
+        req = requests.put(storlet_url + '404/', json.dumps(self.storlet_less_data), headers=headers_param)
+        self.assertEquals(req.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_storlet_detail_put_with_correct_parameters_if_resource_not_exists(self):
+        # GET request if resource not exists
+        req = requests.put(storlet_url + '404/', json.dumps(self.storlet_data_correct), headers=headers_param)
+        self.assertEquals(req.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_storlet_detail_put_without_parameters_if_resource_exists(self):
+        # GET request if resource not exists
+        req = requests.put(storlet_url + '1/', headers=headers_param)
+        self.assertEquals(req.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_storlet_detail_put_with_wrong_parameters_if_resource_exists(self):
+        # GET request if resource not exists
+        req = requests.put(storlet_url + '1/', json.dumps(self.storlet_less_data), headers=headers_param)
+        self.assertEquals(req.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_storlet_detail_put_with_correct_parameters_if_resource_exists(self):
+        # GET request if resource not exists
+        req = requests.put(storlet_url + '1/', json.dumps(self.storlet_data_correct), headers=headers_param)
+        self.assertEquals(req.status_code, status.HTTP_200_OK)
 
 
 
