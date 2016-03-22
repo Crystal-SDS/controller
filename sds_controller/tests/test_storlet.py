@@ -93,15 +93,27 @@ class Test_Storlet(unittest.TestCase):
 
     """ Storlet Detail - POST """
 
-    def test_storlet_detail_post_without_parameters(self):
+    def _test_storlet_detail_post_without_parameters(self):
         # POST request without parameters
         req = requests.post(storlet_url + '1/', headers=headers_param)
         self.assertEquals(req.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
-    def test_storlet_detail_post_with_parameters(self):
+    def _test_storlet_detail_post_with_parameters(self):
         # POST request with parameters
         req = requests.post(storlet_url + '1/', json.dumps(self.storlet_data_correct), headers=headers_param)
         self.assertEquals(req.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    def test_storlet_detail_get_if_resource_exists(self):
+        # GET request if resource exists
+        req = requests.get(storlet_url + '1/', headers=headers_param)
+        self.assertEquals(req.status_code, status.HTTP_200_OK)
+
+    def test_storlet_detail_get_if_resource_not_exists(self):
+        # GET request if resource not exists
+        req = requests.get(storlet_url + '404/', headers=headers_param)
+        self.assertEquals(req.status_code, status.HTTP_404_NOT_FOUND)
+
+
 
 
 if __name__ == "__main__":
