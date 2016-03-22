@@ -103,47 +103,59 @@ class Test_Storlet(unittest.TestCase):
 
     """ Storlet Detail - GET """
 
-    def test_storlet_detail_get_if_resource_exists(self):
+    def _test_storlet_detail_get_if_resource_exists(self):
         # GET request if resource exists
         req = requests.get(storlet_url + '1/', headers=headers_param)
         self.assertEquals(req.status_code, status.HTTP_200_OK)
 
-    def test_storlet_detail_get_if_resource_not_exists(self):
+    def _test_storlet_detail_get_if_resource_not_exists(self):
         # GET request if resource not exists
         req = requests.get(storlet_url + '404/', headers=headers_param)
         self.assertEquals(req.status_code, status.HTTP_404_NOT_FOUND)
 
     """ Storlet Detail - PUT """
 
-    def test_storlet_detail_put_without_parameters_if_resource_not_exists(self):
-        # GET request if resource not exists
+    def _test_storlet_detail_put_without_parameters_if_resource_not_exists(self):
+        # PUT request without parameters if resource not exists
         req = requests.put(storlet_url + '404/', headers=headers_param)
         self.assertEquals(req.status_code, status.HTTP_404_NOT_FOUND)
 
-    def test_storlet_detail_put_with_wrong_parameters_if_resource_not_exists(self):
-        # GET request if resource not exists
+    def _test_storlet_detail_put_with_wrong_parameters_if_resource_not_exists(self):
+        # PUT request with wrong parameters if resource not exists
         req = requests.put(storlet_url + '404/', json.dumps(self.storlet_less_data), headers=headers_param)
         self.assertEquals(req.status_code, status.HTTP_404_NOT_FOUND)
 
-    def test_storlet_detail_put_with_correct_parameters_if_resource_not_exists(self):
-        # GET request if resource not exists
+    def _test_storlet_detail_put_with_correct_parameters_if_resource_not_exists(self):
+        # PUT request with correct parameters if resource not exists
         req = requests.put(storlet_url + '404/', json.dumps(self.storlet_data_correct), headers=headers_param)
         self.assertEquals(req.status_code, status.HTTP_404_NOT_FOUND)
 
-    def test_storlet_detail_put_without_parameters_if_resource_exists(self):
-        # GET request if resource not exists
+    def _test_storlet_detail_put_without_parameters_if_resource_exists(self):
+        # PUT request without parameters if resource exists
         req = requests.put(storlet_url + '1/', headers=headers_param)
         self.assertEquals(req.status_code, status.HTTP_400_BAD_REQUEST)
 
-    def test_storlet_detail_put_with_wrong_parameters_if_resource_exists(self):
-        # GET request if resource not exists
+    def _test_storlet_detail_put_with_wrong_parameters_if_resource_exists(self):
+        # PUT request with wrong parameters if resource exists
         req = requests.put(storlet_url + '1/', json.dumps(self.storlet_less_data), headers=headers_param)
         self.assertEquals(req.status_code, status.HTTP_400_BAD_REQUEST)
 
-    def test_storlet_detail_put_with_correct_parameters_if_resource_exists(self):
-        # GET request if resource not exists
+    def _test_storlet_detail_put_with_correct_parameters_if_resource_exists(self):
+        # PUT request with correct parameters if resource exists
         req = requests.put(storlet_url + '1/', json.dumps(self.storlet_data_correct), headers=headers_param)
         self.assertEquals(req.status_code, status.HTTP_200_OK)
+
+    """ Storlet Detail - DELETE """
+
+    def test_storlet_detail_delete_if_resource_exists(self):
+        # DELETE request if resource exists
+        req = requests.delete(storlet_url + '1/', headers=headers_param)
+        self.assertEquals(req.status_code, status.HTTP_204_NO_CONTENT)
+
+    def test_storlet_detail_delete_if_resource_not_exists(self):
+        # DELETE request if resource not exists
+        req = requests.delete(storlet_url + '404/', headers=headers_param)
+        self.assertEquals(req.status_code, status.HTTP_404_NOT_FOUND)
 
 
 if __name__ == "__main__":

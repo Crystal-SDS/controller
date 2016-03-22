@@ -122,8 +122,11 @@ def storlet_detail(request, id):
             return JSONResponse("Error updating data", status=status.HTTP_408_REQUEST_TIMEOUT)
 
     elif request.method == 'DELETE':
-        r.delete("storlet:" + str(id))
-        return JSONResponse('Filter has been deleted', status=204)
+        try:
+            r.delete("storlet:" + str(id))
+            return JSONResponse('Filter has been deleted', status=status.HTTP_204_NO_CONTENT)
+        except:
+            return JSONResponse("Error deleting filter", status=status.HTTP_408_REQUEST_TIMEOUT)
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
