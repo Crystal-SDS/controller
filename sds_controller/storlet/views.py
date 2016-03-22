@@ -99,17 +99,21 @@ def storlet_detail(request, id):
     except:
         return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+    if not r.exists("storlet:" + str(id)):
+        return JSONResponse('Object does not exists!', status=status.HTTP_404_NOT_FOUND)
+
     if request.method == 'GET':
         storlet = r.hgetall("storlet:" + str(id))
-        return JSONResponse(storlet, status=200)
+        return JSONResponse(storlet, status=status.HTTP_200_OK)
 
     elif request.method == 'PUT':
-        data = JSONParser().parse(request)
         try:
-            r.hmset('storlet:' + str(id), data)
-            return JSONResponse("Data updated", status=201)
-        except:
-            return JSONResponse("Error updating data", status=400)
+            data = JSONParser().parse(request)
+        except ParseError:
+            return JSONResponse("Invalid format or empty request", status=status.HTTP_400_BAD_REQUEST)
+
+        r.hmset('storlet:' + str(id), data)
+        return JSONResponse("Data updated", status=status.HTTP_200_OK)
 
     elif request.method == 'DELETE':
         r.delete("storlet:" + str(id))
