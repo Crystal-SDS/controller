@@ -3,11 +3,12 @@ import requests
 import json
 import unittest
 
-
 storlet_url = 'http://localhost:8000/filters/'
 # TODO: Try to obtain the token automatically before start the tests. setUpClass method.
 auth_token = 'f07c1ad8d8864c6e842a6e01a9573dd3'
 headers_param = {'X-Auth-Token': auth_token, 'Content-Type': "application/json"}
+
+STORLET_KEYS = ('id', 'name', 'language', 'interface_version', 'dependencies', 'object_metadata', 'main', 'is_put', 'is_get', 'has_reverse', 'execution_server_default', 'execution_server_reverse', 'path')
 
 
 class Test_Storlet(unittest.TestCase):
@@ -24,25 +25,22 @@ class Test_Storlet(unittest.TestCase):
                                      'execution_server_reverse': 'localhost'}
 
         self.storlet_data_with_id = {'id': 1, 'name': 'test.jar', 'language': 'java', 'interface_version': 1.0,
-                                      'dependencies': ' ', 'object_metadata': 'no',
-                                      'main': 'com.ibm.filter.identity.Identityfilter', 'is_put': True, 'is_get': True,
-                                      'has_reverse': True, 'execution_server_default': 'localhost',
-                                      'execution_server_reverse': 'localhost'}
+                                     'dependencies': ' ', 'object_metadata': 'no',
+                                     'main': 'com.ibm.filter.identity.Identityfilter', 'is_put': True, 'is_get': True,
+                                     'has_reverse': True, 'execution_server_default': 'localhost',
+                                     'execution_server_reverse': 'localhost'}
 
         self.storlet_data_with_path = {'name': 'test.jar', 'language': 'java', 'interface_version': 1.0,
-                                        'dependencies': ' ', 'object_metadata': 'no',
-                                        'main': 'com.ibm.filter.identity.Identityfilter', 'is_put': True,
-                                        'is_get': True, 'has_reverse': True, 'execution_server_default': 'localhost',
-                                        'execution_server_reverse': 'localhost', 'path': '/'}
+                                       'dependencies': ' ', 'object_metadata': 'no',
+                                       'main': 'com.ibm.filter.identity.Identityfilter', 'is_put': True,
+                                       'is_get': True, 'has_reverse': True, 'execution_server_default': 'localhost',
+                                       'execution_server_reverse': 'localhost', 'path': '/'}
 
         self.storlet_data_all = {'id': 1, 'name': 'test.jar', 'language': 'java', 'interface_version': 1.0,
                                  'dependencies': ' ', 'object_metadata': 'no',
                                  'main': 'com.ibm.filter.identity.Identityfilter', 'is_put': True, 'is_get': True,
                                  'has_reverse': True, 'execution_server_default': 'localhost',
                                  'execution_server_reverse': 'localhost', 'path': '/'}
-
-        self.storlet_keys = ('id', 'name', 'language', 'interface_version', 'dependencies', 'object_metadata', 'main', 'is_put', 'is_get',
-                             'has_reverse', 'execution_server_default', 'execution_server_reverse', 'path')
 
     """ Storlet List - PUT """
 
@@ -88,7 +86,7 @@ class Test_Storlet(unittest.TestCase):
         # POST request to get return with correct parameters
         req = requests.post(storlet_url, json.dumps(self.storlet_data_correct), headers=headers_param)
         content = req.json()
-        for key in self.storlet_keys[:-1]:  # Without path
+        for key in STORLET_KEYS[:-1]:  # Without path
             self.assertEquals(content.has_key(key), True)
 
     """ Storlet Detail - POST """
@@ -146,7 +144,6 @@ class Test_Storlet(unittest.TestCase):
         # GET request if resource not exists
         req = requests.put(storlet_url + '1/', json.dumps(self.storlet_data_correct), headers=headers_param)
         self.assertEquals(req.status_code, status.HTTP_200_OK)
-
 
 
 if __name__ == "__main__":

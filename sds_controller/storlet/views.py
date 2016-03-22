@@ -112,8 +112,14 @@ def storlet_detail(request, id):
         except ParseError:
             return JSONResponse("Invalid format or empty request", status=status.HTTP_400_BAD_REQUEST)
 
-        r.hmset('storlet:' + str(id), data)
-        return JSONResponse("Data updated", status=status.HTTP_200_OK)
+        if not check_keys(data.keys(), STORLET_KEYS[1:-1]):
+            return JSONResponse("Invalid parameters in request", status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            r.hmset('storlet:' + str(id), data)
+            return JSONResponse("Data updated", status=status.HTTP_200_OK)
+        except:
+            return JSONResponse("Error updating data", status=status.HTTP_408_REQUEST_TIMEOUT)
 
     elif request.method == 'DELETE':
         r.delete("storlet:" + str(id))
