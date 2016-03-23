@@ -7,7 +7,7 @@ import requests
 class BwGetInfo(Metric):
     _sync = {}
     _async = ['get_value', 'attach', 'detach', 'notify', 'start_consuming','stop_consuming', 'init_consum', \
-            'stop_actor', 'get_redis_bw', 'compute_assignations', 'parse_osinfo', 'send_bw']
+            'stop_actor', 'parse_osinfo']
     _ref = ['attach', 'detach']
     _parallel = []
 
@@ -64,18 +64,15 @@ class BwGetInfo(Metric):
             for account in self.count:
                 self.count[account][ip] = {}
             for dev in osinfo[ip]:
-                for th in osinfo[ip][dev]:
-                    account = osinfo[ip][dev][th]["account"]
-                    policy = osinfo[ip][dev][th]["policy"]
+                for account in osinfo[ip][dev]:
+                    for policy in osinfo[ip][dev][account]:
                     if not account in self.count:
                         self.count[account] = {}
                     if not ip in self.count[account]:
                         self.count[account][ip] = {}
-                    for obj in osinfo[ip][dev][th]["objects"]:
-                        if not policy in self.count[account][ip]:
-                            self.count[account][ip][policy] = obj['oid_calculated_BW']
-                        else:
-                            self.count[account][ip][policy] += obj['oid_calculated_BW']
+                    if not policy in self.count[account][ip]:
+                            self.count[account][ip][policy] = osinfo[ip][dev][account][policy]
+                        
 
     def get_value(self):
         return self.value
