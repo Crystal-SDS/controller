@@ -408,6 +408,7 @@ def do_action(request, r, rule_parsed, headers):
                 print 'SET'
                 #TODO: What happends if any of each parameters are None or ''? Review the default parameters.
                 params = {}
+                params["params"] = ""
                 if rule_parsed.object_list:
                     if rule_parsed.object_list.object_type:
                         params["object_type"] =  rule_parsed.object_list.object_type.value
@@ -436,7 +437,7 @@ def deploy_policy(r, parsed_rules):
         for t_type, target in rule.target.items():
             rules_to_parse[target] = rule
         for key in rules_to_parse.keys():
-            for action_info in rule_parsed.action_list:
+            for action_info in rules_to_parse[key].action_list:
                 policy_id = r.incr("policies:id")
                 if action_info.transient:
                     rules[cont] = remote_host.spawn_id(str(policy_id), 'rule_transient', 'TransientRule', [rules_to_parse[key], action_info, key])

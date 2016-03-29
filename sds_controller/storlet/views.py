@@ -456,10 +456,9 @@ def deploy(r, storlet, target, params, headers):
         if r.exists("AUTH_"+str(target)+":"+str(storlet['name'])):
             return JSONResponse("Already deployed", status=200)
         if r.lpush("pipeline:AUTH_"+str(target), str(storlet['name'])):
-                params["storlet_id"] = storlet["id"]
-                #TODO: Add etag
+                params["id"] = storlet["id"]
                 params["content_length"] = metadata_storlet["content-length"]
-                params["timestamp"] = metadata_storlet["x-timestamp"]
+                params["etag"] = metadata_storlet["etag"]
                 if r.hmset("AUTH_"+str(target)+":"+str(storlet['name']), params):
                     return JSONResponse("Deployed", status=201)
 

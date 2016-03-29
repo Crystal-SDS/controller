@@ -33,7 +33,6 @@ def parse_group_tenants(tokens):
 def parse(input_string):
     #TODO Raise an exception if not metrics or not action registred
     #TODO Raise an exception if group of tenants don't exists.
-    #TODO Add transcient option
 
     #Support words to construct the grammar.
     word = Word(alphas)
@@ -78,8 +77,10 @@ def parse(input_string):
     do = Suppress(Literal("DO"))
     params_list = delimitedList(param)
     server_execution = oneOf("PROXY OBJECT")
+    #TRANSCIENT
+    transient = Literal("TRANSIENT")
     action = Group(action("action") + oneOf(sfilter)("filter") + Optional(with_params + params_list("params") + \
-            Optional(Suppress("ON")+server_execution("server_execution"))))
+            Optional(Suppress("ON")+server_execution("server_execution"))) + Optional(transient("transient")))
 
     action_list = Group(delimitedList(action))
 
@@ -90,9 +91,6 @@ def parse(input_string):
     object_size = Group(Literal("OBJECT_SIZE")("type") + operand_object("operand") + number("object_value"))("object_size")
     object_list = Group(object_type ^ object_size ^ object_type +","+ object_size ^ object_size +","+ object_type)
     to = Suppress("TO")
-
-    #TRANSCIENT
-    transient = Literal("TRANSIENT")
 
     #Functions post-parsed
     convertToDict = lambda tokens : dict(zip(*[iter(tokens)]*2))
@@ -106,7 +104,7 @@ def parse(input_string):
     #Final rule structure
     rule_parse = literal_for + target("target") + Optional(when +\
                 condition_list("condition_list")) + do + action_list("action_list") +\
-                Optional(to + object_list("object_list")) + Optional(transient("transient"))
+                Optional(to + object_list("object_list"))
 
     #Parse the rule
     parsed_rule = rule_parse.parseString(input_string)
@@ -116,35 +114,37 @@ def parse(input_string):
     if not parsed_rule.condition_list:
         has_condition_list = False
 
-    if parsed_rule.action_list.params:
-        filter_info = r.hgetall("filter:"+str(parsed_rule.action_list.filter))
-        if "valid_parameters" in filter_info.keys():
-            params = eval(filter_info["valid_parameters"])
-            result = set(parsed_rule.action_list.params.keys()).intersection(params.keys())
-            if len(result) == len(parsed_rule.action_list.params.keys()):
-                #TODO Check params types.
-                return has_condition_list, parsed_rule
+
+    for action in parsed_rule.action_list:
+        if action.params:
+            filter_info = r.hgetall("filter:"+str(action.filter))
+            if "valid_parameters" in filter_info.keys():
+                params = eval(filter_info["valid_parameters"])
+                result = set(action.params.keys()).intersection(params.keys())
+                if len(result) == len(action.params.keys()):
+                    #TODO Check params types.
+                    return has_condition_list, parsed_rule
+                else:
+                    raise Exception
             else:
                 raise Exception
-        else:
-            raise Exception
 
     return has_condition_list, parsed_rule
 
 
 # rules ="""FOR OBJECT:4f0279da74ef4584a29dc72c835fe2c9/2/2 AND OBJECT:4f0279da74ef4584a29dc72c835fe2c9/2/2 DO SET compression WITH bw=2 ON OBJECT, SET uonetrace WITH bw=2 ON PROXY """.splitlines()
-rules ="""FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9, TENANT:2 DO SET compression TO OBJECT_TYPE=DOCS TRANSCIENT""".splitlines()
+# rules ="""FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9, TENANT:2 DO SET compression TRANSIENT, SET compression TRANSIENT TO OBJECT_TYPE=DOCS""".splitlines()
 
 # # rules = """\
 # #     FOR 4f0279da74ef4584a29dc72c835fe2c9 WHEN througput < 3 OR slowdown == 1 AND througput == 5 OR througput == 6 DO SET compression WITH param1=2
 # #     FOR G:1 WHEN slowdown > 3 OR slowdown > 3 AND slowdown == 5 OR slowdown <= 6 DO SET compression WITH param1=2, param2=3
 # #     FOR G:4 AND G:4 WHEN slowdown > 3 AND slowdown > 50 DO SET compression WITH""".splitlines()
 # #
-for rule in rules:
-     _, parsed_rule = parse(rule)
-     print 'parsed_rule', parsed_rule
-     if parsed_rule.object_list:
-         print 'TRUE'
+# for rule in rules:
+#      _, parsed_rule = parse(rule)
+#      print 'parsed_rule', parsed_rule
+#      if parsed_rule.object_list:
+#          print 'TRUE'
     #  print "object_size" in parsed_rule.object_list.keys()
 #      print parsed_rule.action_list
 #      print "object", parsed_rule.object_list
