@@ -14,7 +14,7 @@ class BwGetInfo(Metric):
     def __init__(self, exchange, metric_id, routing_key, host):
         Metric.__init__(self)
 
-        self.host = host
+        self._host = host
         self.queue = metric_id
         self.routing_key = routing_key
         self.name = metric_id
@@ -46,7 +46,7 @@ class BwGetInfo(Metric):
 
     def notify(self, body):
         try:
-            self.parse_osinfo(json.loads(body))
+            self.parse_osinfo(body)
             self.bw_observer.update(self.name, self.count)
         except:
             print "Not bw_observer"
@@ -54,25 +54,27 @@ class BwGetInfo(Metric):
         for tenant in self._observers.keys():
             if tenant in self.count.keys():
                 for policy, observers in self._observers[tenant].items():
-                    if policy in self.count[tenant].keys()
+                    if policy in self.count[tenant].keys():
                         for oberver in observers:
                             observer.update(self.name, self.count[tenant][policy]["bw"])
 
 
     def parse_osinfo(self, osinfo):
-        for ip in osinfo:
+        os = json.loads(osinfo)
+        for ip in os:
             for account in self.count:
                 self.count[account][ip] = {}
-            for dev in osinfo[ip]:
-                for account in osinfo[ip][dev]:
-                    for policy in osinfo[ip][dev][account]:
-                    if not account in self.count:
-                        self.count[account] = {}
-                    if not ip in self.count[account]:
-                        self.count[account][ip] = {}
-                    if not policy in self.count[account][ip]:
-                            self.count[account][ip][policy] = osinfo[ip][dev][account][policy]
-                        
+            for dev in os[ip]:
+                for account in os[ip][dev]:
+                    for policy in os[ip][dev][account]:
+                        if not account in self.count:
+                            self.count[account] = {}
+                        if not ip in self.count[account]:
+                            self.count[account][ip] = {}
+                        if not dev in self.count[account][ip]:
+                            self.count[account][ip][dev] = {}
+                        if not policy in self.count[account][ip][dev]:
+                                self.count[account][ip][dev][policy] = os[ip][dev][account][policy]
 
     def get_value(self):
         return self.value

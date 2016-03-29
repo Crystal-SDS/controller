@@ -1,5 +1,6 @@
 from pyactive.controller import init_host, serve_forever, start_controller, interval, sleep
 from pyactive.exception import TimeoutError, PyactiveError
+from rule import Rule
 import requests
 import operator
 import json
@@ -28,7 +29,7 @@ class RuleBw(Rule):
     _ref = []
     _parallel = []
 
-    def __init__(self, rule_parsed, target):
+    def __init__(self, target):
         """
         Inicialize all the variables needed for the rule.
 
@@ -119,16 +120,17 @@ class RuleBw(Rule):
             assign[account] = dict()
             bw_a[account] = dict()
             for ip in info[account]:
-                for policy in info[account][ip]:
-                    if not policy in assign[account]:
-                        assign[account][policy] = dict()
-                    if not 'num' in assign[account][policy]:
-                        assign[account][policy]['num'] = 1
-                    else:
-                        assign[account][policy]['num'] += 1
-                    if not 'ips' in assign[account][policy]:
-                        assign[account][policy]['ips'] = set()
-                    assign[account][policy]['ips'].add(ip)
+                for dev in info[account][ip]:
+                    for policy in info[account][ip][dev]:
+                        if not policy in assign[account]:
+                            assign[account][policy] = dict()
+                        if not 'num' in assign[account][policy]:
+                            assign[account][policy]['num'] = 1
+                        else:
+                            assign[account][policy]['num'] += 1
+                        if not 'ips' in assign[account][policy]:
+                            assign[account][policy]['ips'] = set()
+                        assign[account][policy]['ips'].add(ip)
 
             for policy in assign[account]:
                 for ip in assign[account][policy]['ips']:
