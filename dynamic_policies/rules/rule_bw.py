@@ -1,6 +1,5 @@
 from pyactive.controller import init_host, serve_forever, start_controller, interval, sleep
 from pyactive.exception import TimeoutError, PyactiveError
-from rule import Rule
 import requests
 import operator
 import json
@@ -17,56 +16,41 @@ r = redis.StrictRedis(host='localhost', port=6379, db=0)
 logging.basicConfig(filename='./rule.log', format='%(asctime)s %(message)s', level=logging.INFO)
 
 
-class RuleBw(Rule):
+class AbstractEnforcementAlgorithm(object):
     """
-    Rule: Each policy of each tenant is compiled as Rule. Rule is an Actor and it will be subscribed
-    in the workloads metrics. When the data received from the workloads metrics satisfies
-    the conditions defined in the policy,the Rule actor executes an Action that it is
-    also defined in the policy.
+    TODO: Review the documentation of this class
+
+    AbstractEnforcementAlgorithm:
     """
     _sync = {'get_tenant':'2'}
     _async = ['update', 'start_rule', 'stop_actor', 'add_metric']
     _ref = []
     _parallel = []
 
-    def __init__(self, target):
+    def __init__(self, name):
         """
-        Inicialize all the variables needed for the rule.
-
-        :param rule_parsed: The rule parsed by the dsl_parser.
-        :type rule_parsed: **any** PyParsing type
-        :param tenant: The tenant id assigned to this rule.
-        :type tenant_info: **any** String type
-        :param host: The proxy host provided by the PyActive Middleware.
-        :type host: **any** PyActive Proxy type
-        :param host_ip: The host ip adress.
-        :type host_ip: **any** String type
-        :param host_port: The host port address.
-        :type host_port: **any** Numeric type.
-        :param host_transport: The host transport used for the comunication.
-        :type host_transport: **any** String type.
-
         """
         logging.info('Rule init: OK')
         #TODO take this parameters from configuration
-        self.redis_host='84.88.51.222'
-        self.redis_port=6379
-        self.rmq_user =  'guest'
-        self.rmq_pass = 'guest'
-        self.rmq_host = '84.88.51.222'
-        self.rmq_port = 5672
+        self.rmq_user =  settings.get('rabbitmq', 'username')
+        self.rmq_pass = settings.get('rabbitmq', 'password')
+        self.rmq_host = settings.get('rabbitmq', 'host')
+        self.rmq_port = settings.get('rabbitmq', 'port')
+        self.redis_host = settings.get('redis', 'host')
+        self.redis_port = settings.get('redis', 'port')
+        self.redis_db = settings.get('redis', 'db')
         self.rmq_exchange = 'bw_assignations'
         self.credentials = pika.PlainCredentials(self.rmq_user, self.rmq_pass)
         try:
             self.r = redis.Redis(connection_pool=redis.ConnectionPool(host=self.redis_host, port=self.redis_port, db=0))
         except:
             return Response('Error connecting with DB', status=500)
-        self.last_bw = self.load_last_bw()
+        # self.last_bw = self.load_last_bw()
+        self.name = name
 
-
-    def add_metric(self, workload_name):
+    def run(self, workload_metic_id):
         """
-        The `add_metric()` method subscribes the rule to all workload metrics that it
+        The `run()` method subscribes the rule to all workload metrics that it
         needs to check the conditions defined in the policy
 
         :param workload_name: The name that identifies the workload metric.
@@ -74,7 +58,7 @@ class RuleBw(Rule):
 
         """
         try:
-            observer = self.host.lookup(workload_name)
+            observer = self.host.lookup(workload_metic_id)
             observer.attach(self.proxy, True)
         except:
             raise Exception('Error attaching to metric get_bw_info')
@@ -105,13 +89,12 @@ class RuleBw(Rule):
 
     def update(self, metric, info):
         self.info = info
-        self.assignations = self.compute_assignations(info)
-        self.send_bw(self.assignations)
+        results = self.compute_algorithm(info)
+        self.send_results(results)
 
     def compute_assignations(self, info):
         """
-        BW assignation algorithm
-        :return: dict[account][policy]['ips'][ip]:bw
+        return exception unnimplemented method
         """
         assign = dict()
         bw_a = dict()
@@ -120,17 +103,17 @@ class RuleBw(Rule):
             assign[account] = dict()
             bw_a[account] = dict()
             for ip in info[account]:
-                for dev in info[account][ip]:
+                for policy in info[account][ip]:
                     for policy in info[account][ip][dev]:
-                        if not policy in assign[account]:
-                            assign[account][policy] = dict()
-                        if not 'num' in assign[account][policy]:
-                            assign[account][policy]['num'] = 1
-                        else:
-                            assign[account][policy]['num'] += 1
-                        if not 'ips' in assign[account][policy]:
-                            assign[account][policy]['ips'] = set()
-                        assign[account][policy]['ips'].add(ip)
+                    if not policy in assign[account]:
+                        assign[account][policy] = dict()
+                    if not 'num' in assign[account][policy]:
+                        assign[account][policy]['num'] = 1
+                    else:
+                        assign[account][policy]['num'] += 1
+                    if not 'ips' in assign[account][policy]:
+                        assign[account][policy]['ips'] = set()
+                    assign[account][policy]['ips'].add(ip)
 
             for policy in assign[account]:
                 for ip in assign[account][policy]['ips']:
@@ -152,27 +135,26 @@ class RuleBw(Rule):
             bw[key[3:]] = self.r.hgetall(key)
         return bw
 
-    def send_bw(self, assign):
+    def send_results(self, assign):
         routing_key = "."
         address = " "
         send = False
         for account in assign:
             for ip in assign[account]:
-
                 if account in self.last_bw and ip in self.last_bw[account]:
                     if int(assign[account][ip]) != int(self.last_bw[account][ip]):
                         send = True
                         ip_c = ip.split('-')
                         address = address + ip_c[0]+'/'+account+'/'+ ip_c[1]+'/'+str(assign[account][ip])+'/ '
                         routing_key = routing_key + ip_c[0].replace('.','-').replace(':','-') + "."
-                        self.r.hset("last_bw:"+account, ip, assign[account][ip])
+                        self.r.hset("sorted_nodes:"+self.name, ip, assign[account][ip])
                         self.last_bw[account][ip] = assign[account][ip]
                 else:
                     send = True
                     ip_c = ip.split('-')
                     address = address + ip_c[0]+'/'+account+'/'+ ip_c[1]+'/'+str(assign[account][ip])+'/ '
                     routing_key = routing_key + ip_c[0].replace('.','-').replace(':','-') + "."
-                    self.r.hset("last_bw:"+account, ip, assign[account][ip])
+                    self.r.hset("sorted_nodes:"+self.name, ip, assign[account][ip])
                     if not account in self.last_bw:
                         self.last_bw[account] = dict()
                     self.last_bw[account][ip] = assign[account][ip]

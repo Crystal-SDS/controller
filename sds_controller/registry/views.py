@@ -412,7 +412,7 @@ def do_action(request, r, rule_parsed, headers):
                     if rule_parsed.object_list.object_type:
                         params["object_type"] =  rule_parsed.object_list.object_type.value
                     if rule_parsed.object_list.object_size:
-                        params["object_size"] =  [rule_parsed.object_list.object_type.operand, rule_parsed.object_list.object_type.value]
+                        params["object_size"] =  [rule_parsed.object_list.object_size.operand, rule_parsed.object_list.object_size.value]
                 if action_info.params:
                     params["params"] = action_info.params
                 if action_info.execution_server:
@@ -436,9 +436,15 @@ def deploy_policy(r, parsed_rules):
         for t_type, target in rule.target.items():
             rules_to_parse[target] = rule
         for key in rules_to_parse.keys():
-            policy_id = r.incr("policies:id")
-            rules[cont] = remote_host.spawn_id(str(policy_id), 'rule', 'Rule', [rules_to_parse[key], key, settings.PYACTIVE_URL])
-            rules[cont].start_rule()
-            #Add policy into redis
-            r.hmset('policy:'+str(policy_id), {"id":policy_id, "policy_description":rule, "policy_location":settings.PYACTIVE_URL+"/rule/Rule/"+str(policy_id), "alive":True})
-            cont += 1
+            for action_info in rule_parsed.action_list:
+                policy_id = r.incr("policies:id")
+                if action_info.transient:
+                    rules[cont] = remote_host.spawn_id(str(policy_id), 'rule_transient', 'TransientRule', [rules_to_parse[key], action_info, key])
+                    location = "/rule_transient/TransientRule/"
+                else:
+                    rules[cont] = remote_host.spawn_id(str(policy_id), 'rule', 'Rule', [rules_to_parse[key], action_info, key])
+                    location = "/rule/Rule/"
+                rules[cont].start_rule()
+                #Add policy into redis
+                r.hmset('policy:'+str(policy_id), {"id":policy_id, "policy_description":rule, "policy_location":settings.PYACTIVE_URL+location+str(policy_id), "alive":True})
+                cont += 1

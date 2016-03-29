@@ -7,6 +7,7 @@ import requests
 from . import add_new_tenant
 from . import deploy_image
 from . import create_storage_policies
+import redis
 # Create your views here.
 
 class JSONResponse(HttpResponse):
@@ -25,6 +26,10 @@ def is_valid_request(request):
         return headers
     except:
         return None
+
+def get_redis_connection():
+    return redis.Redis(connection_pool=settings.REDIS_CON_POOL)
+
 
 @csrf_exempt
 def tenants_list(request):
@@ -75,7 +80,7 @@ def storage_policies(request):
             return JSONResponse('Error creating the Storage Policy', status=500)
         return  JSONResponse('Account created successfully', status=201)
     return JSONResponse('Only HTTP GET /tenants/ requests allowed.', status=405)
-    
+
 @csrf_exempt
 def locality_list(request, account, container=None, swift_object=None):
     """
@@ -90,4 +95,24 @@ def locality_list(request, account, container=None, swift_object=None):
         elif container and swift_object:
             r = requests.get(settings.SWIFT_URL+"endpoints/v2/"+account+"/"+container+"/"+swift_object)
         return HttpResponse(r.content, content_type = 'application/json', status=r.status_code)
+    return JSONResponse('Only HTTP GET /tenants/ requests allowed.', status=405)
+
+@csrf_exempt
+def set_new_sort_criterion(request):
+    """
+    Shows the nodes where the account/container/object is stored. In the case that
+    the account/container/object does not exist, return the nodes where it will be save.
+    """
+    try:
+        r = get_redis_connection()
+    except:
+        return JSONResponse('Error connecting with DB', status=500)
+    if request.method == 'PUT':
+        data = JSONParser().parse(request)
+        if "sorted_nodes_method" in data.keys():
+            r.set('sorted_nodes_method', data["sorted_nodes_method"])
+        if "sorted_nodes_criterion" in data.keys():
+            r.set('sorted_nodes_criterion', data["sorted_nodes_criterion"])
+
+        return HttpResponse("Sorted method setted", status=200)
     return JSONResponse('Only HTTP GET /tenants/ requests allowed.', status=405)

@@ -28,7 +28,7 @@ class Rule(object):
     _ref = []
     _parallel = []
 
-    def __init__(self, rule_parsed, target):
+    def __init__(self, rule_parsed, action, target):
         """
         Inicialize all the variables needed for the rule.
 
@@ -61,7 +61,7 @@ class Rule(object):
         self.conditions = rule_parsed.condition_list.asList()
         self.observers_values = {}
         self.observers_proxies = {}
-        self.action_list = rule_parsed.action_list
+        self.action_list = action
         self.token = None
 
     def admin_login(self):

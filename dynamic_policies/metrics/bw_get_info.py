@@ -4,7 +4,7 @@ import json
 import redis
 import requests
 
-class BwGetInfo(Metric):
+class GetBwInfo(Metric):
     _sync = {}
     _async = ['get_value', 'attach', 'detach', 'notify', 'start_consuming','stop_consuming', 'init_consum', \
             'stop_actor', 'parse_osinfo']

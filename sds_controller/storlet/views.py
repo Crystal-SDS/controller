@@ -84,6 +84,7 @@ def storlet_list(request):
             data['id'] = storlet_id
             r.hmset('storlet:' + str(storlet_id), data)
             return JSONResponse(data, status=status.HTTP_201_CREATED)
+
         except:
             return JSONResponse("Error to save the object", status=status.HTTP_400_BAD_REQUEST)
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
@@ -447,14 +448,21 @@ def deploy(r, storlet, target, params, headers):
         return JSONResponse(response.get("reason"), status=response.get('status'))
     finally:
         f.close()
+    print 'response', response
     status = response.get('status')
     if status == 201:
-        if r.exists("AUTH_" + str(target) + ":" + str(storlet['name'])):
+        metadata_storlet = c.head_object(settings.SWIFT_URL+settings.SWIFT_API_VERSION+"/"+"AUTH_"+str(target_list[0]), headers["X-Auth-Token"], 'storlet', storlet['name'])
+        print 'metadata_storlet', metadata_storlet
+        if r.exists("AUTH_"+str(target)+":"+str(storlet['name'])):
             return JSONResponse("Already deployed", status=200)
-        if r.lpush("pipeline:AUTH_" + str(target), str(storlet['name'])):
-            params["storlet_id"] = storlet["id"]
-            if r.hmset("AUTH_" + str(target) + ":" + str(storlet['name']), params):
-                return JSONResponse("Deployed", status=201)
+        if r.lpush("pipeline:AUTH_"+str(target), str(storlet['name'])):
+                params["storlet_id"] = storlet["id"]
+                #TODO: Add etag
+                params["content_length"] = metadata_storlet["content-length"]
+                params["timestamp"] = metadata_storlet["x-timestamp"]
+                if r.hmset("AUTH_"+str(target)+":"+str(storlet['name']), params):
+                    return JSONResponse("Deployed", status=201)
+
     return JSONResponse("error", status=400)
 
 
