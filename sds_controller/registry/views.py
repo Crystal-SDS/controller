@@ -186,6 +186,33 @@ def list_storage_node(request):
         return JSONResponse('Tenants group has been added in the registy', status=201)
     return JSONResponse('Method '+str(request.method)+' not allowed.', status=405)
 
+
+@csrf_exempt
+def storage_node_detail(request, snode_id):
+    """
+    Get, update or delete a storage node from the registry.
+    """
+    try:
+        r = get_redis_connection()
+    except:
+        return JSONResponse('Error connecting with DB', status=500)
+
+    if request.method == 'GET':
+        storage_node = r.hgetall("SN:" + str(snode_id))
+        return JSONResponse(storage_node, status=200)
+
+    if request.method == 'PUT':
+        if not r.exists('SN:' + str(snode_id)):
+            return JSONResponse('Storage node with name:  ' + str(snode_id) + ' not exists.', status=404)
+        data = JSONParser().parse(request)
+        r.hmset('SN:' + str(snode_id), data)
+        return JSONResponse('The metadata of the storage node with name: ' + str(snode_id) + ' has been updated', status=201)
+
+    if request.method == 'DELETE':
+        r.delete("SN:" + str(snode_id))
+        return JSONResponse('Storage node has been deleted', status=204)
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
+
 """
 Tenants group part
 """
