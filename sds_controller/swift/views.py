@@ -72,12 +72,13 @@ def storage_policies(request):
         data = JSONParser().parse(request)
         storage_nodes_list=[]
         if isinstance(data["storage_node"], dict):
+	    print 'storage'
             [storage_nodes_list.extend([k,v]) for k,v in data["storage_node"].items()]
             data["storage_node"] = ','.join(map(str, storage_nodes_list))
-        try:
-            create_storage_policies.create_storage_policy(data)
-        except Exception, e:
-            return JSONResponse('Error creating the Storage Policy', status=500)
+        #try:
+        create_storage_policies.create_storage_policy(data)
+        #except Exception, e:
+        #    return JSONResponse('Error creating the Storage Policy', status=500)
         return  JSONResponse('Account created successfully', status=201)
     return JSONResponse('Only HTTP GET /tenants/ requests allowed.', status=405)
 

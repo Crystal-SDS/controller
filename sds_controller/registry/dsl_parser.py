@@ -84,8 +84,8 @@ def parse(input_string):
     #Object types
     operand_object =  oneOf("< > == != <= >=")
     object_parameter = oneOf("OBJECT_TYPE OBJECT_SIZE")
-    object_type = Group(Literal("OBJECT_TYPE")("type") + Literal("=") + word(alphanums)("object_value"))("object_type")
-    object_size = Group(Literal("OBJECT_SIZE")("type") + operand_object("operand") + number("object_value"))("object_size")
+    object_type = Group(Literal("OBJECT_TYPE")("type") + Literal("=") + word(alphanums)("value"))("object_type")
+    object_size = Group(Literal("OBJECT_SIZE")("type") + operand_object("operand") + number("value"))("object_size")
     object_list = Group(object_type ^ object_size ^ object_type +","+ object_size ^ object_size +","+ object_type)
     to = Suppress("TO")
 

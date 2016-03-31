@@ -5,6 +5,8 @@ from django.conf import settings
 #TODO: Define the parameters.
 def create_storage_policy(data):
     storlet_mgmt_common.get_hosts_object()
+    print 'lendata', len(data)
+    print 'data', data
     if len(data) == 6:
         p = subprocess.Popen(['ansible-playbook',
                               '-s',

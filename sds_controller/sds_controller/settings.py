@@ -115,21 +115,22 @@ USE_TZ = True
 STATIC_URL = '/static/'
 
 #Swift info
-KEYSTONE_ADMIN_URL = "http://10.30.235.235:5000/v2.0/"
-KEYSTONE_URL = "http://10.30.235.235:35357/v2.0/"
-SWIFT_URL= "http://10.30.235.235:8080/"
+KEYSTONE_ADMIN_URL = "http://192.168.2.1:5000/v2.0/"
+KEYSTONE_URL = "http://192.168.2.1:35357/v2.0/"
+SWIFT_URL= "http://192.168.2.1:8080/"
 SWIFT_API_VERSION = "v1"
+
+#redis
+REDIS_CON_POOL = redis.ConnectionPool(host='192.168.2.1', port=6379, db=0)
 
 #swift admin
 MANAGMENT_ACCOUNT = "storlet_management"
 MANAGMENT_ADMIN_USERNAME = "storlet_manager"
 MANAGMENT_ADMIN_PASSWORD = "storlet_manager"
 
-#redis
-REDIS_CON_POOL = redis.ConnectionPool(host='localhost', port=6379, db=0)
-
 #pyactive
-PYACTIVE_URL = "mom://metric_host/"
+PYACTIVE_URL = "tcp://127.0.0.1:6375/"
 PYACTIVE_IP = "127.0.0.1"
 PYACTIVE_PORT = 6375
 PYACTIVE_TRANSPORT = "tcp"
+

@@ -6,6 +6,7 @@ import operator
 import json
 import redis
 import logging
+import ConfigParser
 
 mappings = {'>': operator.gt, '>=': operator.ge,
         '==': operator.eq, '<=': operator.le, '<': operator.lt,
@@ -23,12 +24,12 @@ class Rule(object):
     the conditions defined in the policy,the Rule actor executes an Action that it is
     also defined in the policy. Once the rule executed the action, this actor is destroyed.
     """
-    _sync = {'get_tenant':'2'}
+    _sync = {'get_target':'2'}
     _async = ['update', 'start_rule', 'stop_actor']
     _ref = []
     _parallel = []
 
-    def __init__(self, rule_parsed, action, target):
+    def __init__(self, rule_parsed, action, target, remote_host):
         """
         Inicialize all the variables needed for the rule.
 
@@ -50,12 +51,13 @@ class Rule(object):
         logging.info('Rule: %s', rule_parsed.asList())
 
         settings = ConfigParser.ConfigParser()
-        settings.read("../dynamic_policies.config")
+        settings.read("/home/lab144/iostack/SDS-Controller-for-Object-Storage/dynamic_policies/dynamic_policies.config")
         self.openstack_tenant = settings.get('openstack', 'admin_tenant')
         self.openstack_user = settings.get('openstack', 'admin_name')
         self.openstack_pass = settings.get('openstack', 'admin_pass')
         self.openstack_keystone_url = settings.get('openstack', 'keystone_url')
 
+	self.remote_host = remote_host
         self.rule_parsed = rule_parsed
         self.target = target
         self.conditions = rule_parsed.condition_list.asList()
@@ -84,7 +86,9 @@ class Rule(object):
         for observer in self.observers_proxies.values():
             observer.detach(self.proxy)
         r.hset("policy:"+str(self.id), "alive", False)
+	print 'before stop'
         self._atom.stop()
+	print 'after_stop'
 
     def start_rule(self):
         """
@@ -104,10 +108,13 @@ class Rule(object):
         :type workload_name: **any** String type
 
         """
-        if workload_name not in self.observers_values.keys():
+        print 'hello into add metric'
+	if workload_name not in self.observers_values.keys():
             #Trying the new PyActive version. New lookup function.
-            observer = self.host.lookup(workload_name)
-            observer.attach(self.proxy)
+	    print 'workload_name', workload_name
+            observer = self.remote_host.lookup(workload_name)
+            print 'observer', observer, observer.get_id()
+	    observer.attach(self.proxy)
             self.observers_proxies[workload_name] = observer
             self.observers_values[workload_name] = None
 
@@ -121,6 +128,7 @@ class Rule(object):
         :param condition_list: The list of all the conditions.
         :type condition_list: **any** List type
         """
+        print 'check_metrics', condition_list
         if not isinstance(condition_list[0], list):
             self.add_metric(condition_list[0].lower())
         else:
@@ -212,7 +220,7 @@ class Rule(object):
         elif self.action_list.action == "DELETE":
 
             url = dynamic_filter["activation_url"]+"/"+self.target+"/undeploy/"+str(dynamic_filter["identifier"])
-            response = requests.put(url, json.dumps(self.action_list.params), headers=headers)
+            response = requests.put(url, headers=headers)
 
             if 200 > response.status_code >= 300:
                 print 'ERROR RESPONSE'

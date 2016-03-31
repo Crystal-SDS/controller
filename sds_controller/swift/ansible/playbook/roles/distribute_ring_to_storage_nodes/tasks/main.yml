@@ -21,8 +21,8 @@
   file: path=/etc/swift/object-{{policy_id }}.ring.gz owner=swift group=swift
 
 - name: Restart all storage nodes
-  shell: swift-init all restart
+  shell: swift-init main restart
 
-- name: Restart proxy
-  shell: swift-init all restart
-  delegate_to: controller_address
+#- name: Restart proxy
+#  shell: swift-init main restart
+#  delegate_to: 192.168.2.1

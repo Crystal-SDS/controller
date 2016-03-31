@@ -39,10 +39,11 @@ def create_host():
     tcpconf = ('tcp', ('127.0.0.1', 9899))
     momconf = ('mom',{'name':'api_host','ip':'127.0.0.1','port':61613, 'namespace':'/topic/iostack'})
     global host
-    host = init_host(momconf)
+    host = init_host(tcpconf)
     global remote_host
     remote_host = host.lookup_remote_host(settings.PYACTIVE_URL+'controller/Host/0')
-
+    remote_host.hello()
+    print 'lookup', remote_host
 """
 Metric Workload part
 """
@@ -377,6 +378,7 @@ def policy_list(request):
             try:
                 condition_list, rule_parsed = dsl_parser.parse(rule)
                 if condition_list:
+		    print 'rule_parsed', rule_parsed
                     parsed_rules.append(rule_parsed)
                 else:
                     response = do_action(request, r, rule_parsed, headers)
@@ -434,18 +436,20 @@ def deploy_policy(r, parsed_rules):
         create_host()
     for rule in parsed_rules:
         rules_to_parse = {}
-        for t_type, target in rule.target.items():
-            rules_to_parse[target] = rule
-        for key in rules_to_parse.keys():
+        for target in rule.target:
+	    rules_to_parse[target[1]] = rule
+	for key in rules_to_parse.keys():
             for action_info in rules_to_parse[key].action_list:
                 policy_id = r.incr("policies:id")
                 if action_info.transient:
-                    rules[cont] = remote_host.spawn_id(str(policy_id), 'rule_transient', 'TransientRule', [rules_to_parse[key], action_info, key])
+                    rules[cont] = remote_host.spawn_id(str(policy_id), 'rule_transient', 'TransientRule', [rules_to_parse[key], action_info, key, remote_host])
                     location = "/rule_transient/TransientRule/"
                 else:
-                    rules[cont] = remote_host.spawn_id(str(policy_id), 'rule', 'Rule', [rules_to_parse[key], action_info, key])
+		    print 'rules', rule
+		    rules[cont] = remote_host.spawn_id(str(policy_id), 'rule', 'Rule', [rules_to_parse[key], action_info, key, remote_host])
                     location = "/rule/Rule/"
+		    print 'ruleeeeeeee', rules
                 rules[cont].start_rule()
                 #Add policy into redis
-                r.hmset('policy:'+str(policy_id), {"id":policy_id, "policy_description":rule, "policy_location":settings.PYACTIVE_URL+location+str(policy_id), "alive":True})
+		r.hmset('policy:'+str(policy_id), {"id":policy_id, "policy_description":rule, "policy_location":settings.PYACTIVE_URL+location+str(policy_id), "alive":True})
                 cont += 1

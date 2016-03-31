@@ -9,3 +9,6 @@
 
 - name: Obtain ring file to distribute to storage nodes (from serverA to serverB)
   fetch: src=/etc/swift/object-{{policy_id}}.ring.gz dest=/tmp/object-{{policy_id}}.ring.gz flat=yes
+
+- name: Restart proxy
+  shell: swift-init all restart

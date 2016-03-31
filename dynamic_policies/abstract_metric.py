@@ -36,6 +36,7 @@ class Metric(object):
         :type observer: **any** PyActive Proxy type
         """
         #TODO: Add the possibility to subscribe to container or object
+	print 'attach', observer
         tenant = observer.get_target()
 
         if not tenant in self._observers.keys():
@@ -51,7 +52,7 @@ class Metric(object):
         :param observer: The PyActive proxy of the oberver rule that calls this method.
         :type observer: **any** PyActive Proxy type
         """
-        tenant = observer.get_tenant()
+        tenant = observer.get_target()
         try:
             self._observers[tenant].remove(observer)
         except KeyError:
@@ -66,11 +67,11 @@ class Metric(object):
         :raises Exception: Raise an exception when a problem to create the consumer appear.
         """
         # try:
-
+	print 'start_consume'
         r = redis.StrictRedis(host=self.redis_host, port=int(self.redis_port), db=int(self.redis_db))
         r.hmset("metric:"+self.name, {"network_location":self._atom.aref.replace("atom:", "mom:", 1), "type":"integer"})
         print 'before consumer'
-        self.consumer = self._host.spawn_id(self.id + "_consumer", "consumer", "Consumer", [str(self.rmq_host), int(self.rmq_port), str(self.rmq_user), str(self.rmq_pass), self.exchange, self.queue, self.routing_key, self.proxy])
+        self.consumer = self.host.spawn_id(self.id + "_consumer", "consumer", "Consumer", [str(self.rmq_host), int(self.rmq_port), str(self.rmq_user), str(self.rmq_pass), self.exchange, self.queue, self.routing_key, self.proxy])
         print 'hola que tal'
         self.start_consuming()
         # except:

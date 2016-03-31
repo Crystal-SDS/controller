@@ -10,10 +10,10 @@ from swiftclient import client as c
 from rest_framework.views import APIView
 from django.conf import settings
 import redis
-
+import hashlib
 """ TODO create a common file and put this into the new file """
 """ Start Common """
-STORLET_KEYS = ('id', 'name', 'language', 'interface_version', 'dependencies', 'object_metadata', 'main', 'is_put', 'is_get', 'has_reverse', 'execution_server_default', 'execution_server_reverse', 'path')
+STORLET_KEYS = ('id', 'name', 'language', 'interface_version', 'dependencies', 'object_metadata', 'main', 'is_put', 'is_get', 'has_reverse', 'execution_server', 'execution_server_reverse', 'path')
 DEPENDENCY_KEYS = ('id', 'name', 'version', 'permissions', 'path')
 
 
@@ -113,8 +113,8 @@ def storlet_detail(request, id):
         except ParseError:
             return JSONResponse("Invalid format or empty request", status=status.HTTP_400_BAD_REQUEST)
 
-        if not check_keys(data.keys(), STORLET_KEYS[1:-1]):
-            return JSONResponse("Invalid parameters in request", status=status.HTTP_400_BAD_REQUEST)
+#        if not check_keys(data.keys(), STORLET_KEYS[1:-1]):
+#            return JSONResponse("Invalid parameters in request", status=status.HTTP_400_BAD_REQUEST)
 
         try:
             r.hmset('storlet:' + str(id), data)
@@ -143,11 +143,15 @@ class StorletData(APIView):
         except:
             return JSONResponse('Error connecting with DB', status=500)
         if r.exists("storlet:" + str(id)):
-            file_obj = request.FILES['file']
+            print 'request', request.META
+	    file_obj = request.FILES['file']
             path = save_file(file_obj, settings.STORLET_DIR)
+            md5_etag = md5(path)
             try:
                 r = get_redis_connection()
                 result = r.hset("storlet:" + str(id), "path", str(path))
+                result = r.hset("storlet:" + str(id), "content_length", str(request.META["CONTENT_LENGTH"]))
+                result = r.hset("storlet:" + str(id), "etag", str(md5_etag))           
             except:
                 return JSONResponse('Problems connecting with DB', status=500)
             return JSONResponse('Filter has been updated', status=201)
@@ -183,8 +187,6 @@ def storlet_deploy(request, id, account, container=None, swift_object=None):
             return JSONResponse('Filter does not exists', status=404)
 
         params = JSONParser().parse(request)
-        if not params:
-            return JSONResponse('Invalid parameters', status=401)
 
         # TODO: Try to improve this part
         if container and swift_object:
@@ -423,6 +425,8 @@ def dependency_undeploy(request, id, account):
 
 def deploy(r, storlet, target, params, headers):
     print 'into deploy', params
+    if not params:
+	params = {}
     target_list = target.split('/', 3)
 
     metadata = {'X-Object-Meta-Storlet-Language': 'Java',
@@ -434,6 +438,7 @@ def deploy(r, storlet, target, params, headers):
         f = open(storlet['path'], 'r')
     except:
         return JSONResponse('Not found the filter data file', status=404)
+    
     content_length = None
     response = dict()
     # Change to API Call
@@ -445,22 +450,24 @@ def deploy(r, storlet, target, params, headers):
                      "application/octet-stream", metadata,
                      None, None, None, response)
     except:
+	print 'response put', response.get("reason")
         return JSONResponse(response.get("reason"), status=response.get('status'))
     finally:
         f.close()
     print 'response', response
     status = response.get('status')
     if status == 201:
-        metadata_storlet = c.head_object(settings.SWIFT_URL+settings.SWIFT_API_VERSION+"/"+"AUTH_"+str(target_list[0]), headers["X-Auth-Token"], 'storlet', storlet['name'])
-        print 'metadata_storlet', metadata_storlet
         if r.exists("AUTH_"+str(target)+":"+str(storlet['name'])):
-            return JSONResponse("Already deployed", status=200)
+            return JSONResponse("Already deployed", status=400)
         if r.lpush("pipeline:AUTH_"+str(target), str(storlet['name'])):
                 params["id"] = storlet["id"]
-                params["content_length"] = metadata_storlet["content-length"]
-                params["etag"] = metadata_storlet["etag"]
-                if r.hmset("AUTH_"+str(target)+":"+str(storlet['name']), params):
+                print 'params', params
+		if not "params" in params.keys():
+		    params["params"] = ""
+		if r.hmset("AUTH_"+str(target)+":"+str(storlet['name']), params):
                     return JSONResponse("Deployed", status=201)
+	        else:
+		    print 'error'
 
     return JSONResponse("error", status=400)
 
@@ -493,3 +500,11 @@ def save_file(file, path=''):
         fd.write(chunk)
     fd.close()
     return str(path) + "/" + str(filename)
+
+
+def md5(fname):
+    hash_md5 = hashlib.md5()
+    with open(fname, "rb") as f:
+        for chunk in iter(lambda: f.read(4096), b""):
+            hash_md5.update(chunk)
+    return hash_md5.hexdigest()
