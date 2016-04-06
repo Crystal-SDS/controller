@@ -122,7 +122,7 @@ class AbstractEnforcementAlgorithm(object):
             for policy in assign[account]:
                 for ip in assign[account][policy]['ips']:
                     try:
-                        bw_a[account][ip+"-"+policy] = int(bw[account][ip+"-"+policy])/assign[account][policy]['num']
+                        bw_a[account][ip+"-"+policy] = int(bw[account][policy])/assign[account][policy]['num']
                     except:
                         bw_a[account][ip+"-"+policy] = -1
 
