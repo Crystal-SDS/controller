@@ -16,7 +16,7 @@ class Metric(object):
         self.name = None
         settings = ConfigParser.ConfigParser()
         settings.read("./dynamic_policies.config")
-
+	
         self.rmq_user =  settings.get('rabbitmq', 'username')
         self.rmq_pass = settings.get('rabbitmq', 'password')
         self.rmq_host = settings.get('rabbitmq', 'host')
@@ -72,7 +72,6 @@ class Metric(object):
         r.hmset("metric:"+self.name, {"network_location":self._atom.aref.replace("atom:", "mom:", 1), "type":"integer"})
         print 'before consumer'
         self.consumer = self.host.spawn_id(self.id + "_consumer", "consumer", "Consumer", [str(self.rmq_host), int(self.rmq_port), str(self.rmq_user), str(self.rmq_pass), self.exchange, self.queue, self.routing_key, self.proxy])
-        print 'hola que tal'
         self.start_consuming()
         # except:
         #     raise Exception("Problems to connect to RabbitMQ server")
@@ -109,5 +108,5 @@ class Metric(object):
                 for observer in self._observers[tenant_info["tenant_id"]]:
                     observer.update(self.name, tenant_info)
             except:
-                print "fail", tenant_info
+                #print "fail", tenant_info
                 pass

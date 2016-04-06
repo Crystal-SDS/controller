@@ -109,6 +109,7 @@ class Rule(object):
 
         """
         print 'hello into add metric'
+	print "--> WN:",workload_name
 	if workload_name not in self.observers_values.keys():
             #Trying the new PyActive version. New lookup function.
 	    print 'workload_name', workload_name

@@ -17,6 +17,8 @@
 
 [storlet-proxy]
 192.168.2.1
+192.168.2.2
+192.168.2.3
 
 [storlet-storage]
 192.168.2.20
@@ -31,10 +33,10 @@
 192.168.2.1
 
 [storlet-proxy:vars]
-ansible_ssh_user = user_name
-ansible_ssh_pass = pass
+ansible_ssh_user = root
+ansible_ssh_pass = astl1a4b4
 
 [storlet-storage:vars]
-ansible_ssh_user = user_name
-ansible_ssh_pass = pass
-controller_address = 192.168.2.1
+ansible_ssh_user = root
+ansible_ssh_pass = astl1a4b4
+

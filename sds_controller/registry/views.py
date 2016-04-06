@@ -35,12 +35,14 @@ def get_redis_connection():
 
 #TODO: Improve the implementation to create the host connection
 def create_host():
+    print "  --- CREATING HOST ---"
     start_controller("pyactive_thread")
     tcpconf = ('tcp', ('127.0.0.1', 9899))
     momconf = ('mom',{'name':'api_host','ip':'127.0.0.1','port':61613, 'namespace':'/topic/iostack'})
     global host
     host = init_host(tcpconf)
     global remote_host
+    print "  **  "
     remote_host = host.lookup_remote_host(settings.PYACTIVE_URL+'controller/Host/0')
     remote_host.hello()
     print 'lookup', remote_host
@@ -455,10 +457,13 @@ def do_action(request, r, rule_parsed, headers):
 
     return response
 
+
+import syslog
 def deploy_policy(r, parsed_rules):
     # self.aref = 'atom://' + self.dispatcher.name + '/controller/Host/0'
     rules = {}
     cont = 0
+
     if not host or not remote_host:
         create_host()
     for rule in parsed_rules:
@@ -468,11 +473,13 @@ def deploy_policy(r, parsed_rules):
 	for key in rules_to_parse.keys():
             for action_info in rules_to_parse[key].action_list:
                 policy_id = r.incr("policies:id")
+		
                 if action_info.transient:
                     rules[cont] = remote_host.spawn_id(str(policy_id), 'rule_transient', 'TransientRule', [rules_to_parse[key], action_info, key, remote_host])
                     location = "/rule_transient/TransientRule/"
                 else:
 		    print 'rules', rule
+		    syslog.syslog("PID: "+str(policy_id) + "RULE:" +str(rule))
 		    rules[cont] = remote_host.spawn_id(str(policy_id), 'rule', 'Rule', [rules_to_parse[key], action_info, key, remote_host])
                     location = "/rule/Rule/"
 		    print 'ruleeeeeeee', rules

@@ -42,7 +42,7 @@ def create_storage_policy(data):
                               stderr=subprocess.PIPE)
         storlet_mgmt_common.monitor_playbook_execution(p)
 
-    p = subprocess.Popen(['ansible-playbook',
+    p = subprocess.Popen(['ansible-playbook', '-vvv',
                           '-s',
                           '-i', settings.ANSIBLE_DIR+'/playbook/swift_cluster_nodes',
                           settings.ANSIBLE_DIR+'/playbook/distribute_ring_to_storage_nodes.yml',

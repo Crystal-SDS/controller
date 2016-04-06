@@ -20,18 +20,18 @@ class CollectdMetric(Metric):
         """
         PUT VAL swift_mdw/groupingtail-swift_metrics*4f0279da74ef4584a29dc72c835fe2c9*get_bw_tenant/counter interval=5.000 1448964179.433:198
         """
-        print 'body', body
-	print '********************************************************'
+        #print 'body', body
+	#print '********************************************************'
         body_parsed = self.parser_instance.parse(body)
-        print 'body_parsed', body_parsed.target
-	print 'observers', self._observers.keys()
-	print '********************************************************'
+        #print 'body_parsed', body_parsed.target
+	#print 'observers', self._observers.keys()
+	#print '********************************************************'
 
 	try:
             for observer in self._observers[body_parsed.target]:
 		observer.update(self.name, body_parsed)
         except:
-            print "fail", body_parsed
+            #print "fail", body_parsed
             pass
 
     def get_value(self):

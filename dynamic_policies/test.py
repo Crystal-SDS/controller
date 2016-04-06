@@ -54,7 +54,9 @@ def start_test():
     metrics["head_ops_container"] = host.spawn_id("head_ops_container", 'metrics.collectd_metric', 'CollectdMetric', ["amq.topic", "head_ops_container", "collectd.*.groupingtail.cm.*.head_ops.#"])
     metrics["get_bw_container"] = host.spawn_id("get_bw_container", 'metrics.collectd_metric', 'CollectdMetric', ["amq.topic", "get_bw_container", "collectd.*.groupingtail.cm.*.get_bw.#"])
     metrics["put_bw_container"] = host.spawn_id("put_bw_container", 'metrics.collectd_metric', 'CollectdMetric', ["amq.topic", "put_bw_container", "collectd.*.groupingtail.cm.*.put_bw.#"])
-    #metrics["get_bw_info"] = host.spawn_id("get_bw_info", 'metrics.get_bw_info', 'BwGetInfo', ["amq.topic","get_bw_info", "bwdifferentation.get_bw_info.#"])
+    metrics["get_bw_info"] = host.spawn_id("get_bw_info", 'metrics.get_bw_info', 'Get_Bw_Info', ["amq.topic","get_bw_info", "bwdifferentiation.get_bw_info.#"])
+    #metrics["get_bw_info"] = host.spawn_id("get_bw_info", 'metrics.get_bw_info', 'Get_Bw_Info', ["amq.topic", "get_bw_info", "collectd.*.groupingtail.tenant_metrics.*.get_disk_stats.#", host])
+
     # metrics["througput"] = host.spawn_id("througput", 'metrics.througput', 'Througput', ["througput", host])
 
     # metrics["slowdown"] = host.spawn_id("slowdown", 'metrics.slowdown', 'Slowdown', ["slowdown", host])
@@ -68,6 +70,9 @@ def start_test():
             print 'metric!', metric
             metric.stop_actor()
 
+    rules = {}
+    rules["get_bw"] = host.spawn_id("abstract_enforcement_algorithm", 'rules.rule_bw', 'AbstractEnforcementAlgorithm', ["abstract_enforcement_algorithm"])
+    rules["get_bw"].run("get_bw_info")
     # global rules
     # rules = {}
     # rules_string = """\
