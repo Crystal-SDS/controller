@@ -113,8 +113,8 @@ def storlet_detail(request, id):
         except ParseError:
             return JSONResponse("Invalid format or empty request", status=status.HTTP_400_BAD_REQUEST)
 
-#        if not check_keys(data.keys(), STORLET_KEYS[1:-1]):
-#            return JSONResponse("Invalid parameters in request", status=status.HTTP_400_BAD_REQUEST)
+        if not check_keys(data.keys(), STORLET_KEYS[1:-1]):
+            return JSONResponse("Invalid parameters in request", status=status.HTTP_400_BAD_REQUEST)
 
         try:
             r.hmset('storlet:' + str(id), data)

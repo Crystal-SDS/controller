@@ -115,13 +115,13 @@ USE_TZ = True
 STATIC_URL = '/static/'
 
 #Swift info
-KEYSTONE_ADMIN_URL = "http://192.168.2.1:5000/v2.0/"
-KEYSTONE_URL = "http://192.168.2.1:35357/v2.0/"
-SWIFT_URL= "http://192.168.2.1:8080/"
+KEYSTONE_ADMIN_URL = "http://10.30.235.235:5000/v2.0/"
+KEYSTONE_URL = "http://10.30.235.235:35357/v2.0/"
+SWIFT_URL= "http://10.30.235.235:8080/"
 SWIFT_API_VERSION = "v1"
 
 #redis
-REDIS_CON_POOL = redis.ConnectionPool(host='192.168.2.1', port=6379, db=0)
+REDIS_CON_POOL = redis.ConnectionPool(host='localhost', port=6379, db=0)
 
 #swift admin
 MANAGMENT_ACCOUNT = "storlet_management"
