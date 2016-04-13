@@ -49,7 +49,7 @@ class AbstractEnforcementAlgorithm(object):
             self.r = redis.Redis(connection_pool=redis.ConnectionPool(host=self.redis_host, port=self.redis_port, db=0))
         except:
             return Response('Error connecting with DB', status=500)
-        self.last_bw = self.load_last_bw()
+        self.last_bw = dict()
         self.name = name
 
     def run(self, workload_metic_id):
@@ -95,39 +95,48 @@ class AbstractEnforcementAlgorithm(object):
         self.info = info
         results = self.compute_algorithm(info)
         self.send_results(results)
+	self.last_bw = results
 
     def compute_algorithm(self, info):
         """
         return exception unnimplemented method
         """
+	return NotImplemented
+	'''
         assign = dict()
         bw_a = dict()
         bw = self.get_redis_bw()
+
+	
         for account in info:
             assign[account] = dict()
             bw_a[account] = dict()
             for ip in info[account]:
-                for dev in info[account][ip]:
-		    for policy in info[account][ip][dev]:
+                for policy in info[account][ip]:
+		    for device in info[account][ip][policy]:
                     	if not policy in assign[account]:
                             assign[account][policy] = dict()
-                    	if not 'num' in assign[account][policy]:
-                            assign[account][policy]['num'] = 1
+			if not device in assign[account][policy]:
+			    assign[account][policy][device] = dict()
+                    	if not 'requests' in assign[account][policy][device]:
+                            assign[account][policy][device]['requests'] = 1
                     	else:
-                            assign[account][policy]['num'] += 1
-                    	if not 'ips' in assign[account][policy]:
-                            assign[account][policy]['ips'] = set()
-                        assign[account][policy]['ips'].add(ip)
-
+                            assign[account][policy][device]['requests'] += 1
+                    	if not 'ips' in assign[account][policy][device]:
+                            assign[account][policy][device]['ips'] = set()
+                        assign[account][policy][device]['ips'].add(ip)
+	    
             for policy in assign[account]:
-                for ip in assign[account][policy]['ips']:
-                    try:
-                        bw_a[account][ip+"-"+policy] = int(bw[account][policy])/assign[account][policy]['num']
-                    except:
-                        bw_a[account][ip+"-"+policy] = -1
+		for device in assign[account][policy]:
+                    for ip in assign[account][policy][device]['ips']:
+                        try:
+                            bw_a[account][ip+"-"+policy+"-"+device] = int(bw[account][policy])/assign[account][policy][device]['requests']
+                        except Exception as e:
+			    print "ERROR: "+str(e)
+                            #ibw_a[account][ip+"-"+policy+"-"+device] = -1
 
         return bw_a
-
+	'''
 
     def get_redis_bw(self):
         """
@@ -143,28 +152,18 @@ class AbstractEnforcementAlgorithm(object):
         routing_key = "."
         address = " "
         send = False
+
         for account in assign:
-            for ip in assign[account]:
-                if account in self.last_bw and ip in self.last_bw[account]:
-                    if int(assign[account][ip]) != int(self.last_bw[account][ip]):
-                        send = True
-                        ip_c = ip.split('-')
-                        address = address + ip_c[0]+'/'+account+'/'+ ip_c[1]+'/'+str(assign[account][ip])+'/ '
-			routing_key = routing_key + ip_c[0].replace('.','-').replace(':','-') + "."
-			self.r.hset("last_bw:"+account, ip, assign[account][ip])
-                        #self.last_bw[account][ip] = assign[account][ip]
-                else:
-                    send = True
-                    ip_c = ip.split('-')
-                    address = address + ip_c[0]+'/'+account+'/'+ ip_c[1]+'/'+str(assign[account][ip])+'/ '
-                    routing_key = routing_key + ip_c[0].replace('.','-').replace(':','-') + "."
-		    self.r.hset("last_bw:"+account, ip, assign[account][ip])
-                    if not account in self.last_bw:
-                        self.last_bw[account] = dict()
-                    #self.last_bw[account][ip] = assign[account][ip]
-        if send:
-            print "BW CHANGED:"+ str(address) 
-            self.send_message_rmq(address, routing_key)
+            for ip in assign[account]:		
+                new_flow = account not in self.last_bw or ip not in self.last_bw[account]
+                if not new_flow and int(assign[account][ip]) == int(self.last_bw[account][ip]):
+                    break
+                ip_c = ip.split('-')
+                address = ip_c[0]+'/'+account+'/'+ ip_c[1]+'/'+ip_c[2]+'/'+str(assign[account][ip])
+		routing_key = '.'+ip_c[0].replace('.','-').replace(':','-') + "."
+		#print routing_key
+                print "BW CHANGED: "+ str(address) 
+                self.send_message_rmq(address, routing_key)
 
     def get_tenant(self):
         """
