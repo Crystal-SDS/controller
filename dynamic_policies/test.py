@@ -54,7 +54,8 @@ def start_test():
     metrics["head_ops_container"] = host.spawn_id("head_ops_container", 'metrics.collectd_metric', 'CollectdMetric', ["amq.topic", "head_ops_container", "collectd.*.groupingtail.cm.*.head_ops.#"])
     metrics["get_bw_container"] = host.spawn_id("get_bw_container", 'metrics.collectd_metric', 'CollectdMetric', ["amq.topic", "get_bw_container", "collectd.*.groupingtail.cm.*.get_bw.#"])
     metrics["put_bw_container"] = host.spawn_id("put_bw_container", 'metrics.collectd_metric', 'CollectdMetric', ["amq.topic", "put_bw_container", "collectd.*.groupingtail.cm.*.put_bw.#"])
-    metrics["get_bw_info"] = host.spawn_id("get_bw_info", 'metrics.get_bw_info', 'Get_Bw_Info', ["amq.topic","get_bw_info", "bwdifferentiation.get_bw_info.#"])
+    metrics["get_bw_info"] = host.spawn_id("get_bw_info", 'metrics.bw_info', 'BwInfo', ["amq.topic","get_bw_info", "bwdifferentiation.get_bw_info.#","get_bw_info"])
+    metrics["put_bw_info"] = host.spawn_id("put_bw_info", 'metrics.bw_info', 'BwInfo', ["amq.topic","put_bw_info", "bwdifferentiation.put_bw_info.#","put_bw_info"])
     #metrics["get_bw_info"] = host.spawn_id("get_bw_info", 'metrics.get_bw_info', 'Get_Bw_Info', ["amq.topic", "get_bw_info", "collectd.*.groupingtail.tenant_metrics.*.get_disk_stats.#", host])
 
     # metrics["througput"] = host.spawn_id("througput", 'metrics.througput', 'Througput', ["througput", host])
@@ -71,8 +72,12 @@ def start_test():
             metric.stop_actor()
 
     rules = {}
-    rules["get_bw"] = host.spawn_id("abstract_enforcement_algorithm", 'rules.rule_bw', 'AbstractEnforcementAlgorithm', ["abstract_enforcement_algorithm"])
+    rules["get_bw"] = host.spawn_id("abstract_enforcement_algorithm_get", 'rules.simple_min_bw', 'SimpleMinBandwidthPerTenant', ["abstract_enforcement_algorithm_get"])
     rules["get_bw"].run("get_bw_info")
+
+    rules["put_bw"] = host.spawn_id("abstract_enforcement_algorithm_put", 'rules.simple_min_bw', 'SimpleMinBandwidthPerTenant', ["abstract_enforcement_algorithm_put"])
+    rules["put_bw"].run("put_bw_info")
+
     # global rules
     # rules = {}
     # rules_string = """\
