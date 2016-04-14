@@ -1,12 +1,7 @@
 from abstract_metric import Metric
 from metrics_parser import SwiftMetricsParse
-import json
-import redis
-import requests
-import syslog
-import eventlet
 from threading import Thread
-import syslog
+import json
 import time
 
 class BwInfo(Metric):
@@ -27,9 +22,9 @@ class BwInfo(Metric):
         print name+' initialized'
         self.count = {}
         self.last_bw = {}
-	self.bw_observer = None
+        self.bw_observer = None
 
-	'''Log for experimental purposes'''
+        '''Log for experimental purposes'''
         self.output = open("/home/lab144/tenant_bw_experiment.dat", "w")
 
         '''Subprocess to aggregate collected metrics every time interval'''
@@ -60,25 +55,26 @@ class BwInfo(Metric):
         self.parse_osinfo(body)
 
     def aggregate_and_send_info(self):
-	while True:
+        while True:
             '''Aggregate parsed data'''
             aggregated_results = self.count
             self.count = dict()
-	    output_line = ''
-	    for tenant in aggregated_results:
+            output_line = ''
+            
+            for tenant in aggregated_results:
                 aggregated_bw = 0.0
                 for ip in aggregated_results[tenant]:
-		    for policy in aggregated_results[tenant][ip]:
+                    for policy in aggregated_results[tenant][ip]:
                         for device in aggregated_results[tenant][ip][policy]:
-	    		    aggregated_bw += aggregated_results[tenant][ip][policy][device]
-		print "TENANT " + tenant + " -> " + str(aggregated_bw)
-		output_line += str(aggregated_bw) + '\t'
-	    print >> self.output, output_line
-		
+                            aggregated_bw += aggregated_results[tenant][ip][policy][device]
+            
+                print "TENANT " + tenant + " -> " + str(aggregated_bw)
+                output_line += str(aggregated_bw) + '\t'
+                print >> self.output, output_line
 
             '''Notify of raw monitoring info to distributed enforcement algorithms'''
-            if self.bw_observer:
-		self.bw_observer.update(self.name, aggregated_results)
+            if self.bw_observer and aggregated_results:
+                self.bw_observer.update(self.name, aggregated_results)
         
             '''Notify to simple observers of aggregated values (policy actors)'''
             for tenant in self._observers.keys():
@@ -86,10 +82,10 @@ class BwInfo(Metric):
                     #print "TENANT: ", tenant
                     for policy, observers in self._observers[tenant].items():
                         if policy in aggregated_results[tenant].keys():
-                            for oberver in observers:
+                            for observer in observers:
                                 observer.update(self.name, aggregated_results[tenant][policy]["bw"])
                                 #print "---> AGGREGATED BW: ", aggregated_results[tenant][policy]["bw"]
-	    time.sleep(0.1)
+            time.sleep(1)
 
     def parse_osinfo(self, osinfo):
         os = json.loads(osinfo)
@@ -103,8 +99,6 @@ class BwInfo(Metric):
                             self.count[tenant][ip] = {}
                         if not policy in self.count[tenant][ip]:
                             self.count[tenant][ip][policy] = {}
-                        #if not device in self.count[tenant][ip][policy]:
-                        #    self.count[tenant][ip][policy][device] = 0
                         self.count[tenant][ip][policy][device] = os[ip][tenant][policy][device]
 
     def get_value(self):

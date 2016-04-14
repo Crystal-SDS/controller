@@ -1,6 +1,3 @@
-
-from pyactive.controller import init_host, serve_forever, start_controller, interval, sleep
-from pyactive.exception import TimeoutError, PyactiveError
 import requests
 import operator
 import json
@@ -12,8 +9,6 @@ mappings = {'>': operator.gt, '>=': operator.ge,
         '==': operator.eq, '<=': operator.le, '<': operator.lt,
         '!=':operator.ne, "OR":operator.or_, "AND":operator.and_}
 
-#TODO: Add the redis connection into rule object
-r = redis.StrictRedis(host='localhost', port=6379, db=0)
 logging.basicConfig(filename='./rule.log', format='%(asctime)s %(message)s', level=logging.INFO)
 
 
@@ -51,13 +46,19 @@ class Rule(object):
         logging.info('Rule: %s', rule_parsed.asList())
 
         settings = ConfigParser.ConfigParser()
-        settings.read("/home/lab144/iostack/SDS-Controller-for-Object-Storage/dynamic_policies/dynamic_policies.config")
+        settings.read("../dynamic_policies.config")
         self.openstack_tenant = settings.get('openstack', 'admin_tenant')
         self.openstack_user = settings.get('openstack', 'admin_name')
         self.openstack_pass = settings.get('openstack', 'admin_pass')
         self.openstack_keystone_url = settings.get('openstack', 'keystone_url')
 
-	self.remote_host = remote_host
+        self.redis_host = settings.get('redis', 'host')
+        self.redis_port = settings.get('redis', 'port')
+        self.redis_db = settings.get('redis', 'db')
+        
+        self.redis = redis.StrictRedis(host=self.redis_host, port=self.redis_port, db=self.redis_db)
+        
+        self.remote_host = remote_host
         self.rule_parsed = rule_parsed
         self.target = target
         self.conditions = rule_parsed.condition_list.asList()
@@ -85,10 +86,10 @@ class Rule(object):
         """
         for observer in self.observers_proxies.values():
             observer.detach(self.proxy)
-        r.hset("policy:"+str(self.id), "alive", False)
-	print 'before stop'
+        self.redis.hset("policy:"+str(self.id), "alive", False)
+        print 'before stop'
         self._atom.stop()
-	print 'after_stop'
+        print 'after_stop'
 
     def start_rule(self):
         """
@@ -109,13 +110,13 @@ class Rule(object):
 
         """
         print 'hello into add metric'
-	print "--> WN:",workload_name
-	if workload_name not in self.observers_values.keys():
+        print "--> WN:",workload_name
+        if workload_name not in self.observers_values.keys():
             #Trying the new PyActive version. New lookup function.
-	    print 'workload_name', workload_name
+            print 'workload_name', workload_name
             observer = self.remote_host.lookup(workload_name)
             print 'observer', observer, observer.get_id()
-	    observer.attach(self.proxy)
+            observer.attach(self.proxy)
             self.observers_proxies[workload_name] = observer
             self.observers_values[workload_name] = None
 
@@ -201,7 +202,7 @@ class Rule(object):
             self.admin_login()
 
         headers = {"X-Auth-Token":self.token}
-        dynamic_filter = r.hgetall("filter:"+str(self.action_list.filter))
+        dynamic_filter = self.redis.hgetall("filter:"+str(self.action_list.filter))
 
         if self.action_list.action == "SET":
 

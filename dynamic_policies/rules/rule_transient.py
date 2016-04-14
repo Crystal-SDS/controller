@@ -1,19 +1,6 @@
-
-from pyactive.controller import init_host, serve_forever, start_controller, interval, sleep
-from pyactive.exception import TimeoutError, PyactiveError
 import requests
-import operator
 import json
-import redis
-import logging
 from rule import Rule
-mappings = {'>': operator.gt, '>=': operator.ge,
-        '==': operator.eq, '<=': operator.le, '<': operator.lt,
-        '!=':operator.ne, "OR":operator.or_, "AND":operator.and_}
-
-#TODO: Add the redis connection into rule object
-r = redis.StrictRedis(host='localhost', port=6379, db=0)
-logging.basicConfig(filename='./rule.log', format='%(asctime)s %(message)s', level=logging.INFO)
 
 
 class TransientRule(Rule):
@@ -39,7 +26,7 @@ class TransientRule(Rule):
         :type target: **any** String type
         """
         self.execution_stat = False
-        super(TrancientRule, self).__init__(rule_parsed, action, target)
+        super(TransientRule, self).__init__(rule_parsed, action, target)
 
 
     def update(self, metric, tenant_info):
@@ -85,7 +72,7 @@ class TransientRule(Rule):
             self.admin_login()
 
         headers = {"X-Auth-Token":self.token}
-        dynamic_filter = r.hgetall("filter:"+str(self.action_list.filter))
+        dynamic_filter = self.redis.hgetall("filter:"+str(self.action_list.filter))
 
         if action == "SET":
 

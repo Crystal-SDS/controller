@@ -1,4 +1,4 @@
-from pyparsing import *
+from pyparsing import Word, Combine, alphanums, alphas, Regex, Literal, Suppress
 
 """
 This calss define the parser functions needed to read the metrics results. Each
@@ -41,15 +41,3 @@ class SwiftMetricsParse():
 
         # Grammar definition
         return self.rule_parse.parseString(input_string)
-
-
-
-# pepito = "PUTVAL swift_mdw/groupingtail-swift_metrics*4f0279da74ef4584a29dc72c835fe2c9.c1.o1*get_ops_tenant/counter interval=5.000 1448970311.983:510"
-# pepito2 = "FPRswift_mdw/groupingtail-swift_metrics*4f0279da74ef4584a29dc72c835fe2c9*get_ops_tenant/counter"
-# # p = parse(pepito)
-# p = SwiftMetricsParse()
-# rule_parsed = p.parse(pepito)
-# print rule_parsed.asList()
-# print "tenant_id", rule_parsed.tenant_id
-# print "timestamp", rule_parsed.timestamp
-# print "value", rule_parsed.value

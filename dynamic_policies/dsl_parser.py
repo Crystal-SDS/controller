@@ -1,6 +1,6 @@
-from pyparsing import *
+from pyparsing import Word, Group, Literal, nums, alphanums, operatorPrecedence, Regex, oneOf
+from pyparsing import opAssoc, Suppress, alphas, Combine, delimitedList, ZeroOrMore, Optional
 import redis
-import json
 from django.conf import settings
 
 # By default, PyParsing treats \n as whitespace and ignores it
