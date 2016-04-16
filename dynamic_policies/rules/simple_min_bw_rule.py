@@ -8,7 +8,7 @@ class SimpleMinBandwidthPerTenant(AbstractEnforcementAlgorithm):
         """
         assign = dict()
         bw_a = dict()
-        bw = self.get_redis_bw()
+        bw = self._get_redis_bw()
 
         for account in info:
             assign[account] = dict()
@@ -35,5 +35,5 @@ class SimpleMinBandwidthPerTenant(AbstractEnforcementAlgorithm):
                             bw_a[account][ip+"-"+policy+"-"+device] = int(bw[account][policy])/assign[account][policy][device]['requests']
                         except Exception as e:
                             print "Error calculating bandwidth in simple_min_bw_rule: "+str(e)
-
+                           
         return bw_a

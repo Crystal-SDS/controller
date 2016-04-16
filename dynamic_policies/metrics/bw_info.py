@@ -11,13 +11,14 @@ class BwInfo(Metric):
     _ref = ['attach', 'detach']
     _parallel = []
 
-    def __init__(self, exchange, queue, routing_key, name):
+    def __init__(self, exchange, queue, routing_key, name, method):
         Metric.__init__(self)
 
         self.queue = queue
         self.routing_key = routing_key
         self.name = name
         self.exchange = exchange
+        self.method = method
         self.parser_instance = SwiftMetricsParse()
         print name+' initialized'
         self.count = {}
@@ -68,7 +69,7 @@ class BwInfo(Metric):
                         for device in aggregated_results[tenant][ip][policy]:
                             aggregated_bw += aggregated_results[tenant][ip][policy][device]
             
-                print "TENANT " + tenant + " -> " + str(aggregated_bw)
+                print "TENANT " + tenant + " " +self.method +" -> " + str(aggregated_bw)
                 output_line += str(aggregated_bw) + '\t'
                 print >> self.output, output_line
 
