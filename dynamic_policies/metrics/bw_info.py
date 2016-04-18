@@ -26,8 +26,8 @@ class BwInfo(Metric):
         self.bw_observer = None
 
         '''Log for experimental purposes'''
-        self.output = open("/home/lab144/tenant_bw_experiment.dat", "w")
-
+        self.output = open("/home/lab144/bw_experiment.dat", "w")
+        
         '''Subprocess to aggregate collected metrics every time interval'''
         self.notifier = Thread(target=self.aggregate_and_send_info)
         self.notifier.start()
@@ -60,7 +60,6 @@ class BwInfo(Metric):
             '''Aggregate parsed data'''
             aggregated_results = self.count
             self.count = dict()
-            output_line = ''
             
             for tenant in aggregated_results:
                 aggregated_bw = 0.0
@@ -70,8 +69,8 @@ class BwInfo(Metric):
                             aggregated_bw += aggregated_results[tenant][ip][policy][device]
             
                 print "TENANT " + tenant + " " +self.method +" -> " + str(aggregated_bw)
-                output_line += str(aggregated_bw) + '\t'
-                print >> self.output, output_line
+                self.output.write(tenant+","+str(time.time())+","+str(aggregated_bw)+"\n")
+                self.output.flush()
 
             '''Notify of raw monitoring info to distributed enforcement algorithms'''
             if self.bw_observer and aggregated_results:
