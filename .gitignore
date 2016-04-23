@@ -103,3 +103,4 @@ target/
 # Upload files
 sds_controller/storlets/storlets_jar/
 sds_controller/storlets/dependencies_jar/
+/deploy_controller.py

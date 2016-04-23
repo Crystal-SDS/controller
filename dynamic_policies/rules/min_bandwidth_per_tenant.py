@@ -11,14 +11,22 @@ class SimpleMinBandwidthPerTenant(AbstractEnforcementAlgorithm):
         """
         Simple compute algorithm
         """        
-        DISK_IO_BANDWIDTH = 110. #MBps
-        PROXY_IO_BANDWIDTH = 110. #MBps
+        DISK_IO_BANDWIDTH = 115. #MBps
+        PROXY_IO_BANDWIDTH = 115. #MBps
         NUM_PROXYS = 1
         
         monitoring_info = self._format_monitoring_info(info)
         
         bw_enforcements = self._get_redis_bw()
-        
+         
+        '''Work without policies at this moment'''
+        clean_bw_enforcements = dict()
+        for tenant in bw_enforcements:
+            clean_bw_enforcements[tenant] = 0
+            for policy in bw_enforcements[tenant]:
+                clean_bw_enforcements[tenant] += int(bw_enforcements[tenant][policy])
+        bw_enforcements = clean_bw_enforcements
+
         computed_assignments = dict()
         disk_usage = dict()
         
@@ -40,12 +48,12 @@ class SimpleMinBandwidthPerTenant(AbstractEnforcementAlgorithm):
                 '''Now, only work with QoS tenants'''
                 if tenant not in bw_enforcements.keys(): 
                     disk_usage[disk_id][tenant].append(0)
-                    continue                 
+                    continue              
                 '''Get the slot per transfer of this tenant in the optimal case'''
-                tenatative_assignment = bw_enforcements[tenant]/float(len(previous_assignments))
-                computed_assignments[tenant][disk_id] = tenatative_assignment
+                tentative_assignment = bw_enforcements[tenant]/float(len(previous_assignments))
+                computed_assignments[tenant][disk_id] = tentative_assignment
                 '''bw for this disk and this tenant'''
-                disk_usage[disk_id][tenant].append(tenatative_assignment) 
+                disk_usage[disk_id][tenant].append(tentative_assignment) 
         
         '''SECOND STAGE, CHECK FOR REALLOCATION OF QOS TENANTS TO MEET MINIMUM BW'''   
         '''Get disks of QoS tenants in disks that are overloaded'''     
@@ -142,7 +150,6 @@ class SimpleMinBandwidthPerTenant(AbstractEnforcementAlgorithm):
                 computed_assignments[tenant][disk_id] += spare_bw_slot
                 disk_usage[disk_id][tenant].append(spare_bw_slot)
 
-                           
         return computed_assignments
     
     def _format_monitoring_info(self, info):
@@ -155,4 +162,6 @@ class SimpleMinBandwidthPerTenant(AbstractEnforcementAlgorithm):
                     for device in info[account][ip][policy]:
                         disk_id = ip + "-" + policy + "-" + device
                         formatted_info[account].append((disk_id, info[account][ip][policy][device]))
+                        
+        return formatted_info
         
