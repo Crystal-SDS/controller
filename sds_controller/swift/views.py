@@ -1,23 +1,28 @@
+import redis
+import requests
+from django.conf import settings
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
+from rest_framework.parsers import JSONParser
 from rest_framework.renderers import JSONRenderer
-from rest_framework.parsers import JSONParser, FileUploadParser
-from django.conf import settings
-import requests
+
 from . import add_new_tenant
-from . import deploy_image
 from . import create_storage_policies
-import redis
+from . import deploy_image
+
+
 # Create your views here.
 
 class JSONResponse(HttpResponse):
     """
     An HttpResponse that renders its content into JSON.
     """
+
     def __init__(self, data, **kwargs):
         content = JSONRenderer().render(data)
         kwargs['content_type'] = 'application/json'
         super(JSONResponse, self).__init__(content, **kwargs)
+
 
 def is_valid_request(request):
     headers = {}
@@ -26,6 +31,7 @@ def is_valid_request(request):
         return headers
     except:
         return None
+
 
 def get_redis_connection():
     return redis.Redis(connection_pool=settings.REDIS_CON_POOL)
@@ -40,8 +46,8 @@ def tenants_list(request):
         headers = is_valid_request(request)
         if not headers:
             return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
-        r = requests.get(settings.KEYSTONE_URL+"tenants", headers=headers)
-        return HttpResponse(r.content, content_type = 'application/json', status=r.status_code)
+        r = requests.get(settings.KEYSTONE_URL + "tenants", headers=headers)
+        return HttpResponse(r.content, content_type='application/json', status=r.status_code)
 
     if request.method == "POST":
         headers = is_valid_request(request)
@@ -53,11 +59,12 @@ def tenants_list(request):
         except:
             return JSONResponse('Error appear when creats an account.', status=500)
         try:
-            deploy_image.deploy_image(data["tenant_name"], "ubuntu_14.04_jre8_storlets.tar", "192.168.2.1:5001/ubuntu_14.04_jre8_storlets" )
+            deploy_image.deploy_image(data["tenant_name"], "ubuntu_14.04_jre8_storlets.tar", "192.168.2.1:5001/ubuntu_14.04_jre8_storlets")
         except:
             return JSONResponse('Error appear when deploy storlet image.', status=500)
-        return  JSONResponse('Account created successfully', status=201)
+        return JSONResponse('Account created successfully', status=201)
     return JSONResponse('Only HTTP GET /tenants/ requests allowed.', status=405)
+
 
 @csrf_exempt
 def storage_policies(request):
@@ -70,17 +77,17 @@ def storage_policies(request):
         if not headers:
             return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
         data = JSONParser().parse(request)
-        storage_nodes_list=[]
+        storage_nodes_list = []
         if isinstance(data["storage_node"], dict):
-	    print 'storage'
-            [storage_nodes_list.extend([k,v]) for k,v in data["storage_node"].items()]
+            [storage_nodes_list.extend([k, v]) for k, v in data["storage_node"].items()]
             data["storage_node"] = ','.join(map(str, storage_nodes_list))
-        #try:
+        # try:
         create_storage_policies.create_storage_policy(data)
-        #except Exception, e:
+        # except Exception, e:
         #    return JSONResponse('Error creating the Storage Policy', status=500)
-        return  JSONResponse('Account created successfully', status=201)
+        return JSONResponse('Account created successfully', status=201)
     return JSONResponse('Only HTTP GET /tenants/ requests allowed.', status=405)
+
 
 @csrf_exempt
 def locality_list(request, account, container=None, swift_object=None):
@@ -90,30 +97,67 @@ def locality_list(request, account, container=None, swift_object=None):
     """
     if request.method == 'GET':
         if not container:
-            r = requests.get(settings.SWIFT_URL+"endpoints/v2/"+account)
+            r = requests.get(settings.SWIFT_URL + "endpoints/v2/" + account)
         elif not swift_object:
-            r = requests.get(settings.SWIFT_URL+"endpoints/v2/"+account+"/"+container)
+            r = requests.get(settings.SWIFT_URL + "endpoints/v2/" + account + "/" + container)
         elif container and swift_object:
-            r = requests.get(settings.SWIFT_URL+"endpoints/v2/"+account+"/"+container+"/"+swift_object)
-        return HttpResponse(r.content, content_type = 'application/json', status=r.status_code)
+            r = requests.get(settings.SWIFT_URL + "endpoints/v2/" + account + "/" + container + "/" + swift_object)
+        return HttpResponse(r.content, content_type='application/json', status=r.status_code)
     return JSONResponse('Only HTTP GET /tenants/ requests allowed.', status=405)
 
+
 @csrf_exempt
-def set_new_sort_criterion(request):
+def sort_list(request):
     """
-    Shows the nodes where the account/container/object is stored. In the case that
-    the account/container/object does not exist, return the nodes where it will be save.
+    List all dependencies, or create a Dependency.
     """
     try:
         r = get_redis_connection()
     except:
         return JSONResponse('Error connecting with DB', status=500)
-    if request.method == 'PUT':
-        data = JSONParser().parse(request)
-        if "sorted_nodes_method" in data.keys():
-            r.set('sorted_nodes_method', data["sorted_nodes_method"])
-        if "sorted_nodes_criterion" in data.keys():
-            r.set('sorted_nodes_criterion', data["sorted_nodes_criterion"])
 
-        return HttpResponse("Sorted method setted", status=200)
-    return JSONResponse('Only HTTP GET /tenants/ requests allowed.', status=405)
+    if request.method == 'GET':
+        keys = r.keys("proxy_sorting:*")
+        dependencies = []
+        for key in keys:
+            dependencies.append(r.hgetall(key))
+        return JSONResponse(dependencies, status=200)
+
+    elif request.method == 'POST':
+        data = JSONParser().parse(request)
+        dependency_id = r.incr("proxies_sorting:id")
+        try:
+            data["id"] = dependency_id
+            r.hmset('proxy_sorting:' + str(dependency_id), data)
+            return JSONResponse(data, status=201)
+        except:
+            return JSONResponse("Error to save the proxy sorting", status=400)
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
+
+
+@csrf_exempt
+def sort_detail(request, id):
+    """
+    Retrieve, update or delete a Dependency.
+    """
+    try:
+        r = get_redis_connection()
+    except:
+        return JSONResponse('Error connecting with DB', status=500)
+
+    if request.method == 'GET':
+        dependency = r.hgetall("proxy_sorting:" + str(id))
+        return JSONResponse(dependency, status=200)
+
+    elif request.method == 'PUT':
+        data = JSONParser().parse(request)
+        try:
+            r.hmset('proxy_sorting:' + str(id), data)
+            return JSONResponse("Data updated", status=201)
+        except:
+            return JSONResponse("Error updating data", status=400)
+
+    elif request.method == 'DELETE':
+        r.delete("proxy_sorting:" + str(id))
+        return JSONResponse('Proxy sorting has been deleted', status=204)
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
