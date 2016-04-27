@@ -1,6 +1,6 @@
 from base_bw_rule import AbstractEnforcementAlgorithm
 
-class SimpleMinBandwidthPerTenant(AbstractEnforcementAlgorithm):
+class SimpleProportionalBandwidthPerTenant(AbstractEnforcementAlgorithm):
 
     def compute_algorithm(self, info):
         """

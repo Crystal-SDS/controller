@@ -26,8 +26,10 @@ class BwInfo(Metric):
         self.bw_observer = None
 
         '''Log for experimental purposes'''
-        self.output = open("/home/lab144/tenant_bw_experiment.dat", "w")
-
+        self.output = open("/home/lab144/bw_experiment.dat", "w")
+        self.last_bw_info = list()
+        self.bw_info_to_average = 5
+        
         '''Subprocess to aggregate collected metrics every time interval'''
         self.notifier = Thread(target=self.aggregate_and_send_info)
         self.notifier.start()
@@ -60,18 +62,9 @@ class BwInfo(Metric):
             '''Aggregate parsed data'''
             aggregated_results = self.count
             self.count = dict()
-            output_line = ''
             
-            for tenant in aggregated_results:
-                aggregated_bw = 0.0
-                for ip in aggregated_results[tenant]:
-                    for policy in aggregated_results[tenant][ip]:
-                        for device in aggregated_results[tenant][ip][policy]:
-                            aggregated_bw += aggregated_results[tenant][ip][policy][device]
-            
-                print "TENANT " + tenant + " " +self.method +" -> " + str(aggregated_bw)
-                output_line += str(aggregated_bw) + '\t'
-                print >> self.output, output_line
+            if aggregated_results:
+                self._write_experimental_results(aggregated_results)
 
             '''Notify of raw monitoring info to distributed enforcement algorithms'''
             if self.bw_observer and aggregated_results:
@@ -86,7 +79,7 @@ class BwInfo(Metric):
                             for observer in observers:
                                 observer.update(self.name, aggregated_results[tenant][policy]["bw"])
                                 #print "---> AGGREGATED BW: ", aggregated_results[tenant][policy]["bw"]
-            time.sleep(1)
+            time.sleep(0.2)
 
     def parse_osinfo(self, osinfo):
         os = json.loads(osinfo)
@@ -101,6 +94,24 @@ class BwInfo(Metric):
                         if not policy in self.count[tenant][ip]:
                             self.count[tenant][ip][policy] = {}
                         self.count[tenant][ip][policy][device] = os[ip][tenant][policy][device]
-
-    def get_value(self):
-        return self.value
+    
+    def _write_experimental_results(self, aggregated_results):
+        if len(self.last_bw_info) == self.bw_info_to_average:
+            averaged_aggregated_results = dict()
+            for tmp_result in self.last_bw_info:
+                for tenant in tmp_result:
+                    if not tenant in averaged_aggregated_results:
+                        averaged_aggregated_results[tenant] = 0.0
+                    for ip in tmp_result[tenant]:
+                        for policy in tmp_result[tenant][ip]:
+                            for device in tmp_result[tenant][ip][policy]:
+                                averaged_aggregated_results[tenant] += tmp_result[tenant][ip][policy][device]
+            
+            for tenant in averaged_aggregated_results:
+                print "TENANT " + tenant + " " +self.method +" -> " + str(averaged_aggregated_results[tenant]/self.bw_info_to_average)
+                self.output.write(tenant+"\t"+str(time.time())+"\t"+str(averaged_aggregated_results[tenant]/self.bw_info_to_average)+"\n")
+                self.output.flush()
+            self.last_bw_info = list()
+                
+        '''Aggregate results for further averages'''
+        self.last_bw_info.append(aggregated_results)
