@@ -7,39 +7,49 @@ from base_bw_rule import AbstractEnforcementAlgorithm
 
 class MinTenantSLOGlobalSpareBWShare(AbstractEnforcementAlgorithm):
     
-    DISK_IO_BANDWIDTH = 110. #MBps
-    PROXY_IO_BANDWIDTH = 110. #MBps
+    DISK_IO_BANDWIDTH = 100. #MBps
+    PROXY_IO_BANDWIDTH = 100. #MBps
     NUM_PROXYS = 1
 
-    def compute_algorithm(self, info):      
+    def compute_algorithm(self, info):     
         monitoring_info = self._format_monitoring_info(info)
-        
+
         disk_usage = dict()
         '''1ST STAGE: Get the appropriate assignments to achieve the SLOs to QoS tenants'''
         bw_enforcements = self._get_redis_bw()
-        qos_computed_assignments = self.min_slo_assignments(self, monitoring_info, disk_usage, bw_enforcements)
+        
+        '''Work without policies at this moment'''
+        clean_bw_enforcements = dict()
+        for tenant in bw_enforcements:
+            clean_bw_enforcements[tenant] = 0
+            for policy in bw_enforcements[tenant]:
+                clean_bw_enforcements[tenant] += int(bw_enforcements[tenant][policy])
+        bw_enforcements = clean_bw_enforcements
+        
+        qos_computed_assignments = self.min_slo_assignments(monitoring_info, disk_usage, bw_enforcements)
         
         '''2ND STAGE: Calculate new assignments to all tenants to share the spare bw globally'''                
         total_bw_assigned = 0.0
-        for disk_id in self.disk_usage.keys():
-            for tenant in self.disk_usage[disk_id]:
-                total_bw_assigned += sum(self.disk_usage[disk_id][tenant])
+        for disk_id in disk_usage.keys():
+            for tenant in disk_usage[disk_id]:
+                total_bw_assigned += sum(disk_usage[disk_id][tenant])
         free_proxy_bw = (self.NUM_PROXYS*self.PROXY_IO_BANDWIDTH)-total_bw_assigned
         spare_bw_enforcements = dict()
+        
         '''Share globally the spare bw across existing tenants'''
         for tenant in monitoring_info.keys():
             spare_bw_enforcements[tenant] = free_proxy_bw/len(monitoring_info.keys())
+
         non_qos_computed_assignments = self.min_slo_assignments(monitoring_info, disk_usage, spare_bw_enforcements)
                 
-        '''2ND STAGE: Sum the assignments of SLO and spare BW'''
+        '''3ND STAGE: Sum the assignments of SLO and spare BW'''
         for tenant in non_qos_computed_assignments:
             if tenant not in qos_computed_assignments:
                 qos_computed_assignments[tenant] = dict() 
             for disk in non_qos_computed_assignments[tenant]:
                 if disk not in qos_computed_assignments[tenant]:
                     qos_computed_assignments[tenant][disk] = 0
-                qos_computed_assignments[tenant][disk] += non_qos_computed_assignments[tenant][disk] 
-                           
+                qos_computed_assignments[tenant][disk] += non_qos_computed_assignments[tenant][disk]                   
         return qos_computed_assignments
     
     def min_slo_assignments(self, monitoring_info, disk_usage, bw_enforcements):
@@ -101,7 +111,7 @@ class MinTenantSLOGlobalSpareBWShare(AbstractEnforcementAlgorithm):
                     '''Get the spare bw of the alternative disk'''
                     available_for_redistribute = min(self.DISK_IO_BANDWIDTH-disk_load, \
                         sum(disk_usage[disk_id][offload_tenant]), to_redistribute)  
-                    '''Calculate the increase of the share of this tenant on the alternative disk'''      
+                    '''Calculate the increase of the share of this tenant on the alternative disk'''
                     increase_bw_slot = available_for_redistribute/float(len(disk_usage[offload_disk][offload_tenant]))
                     '''Increase share of this tenant in the alternative disk'''
                     disk_usage[offload_disk][offload_tenant] = \
@@ -137,7 +147,9 @@ class MinTenantSLOGlobalSpareBWShare(AbstractEnforcementAlgorithm):
                 for tenant in qos_tenants_for_this_disk:
                     if reduce_bw_slot > computed_assignments[tenant][disk_id]: continue
                     disk_usage[disk_id][tenant] = [(x - reduce_bw_slot) for x in disk_usage[disk_id][tenant]]
-                    computed_assignments[tenant][disk_id] -= reduce_bw_slot      
+                    computed_assignments[tenant][disk_id] -= reduce_bw_slot
+                    
+        return computed_assignments      
     
     def _format_monitoring_info(self, info):
         '''Arrange and simplify the obtained monitoring info for the algorithm'''
@@ -149,4 +161,5 @@ class MinTenantSLOGlobalSpareBWShare(AbstractEnforcementAlgorithm):
                     for device in info[account][ip][policy]:
                         disk_id = ip + "-" + policy + "-" + device
                         formatted_info[account].append((disk_id, info[account][ip][policy][device]))
-        
+                        
+        return formatted_info

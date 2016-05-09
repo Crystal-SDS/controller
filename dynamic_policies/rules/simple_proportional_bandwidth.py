@@ -32,8 +32,9 @@ class SimpleProportionalBandwidthPerTenant(AbstractEnforcementAlgorithm):
                 for device in assign[account][policy]:
                     for ip in assign[account][policy][device]['ips']:
                         try:
-                            bw_a[account][ip+"-"+policy+"-"+device] = int(bw[account][policy])/assign[account][policy][device]['requests']
+                            bw_a[account][ip+"-"+policy+"-"+device] = float(bw[account][policy])/assign[account][policy][device]['requests']
                         except Exception as e:
+                            # TODO: NO CONTINUE
                             print "Error calculating bandwidth in simple_min_bw_rule: "+str(e)
-                           
+                          
         return bw_a

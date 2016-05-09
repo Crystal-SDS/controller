@@ -4,6 +4,9 @@ from threading import Thread
 import json
 import time
 
+AGREGATION_INTERVAL = 0.2
+
+
 class BwInfo(Metric):
     _sync = {}
     _async = ['get_value', 'attach', 'detach', 'notify', 'start_consuming','stop_consuming', 'init_consum', \
@@ -26,9 +29,9 @@ class BwInfo(Metric):
         self.bw_observer = None
 
         '''Log for experimental purposes'''
-        self.output = open("/home/lab144/bw_experiment.dat", "w")
+        self.output = open("/home/lab144/bw_experiment_"+method+".dat", "w")
         self.last_bw_info = list()
-        self.bw_info_to_average = 5
+        self.bw_info_to_average = int(1/AGREGATION_INTERVAL)
         
         '''Subprocess to aggregate collected metrics every time interval'''
         self.notifier = Thread(target=self.aggregate_and_send_info)
@@ -79,10 +82,11 @@ class BwInfo(Metric):
                             for observer in observers:
                                 observer.update(self.name, aggregated_results[tenant][policy]["bw"])
                                 #print "---> AGGREGATED BW: ", aggregated_results[tenant][policy]["bw"]
-            time.sleep(0.2)
+            time.sleep(AGREGATION_INTERVAL)
 
     def parse_osinfo(self, osinfo):
         os = json.loads(osinfo)
+
         for ip in os:
             for tenant in os[ip]:
                 for policy in os[ip][tenant]:
@@ -93,9 +97,10 @@ class BwInfo(Metric):
                             self.count[tenant][ip] = {}
                         if not policy in self.count[tenant][ip]:
                             self.count[tenant][ip][policy] = {}
-                        self.count[tenant][ip][policy][device] = os[ip][tenant][policy][device]
+                        self.count[tenant][ip][policy][device] = os[ip][tenant][policy][device] 
     
     def _write_experimental_results(self, aggregated_results):
+        
         if len(self.last_bw_info) == self.bw_info_to_average:
             averaged_aggregated_results = dict()
             for tmp_result in self.last_bw_info:
@@ -106,9 +111,10 @@ class BwInfo(Metric):
                         for policy in tmp_result[tenant][ip]:
                             for device in tmp_result[tenant][ip][policy]:
                                 averaged_aggregated_results[tenant] += tmp_result[tenant][ip][policy][device]
-            
+            print
             for tenant in averaged_aggregated_results:
-                print "TENANT " + tenant + " " +self.method +" -> " + str(averaged_aggregated_results[tenant]/self.bw_info_to_average)
+                value = averaged_aggregated_results[tenant]/self.bw_info_to_average
+                print "TENANT " + tenant + " " +self.method +" -> " +  str("{:,}".format(value))
                 self.output.write(tenant+"\t"+str(time.time())+"\t"+str(averaged_aggregated_results[tenant]/self.bw_info_to_average)+"\n")
                 self.output.flush()
             self.last_bw_info = list()

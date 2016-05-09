@@ -32,7 +32,6 @@ class SimpleMinBandwidthPerTenant(AbstractEnforcementAlgorithm):
         
         '''First, sort tenants depending on the amount of transfers they are doing'''
         sorted_tenants = sorted(monitoring_info.items(), key=lambda t: len(t[1]))
-        
         '''FIRST STAGE, SIMPLE ALLOCATION OF QOS TENANTS'''        
         '''Allocation iteration based on the first fit decreasing strategy'''
         for (tenant, previous_assignments) in sorted_tenants:   
@@ -50,6 +49,8 @@ class SimpleMinBandwidthPerTenant(AbstractEnforcementAlgorithm):
                     disk_usage[disk_id][tenant].append(0)
                     continue              
                 '''Get the slot per transfer of this tenant in the optimal case'''
+                #tentative_assignment = 0
+                #if float(len(previous_assignments)) > 0:
                 tentative_assignment = bw_enforcements[tenant]/float(len(previous_assignments))
                 computed_assignments[tenant][disk_id] = tentative_assignment
                 '''bw for this disk and this tenant'''
@@ -88,12 +89,16 @@ class SimpleMinBandwidthPerTenant(AbstractEnforcementAlgorithm):
                     available_for_redistribute = min(DISK_IO_BANDWIDTH-disk_load, \
                         sum(disk_usage[disk_id][offload_tenant]), to_redistribute)  
                     '''Calculate the increase of the share of this tenant on the alternative disk'''      
+                    #increase_bw_slot = 0
+                    #if float(len(disk_usage[offload_disk][offload_tenant])) > 0:
                     increase_bw_slot = available_for_redistribute/float(len(disk_usage[offload_disk][offload_tenant]))
                     '''Increase share of this tenant in the alternative disk'''
                     disk_usage[offload_disk][offload_tenant] = \
                         [(x + increase_bw_slot) for x in disk_usage[offload_disk][offload_tenant]]
                     computed_assignments[offload_tenant][offload_disk] += increase_bw_slot
                     '''Decrease share of this tenant in the overloaded disk'''
+                    #decrease_bw_slot = 0
+                    #if len(disk_usage[disk_id][offload_tenant]) > 0:
                     decrease_bw_slot = available_for_redistribute/len(disk_usage[disk_id][offload_tenant])
                     disk_usage[disk_id][offload_tenant] = \
                         [(x - decrease_bw_slot) for x in disk_usage[disk_id][offload_tenant]]
@@ -114,7 +119,9 @@ class SimpleMinBandwidthPerTenant(AbstractEnforcementAlgorithm):
                         if tenant in current_useless_tenants: continue
                         qos_disk_connections += len(disk_usage[disk_id][tenant])
                     '''This represents the bw to be subtracted to each QoS tenant transfer to meet the maximum disk capacity'''
-                    reduce_bw_slot = to_redistribute/(float(qos_disk_connections))
+                    reduce_bw_slot = 0
+                    if float(qos_disk_connections) > 0.0:
+                        reduce_bw_slot = to_redistribute/(float(qos_disk_connections))
                     updated_useless_tenants = len([t for t in qos_tenants_for_this_disk \
                         if computed_assignments[t][disk_id]<reduce_bw_slot])
                     if len(current_useless_tenants) == updated_useless_tenants: 

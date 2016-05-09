@@ -40,7 +40,7 @@ class SimpleProportionalReplicationBandwidth(AbstractEnforcementAlgorithm):
                 new_flow = node not in self.last_bw or source not in self.last_bw[node]
                 if not new_flow and float(assign[node][source]) == float(self.last_bw[node][source]):
                     break
-                address = node+'/'+source+'/'+self.method+'/None/None/'+str(assign[node][source])
+                address = node+'/'+source+'/'+self.method+'/None/None/'+str(round(assign[node][source],1))
                 routing_key = '.'+node.replace('.','-').replace(':','-') + "."
                 print "BW CHANGED: "+ str(address) 
                 self.send_message_rmq(address, routing_key)

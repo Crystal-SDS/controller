@@ -24,15 +24,18 @@ class BwInfoSSYNC(BwInfo):
                             averaged_aggregated_results[node][source][device] += tmp_result[node][source][device]
                 
             print
+            sum = 0
+            
             for node in averaged_aggregated_results:
                 for source in averaged_aggregated_results[node]:
                     for device in averaged_aggregated_results[node][source]:
                         value = averaged_aggregated_results[node][source][device]/(self.bw_info_to_average)
-                        print "FROM " + source.split(':')[1] + " TO " +node.split(':')[0] +" ON "+device+" -> " + str("{:,}".format(value) + " bytes")
-                """
-                self.output.write(tenant+"\t"+str(time.time())+"\t"+str(averaged_aggregated_results[tenant]/self.bw_info_to_average)+"\n")
-                self.output.flush()
-                """
+                        print "FROM " + source.split(':')[1] + " TO " +node.split(':')[0] +" ON "+device+" -> " + str("{:,}".format(int(value)) + " bytes")
+                        sum += int(value) 
+
+            self.output.write(str(int(sum))+"\n")
+            self.output.flush()
+                
             
             self.last_bw_info = list()
               

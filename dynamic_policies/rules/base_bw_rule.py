@@ -110,9 +110,9 @@ class AbstractEnforcementAlgorithm(object):
                 if not new_flow and int(assign[account][ip]) == int(self.last_bw[account][ip]):
                     break
                 node_ip = ip.split('-')
-                address = node_ip[0]+'/'+account+'/'+self.method+'/'+ node_ip[1]+'/'+node_ip[2]+'/'+str(assign[account][ip])
+                address = node_ip[0]+'/'+account+'/'+self.method+'/'+ node_ip[1]+'/'+node_ip[2]+'/'+str(round(assign[account][ip],1))
                 routing_key = '.'+node_ip[0].replace('.','-').replace(':','-') + "."
-                print "BW CHANGED: "+ str(address) 
+                print "BW CHANGED: "+ str(address)
                 self.send_message_rmq(address, routing_key)
 
     def get_tenant(self):
