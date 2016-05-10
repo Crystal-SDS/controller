@@ -1,7 +1,3 @@
-import requests
-
-
-import json
 from django.http import HttpResponse
 from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
@@ -205,10 +201,10 @@ def bw_list(request):
 
     if request.method == 'GET':
         keys = r.keys("bw:*")
-        dependencies = []
+        bw_limits = {}
         for key in keys:
-            dependencies.append(r.hgetall(key))
-        return JSONResponse(dependencies, status=200)
+            bw_limits[key] = r.hgetall(key)
+        return JSONResponse(bw_limits, status=200)
 
     elif request.method == 'POST':
         data = JSONParser().parse(request)
@@ -223,7 +219,7 @@ def bw_list(request):
 
 
 @csrf_exempt
-def bw_detail(request, id):
+def bw_detail(request, tenant):
     """
     Retrieve, update or delete SLA.
     """
@@ -233,18 +229,18 @@ def bw_detail(request, id):
         return JSONResponse('Error connecting with DB', status=500)
 
     if request.method == 'GET':
-        dependency = r.hgetall("bw:" + str(id))
+        dependency = r.hgetall("bw:" + str(tenant))
         return JSONResponse(dependency, status=200)
 
     elif request.method == 'PUT':
         data = JSONParser().parse(request)
         try:
-            r.hmset('bw:' + str(id), data)
+            r.hmset('bw:' + str(tenant), data)
             return JSONResponse("Data updated", status=201)
         except:
             return JSONResponse("Error updating data", status=400)
 
     elif request.method == 'DELETE':
-        r.delete("bw:" + str(id))
+        r.delete("bw:" + str(tenant))
         return JSONResponse('SLA has been deleted', status=204)
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
