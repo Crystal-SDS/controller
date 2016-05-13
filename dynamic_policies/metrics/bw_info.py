@@ -33,6 +33,9 @@ class BwInfo(Metric):
         self.last_bw_info = list()
         self.bw_info_to_average = int(1/AGREGATION_INTERVAL)
         
+        # TODELETE:
+        self.oh = open("/home/lab144/oh_"+method+".dat", "w")
+        
         '''Subprocess to aggregate collected metrics every time interval'''
         self.notifier = Thread(target=self.aggregate_and_send_info)
         self.notifier.start()
@@ -58,6 +61,8 @@ class BwInfo(Metric):
                 self._observers[tenant][policy].add(observer)
 
     def notify(self, body):
+        self.oh.write(str(time.time())+" "+str(len(body))+'\n')
+        self.oh.flush()
         self.parse_osinfo(body)
 
     def aggregate_and_send_info(self):

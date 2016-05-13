@@ -11,12 +11,12 @@ class TransientRule(Rule):
     also defined in the policy. Once executed the action, if change the condition evaluation
     the rule will execute the reverse action (if action is SET, the will execute DELETE)
     """
-    _sync = {'get_tenant':'2'}
+    _sync = {'get_target':'2'}
     _async = ['update', 'start_rule', 'stop_actor']
     _ref = []
     _parallel = []
 
-    def __init__(self, rule_parsed, action, target):
+    def __init__(self, rule_parsed, action, target, remote_host):
         """
         Initialize all the variables needed for the rule.
 
@@ -25,8 +25,9 @@ class TransientRule(Rule):
         :param target: The target assigned to this rule.
         :type target: **any** String type
         """
+        print "-- Rule Transient --"
         self.execution_stat = False
-        super(TransientRule, self).__init__(rule_parsed, action, target)
+        super(TransientRule, self).__init__(rule_parsed, action, target, remote_host)
 
 
     def update(self, metric, tenant_info):

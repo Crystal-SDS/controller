@@ -46,7 +46,8 @@ class Rule(object):
         logging.info('Rule: %s', rule_parsed.asList())
 
         settings = ConfigParser.ConfigParser()
-        settings.read("../dynamic_policies.config")
+        settings.read("./dynamic_policies.config")
+        
         self.openstack_tenant = settings.get('openstack', 'admin_tenant')
         self.openstack_user = settings.get('openstack', 'admin_name')
         self.openstack_pass = settings.get('openstack', 'admin_pass')

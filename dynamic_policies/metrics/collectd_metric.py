@@ -1,5 +1,6 @@
 from abstract_metric import Metric
 from metrics_parser import SwiftMetricsParse
+import time
 
 class CollectdMetric(Metric):
     _sync = {}
@@ -16,6 +17,9 @@ class CollectdMetric(Metric):
         self.exchange = exchange
         self.parser_instance = SwiftMetricsParse()
         print 'GET BW tenant initialized'
+        
+        self.oh = open("/home/lab144/oh_"+metric_id+".dat", "w")
+        
 
     def notify(self, body):
         """
@@ -28,6 +32,10 @@ class CollectdMetric(Metric):
         #print 'observers', self._observers.keys()
         #print '********************************************************'
 
+
+        self.oh.write(str(time.time())+" "+str(len(body))+'\n')
+        self.oh.flush()
+        
         try:
             for observer in self._observers[body_parsed.target]:
                 observer.update(self.name, body_parsed)
