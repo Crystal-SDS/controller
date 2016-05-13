@@ -51,9 +51,10 @@ def bw_list(request):
 
     if request.method == 'GET':
         keys = r.keys("bw:AUTH_*")
-        bw_limits = {}
-        for key in keys:
-            bw_limits[key] = r.hgetall(key)
+        bw_limits = []
+        for it in keys:
+            for key, value in r.hgetall(it).items():
+                bw_limits.append({'tenant': it.replace('bw:AUTH_', ''), 'policy': key, 'bandwidth': value})
         return JSONResponse(bw_limits, status=200)
 
     elif request.method == 'POST':
@@ -76,19 +77,23 @@ def bw_detail(request, tenant_id):
     except:
         return JSONResponse('Error connecting with DB', status=500)
 
+    tenant = str(tenant_id).split(':')[0]
+    policy = str(tenant_id).split(':')[1]
+
     if request.method == 'GET':
-        sla = r.hgetall("bw:AUTH_" + str(tenant_id))
+        bandwidth = r.hget('bw:AUTH_' + tenant, policy)
+        sla = {'tenant': tenant, 'policy': policy, 'bandwidth': bandwidth}
         return JSONResponse(sla, status=200)
 
     elif request.method == 'PUT':
         data = JSONParser().parse(request)
         try:
-            r.hmset('bw:AUTH_' + str(tenant_id), data)
+            r.hmset('bw:AUTH_' + tenant, {policy: data['bandwidth']})
             return JSONResponse("Data updated", status=201)
         except:
             return JSONResponse("Error updating data", status=400)
 
     elif request.method == 'DELETE':
-        r.delete("bw:AUTH_" + str(tenant_id))
+        r.hdel('bw:AUTH_' + tenant, policy)
         return JSONResponse('SLA has been deleted', status=204)
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
