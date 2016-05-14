@@ -401,7 +401,7 @@ def policy_list(request):
             return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
         rules_string = request.body.splitlines()
         parsed_rules = []
-        for rule in rules_string:
+        for rule_string in rules_string:
             """
             Rules improved:
             TODO: Handle the new parameters of the rule
@@ -410,20 +410,24 @@ def policy_list(request):
             Add object type in rules
             """
             try:
-                condition_list, rule_parsed = dsl_parser.parse(rule)
+                condition_list, rule_parsed = dsl_parser.parse(rule_string)
                 
                 if condition_list:
                     print 'Rule parsed:', rule_parsed
-                    parsed_rules.append(rule_parsed)
+                    #parsed_rules.append(rule_parsed)
+                    deploy_policy(r, rule_string, rule_parsed)
                 else:
                     response = do_action(request, r, rule_parsed, headers)
 
             except Exception as e:
-                print "The rule: "+rule+" cannot be parsed"
+                print "The rule: "+rule_string+" cannot be parsed"
                 print "Exception message", e
-                return JSONResponse("Error in rule: "+rule+" Error message --> "+str(e), status=401)
+                return JSONResponse("Error in rule: "+rule_string+" Error message --> "+str(e), status=401)
+            
+        """    
         if parsed_rules:
-            deploy_policy(r, parsed_rules)
+            deploy_policy(r, parsed_rule)
+        """
         # launch(deploy_policy, [r, parsed_rules])
         return JSONResponse('Policies added successfully!', status=201)
 
@@ -466,33 +470,33 @@ def do_action(request, r, rule_parsed, headers):
 
 import syslog
 
-def deploy_policy(r, parsed_rules):
+def deploy_policy(r, rule_string, parsed_rule):
     # self.aref = 'atom://' + self.dispatcher.name + '/controller/Host/0'
     rules = {}
     cont = 0
     
     if not host or not remote_host:
         create_host()
-    for rule in parsed_rules:
-        rules_to_parse = {}
-        for target in rule.target:
-            rules_to_parse[target[1]] = rule
-        for key in rules_to_parse.keys():
-            for action_info in rules_to_parse[key].action_list:
-                policy_id = r.incr("policies:id")
 
-                if action_info.transient:
-                    print 'Transient rule:', rule 
-                    rules[cont] = remote_host.spawn_id(str(policy_id), 'rule_transient', 'TransientRule', [rules_to_parse[key], action_info, key, remote_host])
-                    location = "/rule_transient/TransientRule/"
-                else:
-                    print 'Rule:', rule                                      
-                    syslog.syslog("PID: "+str(policy_id) + " RULE:" +str(rule))
-                    rules[cont] = remote_host.spawn_id(str(policy_id), 'rule', 'Rule', [rules_to_parse[key], action_info, key, remote_host])
-                    location = "/rule/Rule/"
-                    print 'Rules:', rules
-                
-                rules[cont].start_rule()
-                #Add policy into redis
-                r.hmset('policy:'+str(policy_id), {"id":policy_id, "policy_description":rule, "policy_location":settings.PYACTIVE_URL+location+str(policy_id), "alive":True})
-                cont += 1
+    rules_to_parse = {}
+    
+    for target in parsed_rule.target:
+        rules_to_parse[target[1]] = parsed_rule
+        
+    for key in rules_to_parse.keys():
+        for action_info in rules_to_parse[key].action_list:
+            policy_id = r.incr("policies:id")
+
+            if action_info.transient:
+                print 'Transient rule:', parsed_rule 
+                rules[cont] = remote_host.spawn_id('policy:'+str(policy_id), 'rule_transient', 'TransientRule', [rules_to_parse[key], action_info, key, remote_host])
+                location = "/rule_transient/TransientRule/"
+            else:
+                print 'Rule:', parsed_rule
+                rules[cont] = remote_host.spawn_id('policy:'+str(policy_id), 'rule', 'Rule', [rules_to_parse[key], action_info, key, remote_host])
+                location = "/rule/Rule/"
+            
+            rules[cont].start_rule()
+            #Add policy into redis
+            r.hmset('policy:'+str(policy_id), {"id":policy_id, "policy":rule_string, "policy_description":parsed_rule, "policy_location":settings.PYACTIVE_URL+location+str(policy_id), "alive":True})
+            cont += 1

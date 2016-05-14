@@ -1,6 +1,8 @@
 from pyactive.controller import init_host, serve_forever, start_controller
+import redis
+import dsl_parser
 
-def start_test():
+def start_actors():
     global host
     global metrics
     tcpconf = ('tcp', ('127.0.0.1', 6375))
@@ -42,10 +44,38 @@ def start_test():
     rules["ssync_bw"] = host.spawn_id("abstract_enforcement_algorithm_ssync", 'rules.simple_proportional_replication_bandwidth', 'SimpleProportionalReplicationBandwidth', ["abstract_enforcement_algorithm_ssync","SSYNC"])
     rules["ssync_bw"].run("ssync_bw_info")
     
+    start_redis_urles(host, rules)
+        
+def start_redis_urles(host, rules):    
+    ''' START DYNAMIC POLICIES STORED IN REDIS, IF ANY '''
+    r = redis.StrictRedis(host="localhost", port=6379, db=0)
+    dynamic_policies = r.keys("policy:*")
+    
+    if dynamic_policies:
+        print "\nStarting dynamic rules stored in redis:"
+        
+    for policy in dynamic_policies:
+        policy_data = r.hgetall(policy)
+        
+        if policy_data['alive']:
+            _, rule_parsed = dsl_parser.parse(policy_data['policy']) 
+            
+            target = rule_parsed.target[0][1] # Tenant ID or tenant+container
+            
+            for action_info in rule_parsed.action_list:
+                if action_info.transient:
+                    print 'Transient rule:', policy_data 
+                    rules[policy] = host.spawn_id(str(policy), 'rule_transient', 'TransientRule', [rule_parsed, action_info, target, host])
+                    rules[policy].start_rule()
+                else:
+                    print 'Rule:', policy_data
+                    rules[policy] = host.spawn_id(str(policy), 'rule', 'Rule', [rule_parsed, action_info, target, host])
+                    rules[policy].start_rule()
+        
 def main():
     print "-- Starting workload metric actors --"
     start_controller('pyactive_thread')
-    serve_forever(start_test)
+    serve_forever(start_actors)
 
 if __name__ == "__main__":
     main()

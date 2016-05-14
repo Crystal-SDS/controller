@@ -41,7 +41,7 @@ class Rule(object):
         :param host_transport: The host transport used for the comunication.
         :type host_transport: **any** String type.
 
-        """
+        """        
         logging.info('Rule init: OK')
         logging.info('Rule: %s', rule_parsed.asList())
 
@@ -54,8 +54,8 @@ class Rule(object):
         self.openstack_keystone_url = settings.get('openstack', 'keystone_url')
 
         self.redis_host = settings.get('redis', 'host')
-        self.redis_port = settings.get('redis', 'port')
-        self.redis_db = settings.get('redis', 'db')
+        self.redis_port = int(settings.get('redis', 'port'))
+        self.redis_db = int(settings.get('redis', 'db'))
         
         self.redis = redis.StrictRedis(host=self.redis_host, port=self.redis_port, db=self.redis_db)
         
@@ -88,9 +88,8 @@ class Rule(object):
         for observer in self.observers_proxies.values():
             observer.detach(self.proxy)
         self.redis.hset("policy:"+str(self.id), "alive", False)
-        print 'before stop'
         self._atom.stop()
-        print 'after_stop'
+        print 'Actor rule stopped'
 
     def start_rule(self):
         """
@@ -153,12 +152,13 @@ class Rule(object):
         print 'Success update:  ', tenant_info
 
         self.observers_values[metric]=tenant_info.value
+
         #TODO Check the last time updated the value
         #Check the condition of the policy if all values are setted. If the condition
         #result is true, it calls the method do_action
         if all(val!=None for val in self.observers_values.values()):
             if self.check_conditions(self.conditions):
-                print self.do_action()
+                self.do_action()
         else:
             print 'not all values setted', self.observers_values.values()
 
@@ -198,14 +198,14 @@ class Rule(object):
         is responsible to execute the action defined in the policy.
 
         """
-
         if not self.token:
             self.admin_login()
 
         headers = {"X-Auth-Token":self.token}
         dynamic_filter = self.redis.hgetall("filter:"+str(self.action_list.filter))
-
+        
         if self.action_list.action == "SET":
+            print "--> SET <--"
 
             #TODO Review if this tenant has already deployed this filter. Not deploy the same filter more than one time.
 
@@ -221,6 +221,7 @@ class Rule(object):
                 return response.text
 
         elif self.action_list.action == "DELETE":
+            print "--> DELETE <--"
 
             url = dynamic_filter["activation_url"]+"/"+self.target+"/undeploy/"+str(dynamic_filter["identifier"])
             response = requests.put(url, headers=headers)

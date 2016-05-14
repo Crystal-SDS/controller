@@ -1,6 +1,7 @@
+from rule import Rule
 import requests
 import json
-from rule import Rule
+
 
 
 class TransientRule(Rule):
@@ -47,14 +48,15 @@ class TransientRule(Rule):
         #TODO Check the last time updated the value
         #Check the condition of the policy if all values are setted. If the condition
         #result is true, it calls the method do_action
+        
         if all(val!=None for val in self.observers_values.values()):
             if self.check_conditions(self.conditions) and not self.execution_stat:
                 self.do_action(True)
                 self.execution_stat = True
-        elif self.execution_stat:
-            self.do_action(False)
-            self.execution_stat = False
-            print 'not all values setted', self.observers_values.values()
+            elif self.execution_stat:
+                self.do_action(False)
+                self.execution_stat = False
+                print 'Successfully undeployed - ', self.observers_values.values()
 
     def do_action(self, condition_result):
         """
@@ -81,6 +83,7 @@ class TransientRule(Rule):
 
             url = dynamic_filter["activation_url"]+"/"+self.target+"/deploy/"+str(dynamic_filter["identifier"])
             print 'params: ', self.action_list.params
+            
             response = requests.put(url, json.dumps(self.action_list.params), headers=headers)
 
             if 200 > response.status_code >= 300:
