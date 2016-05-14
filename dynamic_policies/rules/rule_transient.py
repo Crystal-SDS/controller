@@ -45,19 +45,13 @@ class TransientRule(Rule):
         print 'Success update:  ', tenant_info
 
         self.observers_values[metric]=tenant_info.value
-        #TODO Check the last time updated the value
-        #Check the condition of the policy if all values are setted. If the condition
-        #result is true, it calls the method do_action
         
         if all(val!=None for val in self.observers_values.values()):
-            if self.check_conditions(self.conditions) and not self.execution_stat:
-                self.do_action(True)
-                self.execution_stat = True
-            elif self.execution_stat:
-                self.do_action(False)
-                self.execution_stat = False
-                print 'Successfully undeployed - ', self.observers_values.values()
-
+            condition_accomplished = self.check_conditions(self.conditions)
+            if condition_accomplished != self.execution_stat:
+                self.do_action(condition_accomplished)
+                self.execution_stat = condition_accomplished
+            
     def do_action(self, condition_result):
         """
         The do_action method is called after the conditions are satisfied. So this method
@@ -93,7 +87,7 @@ class TransientRule(Rule):
 
 
         elif action == "DELETE":
-
+            print "Deleteing filter"
             url = dynamic_filter["activation_url"]+"/"+self.target+"/undeploy/"+str(dynamic_filter["identifier"])
             response = requests.put(url, json.dumps(self.action_list.params), headers=headers)
 
