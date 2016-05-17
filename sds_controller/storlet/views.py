@@ -427,7 +427,7 @@ def dependency_undeploy(request, id, account):
 def deploy(r, storlet, target, params, headers):
     print 'into deploy', params
     if not params:
-	params = {}
+        params = {}
     target_list = target.split('/', 3)
 
     metadata = {'X-Object-Meta-Storlet-Language': 'Java',
@@ -451,7 +451,7 @@ def deploy(r, storlet, target, params, headers):
                      "application/octet-stream", metadata,
                      None, None, None, response)
     except:
-	print 'response put', response.get("reason")
+        print 'response put', response.get("reason")
         return JSONResponse(response.get("reason"), status=response.get('status'))
     finally:
         f.close()

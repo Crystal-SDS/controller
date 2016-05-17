@@ -64,11 +64,11 @@ def start_redis_urles(host, rules):
             
             for action_info in rule_parsed.action_list:
                 if action_info.transient:
-                    print 'Transient rule:', policy_data 
+                    print 'Transient rule:', policy_data['policy']
                     rules[policy] = host.spawn_id(str(policy), 'rule_transient', 'TransientRule', [rule_parsed, action_info, target, host])
                     rules[policy].start_rule()
                 else:
-                    print 'Rule:', policy_data
+                    print 'Rule:', policy_data['policy']
                     rules[policy] = host.spawn_id(str(policy), 'rule', 'Rule', [rule_parsed, action_info, target, host])
                     rules[policy].start_rule()
         

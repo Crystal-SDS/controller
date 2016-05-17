@@ -424,7 +424,7 @@ def policy_list(request):
         if not headers:
             return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
         rules_string = request.body.splitlines()
-        parsed_rules = []
+        
         for rule_string in rules_string:
             """
             Rules improved:
@@ -438,21 +438,16 @@ def policy_list(request):
 
                 if condition_list:
                     print('Rule parsed:', rule_parsed)
-                    # parsed_rules.append(rule_parsed)
                     deploy_policy(r, rule_string, rule_parsed)
                 else:
                     response = do_action(request, r, rule_parsed, headers)
+                    print response
 
             except Exception as e:
                 print("The rule: " + rule_string + " cannot be parsed")
                 print("Exception message", e)
                 return JSONResponse("Error in rule: " + rule_string + " Error message --> " + str(e), status=401)
 
-        """    
-        if parsed_rules:
-            deploy_policy(r, parsed_rule)
-        """
-        # launch(deploy_policy, [r, parsed_rules])
         return JSONResponse('Policies added successfully!', status=201)
 
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
@@ -477,12 +472,11 @@ def policy_detail(request, policy_id):
 def do_action(request, r, rule_parsed, headers):
     for target in rule_parsed.target:
         for action_info in rule_parsed.action_list:
-
             dynamic_filter = r.hgetall("filter:" + str(action_info.filter))
             storlet = r.hgetall("storlet:" + dynamic_filter["identifier"])
 
             if not storlet:
-                resonse = JSONResponse('Filter does not exists', status=404)
+                response = JSONResponse('Filter does not exists', status=404)
                 break
 
             if action_info.action == "SET":
@@ -492,9 +486,9 @@ def do_action(request, r, rule_parsed, headers):
                 params["params"] = ""
                 if rule_parsed.object_list:
                     if rule_parsed.object_list.object_type:
-                        params["object_type"] = rule_parsed.object_list.object_type.value
+                        params["object_type"] = rule_parsed.object_list.object_type.object_value
                     if rule_parsed.object_list.object_size:
-                        params["object_size"] = [rule_parsed.object_list.object_size.operand, rule_parsed.object_list.object_size.value]
+                        params["object_size"] = [rule_parsed.object_list.object_size.operand, rule_parsed.object_list.object_size.object_value]
                 if action_info.params:
                     params["params"] = action_info.params
                 if action_info.execution_server:
