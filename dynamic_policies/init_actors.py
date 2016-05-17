@@ -57,7 +57,7 @@ def start_redis_urles(host, rules):
     for policy in dynamic_policies:
         policy_data = r.hgetall(policy)
         
-        if policy_data['alive']:
+        if policy_data['alive'] == 'True':
             _, rule_parsed = dsl_parser.parse(policy_data['policy']) 
             
             target = rule_parsed.target[0][1] # Tenant ID or tenant+container

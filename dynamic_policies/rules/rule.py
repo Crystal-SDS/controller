@@ -87,7 +87,7 @@ class Rule(object):
         """
         for observer in self.observers_proxies.values():
             observer.detach(self.proxy)
-        self.redis.hset("policy:"+str(self.id), "alive", False)
+        self.redis.hset(str(self.id), "alive", False)
         self._atom.stop()
         print 'Actor rule stopped'
 

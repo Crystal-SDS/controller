@@ -92,7 +92,7 @@ def storlet_list(request):
 
 
 @csrf_exempt
-def storlet_detail(request, id):
+def storlet_detail(request, storlet_id):
     """
     Retrieve, update or delete a Storlet.
     """
@@ -101,11 +101,11 @@ def storlet_detail(request, id):
     except:
         return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    if not r.exists("storlet:" + str(id)):
+    if not r.exists("storlet:" + str(storlet_id)):
         return JSONResponse('Object does not exists!', status=status.HTTP_404_NOT_FOUND)
 
     if request.method == 'GET':
-        storlet = r.hgetall("storlet:" + str(id))
+        storlet = r.hgetall("storlet:" + str(storlet_id))
         return JSONResponse(storlet, status=status.HTTP_200_OK)
 
     elif request.method == 'PUT':
@@ -118,14 +118,14 @@ def storlet_detail(request, id):
             return JSONResponse("Invalid parameters in request", status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            r.hmset('storlet:' + str(id), data)
+            r.hmset('storlet:' + str(storlet_id), data)
             return JSONResponse("Data updated", status=status.HTTP_200_OK)
         except:
             return JSONResponse("Error updating data", status=status.HTTP_408_REQUEST_TIMEOUT)
 
     elif request.method == 'DELETE':
         try:
-            r.delete("storlet:" + str(id))
+            r.delete("storlet:" + str(storlet_id))
             return JSONResponse('Filter has been deleted', status=status.HTTP_204_NO_CONTENT)
         except:
             return JSONResponse("Error deleting filter", status=status.HTTP_408_REQUEST_TIMEOUT)
@@ -138,14 +138,14 @@ class StorletData(APIView):
     """
     parser_classes = (MultiPartParser, FormParser,)
 
-    def put(self, request, id, format=None):
+    def put(self, request, storlet_id, format=None):
         try:
             r = get_redis_connection()
         except:
             return JSONResponse('Error connecting with DB', status=500)
-        if r.exists("storlet:" + str(id)):
+        if r.exists("storlet:" + str(storlet_id)):
             print 'request', request.META
-	    file_obj = request.FILES['file']
+            file_obj = request.FILES['file']
             path = save_file(file_obj, settings.STORLET_DIR)
             md5_etag = md5(path)
             try:
@@ -158,7 +158,7 @@ class StorletData(APIView):
             return JSONResponse('Filter has been updated', status=201)
         return JSONResponse('Filter does not exists', status=404)
 
-    def get(self, request, id, format=None):
+    def get(self, request, storlet_id, format=None):
         try:
             r = get_redis_connection()
         except:
@@ -169,7 +169,7 @@ class StorletData(APIView):
 
 
 @csrf_exempt
-def storlet_deploy(request, id, account, container=None, swift_object=None):
+def storlet_deploy(request, storlet_id, account, container=None, swift_object=None):
     """
     Deploy a storlet to a specific swift account.
     """
@@ -182,7 +182,7 @@ def storlet_deploy(request, id, account, container=None, swift_object=None):
         headers = is_valid_request(request)
         if not headers:
             return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
-        storlet = r.hgetall("storlet:" + str(id))
+        storlet = r.hgetall("storlet:" + str(storlet_id))
 
         if not storlet:
             return JSONResponse('Filter does not exists', status=404)
@@ -218,7 +218,7 @@ def storlet_list_deployed(request, account):
 
 
 @csrf_exempt
-def storlet_undeploy(request, id, account, container=None, swift_object=None):
+def storlet_undeploy(request, storlet_id, account, container=None, swift_object=None):
     """
     Undeploy a storlet from a specific swift account.
     """
@@ -226,7 +226,7 @@ def storlet_undeploy(request, id, account, container=None, swift_object=None):
         r = get_redis_connection()
     except:
         return JSONResponse('Problems to connect with the DB', status=500)
-    storlet = r.hgetall("storlet:" + str(id))
+    storlet = r.hgetall("storlet:" + str(storlet_id))
     if not storlet:
         return JSONResponse('Filter does not exists', status=404)
     if not r.exists("AUTH_" + str(account) + ":" + str(storlet["name"])):
@@ -236,7 +236,6 @@ def storlet_undeploy(request, id, account, container=None, swift_object=None):
         headers = is_valid_request(request)
         if not headers:
             return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
-        response = dict()
 
         if container and swift_object:
             target = account + "/" + container + "/" + swift_object
@@ -286,7 +285,7 @@ def dependency_list(request):
 
 
 @csrf_exempt
-def dependency_detail(request, id):
+def dependency_detail(request, dependency_id):
     """
     Retrieve, update or delete a Dependency.
     """
@@ -296,19 +295,19 @@ def dependency_detail(request, id):
         return JSONResponse('Error connecting with DB', status=500)
 
     if request.method == 'GET':
-        dependency = r.hgetall("dependency:" + str(id))
+        dependency = r.hgetall("dependency:" + str(dependency_id))
         return JSONResponse(dependency, status=200)
 
     elif request.method == 'PUT':
         data = JSONParser().parse(request)
         try:
-            r.hmset('dependency:' + str(id), data)
+            r.hmset('dependency:' + str(dependency_id), data)
             return JSONResponse("Data updated", status=201)
         except:
             return JSONResponse("Error updating data", status=400)
 
     elif request.method == 'DELETE':
-        r.delete("dependency:" + str(id))
+        r.delete("dependency:" + str(dependency_id))
         return JSONResponse('Dependency has been deleted', status=204)
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
 
@@ -316,30 +315,30 @@ def dependency_detail(request, id):
 class DependencyData(APIView):
     parser_classes = (MultiPartParser, FormParser,)
 
-    def put(self, request, id, format=None):
+    def put(self, request, dependency_id, format=None):
         try:
             r = get_redis_connection()
         except:
             return JSONResponse('Problems to connect with the DB', status=500)
-        if r.exists("dependency:" + str(id)):
+        if r.exists("dependency:" + str(dependency_id)):
             file_obj = request.FILES['file']
             path = save_file(file_obj, settings.DEPENDENCY_DIR)
             try:
                 r = get_redis_connection()
-                result = r.hset("dependency:" + str(id), "path", str(path))
+                result = r.hset("dependency:" + str(dependency_id), "path", str(path))
             except:
                 return JSONResponse('Problems connecting with DB', status=500)
             return JSONResponse('Dependency has been updated', status=201)
         return JSONResponse('Dependency does not exists', status=404)
 
-    def get(self, request, id, format=None):
+    def get(self, request, dependency_id, format=None):
         # TODO Return the storlet data
         data = "File"
         return Response(data, status=None, template_name=None, headers=None, content_type=None)
 
 
 @csrf_exempt
-def dependency_deploy(request, id, account):
+def dependency_deploy(request, dependency_id, account):
     try:
         r = get_redis_connection()
     except:
@@ -350,12 +349,12 @@ def dependency_deploy(request, id, account):
         if not headers:
             return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
 
-        dependency = r.hgetall("dependency:" + str(id))
+        dependency = r.hgetall("dependency:" + str(dependency_id))
         if not dependency:
             return JSONResponse('Dependency does not exists', status=404)
         metadata = {'X-Object-Meta-Storlet-Dependency-Version': str(dependency["version"])}
 
-        if "path" not in dependecy.keys():
+        if "path" not in dependency.keys():
             return JSONResponse('Dependency path does not exists', status=404)
         f = open(dependency["path"], 'r')
         content_length = None
@@ -393,12 +392,12 @@ def dependency_list_deployed(request, account):
 
 
 @csrf_exempt
-def dependency_undeploy(request, id, account):
+def dependency_undeploy(request, dependency_id, account):
     try:
         r = get_redis_connection()
     except:
         return JSONResponse('Problems to connect with the DB', status=500)
-    dependency = r.hgetall("dependency:" + str(id))
+    dependency = r.hgetall("dependency:" + str(dependency_id))
 
     if not dependency:
         return JSONResponse('Dependency does not exists', status=404)
@@ -463,26 +462,25 @@ def deploy(r, storlet, target, params, headers):
         if r.lpush("pipeline:AUTH_"+str(target), str(storlet['name'])):
                 params["id"] = storlet["id"]
                 print 'params', params
-		if not "params" in params.keys():
-		    params["params"] = ""
-		if r.hmset("AUTH_"+str(target)+":"+str(storlet['name']), params):
+                if not "params" in params.keys():
+                    params["params"] = ""
+                if r.hmset("AUTH_"+str(target)+":"+str(storlet['name']), params):
                     return JSONResponse("Deployed", status=201)
-	        else:
-		    print 'error'
+                else:
+                    print 'Error setting redis on deploy Storlet'
 
     return JSONResponse("error", status=400)
 
 
 def undeploy(r, storlet, target, headers):
     target_list = target.split('/', 3)
-
     response = dict()
     try:
-        c.delete_object(settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/" + "AUTH_" + str(target_list[0]), headers["X-Auth-Token"],
-                        'storlet', storlet["name"], None, None, None, None, response)
-        print 'response, ', response
+        c.delete_object(settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/" + "AUTH_" + str(target_list[0]), 
+                        headers["X-Auth-Token"], 'storlet', storlet["name"], None, None, None, None, response)
     except:
-        return JSONResponse(response.get("reason"), status=response.get('status'))
+        pass
+    print 'Swift response: ', response
     status = response.get('status')
     if 200 <= status < 300:
         r.delete("AUTH_" + str(target) + ":" + str(storlet["name"]))
@@ -491,13 +489,13 @@ def undeploy(r, storlet, target, headers):
     return JSONResponse(response.get("reason"), status=status)
 
 
-def save_file(file, path=''):
+def save_file(file_, path=''):
     '''
     Little helper to save a file
     '''
-    filename = file._get_name()
+    filename = file_._get_name()
     fd = open(str(path) + "/" + str(filename), 'wb')
-    for chunk in file.chunks():
+    for chunk in file_.chunks():
         fd.write(chunk)
     fd.close()
     return str(path) + "/" + str(filename)

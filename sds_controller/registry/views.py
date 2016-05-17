@@ -1,13 +1,12 @@
-import redis
-from django.conf import settings
-from django.http import HttpResponse
-from django.views.decorators.csrf import csrf_exempt
 from pyactive.controller import init_host, start_controller
-from rest_framework.parsers import JSONParser
 from rest_framework.renderers import JSONRenderer
+from rest_framework.parsers import JSONParser
+from django.views.decorators.csrf import csrf_exempt
+from django.http import HttpResponse
+from django.conf import settings
 from storlet.views import deploy, undeploy
-
 import dsl_parser
+import redis
 
 host = None
 remote_host = None
