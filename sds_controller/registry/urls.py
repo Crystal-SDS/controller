@@ -1,4 +1,4 @@
-from django.conf.urls import patterns, url
+from django.conf.urls import url
 
 from . import views
 
@@ -15,11 +15,12 @@ urlpatterns = [
     url(r'^/gtenants/(?P<gtenant_id>\w+)/tenants/(?P<tenant_id>\w+)/?$', views.gtenants_tenant_detail),
 
     url(r'^/policy/?$', views.policy_list),
+    url(r'^/policy/(?P<policy_id>\w+)/?$', views.policy_detail),
+
     url(r'^/snode/?$', views.list_storage_node),
     url(r'^/snode/(?P<snode_id>\w+)/?$', views.storage_node_detail),
 
     url(r'^/object_type/?$', views.object_type_list),
     url(r'^/object_type/(?P<object_type_name>\w+)/?$', views.object_type_detail),
-
 
 ]
