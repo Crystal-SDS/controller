@@ -82,7 +82,7 @@ def bw_detail(request, tenant_id):
 
     if request.method == 'GET':
         bandwidth = r.hget('bw:AUTH_' + tenant, policy)
-        sla = {'tenant': tenant, 'policy': policy, 'bandwidth': bandwidth}
+        sla = {'id': tenant_id, 'tenant': tenant, 'policy': policy, 'bandwidth': bandwidth}
         return JSONResponse(sla, status=200)
 
     elif request.method == 'PUT':
