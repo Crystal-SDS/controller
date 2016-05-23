@@ -26,9 +26,9 @@ ANSIBLE_DIR = os.path.join(BASE_DIR, "swift", "ansible")
 SECRET_KEY = '&yx_=2@s(evyq=l9t2efrgmgryz^ea85$csdb_rprvc-9b&#r8'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
-ALLOWED_HOSTS = ['localhost']
+ALLOWED_HOSTS = []
 
 
 # Application definition
@@ -115,9 +115,9 @@ USE_TZ = True
 STATIC_URL = '/static/'
 
 #Swift info
-KEYSTONE_ADMIN_URL = "http://localhost:5000/v2.0/"
-KEYSTONE_URL = "http://localhost:35357/v2.0/"
-SWIFT_URL= "http://localhost:8080/"
+KEYSTONE_ADMIN_URL = "http://10.30.235.235:5000/v2.0/"
+KEYSTONE_URL = "http://10.30.235.235:35357/v2.0/"
+SWIFT_URL= "http://10.30.235.235:8080/"
 SWIFT_API_VERSION = "v1"
 
 #redis
