@@ -115,6 +115,7 @@ def storlet_detail(request, storlet_id):
             return JSONResponse("Invalid format or empty request", status=status.HTTP_400_BAD_REQUEST)
 
         if not check_keys(data.keys(), STORLET_KEYS[1:-1]):
+            print(data)
             return JSONResponse("Invalid parameters in request", status=status.HTTP_400_BAD_REQUEST)
 
         try:
@@ -150,9 +151,9 @@ class StorletData(APIView):
             md5_etag = md5(path)
             try:
                 r = get_redis_connection()
-                result = r.hset("storlet:" + str(id), "path", str(path))
-                result = r.hset("storlet:" + str(id), "content_length", str(request.META["CONTENT_LENGTH"]))
-                result = r.hset("storlet:" + str(id), "etag", str(md5_etag))           
+                result = r.hset("storlet:" + str(storlet_id), "path", str(path))
+                result = r.hset("storlet:" + str(storlet_id), "content_length", str(request.META["CONTENT_LENGTH"]))
+                result = r.hset("storlet:" + str(storlet_id), "etag", str(md5_etag))
             except:
                 return JSONResponse('Problems connecting with DB', status=500)
             return JSONResponse('Filter has been updated', status=201)
