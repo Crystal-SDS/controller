@@ -18,8 +18,9 @@ class CollectdMetric(Metric):
         self.parser_instance = SwiftMetricsParse()
         print 'GET BW tenant initialized'
         
-        self.oh = open("/home/lab144/oh_"+metric_id+".dat", "w")
+        # self.oh = open("/home/lab144/oh_"+metric_id+".dat", "w")
         
+
 
     def notify(self, body):
         """

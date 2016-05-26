@@ -29,12 +29,12 @@ class BwInfo(Metric):
         self.bw_observer = None
 
         '''Log for experimental purposes'''
-        self.output = open("/home/lab144/bw_experiment_"+method+".dat", "w")
+        # self.output = open("/home/lab144/bw_experiment_"+method+".dat", "w")
         self.last_bw_info = list()
         self.bw_info_to_average = int(1/AGREGATION_INTERVAL)
         
         # TODELETE:
-        self.oh = open("/home/lab144/oh_"+method+".dat", "w")
+        # self.oh = open("/home/lab144/oh_"+method+".dat", "w")
         
         '''Subprocess to aggregate collected metrics every time interval'''
         self.notifier = Thread(target=self.aggregate_and_send_info)
@@ -61,8 +61,8 @@ class BwInfo(Metric):
                 self._observers[tenant][policy].add(observer)
 
     def notify(self, body):
-        self.oh.write(str(time.time())+" "+str(len(body))+'\n')
-        self.oh.flush()
+        # self.oh.write(str(time.time())+" "+str(len(body))+'\n')
+        # self.oh.flush()
         self.parse_osinfo(body)
 
     def aggregate_and_send_info(self):
@@ -120,8 +120,8 @@ class BwInfo(Metric):
             for tenant in averaged_aggregated_results:
                 value = averaged_aggregated_results[tenant]/self.bw_info_to_average
                 print "TENANT " + tenant + " " +self.method +" -> " +  str("{:,}".format(value))
-                self.output.write(tenant+"\t"+str(time.time())+"\t"+str(averaged_aggregated_results[tenant]/self.bw_info_to_average)+"\n")
-                self.output.flush()
+                # self.output.write(tenant+"\t"+str(time.time())+"\t"+str(averaged_aggregated_results[tenant]/self.bw_info_to_average)+"\n")
+                # self.output.flush()
             self.last_bw_info = list()
                 
         '''Aggregate results for further averages'''
