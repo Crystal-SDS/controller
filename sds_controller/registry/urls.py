@@ -14,8 +14,11 @@ urlpatterns = [
     url(r'^/gtenants/(?P<gtenant_id>\w+)/?$', views.tenants_group_detail),
     url(r'^/gtenants/(?P<gtenant_id>\w+)/tenants/(?P<tenant_id>\w+)/?$', views.gtenants_tenant_detail),
 
-    url(r'^/policy/?$', views.policy_list),
-    url(r'^/policy/(?P<policy_id>\w+)/?$', views.policy_detail),
+    url(r'^/static_policy/?$', views.policy_list),
+    url(r'^/static_policy/(?P<policy_id>[^/]+)/?$', views.static_policy_detail),
+
+    url(r'^/dynamic_policy/?$', views.policy_list),
+    url(r'^/dynamic_policy/(?P<policy_id>\w+)/?$', views.dynamic_policy_detail),
 
     url(r'^/snode/?$', views.list_storage_node),
     url(r'^/snode/(?P<snode_id>\w+)/?$', views.storage_node_detail),

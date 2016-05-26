@@ -1,12 +1,16 @@
-from pyactive.controller import init_host, start_controller
-from rest_framework.renderers import JSONRenderer
-from rest_framework.parsers import JSONParser
-from django.views.decorators.csrf import csrf_exempt
-from django.http import HttpResponse
-from django.conf import settings
-from storlet.views import deploy, undeploy
-import dsl_parser
+import json
+
 import redis
+from django.conf import settings
+from django.http import HttpResponse
+from django.views.decorators.csrf import csrf_exempt
+from pyactive.controller import init_host, start_controller
+from rest_framework import status
+from rest_framework.parsers import JSONParser
+from rest_framework.renderers import JSONRenderer
+from storlet.views import deploy, undeploy
+
+import dsl_parser
 
 host = None
 remote_host = None
@@ -408,22 +412,35 @@ def policy_list(request):
     try:
         r = get_redis_connection()
     except:
-        return JSONResponse('Error connecting with DB', status=500)
+        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     if request.method == 'GET':
-        keys = r.keys("policy:*")
-        policies = []
-        for key in keys:
-            policy = r.hgetall(key)
-            policies.append(policy)
-        return JSONResponse(policies, status=200)
+        if 'static' in str(request.path):
+            keys = r.keys("pipeline:AUTH_*")
+            policies = []
+            for it in keys:
+                for key, value in r.hgetall(it).items():
+                    json_value = json.loads(str(value).replace('\'', '"'))
+                    policies.append({'id': key, 'target': it.replace('pipeline:AUTH_', ''), 'filter': json_value['storlet_id'], 'object_type': json_value['object_type'], 'object_size': json_value['object_size'], 'execution_server': json_value['execution_server'], 'execution_server_reverse': json_value['execution_server_reverse'], 'execution_order': json_value['execution_order'], 'params': json_value['params']})
+            return JSONResponse(policies, status=status.HTTP_200_OK)
+
+        elif 'dynamic' in str(request.path):
+            keys = r.keys("policy:*")
+            policies = []
+            for key in keys:
+                policy = r.hgetall(key)
+                policies.append(policy)
+            return JSONResponse(policies, status=status.HTTP_200_OK)
+
+        else:
+            return JSONResponse("Invalid request", status=status.HTTP_400_BAD_REQUEST)
 
     if request.method == 'POST':
         headers = is_valid_request(request)
         if not headers:
-            return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
+            return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=status.HTTP_401_UNAUTHORIZED)
         rules_string = request.body.splitlines()
-        
+
         for rule_string in rules_string:
             """
             Rules improved:
@@ -436,24 +453,26 @@ def policy_list(request):
                 condition_list, rule_parsed = dsl_parser.parse(rule_string)
 
                 if condition_list:
+                    # Dynamic Rule
                     print('Rule parsed:', rule_parsed)
                     deploy_policy(r, rule_string, rule_parsed)
                 else:
+                    # Static Rule
                     response = do_action(request, r, rule_parsed, headers)
-                    print response
+                    print(response)
 
             except Exception as e:
                 print("The rule: " + rule_string + " cannot be parsed")
                 print("Exception message", e)
-                return JSONResponse("Error in rule: " + rule_string + " Error message --> " + str(e), status=401)
+                return JSONResponse("Error in rule: " + rule_string + " Error message --> " + str(e), status=status.HTTP_401_UNAUTHORIZED)
 
-        return JSONResponse('Policies added successfully!', status=201)
+        return JSONResponse('Policies added successfully!', status=status.HTTP_201_CREATED)
 
-    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
 @csrf_exempt
-def policy_detail(request, policy_id):
+def dynamic_policy_detail(request, policy_id):
     """
     Retrieve, update or delete SLA.
     """
@@ -463,42 +482,71 @@ def policy_detail(request, policy_id):
         return JSONResponse('Error connecting with DB', status=500)
 
     if request.method == 'DELETE':
+        # TODO: Kill actor when deletes a redis key
         r.delete('policy:' + policy_id)
         return JSONResponse('Policy has been deleted', status=204)
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
 
 
+@csrf_exempt
+def static_policy_detail(request, policy_id):
+    """
+    Retrieve, update or delete SLA.
+    """
+    try:
+        r = get_redis_connection()
+    except:
+        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    target = str(policy_id).split(':')[0]
+    policy = str(policy_id).split(':')[1]
+
+    if request.method == 'DELETE':
+        r.hdel('pipeline:AUTH_' + target, policy)
+        return JSONResponse('Policy has been deleted', status=status.HTTP_204_NO_CONTENT)
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+
 def do_action(request, r, rule_parsed, headers):
     for target in rule_parsed.target:
         for action_info in rule_parsed.action_list:
+            print('TARGET RULE: ', action_info)
             dynamic_filter = r.hgetall("filter:" + str(action_info.filter))
             storlet = r.hgetall("storlet:" + dynamic_filter["identifier"])
 
             if not storlet:
-                response = JSONResponse('Filter does not exists', status=404)
-                break
+                return JSONResponse('Filter does not exists', status=status.HTTP_404_NOT_FOUND)
 
             if action_info.action == "SET":
-                print 'SET'
-                # TODO: What happends if any of each parameters are None or ''? Review the default parameters.
-                params = {}
-                params["params"] = ""
+
+                # Get an identifier of this new policy
+                policy_id = r.incr("policies:id")
+
+                params = {
+                    'policy_id': policy_id,
+                    'object_type': 'none',
+                    'object_size': 'none',
+                    # 'execution_server':'',            # Not needed now, the storlet has this value
+                    # 'execution_server_reverse': '',   # Not needed now, the storlet has this value
+                    'execution_order': policy_id,
+                    'params': ''
+                }
+
+                # Rewrite default values
                 if rule_parsed.object_list:
                     if rule_parsed.object_list.object_type:
-                        params["object_type"] = rule_parsed.object_list.object_type.object_value
+                        params['object_type'] = rule_parsed.object_list.object_type.object_value
                     if rule_parsed.object_list.object_size:
-                        params["object_size"] = [rule_parsed.object_list.object_size.operand, rule_parsed.object_list.object_size.object_value]
+                        params['object_size'] = [rule_parsed.object_list.object_size.operand, rule_parsed.object_list.object_size.object_value]
                 if action_info.params:
-                    params["params"] = action_info.params
+                    params['params'] = action_info.params
                 if action_info.execution_server:
-                    params["execution_server"] = action_info.execution_server
-                # TODO Review if this tenant has already deployed this filter. Not deploy the same filter more than one time.
-                response = deploy(r, storlet, target[1], params, headers)
+                    params['execution_server'] = action_info.execution_server
+
+                return deploy(r, target[1], storlet, params, headers)
 
             elif action_info.action == "DELETE":
-                response = undeploy(r, storlet, target[1], headers)
-
-    return response
+                return undeploy(r, storlet, target[1], headers)
 
 
 def deploy_policy(r, rule_string, parsed_rule):
