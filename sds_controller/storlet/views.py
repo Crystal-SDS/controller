@@ -1,16 +1,16 @@
+import hashlib
+
+import redis
+from django.conf import settings
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
+from rest_framework import status
+from rest_framework.exceptions import ParseError
+from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
 from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
-from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
-from rest_framework.exceptions import ParseError
-from rest_framework import status
-
-from swiftclient import client as c
 from rest_framework.views import APIView
-from django.conf import settings
-import redis
-import hashlib
+from swiftclient import client as c
 
 """ TODO create a common file and put this into the new file """
 """ Start Common """
@@ -198,7 +198,7 @@ def storlet_deploy(request, storlet_id, account, container=None, swift_object=No
         else:
             target = account
 
-        return deploy(r, storlet, target, params, headers)
+        return deploy(r, target, storlet, params, headers)
 
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
 
@@ -424,60 +424,78 @@ def dependency_undeploy(request, dependency_id, account):
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
 
 
-def deploy(r, storlet, target, params, headers):
-    print 'into deploy', params
+# FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 DO SET caching
+def deploy(r, target, storlet, params, headers):
+    print('Storlet ID: ' + storlet['id'])
+    print('Storlet Details: ' + str(r.hgetall('storlet:' + storlet['id'])))
+
+    print('Target: ' + target)
+
+    print('Params: ' + str(params))
+
     if not params:
         params = {}
+
     target_list = target.split('/', 3)
 
-    metadata = {'X-Object-Meta-Storlet-Language': 'Java',
-                'X-Object-Meta-Storlet-Interface-Version': '1.0',
+    metadata = {'X-Object-Meta-Storlet-Language': storlet['language'],
+                'X-Object-Meta-Storlet-Interface-Version': storlet['interface_version'],
                 'X-Object-Meta-Storlet-Dependency': storlet['dependencies'],
-                'X-Object-Meta-Storlet-Object-Metadata': 'no',
-                'X-Object-Meta-Storlet-Main': storlet['main']}
-    try:
-        f = open(storlet['path'], 'r')
-    except:
-        return JSONResponse('Not found the filter data file', status=404)
-    
-    content_length = None
-    response = dict()
-    # Change to API Call
-    try:
-        print storlet['name']
-        print "token", headers["X-Auth-Token"]
-        c.put_object(settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/" + "AUTH_" + str(target_list[0]), headers["X-Auth-Token"], 'storlet', storlet['name'], f,
-                     content_length, None, None,
-                     "application/octet-stream", metadata,
-                     None, None, None, response)
-    except:
-        print 'response put', response.get("reason")
-        return JSONResponse(response.get("reason"), status=response.get('status'))
-    finally:
-        f.close()
-    print 'response', response
-    status = response.get('status')
-    if status == 201:
-        if r.exists("AUTH_"+str(target)+":"+str(storlet['name'])):
-            return JSONResponse("Already deployed", status=400)
-        if r.lpush("pipeline:AUTH_"+str(target), str(storlet['name'])):
-                params["id"] = storlet["id"]
-                print 'params', params
-                if not "params" in params.keys():
-                    params["params"] = ""
-                if r.hmset("AUTH_"+str(target)+":"+str(storlet['name']), params):
-                    return JSONResponse("Deployed", status=201)
-                else:
-                    print 'Error setting redis on deploy Storlet'
+                'X-Object-Meta-Storlet-Object-Metadata': storlet['object_metadata'],
+                'X-Object-Meta-Storlet-Main': storlet['main']
+                }
 
-    return JSONResponse("error", status=400)
+    storlet_path = storlet['path']
+    del storlet['path']
+
+    try:
+        f = open(storlet_path, 'r')
+    except IOError:
+        return JSONResponse('Error: Not found the filter data file', status=status.HTTP_404_NOT_FOUND)
+
+    content_length = storlet['content_length']
+    response = dict()
+
+    # Change to API Call
+    # try:
+    #     print storlet['name']
+    #     print "token", headers["X-Auth-Token"]
+    #     c.put_object(settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/" + "AUTH_" + str(target_list[0]), headers["X-Auth-Token"], 'storlet', storlet['name'], f,
+    #                  content_length, None, None,
+    #                  "application/octet-stream", metadata,
+    #                  None, None, None, response)
+    # except:
+    #     print 'response put', response.get("reason")
+    #     return JSONResponse(response.get("reason"), status=response.get('status'))
+    # finally:
+    #     f.close()
+    # print 'response', response
+    # status = response.get('status')
+
+    # Delete this line when uncomment try catch
+    f.close()
+
+    resp = status.HTTP_201_CREATED
+    if resp == status.HTTP_201_CREATED:
+        # Change 'id' key of storlet
+        storlet['storlet_id'] = storlet.pop('id')
+        # Get policy id
+        policy_id = params['policy_id']
+        del params['policy_id']
+        # Add all storlet and policy metadata to policy_id in pipeline
+        data = storlet.copy()
+        data.update(params)
+        r.hset('pipeline:AUTH_' + str(target), policy_id, data)
+        return JSONResponse("Deployed!", status=status.HTTP_201_CREATED)
+    else:
+        return JSONResponse("Error in deploy!", status=status.HTTP_400_BAD_REQUEST)
 
 
 def undeploy(r, storlet, target, headers):
     target_list = target.split('/', 3)
     response = dict()
     try:
-        c.delete_object(settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/" + "AUTH_" + str(target_list[0]), 
+        c.delete_object(settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/" + "AUTH_" + str(target_list[0]),
                         headers["X-Auth-Token"], 'storlet', storlet["name"], None, None, None, None, response)
     except:
         pass
