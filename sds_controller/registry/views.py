@@ -421,7 +421,7 @@ def policy_list(request):
             for it in keys:
                 for key, value in r.hgetall(it).items():
                     json_value = json.loads(str(value).replace('\'', '"'))
-                    policies.append({'id': key, 'target': it.replace('pipeline:AUTH_', ''), 'filter': json_value['storlet_id'], 'object_type': json_value['object_type'], 'object_size': json_value['object_size'], 'execution_server': json_value['execution_server'], 'execution_server_reverse': json_value['execution_server_reverse'], 'execution_order': json_value['execution_order'], 'params': json_value['params']})
+                    policies.append({'id': key, 'target': it.replace('pipeline:AUTH_', ''), 'filter': json_value['filter_id'], 'object_type': json_value['object_type'], 'object_size': json_value['object_size'], 'execution_server': json_value['execution_server'], 'execution_server_reverse': json_value['execution_server_reverse'], 'execution_order': json_value['execution_order'], 'params': json_value['params']})
             return JSONResponse(policies, status=status.HTTP_200_OK)
 
         elif 'dynamic' in str(request.path):
@@ -472,6 +472,32 @@ def policy_list(request):
 
 
 @csrf_exempt
+def static_policy_detail(request, policy_id):
+    """
+    Retrieve, update or delete SLA.
+    """
+    try:
+        r = get_redis_connection()
+    except:
+        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    target = str(policy_id).split(':')[0]
+    policy = str(policy_id).split(':')[1]
+
+    if request.method == 'GET':
+        policy_redis = r.hget("pipeline:AUTH_" + str(target), policy)
+        data = json.loads(str(policy_redis).replace('\'', '"'))
+        data['id'] = policy
+        data['target'] = target
+        return JSONResponse(data, status=200)
+
+    if request.method == 'DELETE':
+        r.hdel('pipeline:AUTH_' + target, policy)
+        return JSONResponse('Policy has been deleted', status=status.HTTP_204_NO_CONTENT)
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+
+@csrf_exempt
 def dynamic_policy_detail(request, policy_id):
     """
     Retrieve, update or delete SLA.
@@ -486,25 +512,6 @@ def dynamic_policy_detail(request, policy_id):
         r.delete('policy:' + policy_id)
         return JSONResponse('Policy has been deleted', status=204)
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
-
-
-@csrf_exempt
-def static_policy_detail(request, policy_id):
-    """
-    Retrieve, update or delete SLA.
-    """
-    try:
-        r = get_redis_connection()
-    except:
-        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-    target = str(policy_id).split(':')[0]
-    policy = str(policy_id).split(':')[1]
-
-    if request.method == 'DELETE':
-        r.hdel('pipeline:AUTH_' + target, policy)
-        return JSONResponse('Policy has been deleted', status=status.HTTP_204_NO_CONTENT)
-    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
 def do_action(request, r, rule_parsed, headers):

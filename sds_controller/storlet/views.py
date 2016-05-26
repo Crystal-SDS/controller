@@ -478,7 +478,7 @@ def deploy(r, target, storlet, params, headers):
     resp = status.HTTP_201_CREATED
     if resp == status.HTTP_201_CREATED:
         # Change 'id' key of storlet
-        storlet['storlet_id'] = storlet.pop('id')
+        storlet['filter_id'] = storlet.pop('id')
         # Get policy id
         policy_id = params['policy_id']
         del params['policy_id']
