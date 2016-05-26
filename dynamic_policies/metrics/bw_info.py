@@ -14,16 +14,16 @@ class BwInfo(Metric):
     _ref = ['attach', 'detach']
     _parallel = []
 
-    def __init__(self, exchange, queue, routing_key, name, method):
+    def __init__(self, exchange, queue, routing_key, method):
         Metric.__init__(self)
 
         self.queue = queue
         self.routing_key = routing_key
-        self.name = name
+        self.name = queue
         self.exchange = exchange
         self.method = method
         self.parser_instance = SwiftMetricsParse()
-        print name+' initialized'
+        print queue+' initialized'
         self.count = {}
         self.last_bw = {}
         self.bw_observer = None

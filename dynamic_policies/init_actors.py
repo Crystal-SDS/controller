@@ -2,26 +2,33 @@ from pyactive.controller import init_host, serve_forever, start_controller
 import redis
 import dsl_parser
 
+r = redis.StrictRedis(host="localhost", port=6379, db=0)
+
 def start_actors():
+    for metric in r.keys("metric:*"):
+        r.delete(metric)
+    
     global host
     global metrics
     tcpconf = ('tcp', ('127.0.0.1', 6375))
     #momconf = ('mom',{'name':'metric_host','ip':'127.0.0.1','port':61613, 'namespace':'/topic/iostack'})
     host = init_host(tcpconf)
     metrics = {}
-    metrics["get_ops_tenant"] = host.spawn_id("get_ops_tenant", 'metrics.collectd_metric', 'CollectdMetric', ["amq.topic", "get_ops_tenant", "collectd.*.groupingtail.tm.*.get_ops.#"])
-    metrics["put_ops_tenant"] = host.spawn_id("put_ops_tenant", 'metrics.collectd_metric', 'CollectdMetric', ["amq.topic", "put_ops_tenant", "collectd.*.groupingtail.tm.*.put_ops.#"])
+    metrics["get_ops_tenant"] = host.spawn_id("get_ops_tenant", 'metrics.collectd_metric', 'CollectdMetric', ["amq.topic", "get_ops_tenant", "metrics.get_tenant"])
+    metrics["put_ops_tenant"] = host.spawn_id("put_ops_tenant", 'metrics.collectd_metric', 'CollectdMetric', ["amq.topic", "put_ops_tenant", "metrics.put_tenant"])
     #metrics["head_ops_tenant"] = host.spawn_id("head_ops_tenant", 'metrics.collectd_metric', 'CollectdMetric', ["amq.topic", "head_ops_tenant", "collectd.*.groupingtail.tm.*.head_ops.#"])
-    metrics["get_bw_tenant"] = host.spawn_id("get_bw_tenant", 'metrics.collectd_metric', 'CollectdMetric', ["amq.topic", "get_bw_tenant", "collectd.*.groupingtail.tm.*.get_bw.#"])
-    metrics["put_bw_tenant"] = host.spawn_id("put_bw_tenant", 'metrics.collectd_metric', 'CollectdMetric', ["amq.topic", "put_bw_tenant", "collectd.*.groupingtail.tm.*.put_bw.#"])
-    metrics["get_ops_container"] = host.spawn_id("get_ops_container", 'metrics.collectd_metric', 'CollectdMetric', ["amq.topic", "get_ops_container", "collectd.*.groupingtail.cm.*.get_ops.#"])
-    metrics["put_ops_container"] = host.spawn_id("put_ops_container", 'metrics.collectd_metric', 'CollectdMetric', ["amq.topic", "put_ops_container", "collectd.*.groupingtail.cm.*.put_ops.#"])
+    #metrics["get_bw_tenant"] = host.spawn_id("get_bw_tenant", 'metrics.collectd_metric', 'CollectdMetric', ["amq.topic", "get_bw_tenant", "collectd.*.groupingtail.tm.*.get_bw.#"])
+    #metrics["put_bw_tenant"] = host.spawn_id("put_bw_tenant", 'metrics.collectd_metric', 'CollectdMetric', ["amq.topic", "put_bw_tenant", "collectd.*.groupingtail.tm.*.put_bw.#"])
+    metrics["get_ops_container"] = host.spawn_id("get_ops_container", 'metrics.collectd_metric', 'CollectdMetric', ["amq.topic", "get_ops_container", "metrics.get_container"])
+    metrics["put_ops_container"] = host.spawn_id("put_ops_container", 'metrics.collectd_metric', 'CollectdMetric', ["amq.topic", "put_ops_container", "metrics.put_container"])
     #metrics["head_ops_container"] = host.spawn_id("head_ops_container", 'metrics.collectd_metric', 'CollectdMetric', ["amq.topic", "head_ops_container", "collectd.*.groupingtail.cm.*.head_ops.#"])
-    metrics["get_bw_container"] = host.spawn_id("get_bw_container", 'metrics.collectd_metric', 'CollectdMetric', ["amq.topic", "get_bw_container", "collectd.*.groupingtail.cm.*.get_bw.#"])
-    metrics["put_bw_container"] = host.spawn_id("put_bw_container", 'metrics.collectd_metric', 'CollectdMetric', ["amq.topic", "put_bw_container", "collectd.*.groupingtail.cm.*.put_bw.#"])
-    metrics["get_bw_info"] = host.spawn_id("get_bw_info", 'metrics.bw_info', 'BwInfo', ["amq.topic","get_bw_info", "bwdifferentiation.get_bw_info.#","get_bw_info","GET"])
-    metrics["put_bw_info"] = host.spawn_id("put_bw_info", 'metrics.bw_info', 'BwInfo', ["amq.topic","put_bw_info", "bwdifferentiation.put_bw_info.#","put_bw_info","PUT"])
-    metrics["ssync_bw_info"] = host.spawn_id("ssync_bw_info", 'metrics.bw_info_ssync', 'BwInfoSSYNC', ["amq.topic","ssync_bw_info", "bwdifferentiation.ssync_bw_info.#","ssync_bw_info","SSYNC"])
+    #metrics["get_bw_container"] = host.spawn_id("get_bw_container", 'metrics.collectd_metric', 'CollectdMetric', ["amq.topic", "get_bw_container", "collectd.*.groupingtail.cm.*.get_bw.#"])
+    #metrics["put_bw_container"] = host.spawn_id("put_bw_container", 'metrics.collectd_metric', 'CollectdMetric', ["amq.topic", "put_bw_container", "collectd.*.groupingtail.cm.*.put_bw.#"])
+    
+    # Metrics for Bandwidth differentiation
+    metrics["get_bw_info"] = host.spawn_id("get_bw_info", 'metrics.bw_info', 'BwInfo', ["amq.topic","get_bw_info", "bwdifferentiation.get_bw_info.#","GET"])
+    metrics["put_bw_info"] = host.spawn_id("put_bw_info", 'metrics.bw_info', 'BwInfo', ["amq.topic","put_bw_info", "bwdifferentiation.put_bw_info.#","PUT"])
+    metrics["ssync_bw_info"] = host.spawn_id("ssync_bw_info", 'metrics.bw_info_ssync', 'BwInfoSSYNC', ["amq.topic","ssync_bw_info", "bwdifferentiation.ssync_bw_info.#","SSYNC"])
     
     try:
         for metric in metrics.values():
@@ -45,10 +52,11 @@ def start_actors():
     rules["ssync_bw"].run("ssync_bw_info")
     
     start_redis_urles(host, rules)
+    
+    return host
         
 def start_redis_urles(host, rules):    
     ''' START DYNAMIC POLICIES STORED IN REDIS, IF ANY '''
-    r = redis.StrictRedis(host="localhost", port=6379, db=0)
     dynamic_policies = r.keys("policy:*")
     
     if dynamic_policies:
@@ -71,7 +79,7 @@ def start_redis_urles(host, rules):
                     print 'Rule:', policy_data['policy']
                     rules[policy] = host.spawn_id(str(policy), 'rule', 'Rule', [rule_parsed, action_info, target, host])
                     rules[policy].start_rule()
-        
+     
 def main():
     print "-- Starting workload metric actors --"
     start_controller('pyactive_thread')
