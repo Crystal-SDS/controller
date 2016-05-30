@@ -17,8 +17,8 @@ def start_actors():
     metrics["get_ops_tenant"] = host.spawn_id("get_ops_tenant", 'metrics.swift_metric', 'SwiftMetric', ["amq.topic", "get_ops_tenant", "metrics.get_tenant"])
     metrics["put_ops_tenant"] = host.spawn_id("put_ops_tenant", 'metrics.swift_metric', 'SwiftMetric', ["amq.topic", "put_ops_tenant", "metrics.put_tenant"])
     
-    metrics["active_get_requests"] = host.spawn_id("active_get_requests", 'metrics.swift_metric', 'SwiftMetric', ["amq.topic", "active_get_requests", "metrics.active_get_requests", 'stateful'])
-    metrics["active_put_requests"] = host.spawn_id("active_put_requests", 'metrics.swift_metric', 'SwiftMetric', ["amq.topic", "active_put_requests", "metrics.active_put_requests", 'stateful'])
+    metrics["active_get_requests"] = host.spawn_id("active_get_requests", 'metrics.swift_metric', 'SwiftMetric', ["amq.topic", "active_get_requests", "metrics.active_get_requests"])
+    metrics["active_put_requests"] = host.spawn_id("active_put_requests", 'metrics.swift_metric', 'SwiftMetric', ["amq.topic", "active_put_requests", "metrics.active_put_requests"])
 
     #metrics["head_ops_tenant"] = host.spawn_id("head_ops_tenant", 'metrics.collectd_metric', 'CollectdMetric', ["amq.topic", "head_ops_tenant", "collectd.*.groupingtail.tm.*.head_ops.#"])
     metrics["get_bw"] = host.spawn_id("get_bw_tenant", 'metrics.swift_metric', 'SwiftMetric', ["amq.topic", "get_bw", "metrics.get_bw"])
