@@ -1,4 +1,5 @@
 import hashlib
+import json
 
 import redis
 from django.conf import settings
@@ -485,7 +486,7 @@ def deploy(r, target, storlet, params, headers):
         # Add all storlet and policy metadata to policy_id in pipeline
         data = storlet.copy()
         data.update(params)
-        r.hset('pipeline:AUTH_' + str(target), policy_id, data)
+        r.hset('pipeline:AUTH_' + str(target), policy_id, json.dumps(data))
         return JSONResponse("Deployed!", status=status.HTTP_201_CREATED)
     else:
         return JSONResponse("Error in deploy!", status=status.HTTP_400_BAD_REQUEST)

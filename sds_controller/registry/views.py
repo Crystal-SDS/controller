@@ -420,7 +420,7 @@ def policy_list(request):
             policies = []
             for it in keys:
                 for key, value in r.hgetall(it).items():
-                    json_value = json.loads(str(value).replace('\'', '"'))
+                    json_value = json.loads(value)
                     policies.append({'id': key, 'target': it.replace('pipeline:AUTH_', ''), 'filter': json_value['filter_id'], 'object_type': json_value['object_type'], 'object_size': json_value['object_size'], 'execution_server': json_value['execution_server'], 'execution_server_reverse': json_value['execution_server_reverse'], 'execution_order': json_value['execution_order'], 'params': json_value['params']})
             return JSONResponse(policies, status=status.HTTP_200_OK)
 
@@ -486,12 +486,21 @@ def static_policy_detail(request, policy_id):
 
     if request.method == 'GET':
         policy_redis = r.hget("pipeline:AUTH_" + str(target), policy)
-        data = json.loads(str(policy_redis).replace('\'', '"'))
-        data['id'] = policy
-        data['target'] = target
+        data = json.loads(policy_redis)
+        data["id"] = policy
+        data["target"] = target
         return JSONResponse(data, status=200)
-
-    if request.method == 'DELETE':
+    elif request.method == 'PUT':
+        data = JSONParser().parse(request)
+        try:
+            policy_redis = r.hget("pipeline:AUTH_" + str(target), policy)
+            json_data = json.loads(policy_redis)
+            json_data.update(data)
+            r.hset("pipeline:AUTH_" + str(target), policy, json.dumps(json_data))
+            return JSONResponse("Data updated", status=201)
+        except:
+            return JSONResponse("Error updating data", status=400)
+    elif request.method == 'DELETE':
         r.hdel('pipeline:AUTH_' + target, policy)
         return JSONResponse('Policy has been deleted', status=status.HTTP_204_NO_CONTENT)
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
