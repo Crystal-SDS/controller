@@ -486,7 +486,10 @@ def deploy(r, target, storlet, params, headers):
         # Add all storlet and policy metadata to policy_id in pipeline
         data = storlet.copy()
         data.update(params)
-        r.hset('pipeline:AUTH_' + str(target), policy_id, json.dumps(data))
+        
+        data_dumped = json.dumps(data).replace('"True"','true').replace('"False"','false')
+        
+        r.hset('pipeline:AUTH_' + str(target), policy_id, data_dumped)
         return JSONResponse("Deployed!", status=status.HTTP_201_CREATED)
     else:
         return JSONResponse("Error in deploy!", status=status.HTTP_400_BAD_REQUEST)

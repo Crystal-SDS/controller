@@ -540,8 +540,8 @@ def do_action(request, r, rule_parsed, headers):
 
                 params = {
                     'policy_id': policy_id,
-                    'object_type': 'none',
-                    'object_size': 'none',
+                    'object_type': None,
+                    'object_size': None,
                     # 'execution_server':'',            # Not needed now, the storlet has this value
                     # 'execution_server_reverse': '',   # Not needed now, the storlet has this value
                     'execution_order': policy_id,
