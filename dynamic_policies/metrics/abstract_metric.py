@@ -24,6 +24,8 @@ class Metric(object):
         self.redis_host = settings.get('redis', 'host')
         self.redis_port = settings.get('redis', 'port')
         self.redis_db = settings.get('redis', 'db')
+        self.logstash_host = settings.get('logstash', 'host')
+        self.logstash_port = int(settings.get('logstash', 'port'))
 
     def attach(self, observer):
         """

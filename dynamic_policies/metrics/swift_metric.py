@@ -4,7 +4,6 @@ from threading import Thread
 import datetime
 import json
 import socket
-import time
 
 
 class SwiftMetric(Metric):
@@ -21,7 +20,7 @@ class SwiftMetric(Metric):
         self.name = metric_id
         self.exchange = exchange
         self.parser_instance = SwiftMetricsParse()
-        self.logstah_server = ("iostack.urv.cat", 5400)
+        self.logstah_server = (self.logstash_host, self.logstash_port)
         self.last_metrics = dict()
         self.th = None
         
