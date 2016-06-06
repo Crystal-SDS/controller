@@ -45,12 +45,12 @@ def start_actors():
             metric.stop_actor()
     
     rules = {}
-    rules["get_bw"] = host.spawn_id("abstract_enforcement_algorithm_get", 'rules.min_slo_tenant_global_share_spare_bw', 'MinTenantSLOGlobalSpareBWShare', ["abstract_enforcement_algorithm_get","GET"])
-    #rules["get_bw"] = host.spawn_id("abstract_enforcement_algorithm_get", 'rules.simple_proportional_bandwidth', 'SimpleProportionalBandwidthPerTenant', ["abstract_enforcement_algorithm_get","GET"])
+    #rules["get_bw"] = host.spawn_id("abstract_enforcement_algorithm_get", 'rules.min_slo_tenant_global_share_spare_bw', 'MinTenantSLOGlobalSpareBWShare', ["abstract_enforcement_algorithm_get","GET"])
+    rules["get_bw"] = host.spawn_id("abstract_enforcement_algorithm_get", 'rules.simple_proportional_bandwidth', 'SimpleProportionalBandwidthPerTenant', ["abstract_enforcement_algorithm_get","GET"])
     rules["get_bw"].run("get_bw_info")
 
-    rules["put_bw"] = host.spawn_id("abstract_enforcement_algorithm_put", 'rules.min_slo_tenant_global_share_spare_bw', 'MinTenantSLOGlobalSpareBWShare', ["abstract_enforcement_algorithm_put","PUT"])
-    #rules["put_bw"] = host.spawn_id("abstract_enforcement_algorithm_put", 'rules.simple_proportional_bandwidth', 'SimpleProportionalBandwidthPerTenant', ["abstract_enforcement_algorithm_put","PUT"])
+    #rules["put_bw"] = host.spawn_id("abstract_enforcement_algorithm_put", 'rules.min_slo_tenant_global_share_spare_bw', 'MinTenantSLOGlobalSpareBWShare', ["abstract_enforcement_algorithm_put","PUT"])
+    rules["put_bw"] = host.spawn_id("abstract_enforcement_algorithm_put", 'rules.simple_proportional_bandwidth', 'SimpleProportionalBandwidthPerTenant', ["abstract_enforcement_algorithm_put","PUT"])
     rules["put_bw"].run("put_bw_info")
     
     rules["ssync_bw"] = host.spawn_id("abstract_enforcement_algorithm_ssync", 'rules.simple_proportional_replication_bandwidth', 'SimpleProportionalReplicationBandwidth', ["abstract_enforcement_algorithm_ssync","SSYNC"])

@@ -27,7 +27,7 @@ class AbstractEnforcementAlgorithm(object):
         self.rmq_pass = settings.get('rabbitmq', 'password')
         self.rmq_host = settings.get('rabbitmq', 'host')
         self.rmq_port = int(settings.get('rabbitmq', 'port'))
-        self.rmq_exchange = settings.get('rabbitmq', 'exchange')
+        self.rmq_exchange = "bw_assignations" #settings.get('rabbitmq', 'exchange')
         
         self.redis_host = settings.get('redis', 'host')
         self.redis_port = int(settings.get('redis', 'port'))
@@ -67,8 +67,7 @@ class AbstractEnforcementAlgorithm(object):
         self._connection = pika.BlockingConnection(pika.ConnectionParameters(
             host=self.redis_host, credentials=self.credentials))
         self._channel = self._connection.channel()
-        self._channel.exchange_declare(exchange=self.rmq_exchange,
-                             exchange_type='topic')
+        self._channel.exchange_declare(exchange=self.rmq_exchange, exchange_type='topic')
 
     def disconnect_rmq(self):
         self._channel.close()
