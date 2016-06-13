@@ -3,9 +3,6 @@
 
 
 # Crystal-Controller
-=============================================================
-
-# Introduction
 
 This repository contains the code of the SDS Controller for Object Storage in the IOStack architecture. The SDS Controller repository contains two differentiated parts: **The SDS Controller API** and the **Dynamic Policies**. The **SDS Controller API** is a Django project that implements the REST API needed to handle the Storlets and the BW Differentiation. Otherwise, **Dynamic Policies** is a set of python processes who use the [PyActive middleware](https://github.com/cloudspaces/pyactive) (an Object Oriented implementation of the Actor model). This part allows to create simple policies using a DSL (integrated in the SDS Controller API) and deploys them as an actor process, whose analyze the system data, thanks to the monitoring system, allows to set or remove filters to tenants depending of the policy established.
 
