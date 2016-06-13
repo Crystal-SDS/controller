@@ -14,6 +14,7 @@ install:
 
 # command to run tests
 script:
-  - coverage run --source='.' manage.py test
+  - cd sds_controller/ && python manage.py test
+#  - coverage run --source='.' manage.py test
 after_success:
   coveralls
