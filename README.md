@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 [![Stories in Ready](https://badge.waffle.io/iostackproject/SDS-Controller-for-Object-Storage.png?label=ready&title=Ready)](https://waffle.io/iostackproject/SDS-Controller-for-Object-Storage)
 [![Stories in In Progress](https://badge.waffle.io/iostackproject/SDS-Controller-for-Object-Storage.png?label=In%20Progress&title=In%20Progress)](https://waffle.io/iostackproject/SDS-Controller-for-Object-Storage)
 
@@ -60,3 +61,6 @@ To enable the monitoring module you need to follow this steps. First create a ne
 - [x] Communicate Storlet module with OpenStack Swift.
 - [x] Communicate BW module with OpenStack Swift.
 - [x] Add Monitoring module and communicate with OpenStack Swift using RabbitMQ.
+=======
+# Crystal-Controller
+>>>>>>> 8ea582029aac84680265dca08ac51942d2bff824
