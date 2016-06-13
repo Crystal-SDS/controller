@@ -421,7 +421,7 @@ def policy_list(request):
             for it in keys:
                 for key, value in r.hgetall(it).items():
                     json_value = json.loads(value)
-                    policies.append({'id': key, 'target': it.replace('pipeline:AUTH_', ''), 'filter': json_value['filter_id'], 'object_type': json_value['object_type'], 'object_size': json_value['object_size'], 'execution_server': json_value['execution_server'], 'execution_server_reverse': json_value['execution_server_reverse'], 'execution_order': json_value['execution_order'], 'params': json_value['params']})
+                    policies.append({'id': key, 'target': it.replace('pipeline:AUTH_', ''), 'filter': json_value['name'], 'object_type': json_value['object_type'], 'object_size': json_value['object_size'], 'execution_server': json_value['execution_server'], 'execution_server_reverse': json_value['execution_server_reverse'], 'execution_order': json_value['execution_order'], 'params': json_value['params']})
             return JSONResponse(policies, status=status.HTTP_200_OK)
 
         elif 'dynamic' in str(request.path):
