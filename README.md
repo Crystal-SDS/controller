@@ -38,7 +38,7 @@ Once you have already installed the requirements, you only need to go in the fol
 
 The Virtual Machine that we started has all the tools that we need to run the server. To connect to this machine you only need to run the command `vagrant ssh`. The repository folder is synchronized between your machine and the Virtual Machine, so you can develop the code in your local machine with your prefer IDE, and run the project in the Virtual Machine.
 
-You can start the server using the command into the source folder (src/sds_controller): ´python manage.py runserver 0.0.0.0:8000´. After that the server starts, and if you prefer to call the SDS controller for your machine the port to use is `18000`. For instance, to call to list the Storlets from your machine the url will be: localhost:18000/storlets. *We have in the TODO list to configure vagrant and puppet to do a deploy of the SDS Controller in Apache each time that starts the Virtual Machine.*
+You can start the server using the command into the source folder (src/sds_controller): `python manage.py runserver 0.0.0.0:8000`. After that the server starts, and if you prefer to call the SDS controller for your machine the port to use is `18000`. For instance, to call to list the Storlets from your machine the url will be: localhost:18000/storlets. *We have in the TODO list to configure vagrant and puppet to do a deploy of the SDS Controller in Apache each time that starts the Virtual Machine.*
 
 If some problem appear, make sure..
 
