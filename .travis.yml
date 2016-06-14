@@ -3,11 +3,15 @@ language: python
 python:
   - "2.7"
 
+services:
+  - redis-server
+
 # command to install dependencies
 install:
 
   - pip install -r requirements.txt
   - pip install coveralls
+  - git clone https://github.com/cloudspaces/pyactive.git && python pyactive/pyactive_project/setup.py develop
   #- pip install -r requirements.txt --use-mirrors
   #- pip install -q $DJANGO --use-mirrors
 
