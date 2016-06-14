@@ -1,8 +1,9 @@
 from pyactive.controller import init_host, serve_forever, start_controller
 import redis
 import dsl_parser
+from django.conf import settings
 
-r = redis.StrictRedis(host="localhost", port=6379, db=0)
+r = redis.Redis(connection_pool=settings.REDIS_CON_POOL)
 
 def start_actors():
     for metric in r.keys("metric:*"):
