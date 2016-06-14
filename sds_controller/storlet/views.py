@@ -103,7 +103,7 @@ def storlet_detail(request, storlet_id):
         return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     if not r.exists("storlet:" + str(storlet_id)):
-        return JSONResponse('Object does not exists!', status=status.HTTP_404_NOT_FOUND)
+        return JSONResponse('Object does not exist!', status=status.HTTP_404_NOT_FOUND)
 
     if request.method == 'GET':
         storlet = r.hgetall("storlet:" + str(storlet_id))
@@ -158,7 +158,7 @@ class StorletData(APIView):
             except:
                 return JSONResponse('Problems connecting with DB', status=500)
             return JSONResponse('Filter has been updated', status=201)
-        return JSONResponse('Filter does not exists', status=404)
+        return JSONResponse('Filter does not exist', status=404)
 
     def get(self, request, storlet_id, format=None):
         try:
@@ -187,7 +187,7 @@ def storlet_deploy(request, storlet_id, account, container=None, swift_object=No
         storlet = r.hgetall("storlet:" + str(storlet_id))
 
         if not storlet:
-            return JSONResponse('Filter does not exists', status=404)
+            return JSONResponse('Filter does not exist', status=404)
 
         params = JSONParser().parse(request)
 
@@ -230,7 +230,7 @@ def storlet_undeploy(request, storlet_id, account, container=None, swift_object=
         return JSONResponse('Problems to connect with the DB', status=500)
     storlet = r.hgetall("storlet:" + str(storlet_id))
     if not storlet:
-        return JSONResponse('Filter does not exists', status=404)
+        return JSONResponse('Filter does not exist', status=404)
     if not r.exists("AUTH_" + str(account) + ":" + str(storlet["name"])):
         return JSONResponse('Filter ' + str(storlet["name"]) + ' has not been deployed already', status=404)
 
@@ -331,7 +331,7 @@ class DependencyData(APIView):
             except:
                 return JSONResponse('Problems connecting with DB', status=500)
             return JSONResponse('Dependency has been updated', status=201)
-        return JSONResponse('Dependency does not exists', status=404)
+        return JSONResponse('Dependency does not exist', status=404)
 
     def get(self, request, dependency_id, format=None):
         # TODO Return the storlet data
@@ -353,11 +353,11 @@ def dependency_deploy(request, dependency_id, account):
 
         dependency = r.hgetall("dependency:" + str(dependency_id))
         if not dependency:
-            return JSONResponse('Dependency does not exists', status=404)
+            return JSONResponse('Dependency does not exist', status=404)
         metadata = {'X-Object-Meta-Storlet-Dependency-Version': str(dependency["version"])}
 
         if "path" not in dependency.keys():
-            return JSONResponse('Dependency path does not exists', status=404)
+            return JSONResponse('Dependency path does not exist', status=404)
         f = open(dependency["path"], 'r')
         content_length = None
         response = dict()
@@ -402,7 +402,7 @@ def dependency_undeploy(request, dependency_id, account):
     dependency = r.hgetall("dependency:" + str(dependency_id))
 
     if not dependency:
-        return JSONResponse('Dependency does not exists', status=404)
+        return JSONResponse('Dependency does not exist', status=404)
     if not r.exists("AUTH_" + str(account) + ":dependency:" + str(dependency["name"])):
         return JSONResponse('Dependency ' + str(dependency["name"]) + ' has not been deployed already', status=404)
 
