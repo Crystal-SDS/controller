@@ -10,7 +10,7 @@ services:
 install:
   - pip install -r requirements.txt
   - pip install coveralls
-  - git clone https://github.com/cloudspaces/pyactive.git && cd pyactive/pyactive_project && python setup.py develop
+  - git clone https://github.com/cloudspaces/pyactive.git && cd pyactive/pyactive_project && python setup.py develop && cd ../..
   #- pip install -r requirements.txt --use-mirrors
   #- pip install -q $DJANGO --use-mirrors
 
