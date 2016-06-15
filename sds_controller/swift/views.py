@@ -13,7 +13,6 @@ class JSONResponse(HttpResponse):
     """
     An HttpResponse that renders its content into JSON.
     """
-
     def __init__(self, data, **kwargs):
         content = JSONRenderer().render(data)
         kwargs['content_type'] = 'application/json'
@@ -43,8 +42,7 @@ def tenants_list(request):
         if not headers:
             return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
         r = requests.get(settings.KEYSTONE_URL + "tenants", headers=headers)
-        print "---"
-        print r
+
         return HttpResponse(r.content, content_type='application/json', status=r.status_code)
 
     if request.method == "POST":

@@ -3,7 +3,6 @@ import subprocess
 
 
 def add_new_sds_project(tenant_name):
-    
     admin_user = settings.MANAGMENT_ADMIN_USERNAME
     admin_password = settings.MANAGMENT_ADMIN_PASSWORD
     admin_account = settings.MANAGMENT_ACCOUNT
@@ -11,7 +10,10 @@ def add_new_sds_project(tenant_name):
     docker_image = settings.STORLET_DOCKER_IMAGE
     tar_file = settings.STORLET_TAR_FILE
 
-    python add_new_tenant.py tenant_name admin_user admin_password
-    python deploy_image.py tenant_name tar_file docker_image
-
-    p = subprocess.Popen()
+    new_project = subprocess.Popen([bin_dir+'/add_new_tenant.py', tenant_name, admin_user, admin_password], shell=True, stdout=subprocess.PIPE)
+    print "Creating new SDS project"
+    new_project.communicate()
+    
+    deploy_image = subprocess.Popen([bin_dir+'/deploy_image.py', tenant_name, tar_file, docker_image], shell=True, stdout=subprocess.PIPE)
+    print "Deploying docker images"
+    deploy_image.communicate()
