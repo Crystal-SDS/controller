@@ -82,8 +82,16 @@ class StorletTestCase(TestCase):
         response = storlet_list(request)
         storlets = json.loads(response.content)
         self.assertEqual(len(storlets), 2)
-        self.assertEqual(storlets[0]['name'], 'FakeFilter')
-        self.assertEqual(storlets[1]['name'], 'SecondFilter')
+
+        if (storlets[0]['id'] == "1"):
+            storlet1 = storlets[0]
+            storlet2 = storlets[1]
+        else:
+            storlet1 = storlets[0]
+            storlet2 = storlets[1]
+
+        self.assertEqual(storlet1['name'], 'FakeFilter')
+        self.assertEqual(storlet2['name'], 'SecondFilter')
 
 
 
