@@ -3,9 +3,12 @@ import redis
 import dsl_parser
 from django.conf import settings
 
-r = redis.Redis(connection_pool=settings.REDIS_CON_POOL)
+def get_redis_connection():
+    return redis.Redis(connection_pool=settings.REDIS_CON_POOL)
 
 def start_actors():
+    r = get_redis_connection()
+
     for metric in r.keys("metric:*"):
         r.delete(metric)
     
@@ -57,12 +60,13 @@ def start_actors():
     rules["ssync_bw"] = host.spawn_id("abstract_enforcement_algorithm_ssync", 'rules.simple_proportional_replication_bandwidth', 'SimpleProportionalReplicationBandwidth', ["abstract_enforcement_algorithm_ssync","SSYNC"])
     rules["ssync_bw"].run("ssync_bw_info")
     
-    start_redis_urles(host, rules)
+    start_redis_rules(host, rules)
     
     return host
         
-def start_redis_urles(host, rules):    
+def start_redis_rules(host, rules):
     ''' START DYNAMIC POLICIES STORED IN REDIS, IF ANY '''
+    r = get_redis_connection()
     dynamic_policies = r.keys("policy:*")
     
     if dynamic_policies:
