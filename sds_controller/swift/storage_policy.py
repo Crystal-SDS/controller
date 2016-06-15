@@ -1,12 +1,16 @@
-import sys
-import subprocess
-from . import storlet_mgmt_common
 from django.conf import settings
+import subprocess
+import select
+import sys
+
+
 #TODO: Define the parameters.
-def create_storage_policy(data):
-    storlet_mgmt_common.get_hosts_object()
+def create(data):
+    #get_hosts_object()
+    
     print 'lendata', len(data)
     print 'data', data
+    
     if len(data) == 6:
         p = subprocess.Popen(['ansible-playbook',
                               '-s',
@@ -21,7 +25,8 @@ def create_storage_policy(data):
                               env={"ANSIBLE_HOST_KEY_CHECKING" : "False"},
                               stdout=subprocess.PIPE,
                               stderr=subprocess.PIPE)
-        storlet_mgmt_common.monitor_playbook_execution(p)
+        _monitor_playbook_execution(p)
+        
     else:
         p = subprocess.Popen(['ansible-playbook',
                               '-s',
@@ -40,7 +45,7 @@ def create_storage_policy(data):
                               env={"ANSIBLE_HOST_KEY_CHECKING" : "False"},
                               stdout=subprocess.PIPE,
                               stderr=subprocess.PIPE)
-        storlet_mgmt_common.monitor_playbook_execution(p)
+        _monitor_playbook_execution(p)
 
     p = subprocess.Popen(['ansible-playbook', '-vvv',
                           '-s',
@@ -50,4 +55,32 @@ def create_storage_policy(data):
                           env={"ANSIBLE_HOST_KEY_CHECKING" : "False"},
                           stdout=subprocess.PIPE,
                           stderr=subprocess.PIPE)
-    storlet_mgmt_common.monitor_playbook_execution(p)
+    _monitor_playbook_execution(p)
+
+
+def _monitor_playbook_execution(p):
+    #stdout = []
+    #stderr = []
+    stdout_pipe = p.stdout
+    stderr_pipe = p.stderr
+
+    while True:
+        reads = [stdout_pipe.fileno(), stderr_pipe.fileno()]
+        ret = select.select(reads, [], [])
+
+        for fd in ret[0]:
+            if fd == stdout_pipe.fileno():
+                read = stdout_pipe.readline()
+                sys.stdout.write(read)
+                #stdout.append(read)
+                if "FATAL" in read:
+                    raise Exception("Error while executing ansible script")
+            if fd == stderr_pipe.fileno():
+                read = stderr_pipe.readline()
+                sys.stderr.write(read)
+                #stderr.append(read)
+                if "FATAL" in read:
+                    raise Exception("Error while executing ansible script")
+
+        if p.poll() != None:
+            break

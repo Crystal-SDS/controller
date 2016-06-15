@@ -1,17 +1,13 @@
-import redis
-import requests
 from django.conf import settings
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework.parsers import JSONParser
 from rest_framework.renderers import JSONRenderer
+import storage_policy
+import sds_project
+import requests
+import redis
 
-from . import add_new_tenant
-from . import create_storage_policies
-from . import deploy_image
-
-
-# Create your views here.
 
 class JSONResponse(HttpResponse):
     """
@@ -56,14 +52,12 @@ def tenants_list(request):
         if not headers:
             return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
         data = JSONParser().parse(request)
+        
         try:
-            add_new_tenant.add_new_tenant(data["tenant_name"], data["user_name"], data["user_password"])
+            sds_project.add_new_sds_project(data["tenant_name"])
         except:
-            return JSONResponse('Error appear when creats an account.', status=500)
-        try:
-            deploy_image.deploy_image(data["tenant_name"], "ubuntu_14.04_jre8_storlets.tar", "192.168.2.1:5001/ubuntu_14.04_jre8_storlets")
-        except:
-            return JSONResponse('Error appear when deploy storlet image.', status=500)
+            return JSONResponse('Error creating a new project.', status=500)
+        
         return JSONResponse('Account created successfully', status=201)
     return JSONResponse('Only HTTP GET /tenants/ requests allowed.', status=405)
 
@@ -83,10 +77,11 @@ def storage_policies(request):
         if isinstance(data["storage_node"], dict):
             [storage_nodes_list.extend([k, v]) for k, v in data["storage_node"].items()]
             data["storage_node"] = ','.join(map(str, storage_nodes_list))
-        # try:
-        create_storage_policies.create_storage_policy(data)
-        # except Exception, e:
-        #    return JSONResponse('Error creating the Storage Policy', status=500)
+            try:
+                storage_policy.create(data)
+            except Exception as e:
+                return JSONResponse('Error creating the Storage Policy: '+e, status=500)
+            
         return JSONResponse('Account created successfully', status=201)
     return JSONResponse('Only HTTP GET /tenants/ requests allowed.', status=405)
 
