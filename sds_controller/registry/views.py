@@ -526,12 +526,12 @@ def dynamic_policy_detail(request, policy_id):
 def do_action(request, r, rule_parsed, headers):
     for target in rule_parsed.target:
         for action_info in rule_parsed.action_list:
-            print('TARGET RULE: ', action_info)
+            print("TARGET RULE: ", action_info)
             dynamic_filter = r.hgetall("filter:" + str(action_info.filter))
             storlet = r.hgetall("storlet:" + dynamic_filter["identifier"])
 
             if not storlet:
-                return JSONResponse('Filter does not exists', status=status.HTTP_404_NOT_FOUND)
+                return JSONResponse("Filter does not exists", status=status.HTTP_404_NOT_FOUND)
 
             if action_info.action == "SET":
 
@@ -539,25 +539,23 @@ def do_action(request, r, rule_parsed, headers):
                 policy_id = r.incr("policies:id")
 
                 params = {
-                    'policy_id': policy_id,
-                    'object_type': None,
-                    'object_size': None,
-                    # 'execution_server':'',            # Not needed now, the storlet has this value
-                    # 'execution_server_reverse': '',   # Not needed now, the storlet has this value
-                    'execution_order': policy_id,
-                    'params': ''
+                    "policy_id": policy_id,
+                    "object_type": None,
+                    "object_size": None,
+                    "execution_order": policy_id,
+                    "params": ""
                 }
 
                 # Rewrite default values
                 if rule_parsed.object_list:
                     if rule_parsed.object_list.object_type:
-                        params['object_type'] = rule_parsed.object_list.object_type.object_value
+                        params["object_type"] = rule_parsed.object_list.object_type.object_value
                     if rule_parsed.object_list.object_size:
-                        params['object_size'] = [rule_parsed.object_list.object_size.operand, rule_parsed.object_list.object_size.object_value]
+                        params["object_size"] = [rule_parsed.object_list.object_size.operand, rule_parsed.object_list.object_size.object_value]
                 if action_info.params:
-                    params['params'] = action_info.params
+                    params["params"] = action_info.params
                 if action_info.execution_server:
-                    params['execution_server'] = action_info.execution_server
+                    params["execution_server"] = action_info.execution_server
 
                 return deploy(r, target[1], storlet, params, headers)
 

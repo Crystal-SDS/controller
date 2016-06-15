@@ -425,36 +425,36 @@ def dependency_undeploy(request, dependency_id, account):
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
 
 
-# FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 DO SET caching
+# FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 DO SET compression
 def deploy(r, target, storlet, params, headers):
-    print('Storlet ID: ' + storlet['id'])
-    print('Storlet Details: ' + str(r.hgetall('storlet:' + storlet['id'])))
+    print("Storlet ID: " + storlet["id"])
+    print("Storlet Details: " + str(r.hgetall("storlet:" + storlet["id"])))
 
-    print('Target: ' + target)
+    print("Target: " + target)
 
-    print('Params: ' + str(params))
+    print("Params: " + str(params))
 
     if not params:
         params = {}
 
     target_list = target.split('/', 3)
 
-    metadata = {'X-Object-Meta-Storlet-Language': storlet['language'],
-                'X-Object-Meta-Storlet-Interface-Version': storlet['interface_version'],
-                'X-Object-Meta-Storlet-Dependency': storlet['dependencies'],
-                'X-Object-Meta-Storlet-Object-Metadata': storlet['object_metadata'],
-                'X-Object-Meta-Storlet-Main': storlet['main']
+    metadata = {"X-Object-Meta-Storlet-Language": storlet["language"],
+                "X-Object-Meta-Storlet-Interface-Version": storlet["interface_version"],
+                "X-Object-Meta-Storlet-Dependency": storlet["dependencies"],
+                "X-Object-Meta-Storlet-Object-Metadata": storlet["object_metadata"],
+                "X-Object-Meta-Storlet-Main": storlet["main"]
                 }
 
-    storlet_path = storlet['path']
-    del storlet['path']
+    storlet_path = storlet["path"]
+    del storlet["path"]
 
     try:
         f = open(storlet_path, 'r')
     except IOError:
-        return JSONResponse('Error: Not found the filter data file', status=status.HTTP_404_NOT_FOUND)
+        return JSONResponse("Error: Not found the filter data file", status=status.HTTP_404_NOT_FOUND)
 
-    content_length = storlet['content_length']
+    content_length = storlet["content_length"]
     response = dict()
 
     # Change to API Call
@@ -479,17 +479,17 @@ def deploy(r, target, storlet, params, headers):
     resp = status.HTTP_201_CREATED
     if resp == status.HTTP_201_CREATED:
         # Change 'id' key of storlet
-        storlet['filter_id'] = storlet.pop('id')
+        storlet["filter_id"] = storlet.pop("id")
         # Get policy id
-        policy_id = params['policy_id']
-        del params['policy_id']
+        policy_id = params["policy_id"]
+        del params["policy_id"]
         # Add all storlet and policy metadata to policy_id in pipeline
         data = storlet.copy()
         data.update(params)
         
         data_dumped = json.dumps(data).replace('"True"','true').replace('"False"','false')
         
-        r.hset('pipeline:AUTH_' + str(target), policy_id, data_dumped)
+        r.hset("pipeline:AUTH_" + str(target), policy_id, data_dumped)
         return JSONResponse("Deployed!", status=status.HTTP_201_CREATED)
     else:
         return JSONResponse("Error in deploy!", status=status.HTTP_400_BAD_REQUEST)
