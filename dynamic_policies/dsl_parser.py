@@ -19,13 +19,12 @@ FOR Tenant WHEN"+ condition AND condition AND condition OR condition etc.+"DO"+a
 
 TODO: Parse = TRUE or = False or condicion number. Check to convert to float or convert to boolean.
 """
-#TODO: take this value from configuration
-r = redis.Redis(connection_pool=settings.REDIS_CON_POOL)
 
 def get_redis_connection():
     return redis.Redis(connection_pool=settings.REDIS_CON_POOL)
 
 def parse_group_tenants(tokens):
+    r = get_redis_connection()
     data = r.lrange(tokens[0], 0, -1)
     return data
 
@@ -33,6 +32,8 @@ def parse_group_tenants(tokens):
 def parse(input_string):
     #TODO Raise an exception if not metrics or not action registred
     #TODO Raise an exception if group of tenants don't exists.
+
+    r = get_redis_connection()
 
     #Support words to construct the grammar.
     word = Word(alphas)
