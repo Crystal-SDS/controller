@@ -1,5 +1,4 @@
 from abstract_metric import Metric
-from metrics_parser import SwiftMetricsParse
 from threading import Thread
 import datetime
 import json
@@ -19,7 +18,6 @@ class SwiftMetric(Metric):
         self.routing_key = routing_key
         self.name = metric_id
         self.exchange = exchange
-        self.parser_instance = SwiftMetricsParse()
         self.logstah_server = (self.logstash_host, self.logstash_port)
         self.last_metrics = dict()
         self.th = None
@@ -66,7 +64,7 @@ class SwiftMetric(Metric):
                     if '@timestamp' in monitoring_data:
                         del monitoring_data['@timestamp']
                     message = json.dumps(monitoring_data)+'\n'    
-                    sock.sendto(message, self.logstah_server)                    
+                    sock.sendto(message, self.logstah_server)                  
                     self.last_metrics[key] = monitoring_data
                     
                 monitoring_data = dict()
