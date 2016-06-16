@@ -538,7 +538,8 @@ def do_action(request, r, rule_parsed, headers):
                 # Get an identifier of this new policy
                 policy_id = r.incr("policies:id")
 
-                params = {
+                # Set the policy data
+                policy_data = {
                     "policy_id": policy_id,
                     "object_type": None,
                     "object_size": None,
@@ -549,15 +550,18 @@ def do_action(request, r, rule_parsed, headers):
                 # Rewrite default values
                 if rule_parsed.object_list:
                     if rule_parsed.object_list.object_type:
-                        params["object_type"] = rule_parsed.object_list.object_type.object_value
+                        policy_data["object_type"] = rule_parsed.object_list.object_type.object_value
                     if rule_parsed.object_list.object_size:
-                        params["object_size"] = [rule_parsed.object_list.object_size.operand, rule_parsed.object_list.object_size.object_value]
-                if action_info.params:
-                    params["params"] = action_info.params
+                        policy_data["object_size"] = [rule_parsed.object_list.object_size.operand, rule_parsed.object_list.object_size.object_value]
                 if action_info.execution_server:
-                    params["execution_server"] = action_info.execution_server
+                    policy_data["execution_server"] = action_info.execution_server
+                if action_info.params:
+                    policy_data["params"] = action_info.params
 
-                return deploy(r, target[1], storlet, params, headers)
+                # Deploy and exit if error
+                deploy_response = deploy(r, target[1], storlet, policy_data, headers)
+                if deploy_response != status.HTTP_201_CREATED:
+                    return deploy_response
 
             elif action_info.action == "DELETE":
                 return undeploy(r, storlet, target[1], headers)

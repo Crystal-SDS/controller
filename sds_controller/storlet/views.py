@@ -426,16 +426,16 @@ def dependency_undeploy(request, dependency_id, account):
 
 
 # FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 DO SET compression
-def deploy(r, target, storlet, params, headers):
+def deploy(r, target, storlet, parameters, headers):
     print("Storlet ID: " + storlet["id"])
     print("Storlet Details: " + str(r.hgetall("storlet:" + storlet["id"])))
 
     print("Target: " + target)
 
-    print("Params: " + str(params))
+    print("Params: " + str(parameters))
 
-    if not params:
-        params = {}
+    if not parameters:
+        parameters = {}
 
     target_list = target.split('/', 3)
 
@@ -452,10 +452,10 @@ def deploy(r, target, storlet, params, headers):
     try:
         f = open(storlet_path, 'r')
     except IOError:
-        return JSONResponse("Error: Not found the filter data file", status=status.HTTP_404_NOT_FOUND)
+        return status.HTTP_404_NOT_FOUND
 
     content_length = storlet["content_length"]
-    response = dict()
+    swift_response = dict()
 
     # Change to API Call
     # try:
@@ -464,35 +464,35 @@ def deploy(r, target, storlet, params, headers):
     #     c.put_object(settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/" + "AUTH_" + str(target_list[0]), headers["X-Auth-Token"], 'storlet', storlet['name'], f,
     #                  content_length, None, None,
     #                  "application/octet-stream", metadata,
-    #                  None, None, None, response)
+    #                  None, None, None, swift_response)
     # except:
-    #     print 'response put', response.get("reason")
-    #     return JSONResponse(response.get("reason"), status=response.get('status'))
+    #     print 'response put', swift_response.get("reason")
+    #     return JSONResponse(swift_response.get("reason"), status=swift_response.get('status'))
     # finally:
     #     f.close()
-    # print 'response', response
-    # status = response.get('status')
+    # print 'response', swift_response
+    # swift_status = swift_response.get('status')
 
     # Delete this line when uncomment try catch
     f.close()
 
-    resp = status.HTTP_201_CREATED
-    if resp == status.HTTP_201_CREATED:
+    swift_status = status.HTTP_201_CREATED
+    if swift_status == status.HTTP_201_CREATED:
         # Change 'id' key of storlet
         storlet["filter_id"] = storlet.pop("id")
         # Get policy id
-        policy_id = params["policy_id"]
-        del params["policy_id"]
+        policy_id = parameters["policy_id"]
+        del parameters["policy_id"]
         # Add all storlet and policy metadata to policy_id in pipeline
         data = storlet.copy()
-        data.update(params)
-        
-        data_dumped = json.dumps(data).replace('"True"','true').replace('"False"','false')
-        
+        data.update(parameters)
+
+        data_dumped = json.dumps(data).replace('"True"', 'true').replace('"False"', 'false')
+
         r.hset("pipeline:AUTH_" + str(target), policy_id, data_dumped)
-        return JSONResponse("Deployed!", status=status.HTTP_201_CREATED)
+        return status.HTTP_201_CREATED
     else:
-        return JSONResponse("Error in deploy!", status=status.HTTP_400_BAD_REQUEST)
+        return status.HTTP_400_BAD_REQUEST
 
 
 def undeploy(r, storlet, target, headers):
