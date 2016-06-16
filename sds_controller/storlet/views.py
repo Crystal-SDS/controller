@@ -11,7 +11,7 @@ from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
 from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from swiftclient import client as c
+from swiftclient import client as swift_client
 
 """ TODO create a common file and put this into the new file """
 """ Start Common """
@@ -362,9 +362,9 @@ def dependency_deploy(request, dependency_id, account):
         content_length = None
         response = dict()
         try:
-            c.put_object(settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/" + "AUTH_" + str(account), headers["X-Auth-Token"], 'dependency', dependency["name"], f,
-                         content_length, None, None, "application/octet-stream",
-                         metadata, None, None, None, response)
+            swift_client.put_object(settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/" + "AUTH_" + str(account), headers["X-Auth-Token"], 'dependency', dependency["name"], f,
+                                    content_length, None, None, "application/octet-stream",
+                                    metadata, None, None, None, response)
         except:
             return JSONResponse(response.get("reason"), status=response.get('status'))
         finally:
@@ -412,8 +412,8 @@ def dependency_undeploy(request, dependency_id, account):
             return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
         response = dict()
         try:
-            c.delete_object(settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/" + "AUTH_" + str(account), headers["X-Auth-Token"],
-                            'dependency', dependency["name"], None, None, None, None, response)
+            swift_client.delete_object(settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/" + "AUTH_" + str(account), headers["X-Auth-Token"],
+                                       'dependency', dependency["name"], None, None, None, None, response)
         except:
             return JSONResponse(response.get("reason"), status=response.get('status'))
         status = response.get('status')
@@ -457,9 +457,9 @@ def deploy(r, target, storlet, parameters, headers):
 
     # Change to API Call
     try:
-        c.put_object(settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/" + "AUTH_" + str(target_list[0]),
-                     headers["X-Auth-Token"], 'storlet', storlet['name'], storlet_file, content_length,
-                     None, None, "application/octet-stream", metadata, None, None, None, swift_response)
+        swift_client.put_object(settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/" + "AUTH_" + str(target_list[0]),
+                                headers["X-Auth-Token"], 'storlet', storlet['name'], storlet_file, content_length,
+                                None, None, "application/octet-stream", metadata, None, None, None, swift_response)
     except:
         return swift_response.get('status')
     finally:
@@ -489,8 +489,8 @@ def undeploy(r, storlet, target, headers):
     target_list = target.split('/', 3)
     response = dict()
     try:
-        c.delete_object(settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/" + "AUTH_" + str(target_list[0]),
-                        headers["X-Auth-Token"], 'storlet', storlet["name"], None, None, None, None, response)
+        swift_client.delete_object(settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/" + "AUTH_" + str(target_list[0]),
+                                   headers["X-Auth-Token"], 'storlet', storlet["name"], None, None, None, None, response)
     except:
         pass
     print 'Swift response: ', response
