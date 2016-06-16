@@ -425,14 +425,12 @@ def dependency_undeploy(request, dependency_id, account):
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
 
 
-# FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 DO SET compression
+# FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 DO SET compression, SET caching
 def deploy(r, target, storlet, parameters, headers):
-    print("Storlet ID: " + storlet["id"])
-    print("Storlet Details: " + str(r.hgetall("storlet:" + storlet["id"])))
-
-    print("Target: " + target)
-
-    print("Params: " + str(parameters))
+    # print("Storlet ID: " + storlet["id"])
+    # print("Storlet Details: " + str(r.hgetall("storlet:" + storlet["id"])))
+    # print("Target: " + target)
+    # print("Params: " + str(parameters))
 
     if not parameters:
         parameters = {}
@@ -450,7 +448,7 @@ def deploy(r, target, storlet, parameters, headers):
     del storlet["path"]
 
     try:
-        f = open(storlet_path, 'r')
+        storlet_file = open(storlet_path, 'r')
     except IOError:
         return status.HTTP_404_NOT_FOUND
 
@@ -458,25 +456,17 @@ def deploy(r, target, storlet, parameters, headers):
     swift_response = dict()
 
     # Change to API Call
-    # try:
-    #     print storlet['name']
-    #     print "token", headers["X-Auth-Token"]
-    #     c.put_object(settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/" + "AUTH_" + str(target_list[0]), headers["X-Auth-Token"], 'storlet', storlet['name'], f,
-    #                  content_length, None, None,
-    #                  "application/octet-stream", metadata,
-    #                  None, None, None, swift_response)
-    # except:
-    #     print 'response put', swift_response.get("reason")
-    #     return JSONResponse(swift_response.get("reason"), status=swift_response.get('status'))
-    # finally:
-    #     f.close()
-    # print 'response', swift_response
-    # swift_status = swift_response.get('status')
+    try:
+        c.put_object(settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/" + "AUTH_" + str(target_list[0]),
+                     headers["X-Auth-Token"], 'storlet', storlet['name'], storlet_file, content_length,
+                     None, None, "application/octet-stream", metadata, None, None, None, swift_response)
+    except:
+        return swift_response.get('status')
+    finally:
+        storlet_file.close()
 
-    # Delete this line when uncomment try catch
-    f.close()
+    swift_status = swift_response.get('status')
 
-    swift_status = status.HTTP_201_CREATED
     if swift_status == status.HTTP_201_CREATED:
         # Change 'id' key of storlet
         storlet["filter_id"] = storlet.pop("id")
