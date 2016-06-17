@@ -125,8 +125,8 @@ class StorletTestCase(TestCase):
             storlet1 = storlets[0]
             storlet2 = storlets[1]
         else:
-            storlet1 = storlets[0]
-            storlet2 = storlets[1]
+            storlet1 = storlets[1]
+            storlet2 = storlets[0]
         self.assertEqual(storlet1['name'], 'FakeFilter')
         self.assertEqual(storlet2['name'], 'SecondFilter')
 
