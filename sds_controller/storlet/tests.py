@@ -197,7 +197,7 @@ class StorletTestCase(TestCase):
         self.assertTrue(self.r.hexists("pipeline:AUTH_0123456789abcdef", "1"))
         dumped_data = self.r.hget("pipeline:AUTH_0123456789abcdef", "1")
         json_data = json.loads(dumped_data)
-        self.assertEqual(json_data["name"], "FakeFilter")
+        self.assertEqual(json_data["filter_name"], "FakeFilter")
 
     def test_storlet_deploy_without_auth_token(self):
         request = self.factory.put('/account_tenant_id/deploy/1', {"policy_id": "1"}, format='json')

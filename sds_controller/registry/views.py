@@ -419,7 +419,7 @@ def policy_list(request):
         if 'static' in str(request.path):
             headers = is_valid_request(request)
             if not headers:
-                return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
+                return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=status.HTTP_401_UNAUTHORIZED)
             keystone_response = requests.get(settings.KEYSTONE_URL + "tenants", headers=headers)
             keystone_tenants = json.loads(keystone_response.content)['tenants']
 
