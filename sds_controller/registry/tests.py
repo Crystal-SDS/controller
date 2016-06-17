@@ -2,8 +2,10 @@ import json
 
 import redis
 
-from django.test import TestCase, RequestFactory, override_settings
+from django.test import TestCase, override_settings
 from django.conf import settings
+from rest_framework import status
+from rest_framework.test import APIRequestFactory
 
 from .views import policy_list
 
@@ -12,7 +14,8 @@ from .views import policy_list
 class RegistryTestCase(TestCase):
     def setUp(self):
         # Every test needs access to the request factory.
-        self.factory = RequestFactory()
+        # Using rest_framework's APIRequestFactory: http://www.django-rest-framework.org/api-guide/testing/
+        self.factory = APIRequestFactory()
 
     def tearDown(self):
         r = redis.Redis(connection_pool=settings.REDIS_CON_POOL)
@@ -25,4 +28,4 @@ class RegistryTestCase(TestCase):
         request = self.factory.get('/registry/static_policy')
         response = policy_list(request)
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status=status.HTTP_200_OK)

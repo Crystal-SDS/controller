@@ -9,9 +9,8 @@ services:
 # command to install dependencies
 install:
   - pip install -r requirements.txt
-  - pip install coveralls
+  - pip install -r test-requirements.txt
   - git clone https://github.com/cloudspaces/pyactive.git && cd pyactive/pyactive_project && python setup.py develop && cd ../..
-  #- pip install -r requirements.txt --use-mirrors
   #- pip install -q $DJANGO --use-mirrors
 
 # command to run tests

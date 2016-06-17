@@ -116,7 +116,6 @@ def storlet_detail(request, storlet_id):
             return JSONResponse("Invalid format or empty request", status=status.HTTP_400_BAD_REQUEST)
 
         if not check_keys(data.keys(), STORLET_KEYS[1:-1]):
-            print(data)
             return JSONResponse("Invalid parameters in request", status=status.HTTP_400_BAD_REQUEST)
 
         try:
@@ -146,7 +145,6 @@ class StorletData(APIView):
         except:
             return JSONResponse('Error connecting with DB', status=500)
         if r.exists("storlet:" + str(storlet_id)):
-            print 'request', request.META
             file_obj = request.FILES['file']
             path = save_file(file_obj, settings.STORLET_DIR)
             md5_etag = md5(path)
@@ -183,11 +181,11 @@ def storlet_deploy(request, storlet_id, account, container=None, swift_object=No
     if request.method == 'PUT':
         headers = is_valid_request(request)
         if not headers:
-            return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
+            return JSONResponse('You must be authenticated. You can authenticate yourself with the header X-Auth-Token.', status=status.HTTP_401_UNAUTHORIZED)
         storlet = r.hgetall("storlet:" + str(storlet_id))
 
         if not storlet:
-            return JSONResponse('Filter does not exist', status=404)
+            return JSONResponse('Filter does not exist', status=status.HTTP_404_NOT_FOUND)
 
         params = JSONParser().parse(request)
 
@@ -199,7 +197,13 @@ def storlet_deploy(request, storlet_id, account, container=None, swift_object=No
         else:
             target = account
 
-        return deploy(r, target, storlet, params, headers)
+        deploy_status = deploy(r, target, storlet, params, headers)
+        if deploy_status == status.HTTP_201_CREATED:
+            return JSONResponse('Successfully deployed.', status=deploy_status)
+        elif deploy_status == status.HTTP_404_NOT_FOUND:
+            return JSONResponse('Storlet not found.', status=deploy_status)
+        elif deploy_status == status.HTTP_400_BAD_REQUEST:
+            return JSONResponse('Error accessing Swift.', status=deploy_status)
 
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
 
@@ -213,10 +217,10 @@ def storlet_list_deployed(request, account):
         r = get_redis_connection()
         result = r.lrange("AUTH_" + str(account), 0, -1)
         if result:
-            return JSONResponse(result, status=200)
+            return JSONResponse(result, status=status.HTTP_200_OK)
         else:
-            return JSONResponse('Any Storlet deployed', status=404)
-    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
+            return JSONResponse('Any Storlet deployed', status=status.HTTP_404_NOT_FOUND)
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
 @csrf_exempt
