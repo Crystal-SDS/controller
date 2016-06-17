@@ -474,6 +474,7 @@ def deploy(r, target, storlet, parameters, headers):
     if swift_status == status.HTTP_201_CREATED:
         # Change 'id' key of storlet
         storlet["filter_id"] = storlet.pop("id")
+        storlet["filter_name"] = storlet.pop("name")
         # Get policy id
         policy_id = parameters["policy_id"]
         del parameters["policy_id"]

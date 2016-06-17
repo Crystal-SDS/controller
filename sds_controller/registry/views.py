@@ -1,6 +1,7 @@
 import json
 
 import redis
+import requests
 from django.conf import settings
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -416,12 +417,22 @@ def policy_list(request):
 
     if request.method == 'GET':
         if 'static' in str(request.path):
+            headers = is_valid_request(request)
+            if not headers:
+                return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
+            keystone_response = requests.get(settings.KEYSTONE_URL + "tenants", headers=headers)
+            keystone_tenants = json.loads(keystone_response.content)['tenants']
+
+            tenants_list = {}
+            for tenant in keystone_tenants:
+                tenants_list[tenant["id"]] = tenant["name"]
+
             keys = r.keys("pipeline:AUTH_*")
             policies = []
             for it in keys:
                 for key, value in r.hgetall(it).items():
                     json_value = json.loads(value)
-                    policies.append({'id': key, 'target': it.replace('pipeline:AUTH_', ''), 'filter': json_value['name'], 'object_type': json_value['object_type'], 'object_size': json_value['object_size'], 'execution_server': json_value['execution_server'], 'execution_server_reverse': json_value['execution_server_reverse'], 'execution_order': json_value['execution_order'], 'params': json_value['params']})
+                    policies.append({'id': key, 'target_id': it.replace('pipeline:AUTH_', ''), 'target_name': tenants_list[it.replace('pipeline:AUTH_', '')], 'filter_name': json_value['filter_name'], 'object_type': json_value['object_type'], 'object_size': json_value['object_size'], 'execution_server': json_value['execution_server'], 'execution_server_reverse': json_value['execution_server_reverse'], 'execution_order': json_value['execution_order'], 'params': json_value['params']})
             return JSONResponse(policies, status=status.HTTP_200_OK)
 
         elif 'dynamic' in str(request.path):
@@ -459,7 +470,7 @@ def policy_list(request):
                 else:
                     # Static Rule
                     response = do_action(request, r, rule_parsed, headers)
-                    print(response)
+                    print("RESPONSE: " + str(response))
 
             except Exception as e:
                 print("The rule: " + rule_string + " cannot be parsed")
@@ -485,10 +496,21 @@ def static_policy_detail(request, policy_id):
     policy = str(policy_id).split(':')[1]
 
     if request.method == 'GET':
+        headers = is_valid_request(request)
+        if not headers:
+            return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
+        keystone_response = requests.get(settings.KEYSTONE_URL + "tenants", headers=headers)
+        keystone_tenants = json.loads(keystone_response.content)["tenants"]
+
+        tenants_list = {}
+        for tenant in keystone_tenants:
+            tenants_list[tenant["id"]] = tenant["name"]
+
         policy_redis = r.hget("pipeline:AUTH_" + str(target), policy)
         data = json.loads(policy_redis)
         data["id"] = policy
-        data["target"] = target
+        data["target_id"] = target
+        data["target_name"] = tenants_list[target]
         return JSONResponse(data, status=200)
     elif request.method == 'PUT':
         data = JSONParser().parse(request)
