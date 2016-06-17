@@ -1,7 +1,5 @@
 import json
-
 import redis
-
 import mock
 
 from django.test import TestCase, override_settings
@@ -9,7 +7,7 @@ from django.conf import settings
 from rest_framework import status
 from rest_framework.test import APIRequestFactory
 
-from .views import storlet_list, storlet_detail, storlet_list_deployed, storlet_deploy, deploy, StorletData
+from .views import storlet_list, storlet_detail, storlet_list_deployed, storlet_deploy, StorletData
 
 # Tests use database=10 instead of 0.
 @override_settings(REDIS_CON_POOL = redis.ConnectionPool(host='localhost', port=6379, db=10))
@@ -187,7 +185,7 @@ class StorletTestCase(TestCase):
             response = StorletData.as_view()(request, 1)
 
         # Call storlet_deploy
-        request = self.factory.put('/account_tenant_id/deploy/1', {"policy_id": "1"}, format='json')
+        request = self.factory.put('/0123456789abcdef/deploy/1', {"policy_id": "1"}, format='json')
         request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
         response = storlet_deploy(request, "1", "0123456789abcdef")
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
@@ -200,7 +198,7 @@ class StorletTestCase(TestCase):
         self.assertEqual(json_data["filter_name"], "FakeFilter")
 
     def test_storlet_deploy_without_auth_token(self):
-        request = self.factory.put('/account_tenant_id/deploy/1', {"policy_id": "1"}, format='json')
+        request = self.factory.put('/0123456789abcdef/deploy/1', {"policy_id": "1"}, format='json')
         response = storlet_deploy(request, "1", "0123456789abcdef")
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
