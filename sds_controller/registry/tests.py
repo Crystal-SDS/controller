@@ -28,4 +28,4 @@ class RegistryTestCase(TestCase):
         request = self.factory.get('/registry/static_policy')
         response = policy_list(request)
 
-        self.assertEqual(response.status_code, status=status.HTTP_200_OK)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
