@@ -7,7 +7,7 @@ from django.conf import settings
 from rest_framework import status
 from rest_framework.test import APIRequestFactory
 
-from .views import storlet_list, storlet_detail, storlet_list_deployed, storlet_deploy, StorletData
+from .views import storlet_list, storlet_detail, storlet_list_deployed, storlet_deploy, storlet_undeploy, StorletData
 
 # Tests use database=10 instead of 0.
 @override_settings(REDIS_CON_POOL = redis.ConnectionPool(host='localhost', port=6379, db=10))
@@ -185,7 +185,7 @@ class StorletTestCase(TestCase):
             response = StorletData.as_view()(request, 1)
 
         # Call storlet_deploy
-        request = self.factory.put('/0123456789abcdef/deploy/1', {"policy_id": "1"}, format='json')
+        request = self.factory.put('/filters/0123456789abcdef/deploy/1', {"policy_id": "1"}, format='json')
         request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
         response = storlet_deploy(request, "1", "0123456789abcdef")
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
@@ -197,10 +197,69 @@ class StorletTestCase(TestCase):
         json_data = json.loads(dumped_data)
         self.assertEqual(json_data["filter_name"], "FakeFilter")
 
+    @mock.patch('storlet.views.swift_client.put_object', side_effect=mock_put_object_status_created)
+    def test_storlet_deploy_to_project_and_container_ok(self, mock_put_object):
+        # Upload a filter for the storlet 1
+        with open('test_data/test.txt', 'r') as fp:
+            request = self.factory.put('/filters/1/data', {'file': fp})
+            response = StorletData.as_view()(request, 1)
+
+        # Call storlet_deploy
+        request = self.factory.put('/filters/0123456789abcdef/container1/deploy/1', {"policy_id": "1"}, format='json')
+        request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
+        response = storlet_deploy(request, "1", "0123456789abcdef", "container1")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        mock_put_object.assert_called_with(settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/AUTH_0123456789abcdef",
+                                           'fake_token', "storlet", "FakeFilter", mock.ANY, mock.ANY, mock.ANY,
+                                           mock.ANY, mock.ANY, mock.ANY, mock.ANY, mock.ANY, mock.ANY, mock.ANY)
+        self.assertTrue(self.r.hexists("pipeline:AUTH_0123456789abcdef/container1", "1"))
+        dumped_data = self.r.hget("pipeline:AUTH_0123456789abcdef/container1", "1")
+        json_data = json.loads(dumped_data)
+        self.assertEqual(json_data["filter_name"], "FakeFilter")
+
     def test_storlet_deploy_without_auth_token(self):
-        request = self.factory.put('/0123456789abcdef/deploy/1', {"policy_id": "1"}, format='json')
+        request = self.factory.put('/filters/0123456789abcdef/deploy/1', {"policy_id": "1"}, format='json')
         response = storlet_deploy(request, "1", "0123456789abcdef")
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_storlet_undeploy_for_non_existent_storlet(self):
+        # Filter 2 does not exist
+        request = self.factory.put('/filters/0123456789abcdef/undeploy/2')
+        response = storlet_undeploy(request, '2', '0123456789abcdef')
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_storlet_undeploy_for_non_deployed_storlet_and_project(self):
+        request = self.factory.put('/filters/0123456789abcdef/undeploy/1')
+        response = storlet_undeploy(request, '1', '0123456789abcdef')
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    # @mock.patch('storlet.views.swift_client.put_object', side_effect=mock_put_object_status_created)
+    # def test_storlet_undeploy_without_auth_token(self, mock_put_object):
+    #     # Upload a filter for the storlet 1
+    #     with open('test_data/test.txt', 'r') as fp:
+    #         request = self.factory.put('/filters/1/data', {'file': fp})
+    #         response = StorletData.as_view()(request, 1)
+    #
+    #     # Call storlet_deploy
+    #     request = self.factory.put('/filters/0123456789abcdef/deploy/1', {"policy_id": "1"}, format='json')
+    #     request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
+    #     response = storlet_deploy(request, "1", "0123456789abcdef")
+    #     self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+    #     mock_put_object.assert_called_with(settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/AUTH_0123456789abcdef",
+    #                                        'fake_token', "storlet", "FakeFilter", mock.ANY, mock.ANY, mock.ANY,
+    #                                        mock.ANY, mock.ANY, mock.ANY, mock.ANY, mock.ANY, mock.ANY, mock.ANY)
+    #     self.assertTrue(self.r.hexists("pipeline:AUTH_0123456789abcdef", "1"))
+    #     dumped_data = self.r.hget("pipeline:AUTH_0123456789abcdef", "1")
+    #     json_data = json.loads(dumped_data)
+    #     self.assertEqual(json_data["filter_name"], "FakeFilter")
+    #
+    #     # Try to undeploy without auth token
+    #     request = self.factory.put('/filters/0123456789abcdef/undeploy/1')
+    #     response = storlet_undeploy(request, "1", "0123456789abcdef")
+    #     print response
+    #     self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
 
     #
     # Aux methods

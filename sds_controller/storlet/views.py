@@ -231,17 +231,17 @@ def storlet_undeploy(request, storlet_id, account, container=None, swift_object=
     try:
         r = get_redis_connection()
     except:
-        return JSONResponse('Problems to connect with the DB', status=500)
+        return JSONResponse('Problems to connect with the DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     storlet = r.hgetall("storlet:" + str(storlet_id))
     if not storlet:
-        return JSONResponse('Filter does not exist', status=404)
+        return JSONResponse('Filter does not exist', status=status.HTTP_404_NOT_FOUND)
     if not r.exists("AUTH_" + str(account) + ":" + str(storlet["name"])):
-        return JSONResponse('Filter ' + str(storlet["name"]) + ' has not been deployed already', status=404)
+        return JSONResponse('Filter ' + str(storlet["name"]) + ' has not been deployed already', status=status.HTTP_404_NOT_FOUND)
 
     if request.method == 'PUT':
         headers = is_valid_request(request)
         if not headers:
-            return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
+            return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=status.HTTP_401_UNAUTHORIZED)
 
         if container and swift_object:
             target = account + "/" + container + "/" + swift_object
@@ -251,7 +251,7 @@ def storlet_undeploy(request, storlet_id, account, container=None, swift_object=
             target = account
 
         return undeploy(r, target, storlet, headers)
-    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
 """
