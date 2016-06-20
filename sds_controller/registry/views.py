@@ -563,8 +563,8 @@ def do_action(request, r, rule_parsed, headers):
                 # Set the policy data
                 policy_data = {
                     "policy_id": policy_id,
-                    "object_type": None,
-                    "object_size": None,
+                    "object_type": "",
+                    "object_size": "",
                     "execution_order": policy_id,
                     "params": ""
                 }
