@@ -586,7 +586,9 @@ def do_action(request, r, rule_parsed, headers):
                     return deploy_response
 
             elif action_info.action == "DELETE":
-                return undeploy(r, storlet, target[1], headers)
+                undeploy_response = undeploy(r, target[1], storlet, headers)
+                if undeploy_response != status.HTTP_204_NO_CONTENT:
+                    return undeploy_response
 
 
 def deploy_policy(r, rule_string, parsed_rule):

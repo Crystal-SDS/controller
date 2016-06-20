@@ -250,7 +250,7 @@ def storlet_undeploy(request, storlet_id, account, container=None, swift_object=
         else:
             target = account
 
-        return undeploy(r, storlet, target, headers)
+        return undeploy(r, target, storlet, headers)
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
 
 
@@ -462,14 +462,14 @@ def deploy(r, target, storlet, parameters, headers):
     # Change to API Call
     try:
         swift_client.put_object(settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/" + "AUTH_" + str(target_list[0]),
-                                headers["X-Auth-Token"], 'storlet', storlet['name'], storlet_file, content_length,
+                                headers["X-Auth-Token"], "storlet", storlet["name"], storlet_file, content_length,
                                 None, None, "application/octet-stream", metadata, None, None, None, swift_response)
     except:
-        return swift_response.get('status')
+        return swift_response.get("status")
     finally:
         storlet_file.close()
 
-    swift_status = swift_response.get('status')
+    swift_status = swift_response.get("status")
 
     if swift_status == status.HTTP_201_CREATED:
         # Change 'id' key of storlet
@@ -490,21 +490,27 @@ def deploy(r, target, storlet, parameters, headers):
         return status.HTTP_400_BAD_REQUEST
 
 
-def undeploy(r, storlet, target, headers):
+# FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 DO DELETE compression
+def undeploy(r, target, storlet, headers):
     target_list = target.split('/', 3)
-    response = dict()
+    swift_response = dict()
     try:
         swift_client.delete_object(settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/" + "AUTH_" + str(target_list[0]),
-                                   headers["X-Auth-Token"], 'storlet', storlet["name"], None, None, None, None, response)
+                                   headers["X-Auth-Token"], "storlet", storlet["name"], None, None, None, None, swift_response)
     except:
-        pass
-    print 'Swift response: ', response
-    status = response.get('status')
-    if 200 <= status < 300:
-        r.delete("AUTH_" + str(target) + ":" + str(storlet["name"]))
-        r.lrem("pipeline:AUTH_" + str(target), str(storlet["name"]), 1)
-        return JSONResponse('The object has been deleted', status=status)
-    return JSONResponse(response.get("reason"), status=status)
+        return swift_response.get("status")
+
+    swift_status = swift_response.get("status")
+
+    if 200 <= swift_status < 300:
+        keys = r.hgetall("pipeline:AUTH_" + str(target))
+        for key, value in keys.items():
+            json_value = json.loads(value)
+            if json_value["filter_name"] == storlet["name"]:
+                r.hdel("pipeline:AUTH_" + str(target), key)
+        return swift_status
+    else:
+        return swift_status
 
 
 def save_file(file_, path=''):
