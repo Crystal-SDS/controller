@@ -1,12 +1,14 @@
+import json
+
 import redis
+import requests
 from django.conf import settings
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
+from rest_framework import status
 from rest_framework.parsers import JSONParser
 from rest_framework.renderers import JSONRenderer
 
-
-# Create your views here.
 
 class JSONResponse(HttpResponse):
     """
@@ -19,19 +21,12 @@ class JSONResponse(HttpResponse):
         super(JSONResponse, self).__init__(content, **kwargs)
 
 
-def proxyaddress():
-    """
-    Reads the proxy address from django settings.
-    """
-    return settings.SWIFT_URL + "/"
-
-
 def is_valid_request(request):
     headers = {}
     try:
-        headers['X-Auth-Token'] = request.META['HTTP_X_AUTH_TOKEN']
+        headers["X-Auth-Token"] = request.META["HTTP_X_AUTH_TOKEN"]
         return headers
-    except:
+    except AttributeError:
         return None
 
 
@@ -47,53 +42,77 @@ def bw_list(request):
     try:
         r = get_redis_connection()
     except:
-        return JSONResponse('Error connecting with DB', status=500)
+        return JSONResponse("Error connecting with DB", status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    if request.method == 'GET':
+    if request.method == "GET":
+
+        headers = is_valid_request(request)
+        if not headers:
+            return JSONResponse("You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ", status=status.HTTP_401_UNAUTHORIZED)
+        keystone_response = requests.get(settings.KEYSTONE_URL + "tenants", headers=headers)
+        keystone_tenants = json.loads(keystone_response.content)["tenants"]
+
+        tenants_list = {}
+        for tenant in keystone_tenants:
+            tenants_list[tenant["id"]] = tenant["name"]
+
         keys = r.keys("bw:AUTH_*")
         bw_limits = []
         for it in keys:
             for key, value in r.hgetall(it).items():
-                bw_limits.append({'tenant': it.replace('bw:AUTH_', ''), 'policy': key, 'bandwidth': value})
-        return JSONResponse(bw_limits, status=200)
+                policy_name = r.hget("storage-policy:" + key, "name")
+                bw_limits.append({"tenant_id": it.replace("bw:AUTH_", ""), "tenant_name": tenants_list[it.replace("bw:AUTH_", "")], "policy_id": key, "policy_name": policy_name, "bandwidth": value})
+        return JSONResponse(bw_limits, status=status.HTTP_200_OK)
 
-    elif request.method == 'POST':
+    elif request.method == "POST":
         data = JSONParser().parse(request)
         try:
-            r.hmset('bw:AUTH_' + str(data['tenant']), {data['policy']: data['bandwidth']})
-            return JSONResponse(data, status=201)
+            r.hmset("bw:AUTH_" + str(data["tenant_id"]), {data["policy_id"]: data["bandwidth"]})
+            return JSONResponse(data, status=status.HTTP_201_CREATED)
         except:
-            return JSONResponse("Error saving SLA.", status=400)
-    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
+            return JSONResponse("Error saving SLA.", status=status.HTTP_400_BAD_REQUEST)
+    return JSONResponse("Method " + str(request.method) + " not allowed.", status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
 @csrf_exempt
-def bw_detail(request, tenant_id):
+def bw_detail(request, tenant_key):
     """
     Retrieve, update or delete SLA.
     """
     try:
         r = get_redis_connection()
     except:
-        return JSONResponse('Error connecting with DB', status=500)
+        return JSONResponse("Error connecting with DB", status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    tenant = str(tenant_id).split(':')[0]
-    policy = str(tenant_id).split(':')[1]
+    tenant_id = str(tenant_key).split(':')[0]
+    policy_id = str(tenant_key).split(':')[1]
 
-    if request.method == 'GET':
-        bandwidth = r.hget('bw:AUTH_' + tenant, policy)
-        sla = {'id': tenant_id, 'tenant': tenant, 'policy': policy, 'bandwidth': bandwidth}
-        return JSONResponse(sla, status=200)
+    if request.method == "GET":
 
-    elif request.method == 'PUT':
+        headers = is_valid_request(request)
+        if not headers:
+            return JSONResponse("You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ", status=status.HTTP_401_UNAUTHORIZED)
+        keystone_response = requests.get(settings.KEYSTONE_URL + "tenants", headers=headers)
+        keystone_tenants = json.loads(keystone_response.content)["tenants"]
+
+        tenants_list = {}
+        for tenant in keystone_tenants:
+            tenants_list[tenant["id"]] = tenant["name"]
+
+        bandwidth = r.hget("bw:AUTH_" + tenant_id, policy_id)
+        policy_name = r.hget("storage-policy:" + policy_id, "name")
+        sla = {"id": tenant_key, "tenant_id": tenant_id, "tenant_name": tenants_list[tenant_id], "policy_id": policy_id, "policy_name": policy_name, "bandwidth": bandwidth}
+        return JSONResponse(sla, status=status.HTTP_200_OK)
+
+    elif request.method == "PUT":
         data = JSONParser().parse(request)
         try:
-            r.hmset('bw:AUTH_' + tenant, {policy: data['bandwidth']})
-            return JSONResponse("Data updated", status=201)
+            r.hmset("bw:AUTH_" + tenant_id, {policy_id: data["bandwidth"]})
+            return JSONResponse("Data updated", status=status.HTTP_201_CREATED)
         except:
-            return JSONResponse("Error updating data", status=400)
+            return JSONResponse("Error updating data", status=status.HTTP_400_BAD_REQUEST)
 
-    elif request.method == 'DELETE':
-        r.hdel('bw:AUTH_' + tenant, policy)
-        return JSONResponse('SLA has been deleted', status=204)
-    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
+    elif request.method == "DELETE":
+        r.hdel("bw:AUTH_" + tenant_id, policy_id)
+        return JSONResponse("SLA has been deleted", status=status.HTTP_204_NO_CONTENT)
+    return JSONResponse("Method " + str(request.method) + " not allowed.", status=status.HTTP_405_METHOD_NOT_ALLOWED)
