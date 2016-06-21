@@ -321,20 +321,20 @@ Object Type part
 def object_type_list(request):
     """
     GET: List all object types.
-    POST: Bind new object types.
+    POST: Bind a new object type.
     """
     try:
         r = get_redis_connection()
     except:
         return JSONResponse('Error connecting with DB', status=500)
 
-    policy = 0  # DELETE
     if request.method == 'GET':
         keys = r.keys("object_type:*")
         object_types = []
         for key in keys:
-            object_type = r.lrange(key, 0, -1)
-            object_types.append(policy)
+            name = key.split(":")[1]
+            types_list = r.lrange(key, 0, -1)
+            object_types.append({"name": name, "types_list": types_list})
         return JSONResponse(object_types, status=200)
 
     if request.method == "POST":
@@ -356,10 +356,9 @@ def object_type_list(request):
 def object_type_detail(request, object_type_name):
     """
     GET: List extensions allowed about an object type word registered.
-    PUT: Updata the object type word registered.
+    PUT: Update the object type word registered.
     DELETE: Delete the object type word registered.
     """
-    gtenant_id = 0  # DELETE
     try:
         r = get_redis_connection()
     except:
@@ -373,9 +372,8 @@ def object_type_detail(request, object_type_name):
 
     if request.method == "PUT":
         if not r.exists("object_type:" + object_type_name):
-            return JSONResponse('The members of the tenants group with id:  ' + str(gtenant_id) + ' not exists.', status=404)
+            return JSONResponse('The object type with name:  ' + object_type_name + ' does not exist.', status=404)
         data = JSONParser().parse(request)
-        # for tenant in data:
         if r.lpush("object_type:" + object_type_name, *data):
             return JSONResponse('The object type ' + str(object_type_name) + ' has been updated', status=201)
         return JSONResponse('Error storing the object type in the DB', status=500)
