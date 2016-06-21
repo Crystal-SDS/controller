@@ -345,7 +345,7 @@ def object_type_list(request):
         if not "types_list" in data:
             return JSONResponse('Object type must have a types_list defining the valid object types', status=400)
 
-        if r.lpush('object_type:' + str(name), data["types_list"]):
+        if r.lpush('object_type:' + str(name), *data["types_list"]):
             return JSONResponse('Object type has been added in the registy', status=201)
         return JSONResponse('Error storing the object type in the DB', status=500)
 
