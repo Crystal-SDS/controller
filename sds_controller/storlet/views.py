@@ -1,7 +1,8 @@
 import hashlib
 import json
-
+import logging
 import redis
+
 from django.conf import settings
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -12,14 +13,16 @@ from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from swiftclient import client as swift_client
+from swiftclient.exceptions import ClientException
+from sds_controller.exceptions import SwiftClientError
 
 """ TODO create a common file and put this into the new file """
 """ Start Common """
 STORLET_KEYS = ('id', 'name', 'language', 'interface_version', 'dependencies', 'object_metadata', 'main', 'is_put', 'is_get', 'has_reverse', 'execution_server', 'execution_server_reverse', 'path')
 DEPENDENCY_KEYS = ('id', 'name', 'version', 'permissions', 'path')
 
+logging.basicConfig()
 
-# Create your views here.
 
 class JSONResponse(HttpResponse):
     """
@@ -456,16 +459,19 @@ def deploy(r, target, storlet, parameters, headers):
     except IOError:
         return status.HTTP_404_NOT_FOUND
 
-    content_length = storlet["content_length"]
+    content_length = int(storlet["content_length"])
     swift_response = dict()
 
     # Change to API Call
     try:
-        swift_client.put_object(settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/" + "AUTH_" + str(target_list[0]),
+        url = settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/" + "AUTH_" + str(target_list[0])
+        swift_client.put_object(url,
                                 headers["X-Auth-Token"], "storlet", storlet["name"], storlet_file, content_length,
                                 None, None, "application/octet-stream", metadata, None, None, None, swift_response)
-    except:
-        return swift_response.get("status")
+    except ClientException as e:
+        logging.error('Error in Swift put_object %s', e)
+        # return status.HTTP_500_INTERNAL_SERVER_ERROR
+        raise SwiftClientError("A problem occurred accessing Swift")
     finally:
         storlet_file.close()
 
