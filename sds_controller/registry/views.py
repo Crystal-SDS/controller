@@ -576,7 +576,7 @@ def do_action(request, r, rule_parsed, headers):
             storlet = r.hgetall("storlet:" + dynamic_filter["identifier"])
 
             if not storlet:
-                return JSONResponse("Filter does not exists", status=status.HTTP_404_NOT_FOUND)
+                return JSONResponse("Filter does not exist", status=status.HTTP_404_NOT_FOUND)
 
             if action_info.action == "SET":
 

@@ -459,7 +459,8 @@ def deploy(r, target, storlet, parameters, headers):
     except IOError:
         return status.HTTP_404_NOT_FOUND
 
-    content_length = int(storlet["content_length"])
+    #content_length = int(storlet["content_length"])
+    content_length = None
     swift_response = dict()
 
     # Change to API Call
