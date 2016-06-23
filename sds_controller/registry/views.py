@@ -10,6 +10,7 @@ from rest_framework import status
 from rest_framework.parsers import JSONParser
 from rest_framework.renderers import JSONRenderer
 from storlet.views import deploy, undeploy
+from sds_controller.exceptions import SwiftClientError, StorletNotFoundException
 
 import dsl_parser
 
@@ -493,9 +494,13 @@ def policy_list(request):
                     response = do_action(request, r, rule_parsed, headers)
                     print("RESPONSE: " + str(response))
 
+            except SwiftClientError:
+                return JSONResponse('Error accessing Swift.', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            except StorletNotFoundException:
+                return JSONResponse('Storlet not found.', status=status.HTTP_404_NOT_FOUND)
             except Exception as e:
-                print("The rule: " + rule_string + " cannot be parsed")
-                print("Exception message", e)
+                # print("The rule: " + rule_string + " cannot be parsed")
+                # print("Exception message", e)
                 return JSONResponse("Error in rule: " + rule_string + " Error message --> " + str(e),
                                     status=status.HTTP_401_UNAUTHORIZED)
 
@@ -604,10 +609,8 @@ def do_action(request, r, rule_parsed, headers):
                 if action_info.params:
                     policy_data["params"] = action_info.params
 
-                # Deploy and exit if error
-                deploy_response = deploy(r, target[1], storlet, policy_data, headers)
-                if deploy_response != status.HTTP_201_CREATED:
-                    return deploy_response
+                # Deploy (an exception is raised if something goes wrong)
+                deploy(r, target[1], storlet, policy_data, headers)
 
             elif action_info.action == "DELETE":
                 undeploy_response = undeploy(r, target[1], storlet, headers)

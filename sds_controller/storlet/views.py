@@ -14,7 +14,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from swiftclient import client as swift_client
 from swiftclient.exceptions import ClientException
-from sds_controller.exceptions import SwiftClientError
+from sds_controller.exceptions import SwiftClientError, StorletNotFoundException
 
 """ TODO create a common file and put this into the new file """
 """ Start Common """
@@ -179,7 +179,7 @@ def storlet_deploy(request, storlet_id, account, container=None, swift_object=No
     try:
         r = get_redis_connection()
     except:
-        return JSONResponse('Problems to connect with the DB', status=500)
+        return JSONResponse('Problems to connect with the DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     if request.method == 'PUT':
         headers = is_valid_request(request)
@@ -200,15 +200,15 @@ def storlet_deploy(request, storlet_id, account, container=None, swift_object=No
         else:
             target = account
 
-        deploy_status = deploy(r, target, storlet, params, headers)
-        if deploy_status == status.HTTP_201_CREATED:
-            return JSONResponse('Successfully deployed.', status=deploy_status)
-        elif deploy_status == status.HTTP_404_NOT_FOUND:
-            return JSONResponse('Storlet not found.', status=deploy_status)
-        elif deploy_status == status.HTTP_400_BAD_REQUEST:
-            return JSONResponse('Error accessing Swift.', status=deploy_status)
+        try:
+            deploy(r, target, storlet, params, headers)
+            return JSONResponse('Successfully deployed.', status=status.HTTP_201_CREATED)
+        except SwiftClientError:
+            return JSONResponse('Error accessing Swift.', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except StorletNotFoundException:
+            return JSONResponse('Storlet not found.', status=status.HTTP_404_NOT_FOUND)
 
-    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
 @csrf_exempt
@@ -454,10 +454,10 @@ def deploy(r, target, storlet, parameters, headers):
     storlet_path = storlet["path"]
     del storlet["path"]
 
-    try:
-        storlet_file = open(storlet_path, 'r')
-    except IOError:
-        return status.HTTP_404_NOT_FOUND
+    # try:
+    storlet_file = open(storlet_path, 'r')
+    # except IOError:
+    #     return status.HTTP_404_NOT_FOUND
 
     #content_length = int(storlet["content_length"])
     content_length = None
@@ -492,9 +492,10 @@ def deploy(r, target, storlet, parameters, headers):
         data_dumped = json.dumps(data).replace('"True"', 'true').replace('"False"', 'false')
 
         r.hset("pipeline:AUTH_" + str(target), policy_id, data_dumped)
-        return status.HTTP_201_CREATED
+        #return status.HTTP_201_CREATED
     else:
-        return status.HTTP_400_BAD_REQUEST
+        raise SwiftClientError("A problem occurred accessing Swift")
+        #return status.HTTP_400_BAD_REQUEST
 
 
 # FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 DO DELETE compression
