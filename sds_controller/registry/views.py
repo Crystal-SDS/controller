@@ -351,8 +351,9 @@ def object_type_list(request):
             return JSONResponse('Object type must have a name as identifier', status=status.HTTP_400_BAD_REQUEST)
         if r.exists('object_type:' + str(name)):
             return JSONResponse('Object type ' + str(name) + ' already exists.', status=status.HTTP_400_BAD_REQUEST)
-        if "types_list" not in data:
-            return JSONResponse('Object type must have a types_list defining the valid object types', status=status.HTTP_400_BAD_REQUEST)
+        if "types_list" not in data or not data["types_list"]:
+            return JSONResponse('Object type must have a types_list defining the valid object types',
+                                status=status.HTTP_400_BAD_REQUEST)
 
         if r.rpush('object_type:' + str(name), *data["types_list"]):
             return JSONResponse('Object type has been added in the registy', status=status.HTTP_201_CREATED)
@@ -371,32 +372,37 @@ def object_type_detail(request, object_type_name):
     try:
         r = get_redis_connection()
     except:
-        return JSONResponse('Error connecting with DB', status=500)
+        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     key = "object_type:" + object_type_name
     if request.method == 'GET':
         if r.exists(key):
             types_list = r.lrange(key, 0, -1)
             object_type = {"name": object_type_name, "types_list": types_list}
-            return JSONResponse(object_type, status=200)
-        return JSONResponse("Object type not found", status=404)
+            return JSONResponse(object_type, status=status.HTTP_200_OK)
+        return JSONResponse("Object type not found", status=status.HTTP_404_NOT_FOUND)
 
     if request.method == "PUT":
         if not r.exists(key):
-            return JSONResponse('The object type with name: ' + object_type_name + ' does not exist.', status=404)
+            return JSONResponse('The object type with name: ' + object_type_name + ' does not exist.',
+                                status=status.HTTP_404_NOT_FOUND)
         data = JSONParser().parse(request)
+        if not data:
+            return JSONResponse('Object type must have a types_list defining the valid object types',
+                                status=status.HTTP_400_BAD_REQUEST)
         pipe = r.pipeline()
         # the following commands are buffered in a single atomic request (to replace current contents)
         if pipe.delete(key).rpush(key, *data).execute():
-            return JSONResponse('The object type ' + str(object_type_name) + ' has been updated', status=201)
-        return JSONResponse('Error storing the object type in the DB', status=500)
+            return JSONResponse('The object type ' + str(object_type_name) + ' has been updated',
+                                status=status.HTTP_201_CREATED)
+        return JSONResponse('Error storing the object type in the DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     if request.method == "DELETE":
         if r.exists(key):
             object_type = r.delete(key)
-            return JSONResponse(object_type, status=200)
-        return JSONResponse("Object type not found", status=404)
-    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
+            return JSONResponse(object_type, status=status.HTTP_200_OK)
+        return JSONResponse("Object type not found", status=status.HTTP_404_NOT_FOUND)
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
 @csrf_exempt
