@@ -45,7 +45,7 @@ def parse(input_string):
     
     services = map(lambda x: "".join(x.split(":")[1]), metrics_workload)
     services_options = oneOf(services)
-    operand =  oneOf("< > == != <= >=")
+    operand = oneOf("< > == != <= >=")
     number = Regex(r"[+-]?\d+(:?\.\d*)?(:?[eE][+-]?\d+)?")
     condition = Group(services_options + operand("operand") + number("limit_value"))
     condition_list = operatorPrecedence(condition,[

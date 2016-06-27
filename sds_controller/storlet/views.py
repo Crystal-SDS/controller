@@ -1,7 +1,8 @@
 import hashlib
 import json
-
+import logging
 import redis
+
 from django.conf import settings
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -11,15 +12,17 @@ from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
 from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from swiftclient import client as c
+from swiftclient import client as swift_client
+from swiftclient.exceptions import ClientException
+from sds_controller.exceptions import SwiftClientError, StorletNotFoundException
 
 """ TODO create a common file and put this into the new file """
 """ Start Common """
 STORLET_KEYS = ('id', 'name', 'language', 'interface_version', 'dependencies', 'object_metadata', 'main', 'is_put', 'is_get', 'has_reverse', 'execution_server', 'execution_server_reverse', 'path')
 DEPENDENCY_KEYS = ('id', 'name', 'version', 'permissions', 'path')
 
+logging.basicConfig()
 
-# Create your views here.
 
 class JSONResponse(HttpResponse):
     """
@@ -116,7 +119,6 @@ def storlet_detail(request, storlet_id):
             return JSONResponse("Invalid format or empty request", status=status.HTTP_400_BAD_REQUEST)
 
         if not check_keys(data.keys(), STORLET_KEYS[1:-1]):
-            print(data)
             return JSONResponse("Invalid parameters in request", status=status.HTTP_400_BAD_REQUEST)
 
         try:
@@ -146,7 +148,6 @@ class StorletData(APIView):
         except:
             return JSONResponse('Error connecting with DB', status=500)
         if r.exists("storlet:" + str(storlet_id)):
-            print 'request', request.META
             file_obj = request.FILES['file']
             path = save_file(file_obj, settings.STORLET_DIR)
             md5_etag = md5(path)
@@ -178,16 +179,16 @@ def storlet_deploy(request, storlet_id, account, container=None, swift_object=No
     try:
         r = get_redis_connection()
     except:
-        return JSONResponse('Problems to connect with the DB', status=500)
+        return JSONResponse('Problems to connect with the DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     if request.method == 'PUT':
         headers = is_valid_request(request)
         if not headers:
-            return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
+            return JSONResponse('You must be authenticated. You can authenticate yourself with the header X-Auth-Token.', status=status.HTTP_401_UNAUTHORIZED)
         storlet = r.hgetall("storlet:" + str(storlet_id))
 
         if not storlet:
-            return JSONResponse('Filter does not exist', status=404)
+            return JSONResponse('Filter does not exist', status=status.HTTP_404_NOT_FOUND)
 
         params = JSONParser().parse(request)
 
@@ -199,9 +200,15 @@ def storlet_deploy(request, storlet_id, account, container=None, swift_object=No
         else:
             target = account
 
-        return deploy(r, target, storlet, params, headers)
+        try:
+            deploy(r, target, storlet, params, headers)
+            return JSONResponse('Successfully deployed.', status=status.HTTP_201_CREATED)
+        except SwiftClientError:
+            return JSONResponse('Error accessing Swift.', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except StorletNotFoundException:
+            return JSONResponse('Storlet not found.', status=status.HTTP_404_NOT_FOUND)
 
-    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
 @csrf_exempt
@@ -213,10 +220,10 @@ def storlet_list_deployed(request, account):
         r = get_redis_connection()
         result = r.lrange("AUTH_" + str(account), 0, -1)
         if result:
-            return JSONResponse(result, status=200)
+            return JSONResponse(result, status=status.HTTP_200_OK)
         else:
-            return JSONResponse('Any Storlet deployed', status=404)
-    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
+            return JSONResponse('Any Storlet deployed', status=status.HTTP_404_NOT_FOUND)
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
 @csrf_exempt
@@ -227,17 +234,17 @@ def storlet_undeploy(request, storlet_id, account, container=None, swift_object=
     try:
         r = get_redis_connection()
     except:
-        return JSONResponse('Problems to connect with the DB', status=500)
+        return JSONResponse('Problems to connect with the DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     storlet = r.hgetall("storlet:" + str(storlet_id))
     if not storlet:
-        return JSONResponse('Filter does not exist', status=404)
+        return JSONResponse('Filter does not exist', status=status.HTTP_404_NOT_FOUND)
     if not r.exists("AUTH_" + str(account) + ":" + str(storlet["name"])):
-        return JSONResponse('Filter ' + str(storlet["name"]) + ' has not been deployed already', status=404)
+        return JSONResponse('Filter ' + str(storlet["name"]) + ' has not been deployed already', status=status.HTTP_404_NOT_FOUND)
 
     if request.method == 'PUT':
         headers = is_valid_request(request)
         if not headers:
-            return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
+            return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=status.HTTP_401_UNAUTHORIZED)
 
         if container and swift_object:
             target = account + "/" + container + "/" + swift_object
@@ -246,8 +253,8 @@ def storlet_undeploy(request, storlet_id, account, container=None, swift_object=
         else:
             target = account
 
-        return undeploy(r, storlet, target, headers)
-    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
+        return undeploy(r, target, storlet, headers)
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
 """
@@ -362,9 +369,9 @@ def dependency_deploy(request, dependency_id, account):
         content_length = None
         response = dict()
         try:
-            c.put_object(settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/" + "AUTH_" + str(account), headers["X-Auth-Token"], 'dependency', dependency["name"], f,
-                         content_length, None, None, "application/octet-stream",
-                         metadata, None, None, None, response)
+            swift_client.put_object(settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/" + "AUTH_" + str(account), headers["X-Auth-Token"], 'dependency', dependency["name"], f,
+                                    content_length, None, None, "application/octet-stream",
+                                    metadata, None, None, None, response)
         except:
             return JSONResponse(response.get("reason"), status=response.get('status'))
         finally:
@@ -412,8 +419,8 @@ def dependency_undeploy(request, dependency_id, account):
             return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
         response = dict()
         try:
-            c.delete_object(settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/" + "AUTH_" + str(account), headers["X-Auth-Token"],
-                            'dependency', dependency["name"], None, None, None, None, response)
+            swift_client.delete_object(settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/" + "AUTH_" + str(account), headers["X-Auth-Token"],
+                                       'dependency', dependency["name"], None, None, None, None, response)
         except:
             return JSONResponse(response.get("reason"), status=response.get('status'))
         status = response.get('status')
@@ -425,91 +432,93 @@ def dependency_undeploy(request, dependency_id, account):
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
 
 
-# FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 DO SET caching
-def deploy(r, target, storlet, params, headers):
-    print('Storlet ID: ' + storlet['id'])
-    print('Storlet Details: ' + str(r.hgetall('storlet:' + storlet['id'])))
+# FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 DO SET compression, SET caching
+def deploy(r, target, storlet, parameters, headers):
+    # print("Storlet ID: " + storlet["id"])
+    # print("Storlet Details: " + str(r.hgetall("storlet:" + storlet["id"])))
+    # print("Target: " + target)
+    # print("Params: " + str(parameters))
 
-    print('Target: ' + target)
-
-    print('Params: ' + str(params))
-
-    if not params:
-        params = {}
+    if not parameters:
+        parameters = {}
 
     target_list = target.split('/', 3)
 
-    metadata = {'X-Object-Meta-Storlet-Language': storlet['language'],
-                'X-Object-Meta-Storlet-Interface-Version': storlet['interface_version'],
-                'X-Object-Meta-Storlet-Dependency': storlet['dependencies'],
-                'X-Object-Meta-Storlet-Object-Metadata': storlet['object_metadata'],
-                'X-Object-Meta-Storlet-Main': storlet['main']
+    metadata = {"X-Object-Meta-Storlet-Language": storlet["language"],
+                "X-Object-Meta-Storlet-Interface-Version": storlet["interface_version"],
+                "X-Object-Meta-Storlet-Dependency": storlet["dependencies"],
+                "X-Object-Meta-Storlet-Object-Metadata": storlet["object_metadata"],
+                "X-Object-Meta-Storlet-Main": storlet["main"]
                 }
 
-    storlet_path = storlet['path']
-    del storlet['path']
+    storlet_path = storlet["path"]
+    del storlet["path"]
 
-    try:
-        f = open(storlet_path, 'r')
-    except IOError:
-        return JSONResponse('Error: Not found the filter data file', status=status.HTTP_404_NOT_FOUND)
+    # try:
+    storlet_file = open(storlet_path, 'r')
+    # except IOError:
+    #     return status.HTTP_404_NOT_FOUND
 
-    content_length = storlet['content_length']
-    response = dict()
+    #content_length = int(storlet["content_length"])
+    content_length = None
+    swift_response = dict()
 
     # Change to API Call
-    # try:
-    #     print storlet['name']
-    #     print "token", headers["X-Auth-Token"]
-    #     c.put_object(settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/" + "AUTH_" + str(target_list[0]), headers["X-Auth-Token"], 'storlet', storlet['name'], f,
-    #                  content_length, None, None,
-    #                  "application/octet-stream", metadata,
-    #                  None, None, None, response)
-    # except:
-    #     print 'response put', response.get("reason")
-    #     return JSONResponse(response.get("reason"), status=response.get('status'))
-    # finally:
-    #     f.close()
-    # print 'response', response
-    # status = response.get('status')
+    try:
+        url = settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/" + "AUTH_" + str(target_list[0])
+        swift_client.put_object(url,
+                                headers["X-Auth-Token"], "storlet", storlet["name"], storlet_file, content_length,
+                                None, None, "application/octet-stream", metadata, None, None, None, swift_response)
+    except ClientException as e:
+        logging.error('Error in Swift put_object %s', e)
+        # return status.HTTP_500_INTERNAL_SERVER_ERROR
+        raise SwiftClientError("A problem occurred accessing Swift")
+    finally:
+        storlet_file.close()
 
-    # Delete this line when uncomment try catch
-    f.close()
+    swift_status = swift_response.get("status")
 
-    resp = status.HTTP_201_CREATED
-    if resp == status.HTTP_201_CREATED:
+    if swift_status == status.HTTP_201_CREATED:
         # Change 'id' key of storlet
-        storlet['filter_id'] = storlet.pop('id')
+        storlet["filter_id"] = storlet.pop("id")
+        storlet["filter_name"] = storlet.pop("name")
         # Get policy id
-        policy_id = params['policy_id']
-        del params['policy_id']
+        policy_id = parameters["policy_id"]
+        del parameters["policy_id"]
         # Add all storlet and policy metadata to policy_id in pipeline
         data = storlet.copy()
-        data.update(params)
-        
-        data_dumped = json.dumps(data).replace('"True"','true').replace('"False"','false')
-        
-        r.hset('pipeline:AUTH_' + str(target), policy_id, data_dumped)
-        return JSONResponse("Deployed!", status=status.HTTP_201_CREATED)
+        data.update(parameters)
+
+        data_dumped = json.dumps(data).replace('"True"', 'true').replace('"False"', 'false')
+
+        r.hset("pipeline:AUTH_" + str(target), policy_id, data_dumped)
+        #return status.HTTP_201_CREATED
     else:
-        return JSONResponse("Error in deploy!", status=status.HTTP_400_BAD_REQUEST)
+        raise SwiftClientError("A problem occurred accessing Swift")
+        #return status.HTTP_400_BAD_REQUEST
 
 
-def undeploy(r, storlet, target, headers):
+# FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 DO DELETE compression
+def undeploy(r, target, storlet, headers):
     target_list = target.split('/', 3)
-    response = dict()
+    swift_response = dict()
     try:
-        c.delete_object(settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/" + "AUTH_" + str(target_list[0]),
-                        headers["X-Auth-Token"], 'storlet', storlet["name"], None, None, None, None, response)
+        swift_client.delete_object(settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/" + "AUTH_" + str(target_list[0]),
+                                   headers["X-Auth-Token"], "storlet", storlet["name"], None, None, None, None, swift_response)
     except:
-        pass
-    print 'Swift response: ', response
-    status = response.get('status')
-    if 200 <= status < 300:
-        r.delete("AUTH_" + str(target) + ":" + str(storlet["name"]))
-        r.lrem("pipeline:AUTH_" + str(target), str(storlet["name"]), 1)
-        return JSONResponse('The object has been deleted', status=status)
-    return JSONResponse(response.get("reason"), status=status)
+        return swift_response.get("status")
+
+    swift_status = swift_response.get("status")
+
+    if 200 <= swift_status < 300:
+        keys = r.hgetall("pipeline:AUTH_" + str(target))
+        for key, value in keys.items():
+            json_value = json.loads(value)
+            if json_value["filter_name"] == storlet["name"]:
+                r.hdel("pipeline:AUTH_" + str(target), key)
+        return swift_status
+    else:
+        return swift_status
 
 
 def save_file(file_, path=''):
