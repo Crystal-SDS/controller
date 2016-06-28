@@ -30,6 +30,10 @@ class RegistryTestCase(TestCase):
         r = redis.Redis(connection_pool=settings.REDIS_CON_POOL)
         r.flushdb()
 
+    #
+    # Static policy tests
+    #
+
     @mock.patch('registry.views.requests.get')
     def test_registry_static_policy(self, mock_requests_get):
         resp = HttpResponse()
@@ -51,9 +55,9 @@ class RegistryTestCase(TestCase):
         response = policy_list(request)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
-
-    # TODO
-    # object_type_detail GET / PUT / DELETE
+    #
+    # object_type tests
+    #
 
     def test_object_type_list_with_method_not_allowed(self):
         request = self.factory.delete('/registry/object_type')
@@ -216,9 +220,6 @@ class RegistryTestCase(TestCase):
         response = object_type_detail(request, name)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-
-
-
     #
     # Aux methods
     #
@@ -231,20 +232,17 @@ class RegistryTestCase(TestCase):
         response = storlet_list(request)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
-
     def upload_filter(self):
         # Upload a filter for the storlet 1
         with open('test_data/test.txt', 'r') as fp:
             request = self.factory.put('/filters/1/data', {'file': fp})
             StorletData.as_view()(request, 1)
 
-
     def mock_put_object_status_created(url, token=None, container=None, name=None, contents=None,
                                        content_length=None, etag=None, chunk_size=None,
                                        content_type=None, headers=None, http_conn=None, proxy=None,
                                        query_string=None, response_dict=None):
         response_dict['status'] = status.HTTP_201_CREATED
-
 
     @mock.patch('storlet.views.swift_client.put_object', side_effect=mock_put_object_status_created)
     def deploy_storlet(self, mock_put_object):
