@@ -25,7 +25,7 @@ def is_valid_request(request):
     try:
         headers['X-Auth-Token'] = request.META['HTTP_X_AUTH_TOKEN']
         return headers
-    except:
+    except KeyError:
         return None
 
 

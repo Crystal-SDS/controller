@@ -33,4 +33,15 @@ class BwTestCase(TestCase):
         response = bw_detail(request, tenant_key)
         self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
-    # def test_list_slas(self):
+    def test_get_slas_without_auth_token(self):
+        # Create an instance of a GET request without auth token
+        request = self.factory.get('/bw/slas')
+        response = bw_list(request)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_get_sla_detail_without_auth_token(self):
+        # Create an instance of a GET request without auth token
+        tenant_key = '123456789abcdef:1'
+        request = self.factory.get('/bw/sla/' + tenant_key)
+        response = bw_detail(request, tenant_key)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)

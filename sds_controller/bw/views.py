@@ -24,9 +24,9 @@ class JSONResponse(HttpResponse):
 def is_valid_request(request):
     headers = {}
     try:
-        headers["X-Auth-Token"] = request.META["HTTP_X_AUTH_TOKEN"]
+        headers['X-Auth-Token'] = request.META['HTTP_X_AUTH_TOKEN']
         return headers
-    except AttributeError:
+    except KeyError:
         return None
 
 
