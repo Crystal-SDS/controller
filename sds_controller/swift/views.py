@@ -7,6 +7,7 @@ import storage_policy
 import sds_project
 import requests
 import redis
+from rest_framework import status
 
 
 class JSONResponse(HttpResponse):
@@ -40,7 +41,7 @@ def tenants_list(request):
     if request.method == 'GET':
         headers = is_valid_request(request)
         if not headers:
-            return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
+            return JSONResponse('You must be authenticated. You can authenticate yourself with the header X-Auth-Token ', status=status.HTTP_401_UNAUTHORIZED)
         r = requests.get(settings.KEYSTONE_URL + "tenants", headers=headers)
 
         return HttpResponse(r.content, content_type='application/json', status=r.status_code)
@@ -48,16 +49,16 @@ def tenants_list(request):
     if request.method == "POST":
         headers = is_valid_request(request)
         if not headers:
-            return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
+            return JSONResponse('You must be authenticated. You can authenticate yourself with the header X-Auth-Token ', status=status.HTTP_401_UNAUTHORIZED)
         data = JSONParser().parse(request)
         
         try:
             sds_project.add_new_sds_project(data["tenant_name"])
         except:
-            return JSONResponse('Error creating a new project.', status=500)
+            return JSONResponse('Error creating a new project.', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
-        return JSONResponse('Account created successfully', status=201)
-    return JSONResponse('Only HTTP GET /tenants/ requests allowed.', status=405)
+        return JSONResponse('Account created successfully', status=status.HTTP_201_CREATED)
+    return JSONResponse('Only HTTP GET /tenants/ requests allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
 @csrf_exempt
@@ -69,7 +70,7 @@ def storage_policies(request):
     if request.method == "POST":
         headers = is_valid_request(request)
         if not headers:
-            return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
+            return JSONResponse('You must be authenticated. You can authenticate yourself with the header X-Auth-Token ', status=status.HTTP_401_UNAUTHORIZED)
         data = JSONParser().parse(request)
         storage_nodes_list = []
         if isinstance(data["storage_node"], dict):
@@ -78,10 +79,10 @@ def storage_policies(request):
             try:
                 storage_policy.create(data)
             except Exception as e:
-                return JSONResponse('Error creating the Storage Policy: '+e, status=500)
+                return JSONResponse('Error creating the Storage Policy: '+e, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             
-        return JSONResponse('Account created successfully', status=201)
-    return JSONResponse('Only HTTP GET /tenants/ requests allowed.', status=405)
+        return JSONResponse('Account created successfully', status=status.HTTP_201_CREATED)
+    return JSONResponse('Only HTTP POST /spolicies/ requests allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
 @csrf_exempt
@@ -98,7 +99,7 @@ def locality_list(request, account, container=None, swift_object=None):
         elif container and swift_object:
             r = requests.get(settings.SWIFT_URL + "endpoints/v2/" + account + "/" + container + "/" + swift_object)
         return HttpResponse(r.content, content_type='application/json', status=r.status_code)
-    return JSONResponse('Only HTTP GET /tenants/ requests allowed.', status=405)
+    return JSONResponse('Only HTTP GET /locality/ requests allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
 @csrf_exempt
@@ -109,14 +110,14 @@ def sort_list(request):
     try:
         r = get_redis_connection()
     except:
-        return JSONResponse('Error connecting with DB', status=500)
+        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     if request.method == 'GET':
         keys = r.keys("proxy_sorting:*")
         dependencies = []
         for key in keys:
             dependencies.append(r.hgetall(key))
-        return JSONResponse(dependencies, status=200)
+        return JSONResponse(dependencies, status=status.HTTP_200_OK)
 
     elif request.method == 'POST':
         data = JSONParser().parse(request)
@@ -124,10 +125,10 @@ def sort_list(request):
         try:
             data["id"] = dependency_id
             r.hmset('proxy_sorting:' + str(dependency_id), data)
-            return JSONResponse(data, status=201)
+            return JSONResponse(data, status=status.HTTP_201_CREATED)
         except:
-            return JSONResponse("Error to save the proxy sorting", status=400)
-    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
+            return JSONResponse("Error to save the proxy sorting", status=status.HTTP_400_BAD_REQUEST)
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
 @csrf_exempt
@@ -138,21 +139,21 @@ def sort_detail(request, id):
     try:
         r = get_redis_connection()
     except:
-        return JSONResponse('Error connecting with DB', status=500)
+        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     if request.method == 'GET':
         dependency = r.hgetall("proxy_sorting:" + str(id))
-        return JSONResponse(dependency, status=200)
+        return JSONResponse(dependency, status=status.HTTP_200_OK)
 
     elif request.method == 'PUT':
         data = JSONParser().parse(request)
         try:
             r.hmset('proxy_sorting:' + str(id), data)
-            return JSONResponse("Data updated", status=201)
+            return JSONResponse("Data updated", status=status.HTTP_201_CREATED)
         except:
-            return JSONResponse("Error updating data", status=400)
+            return JSONResponse("Error updating data", status=status.HTTP_400_BAD_REQUEST)
 
     elif request.method == 'DELETE':
         r.delete("proxy_sorting:" + str(id))
-        return JSONResponse('Proxy sorting has been deleted', status=204)
-    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
+        return JSONResponse('Proxy sorting has been deleted', status=status.HTTP_204_NO_CONTENT)
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
