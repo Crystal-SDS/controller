@@ -15,7 +15,7 @@ from .views import object_type_list, object_type_detail
 
 
 # Tests use database=10 instead of 0.
-@override_settings(REDIS_CON_POOL = redis.ConnectionPool(host='localhost', port=6379, db=10))
+@override_settings(REDIS_CON_POOL=redis.ConnectionPool(host='localhost', port=6379, db=10))
 class RegistryTestCase(TestCase):
     def setUp(self):
         # Every test needs access to the request factory.
@@ -37,7 +37,7 @@ class RegistryTestCase(TestCase):
     @mock.patch('registry.views.requests.get')
     def test_registry_static_policy(self, mock_requests_get):
         resp = HttpResponse()
-        resp.content = json.dumps({'tenants':[{'name': 'tenantA', 'id': '0123456789abcdef'},
+        resp.content = json.dumps({'tenants': [{'name': 'tenantA', 'id': '0123456789abcdef'},
                                               {'name': 'tenantB', 'id': '2'}]})
         mock_requests_get.return_value = resp
 

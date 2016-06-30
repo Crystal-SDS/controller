@@ -1,14 +1,16 @@
-from django.conf import settings
-from django.http import HttpResponse
-from django.views.decorators.csrf import csrf_exempt
-from rest_framework import status
-from rest_framework.exceptions import ParseError
-from rest_framework.parsers import JSONParser
-from rest_framework.renderers import JSONRenderer
 import storage_policy
 import sds_project
 import requests
 import redis
+
+from django.conf import settings
+from django.http import HttpResponse
+from django.views.decorators.csrf import csrf_exempt
+from redis.exceptions import RedisError
+from rest_framework import status
+from rest_framework.exceptions import ParseError
+from rest_framework.parsers import JSONParser
+from rest_framework.renderers import JSONRenderer
 
 
 class JSONResponse(HttpResponse):
@@ -110,7 +112,7 @@ def sort_list(request):
     """
     try:
         r = get_redis_connection()
-    except:
+    except RedisError:
         return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     if request.method == 'GET':
@@ -144,7 +146,7 @@ def sort_detail(request, id):
     """
     try:
         r = get_redis_connection()
-    except:
+    except RedisError:
         return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     if request.method == 'GET':

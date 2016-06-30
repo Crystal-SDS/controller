@@ -9,8 +9,9 @@ from rest_framework.test import APIRequestFactory
 
 from .views import storlet_list, storlet_detail, storlet_list_deployed, storlet_deploy, storlet_undeploy, StorletData
 
+
 # Tests use database=10 instead of 0.
-@override_settings(REDIS_CON_POOL = redis.ConnectionPool(host='localhost', port=6379, db=10))
+@override_settings(REDIS_CON_POOL=redis.ConnectionPool(host='localhost', port=6379, db=10))
 class StorletTestCase(TestCase):
     def setUp(self):
         # Every test needs access to the request factory.
@@ -119,7 +120,7 @@ class StorletTestCase(TestCase):
         storlets = json.loads(response.content)
         self.assertEqual(len(storlets), 2)
 
-        if (storlets[0]['id'] == "1"):
+        if storlets[0]['id'] == "1":
             storlet1 = storlets[0]
             storlet2 = storlets[1]
         else:
@@ -170,11 +171,10 @@ class StorletTestCase(TestCase):
         response = storlet_list_deployed(request, '0123456789abcdef')
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
-
     def mock_put_object_status_created(url, token=None, container=None, name=None, contents=None,
-               content_length=None, etag=None, chunk_size=None,
-               content_type=None, headers=None, http_conn=None, proxy=None,
-               query_string=None, response_dict=None):
+                                       content_length=None, etag=None, chunk_size=None,
+                                       content_type=None, headers=None, http_conn=None, proxy=None,
+                                       query_string=None, response_dict=None):
         response_dict['status'] = status.HTTP_201_CREATED
 
     @mock.patch('storlet.views.swift_client.put_object', side_effect=mock_put_object_status_created)
@@ -182,16 +182,16 @@ class StorletTestCase(TestCase):
         # Upload a filter for the storlet 1
         with open('test_data/test.txt', 'r') as fp:
             request = self.factory.put('/filters/1/data', {'file': fp})
-            response = StorletData.as_view()(request, 1)
+            StorletData.as_view()(request, 1)
 
         # Call storlet_deploy
         request = self.factory.put('/filters/0123456789abcdef/deploy/1', {"policy_id": "1"}, format='json')
         request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
         response = storlet_deploy(request, "1", "0123456789abcdef")
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        mock_put_object.assert_called_with(settings.SWIFT_URL + settings.SWIFT_API_VERSION +"/AUTH_0123456789abcdef",
-                                           'fake_token',"storlet", "FakeFilter", mock.ANY, mock.ANY, mock.ANY,
-                                           mock.ANY, mock.ANY, mock.ANY,  mock.ANY,mock.ANY, mock.ANY, mock.ANY)
+        mock_put_object.assert_called_with(settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/AUTH_0123456789abcdef",
+                                           'fake_token', "storlet", "FakeFilter", mock.ANY, mock.ANY, mock.ANY,
+                                           mock.ANY, mock.ANY, mock.ANY,  mock.ANY, mock.ANY, mock.ANY, mock.ANY)
         self.assertTrue(self.r.hexists("pipeline:AUTH_0123456789abcdef", "1"))
         dumped_data = self.r.hget("pipeline:AUTH_0123456789abcdef", "1")
         json_data = json.loads(dumped_data)
@@ -202,7 +202,7 @@ class StorletTestCase(TestCase):
         # Upload a filter for the storlet 1
         with open('test_data/test.txt', 'r') as fp:
             request = self.factory.put('/filters/1/data', {'file': fp})
-            response = StorletData.as_view()(request, 1)
+            StorletData.as_view()(request, 1)
 
         # Call storlet_deploy
         request = self.factory.put('/filters/0123456789abcdef/container1/deploy/1', {"policy_id": "1"}, format='json')
@@ -259,14 +259,12 @@ class StorletTestCase(TestCase):
     #     print response
     #     self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
-
-
     #
     # Aux methods
     #
 
     def create_storlet(self):
-        filter_data = {'name': 'FakeFilter', 'language': 'java', 'interface_version': '', 'dependencies':'',
+        filter_data = {'name': 'FakeFilter', 'language': 'java', 'interface_version': '', 'dependencies': '',
                        'object_metadata': '', 'main': 'com.example.FakeMain', 'is_put': 'False', 'is_get': 'False',
                        'has_reverse': 'False', 'execution_server': 'proxy', 'execution_server_reverse': 'proxy'}
         request = self.factory.post('/filters/', filter_data, format='json')

@@ -6,6 +6,7 @@ from django.conf import settings
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from pyactive.controller import init_host, start_controller
+from redis.exceptions import RedisError
 from rest_framework import status
 from rest_framework.parsers import JSONParser
 from rest_framework.renderers import JSONRenderer
@@ -69,7 +70,7 @@ def add_metric(request):
     """
     try:
         r = get_redis_connection()
-    except:
+    except RedisError:
         return JSONResponse('Error connecting with DB', status=500)
 
     if request.method == 'GET':
@@ -98,7 +99,7 @@ def metric_detail(request, name):
     """
     try:
         r = get_redis_connection()
-    except:
+    except RedisError:
         return JSONResponse('Error connecting with DB', status=500)
 
     if request.method == 'GET':
@@ -132,7 +133,7 @@ def add_dynamic_filter(request):
     """
     try:
         r = get_redis_connection()
-    except:
+    except RedisError:
         return JSONResponse('Error connecting with DB', status=500)
     if request.method == 'GET':
         keys = r.keys("filter:*")
@@ -160,7 +161,7 @@ def dynamic_filter_detail(request, name):
     """
     try:
         r = get_redis_connection()
-    except:
+    except RedisError:
         return JSONResponse('Error connecting with DB', status=500)
 
     if request.method == 'GET':
@@ -190,7 +191,7 @@ Storage nodes
 def list_storage_node(request):
     try:
         r = get_redis_connection()
-    except:
+    except RedisError:
         return JSONResponse('Error connecting with DB', status=500)
 
     if request.method == "GET":
@@ -218,7 +219,7 @@ def storage_node_detail(request, snode_id):
     """
     try:
         r = get_redis_connection()
-    except:
+    except RedisError:
         return JSONResponse('Error connecting with DB', status=500)
 
     if request.method == 'GET':
@@ -251,7 +252,7 @@ def add_tenants_group(request):
     """
     try:
         r = get_redis_connection()
-    except:
+    except RedisError:
         return JSONResponse('Error connecting with DB', status=500)
 
     if request.method == 'GET':
@@ -279,7 +280,7 @@ def tenants_group_detail(request, gtenant_id):
     """
     try:
         r = get_redis_connection()
-    except:
+    except RedisError:
         return JSONResponse('Error connecting with DB', status=500)
 
     if request.method == 'GET':
@@ -310,7 +311,7 @@ def gtenants_tenant_detail(request, gtenant_id, tenant_id):
     """
     try:
         r = get_redis_connection()
-    except:
+    except RedisError:
         return JSONResponse('Error connecting with DB', status=500)
     if request.method == 'DELETE':
         r.lrem("G:" + str(gtenant_id), str(tenant_id), 1)
@@ -332,7 +333,7 @@ def object_type_list(request):
     """
     try:
         r = get_redis_connection()
-    except:
+    except RedisError:
         return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     if request.method == 'GET':
@@ -371,7 +372,7 @@ def object_type_detail(request, object_type_name):
     """
     try:
         r = get_redis_connection()
-    except:
+    except RedisError:
         return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     key = "object_type:" + object_type_name
@@ -414,7 +415,7 @@ def object_type_items_detail(request, object_type_name, item_name):
     gtenant_id = 0  # DELETE
     try:
         r = get_redis_connection()
-    except:
+    except RedisError:
         return JSONResponse('Error connecting with DB', status=500)
     if request.method == 'DELETE':
         r.lrem("object_type:" + str(object_type_name), str(item_name), 1)
@@ -430,7 +431,7 @@ def policy_list(request):
     """
     try:
         r = get_redis_connection()
-    except:
+    except RedisError:
         return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     if request.method == 'GET':
@@ -522,7 +523,7 @@ def static_policy_detail(request, policy_id):
     """
     try:
         r = get_redis_connection()
-    except:
+    except RedisError:
         return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     target = str(policy_id).split(':')[0]
@@ -569,7 +570,7 @@ def dynamic_policy_detail(request, policy_id):
     """
     try:
         r = get_redis_connection()
-    except:
+    except RedisError:
         return JSONResponse('Error connecting with DB', status=500)
 
     if request.method == 'DELETE':
