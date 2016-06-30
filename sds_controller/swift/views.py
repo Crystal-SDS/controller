@@ -1,13 +1,14 @@
 from django.conf import settings
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
+from rest_framework import status
+from rest_framework.exceptions import ParseError
 from rest_framework.parsers import JSONParser
 from rest_framework.renderers import JSONRenderer
 import storage_policy
 import sds_project
 import requests
 import redis
-from rest_framework import status
 
 
 class JSONResponse(HttpResponse):
@@ -105,7 +106,7 @@ def locality_list(request, account, container=None, swift_object=None):
 @csrf_exempt
 def sort_list(request):
     """
-    List all dependencies, or create a Dependency.
+    List all proxy sortings, or create a proxy sortings.
     """
     try:
         r = get_redis_connection()
@@ -114,27 +115,32 @@ def sort_list(request):
 
     if request.method == 'GET':
         keys = r.keys("proxy_sorting:*")
-        dependencies = []
+        proxy_sortings = []
         for key in keys:
-            dependencies.append(r.hgetall(key))
-        return JSONResponse(dependencies, status=status.HTTP_200_OK)
+            proxy_sortings.append(r.hgetall(key))
+        return JSONResponse(proxy_sortings, status=status.HTTP_200_OK)
 
     elif request.method == 'POST':
-        data = JSONParser().parse(request)
-        dependency_id = r.incr("proxies_sorting:id")
         try:
-            data["id"] = dependency_id
-            r.hmset('proxy_sorting:' + str(dependency_id), data)
+            data = JSONParser().parse(request)
+            if not data:
+                return JSONResponse("Empty request", status=status.HTTP_400_BAD_REQUEST)
+
+            proxy_sorting_id = r.incr("proxies_sorting:id")
+            data["id"] = proxy_sorting_id
+            r.hmset('proxy_sorting:' + str(proxy_sorting_id), data)
             return JSONResponse(data, status=status.HTTP_201_CREATED)
-        except:
+        except redis.exceptions.DataError:
             return JSONResponse("Error to save the proxy sorting", status=status.HTTP_400_BAD_REQUEST)
+        except ParseError:
+            return JSONResponse("Invalid format or empty request", status=status.HTTP_400_BAD_REQUEST)
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
 @csrf_exempt
 def sort_detail(request, id):
     """
-    Retrieve, update or delete a Dependency.
+    Retrieve, update or delete a Proxy Sorting.
     """
     try:
         r = get_redis_connection()
@@ -142,16 +148,18 @@ def sort_detail(request, id):
         return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     if request.method == 'GET':
-        dependency = r.hgetall("proxy_sorting:" + str(id))
-        return JSONResponse(dependency, status=status.HTTP_200_OK)
+        proxy_sorting = r.hgetall("proxy_sorting:" + str(id))
+        return JSONResponse(proxy_sorting, status=status.HTTP_200_OK)
 
     elif request.method == 'PUT':
-        data = JSONParser().parse(request)
         try:
+            data = JSONParser().parse(request)
             r.hmset('proxy_sorting:' + str(id), data)
             return JSONResponse("Data updated", status=status.HTTP_201_CREATED)
-        except:
+        except redis.exceptions.DataError:
             return JSONResponse("Error updating data", status=status.HTTP_400_BAD_REQUEST)
+        except ParseError:
+            return JSONResponse("Invalid format or empty request", status=status.HTTP_400_BAD_REQUEST)
 
     elif request.method == 'DELETE':
         r.delete("proxy_sorting:" + str(id))
