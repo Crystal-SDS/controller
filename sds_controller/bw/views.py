@@ -5,6 +5,7 @@ import requests
 from django.conf import settings
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
+from redis.exceptions import RedisError, DataError
 from rest_framework import status
 from rest_framework.parsers import JSONParser
 from rest_framework.renderers import JSONRenderer
@@ -24,9 +25,9 @@ class JSONResponse(HttpResponse):
 def is_valid_request(request):
     headers = {}
     try:
-        headers["X-Auth-Token"] = request.META["HTTP_X_AUTH_TOKEN"]
+        headers['X-Auth-Token'] = request.META['HTTP_X_AUTH_TOKEN']
         return headers
-    except AttributeError:
+    except KeyError:
         return None
 
 
@@ -41,7 +42,7 @@ def bw_list(request):
     """
     try:
         r = get_redis_connection()
-    except:
+    except RedisError:
         return JSONResponse("Error connecting with DB", status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     if request.method == "GET":
@@ -69,7 +70,7 @@ def bw_list(request):
         try:
             r.hmset("bw:AUTH_" + str(data["tenant_id"]), {data["policy_id"]: data["bandwidth"]})
             return JSONResponse(data, status=status.HTTP_201_CREATED)
-        except:
+        except DataError:
             return JSONResponse("Error saving SLA.", status=status.HTTP_400_BAD_REQUEST)
     return JSONResponse("Method " + str(request.method) + " not allowed.", status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
@@ -81,7 +82,7 @@ def bw_detail(request, tenant_key):
     """
     try:
         r = get_redis_connection()
-    except:
+    except RedisError:
         return JSONResponse("Error connecting with DB", status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     tenant_id = str(tenant_key).split(':')[0]
@@ -109,7 +110,7 @@ def bw_detail(request, tenant_key):
         try:
             r.hmset("bw:AUTH_" + tenant_id, {policy_id: data["bandwidth"]})
             return JSONResponse("Data updated", status=status.HTTP_201_CREATED)
-        except:
+        except DataError:
             return JSONResponse("Error updating data", status=status.HTTP_400_BAD_REQUEST)
 
     elif request.method == "DELETE":

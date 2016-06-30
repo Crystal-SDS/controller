@@ -6,6 +6,7 @@ import redis
 from django.conf import settings
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
+from redis.exceptions import RedisError, DataError
 from rest_framework import status
 from rest_framework.exceptions import ParseError
 from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
@@ -40,7 +41,7 @@ def is_valid_request(request):
     try:
         headers['X-Auth-Token'] = request.META['HTTP_X_AUTH_TOKEN']
         return headers
-    except:
+    except KeyError:
         return None
 
 
@@ -62,7 +63,7 @@ def storlet_list(request):
     """
     try:
         r = get_redis_connection()
-    except:
+    except RedisError:
         return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     if request.method == 'GET':
         keys = r.keys("storlet:*")
@@ -90,7 +91,7 @@ def storlet_list(request):
             r.hmset('storlet:' + str(storlet_id), data)
             return JSONResponse(data, status=status.HTTP_201_CREATED)
 
-        except:
+        except DataError:
             return JSONResponse("Error to save the object", status=status.HTTP_400_BAD_REQUEST)
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
@@ -102,7 +103,7 @@ def storlet_detail(request, storlet_id):
     """
     try:
         r = get_redis_connection()
-    except:
+    except RedisError:
         return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     if not r.exists("storlet:" + str(storlet_id)):
@@ -124,14 +125,14 @@ def storlet_detail(request, storlet_id):
         try:
             r.hmset('storlet:' + str(storlet_id), data)
             return JSONResponse("Data updated", status=status.HTTP_200_OK)
-        except:
+        except DataError:
             return JSONResponse("Error updating data", status=status.HTTP_408_REQUEST_TIMEOUT)
 
     elif request.method == 'DELETE':
         try:
             r.delete("storlet:" + str(storlet_id))
             return JSONResponse('Filter has been deleted', status=status.HTTP_204_NO_CONTENT)
-        except:
+        except DataError:
             return JSONResponse("Error deleting filter", status=status.HTTP_408_REQUEST_TIMEOUT)
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
@@ -145,7 +146,7 @@ class StorletData(APIView):
     def put(self, request, storlet_id, format=None):
         try:
             r = get_redis_connection()
-        except:
+        except RedisError:
             return JSONResponse('Error connecting with DB', status=500)
         if r.exists("storlet:" + str(storlet_id)):
             file_obj = request.FILES['file']
@@ -153,19 +154,15 @@ class StorletData(APIView):
             md5_etag = md5(path)
             try:
                 r = get_redis_connection()
-                result = r.hset("storlet:" + str(storlet_id), "path", str(path))
-                result = r.hset("storlet:" + str(storlet_id), "content_length", str(request.META["CONTENT_LENGTH"]))
-                result = r.hset("storlet:" + str(storlet_id), "etag", str(md5_etag))
-            except:
+                r.hset("storlet:" + str(storlet_id), "path", str(path))
+                r.hset("storlet:" + str(storlet_id), "content_length", str(request.META["CONTENT_LENGTH"]))
+                r.hset("storlet:" + str(storlet_id), "etag", str(md5_etag))
+            except RedisError:
                 return JSONResponse('Problems connecting with DB', status=500)
             return JSONResponse('Filter has been updated', status=201)
         return JSONResponse('Filter does not exist', status=404)
 
     def get(self, request, storlet_id, format=None):
-        try:
-            r = get_redis_connection()
-        except:
-            return JSONResponse('Error connecting with DB', status=500)
         # TODO Return the storlet data
         data = "File"
         return Response(data, status=None, template_name=None, headers=None, content_type=None)
@@ -178,7 +175,7 @@ def storlet_deploy(request, storlet_id, account, container=None, swift_object=No
     """
     try:
         r = get_redis_connection()
-    except:
+    except RedisError:
         return JSONResponse('Problems to connect with the DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     if request.method == 'PUT':
@@ -216,8 +213,12 @@ def storlet_list_deployed(request, account):
     """
     List all the storlets deployed.
     """
-    if request.method == 'GET':
+    try:
         r = get_redis_connection()
+    except RedisError:
+        return JSONResponse('Problems to connect with the DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    if request.method == 'GET':
         result = r.lrange("AUTH_" + str(account), 0, -1)
         if result:
             return JSONResponse(result, status=status.HTTP_200_OK)
@@ -233,7 +234,7 @@ def storlet_undeploy(request, storlet_id, account, container=None, swift_object=
     """
     try:
         r = get_redis_connection()
-    except:
+    except RedisError:
         return JSONResponse('Problems to connect with the DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     storlet = r.hgetall("storlet:" + str(storlet_id))
     if not storlet:
@@ -271,7 +272,7 @@ def dependency_list(request):
     """
     try:
         r = get_redis_connection()
-    except:
+    except RedisError:
         return JSONResponse('Error connecting with DB', status=500)
 
     if request.method == 'GET':
@@ -288,7 +289,7 @@ def dependency_list(request):
             data["id"] = dependency_id
             r.hmset('dependency:' + str(dependency_id), data)
             return JSONResponse(data, status=201)
-        except:
+        except DataError:
             return JSONResponse("Error to save the filter", status=400)
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
 
@@ -300,7 +301,7 @@ def dependency_detail(request, dependency_id):
     """
     try:
         r = get_redis_connection()
-    except:
+    except RedisError:
         return JSONResponse('Error connecting with DB', status=500)
 
     if request.method == 'GET':
@@ -312,7 +313,7 @@ def dependency_detail(request, dependency_id):
         try:
             r.hmset('dependency:' + str(dependency_id), data)
             return JSONResponse("Data updated", status=201)
-        except:
+        except DataError:
             return JSONResponse("Error updating data", status=400)
 
     elif request.method == 'DELETE':
@@ -327,16 +328,12 @@ class DependencyData(APIView):
     def put(self, request, dependency_id, format=None):
         try:
             r = get_redis_connection()
-        except:
+        except RedisError:
             return JSONResponse('Problems to connect with the DB', status=500)
         if r.exists("dependency:" + str(dependency_id)):
             file_obj = request.FILES['file']
             path = save_file(file_obj, settings.DEPENDENCY_DIR)
-            try:
-                r = get_redis_connection()
-                result = r.hset("dependency:" + str(dependency_id), "path", str(path))
-            except:
-                return JSONResponse('Problems connecting with DB', status=500)
+            r.hset("dependency:" + str(dependency_id), "path", str(path))
             return JSONResponse('Dependency has been updated', status=201)
         return JSONResponse('Dependency does not exist', status=404)
 
@@ -350,7 +347,7 @@ class DependencyData(APIView):
 def dependency_deploy(request, dependency_id, account):
     try:
         r = get_redis_connection()
-    except:
+    except RedisError:
         return JSONResponse('Problems to connect with the DB', status=500)
 
     if request.method == 'PUT':
@@ -372,7 +369,7 @@ def dependency_deploy(request, dependency_id, account):
             swift_client.put_object(settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/" + "AUTH_" + str(account), headers["X-Auth-Token"], 'dependency', dependency["name"], f,
                                     content_length, None, None, "application/octet-stream",
                                     metadata, None, None, None, response)
-        except:
+        except ClientException:
             return JSONResponse(response.get("reason"), status=response.get('status'))
         finally:
             f.close()
@@ -390,8 +387,12 @@ def dependency_deploy(request, dependency_id, account):
 
 @csrf_exempt
 def dependency_list_deployed(request, account):
-    if request.method == 'GET':
+    try:
         r = get_redis_connection()
+    except RedisError:
+        return JSONResponse('Problems to connect with the DB', status=500)
+
+    if request.method == 'GET':
         result = r.lrange("AUTH_" + str(account) + ":dependencies", 0, -1)
         if result:
             return JSONResponse(result, status=200)
@@ -404,7 +405,7 @@ def dependency_list_deployed(request, account):
 def dependency_undeploy(request, dependency_id, account):
     try:
         r = get_redis_connection()
-    except:
+    except RedisError:
         return JSONResponse('Problems to connect with the DB', status=500)
     dependency = r.hgetall("dependency:" + str(dependency_id))
 
@@ -421,14 +422,14 @@ def dependency_undeploy(request, dependency_id, account):
         try:
             swift_client.delete_object(settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/" + "AUTH_" + str(account), headers["X-Auth-Token"],
                                        'dependency', dependency["name"], None, None, None, None, response)
-        except:
+        except ClientException:
             return JSONResponse(response.get("reason"), status=response.get('status'))
-        status = response.get('status')
-        if 200 <= status < 300:
+        swift_status = response.get('status')
+        if 200 <= swift_status < 300:
             r.delete("AUTH_" + str(account) + ":dependency:" + str(dependency["name"]))
             r.lrem("AUTH_" + str(account) + ":dependencies", str(dependency["name"]), 1)
-            return JSONResponse('The dependency has been deleted', status=status)
-        return JSONResponse(response.get("reason"), status=status)
+            return JSONResponse('The dependency has been deleted', status=swift_status)
+        return JSONResponse(response.get("reason"), status=swift_status)
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
 
 
@@ -492,10 +493,10 @@ def deploy(r, target, storlet, parameters, headers):
         data_dumped = json.dumps(data).replace('"True"', 'true').replace('"False"', 'false')
 
         r.hset("pipeline:AUTH_" + str(target), policy_id, data_dumped)
-        #return status.HTTP_201_CREATED
+        # return status.HTTP_201_CREATED
     else:
         raise SwiftClientError("A problem occurred accessing Swift")
-        #return status.HTTP_400_BAD_REQUEST
+        # return status.HTTP_400_BAD_REQUEST
 
 
 # FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 DO DELETE compression
@@ -505,7 +506,7 @@ def undeploy(r, target, storlet, headers):
     try:
         swift_client.delete_object(settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/" + "AUTH_" + str(target_list[0]),
                                    headers["X-Auth-Token"], "storlet", storlet["name"], None, None, None, None, swift_response)
-    except:
+    except ClientException:
         return swift_response.get("status")
 
     swift_status = swift_response.get("status")
@@ -522,9 +523,9 @@ def undeploy(r, target, storlet, headers):
 
 
 def save_file(file_, path=''):
-    '''
+    """
     Little helper to save a file
-    '''
+    """
     filename = file_._get_name()
     fd = open(str(path) + "/" + str(filename), 'wb')
     for chunk in file_.chunks():

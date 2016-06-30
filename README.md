@@ -2,6 +2,7 @@
 [![Stories in In Progress](https://badge.waffle.io/iostackproject/SDS-Controller-for-Object-Storage.png?label=In%20Progress&title=In%20Progress)](https://waffle.io/iostackproject/SDS-Controller-for-Object-Storage)
 [![Build Status](https://travis-ci.org/Crystal-SDS/Crystal-Controller.svg?branch=master)](https://travis-ci.org/Crystal-SDS/Crystal-Controller)
 [![Coverage Status](https://coveralls.io/repos/github/Crystal-SDS/Crystal-Controller/badge.svg?branch=master)](https://coveralls.io/github/Crystal-SDS/Crystal-Controller?branch=master)
+[![Code Health](https://landscape.io/github/Crystal-SDS/Crystal-Controller/master/landscape.svg?style=flat)](https://landscape.io/github/Crystal-SDS/Crystal-Controller/master)
 
 # Crystal-Controller
 
