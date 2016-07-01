@@ -72,7 +72,8 @@ class Rule(object):
         """
         Method called to obtain the admin credentials, which we need to deploy filters in accounts.
         """
-        body = json.dumps({"auth": {"tenantName": self.openstack_tenant, "passwordCredentials": {"username": self.openstack_user, "password": self.openstack_pass}}})
+        body = json.dumps({"auth": {"tenantName": self.openstack_tenant, "passwordCredentials": {"username": self.openstack_user,
+                                                                                                 "password": self.openstack_pass}}})
         headers = {"Content-type": "application/json"}
         r = requests.post(self.openstack_keystone_url, data=body, headers=headers)
         if r.status_code == 200:
