@@ -5,7 +5,7 @@ import subprocess
 def add_new_sds_project(tenant_name):
     admin_user = settings.MANAGEMENT_ADMIN_USERNAME
     admin_password = settings.MANAGEMENT_ADMIN_PASSWORD
-    admin_account = settings.MANAGEMENT_ACCOUNT
+    # admin_account = settings.MANAGEMENT_ACCOUNT
     bin_dir = settings.STORLET_BIN_DIR
     docker_image = settings.STORLET_DOCKER_IMAGE
     tar_file = settings.STORLET_TAR_FILE

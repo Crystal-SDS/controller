@@ -58,9 +58,9 @@ def create_host():
     print 'lookup', remote_host
 
 
-"""
-Metric Workload part
-"""
+#
+# Metric Workload part
+#
 
 
 @csrf_exempt
@@ -121,9 +121,9 @@ def metric_detail(request, name):
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
 
 
-"""
-Dynamic Filters part
-"""
+#
+# Dynamic Filters part
+#
 
 
 @csrf_exempt
@@ -182,9 +182,9 @@ def dynamic_filter_detail(request, name):
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
 
 
-"""
-Storage nodes
-"""
+#
+# Storage nodes
+#
 
 
 @csrf_exempt
@@ -240,9 +240,9 @@ def storage_node_detail(request, snode_id):
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
 
 
-"""
-Tenants group part
-"""
+#
+# Tenants group part
+#
 
 
 @csrf_exempt
@@ -320,9 +320,9 @@ def gtenants_tenant_detail(request, gtenant_id, tenant_id):
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
 
 
-"""
-Object Type part
-"""
+#
+# Object Type part
+#
 
 
 @csrf_exempt

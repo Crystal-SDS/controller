@@ -31,7 +31,8 @@ class BwInfoSSYNC(BwInfo):
                 for source in averaged_aggregated_results[node]:
                     for device in averaged_aggregated_results[node][source]:
                         value = averaged_aggregated_results[node][source][device]/self.bw_info_to_average
-                        print "FROM " + source.split(':')[1] + " TO " + node.split(':')[0] + " ON " + device + " -> " + str("{:,}".format(int(value)) + " bytes")
+                        print "FROM " + source.split(':')[1] + " TO " + node.split(':')[0] + " ON " + device + " -> " + \
+                              str("{:,}".format(int(value)) + " bytes")
                         total_sum += int(value)
 
             self.output.write(str(int(total_sum))+"\n")
