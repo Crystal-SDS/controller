@@ -3,7 +3,6 @@ import requests
 import json
 
 
-
 class TransientRule(Rule):
     """
     TransientRule: Each policy of each tenant is compiled as Rule. Rule is an Actor and it will be subscribed
@@ -12,7 +11,7 @@ class TransientRule(Rule):
     also defined in the policy. Once executed the action, if change the condition evaluation
     the rule will execute the reverse action (if action is SET, the will execute DELETE)
     """
-    _sync = {'get_target':'2'}
+    _sync = {'get_target': '2'}
     _async = ['update', 'start_rule', 'stop_actor']
     _ref = []
     _parallel = []
@@ -30,7 +29,6 @@ class TransientRule(Rule):
         self.execution_stat = False
         super(TransientRule, self).__init__(rule_parsed, action, target, remote_host)
 
-
     def update(self, metric, tenant_info):
         """
         The method update is called by the workloads metrics following the observer
@@ -44,9 +42,9 @@ class TransientRule(Rule):
         """
         print 'Success update:  ', tenant_info
 
-        self.observers_values[metric]=tenant_info.value
+        self.observers_values[metric] = tenant_info.value
         
-        if all(val!=None for val in self.observers_values.values()):
+        if all(val is not None for val in self.observers_values.values()):
             condition_accomplished = self.check_conditions(self.conditions)
             if condition_accomplished != self.execution_stat:
                 self.do_action(condition_accomplished)
@@ -68,12 +66,12 @@ class TransientRule(Rule):
         if not self.token:
             self.admin_login()
 
-        headers = {"X-Auth-Token":self.token}
+        headers = {"X-Auth-Token": self.token}
         dynamic_filter = self.redis.hgetall("filter:"+str(self.action_list.filter))
 
         if action == "SET":
 
-            #TODO Review if this tenant has already deployed this filter. Not deploy the same filter more than one time.
+            # TODO Review if this tenant has already deployed this filter. Not deploy the same filter more than one time.
 
             url = dynamic_filter["activation_url"]+"/"+self.target+"/deploy/"+str(dynamic_filter["identifier"])
             print 'params: ', self.action_list.params
@@ -85,7 +83,6 @@ class TransientRule(Rule):
             else:
                 print response.text, response.status_code
 
-
         elif action == "DELETE":
             print "Deleteing filter"
             url = dynamic_filter["activation_url"]+"/"+self.target+"/undeploy/"+str(dynamic_filter["identifier"])
@@ -95,6 +92,5 @@ class TransientRule(Rule):
                 print 'ERROR RESPONSE'
             else:
                 print response.text, response.status_code
-
 
         return 'Not action supported'

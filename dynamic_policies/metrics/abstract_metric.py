@@ -17,7 +17,7 @@ class Metric(object):
         settings = ConfigParser.ConfigParser()
         settings.read("./dynamic_policies.config")
         
-        self.rmq_user =  settings.get('rabbitmq', 'username')
+        self.rmq_user = settings.get('rabbitmq', 'username')
         self.rmq_pass = settings.get('rabbitmq', 'password')
         self.rmq_host = settings.get('rabbitmq', 'host')
         self.rmq_port = settings.get('rabbitmq', 'port')
@@ -37,13 +37,13 @@ class Metric(object):
         :param observer: The PyActive proxy of the oberver rule that calls this method.
         :type observer: **any** PyActive Proxy type
         """
-        #TODO: Add the possibility to subscribe to container or object
+        # TODO: Add the possibility to subscribe to container or object
         print 'attach', observer
         tenant = observer.get_target()
 
-        if not tenant in self._observers.keys():
+        if tenant not in self._observers.keys():
             self._observers[tenant] = set()
-        if not observer in self._observers[tenant]:
+        if observer not in self._observers[tenant]:
             self._observers[tenant].add(observer)
 
     def detach(self, observer):
@@ -69,15 +69,15 @@ class Metric(object):
         :raises Exception: Raise an exception when a problem to create the consumer appear.
         """
         # try:
-        #print 'start_consume'
+        # print 'start_consume'
         r = redis.StrictRedis(host=self.redis_host, port=int(self.redis_port), db=int(self.redis_db))
-        r.hmset("metric:"+self.name, {"network_location":self._atom.aref.replace("atom:", "mom:", 1), "type":"integer"})
-        #print 'before consumer'
-        self.consumer = self.host.spawn_id(self.id + "_consumer", "consumer", "Consumer", [str(self.rmq_host), int(self.rmq_port), str(self.rmq_user), str(self.rmq_pass), self.exchange, self.queue, self.routing_key, self.proxy])
+        r.hmset("metric:"+self.name, {"network_location": self._atom.aref.replace("atom:", "mom:", 1), "type": "integer"})
+        # print 'before consumer'
+        self.consumer = self.host.spawn_id(self.id + "_consumer", "consumer", "Consumer", [str(self.rmq_host), int(self.rmq_port), str(self.rmq_user),
+                                                                                           str(self.rmq_pass), self.exchange, self.queue, self.routing_key, self.proxy])
         self.start_consuming()
         # except:
         #     raise Exception("Problems to connect to RabbitMQ server")
-
 
     def stop_actor(self):
         """
@@ -110,5 +110,5 @@ class Metric(object):
                 for observer in self._observers[tenant_info["tenant_id"]]:
                     observer.update(self.name, tenant_info)
             except:
-                #print "fail", tenant_info
+                # print "fail", tenant_info
                 pass
