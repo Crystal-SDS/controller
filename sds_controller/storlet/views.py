@@ -17,9 +17,10 @@ from swiftclient import client as swift_client
 from swiftclient.exceptions import ClientException
 from sds_controller.exceptions import SwiftClientError, StorletNotFoundException
 
-""" TODO create a common file and put this into the new file """
-""" Start Common """
-STORLET_KEYS = ('id', 'name', 'language', 'interface_version', 'dependencies', 'object_metadata', 'main', 'is_put', 'is_get', 'has_reverse', 'execution_server', 'execution_server_reverse', 'path')
+# TODO create a common file and put this into the new file
+# Start Common
+STORLET_KEYS = ('id', 'name', 'language', 'interface_version', 'dependencies', 'object_metadata', 'main', 'is_put', 'is_get', 'has_reverse',
+                'execution_server', 'execution_server_reverse', 'path')
 DEPENDENCY_KEYS = ('id', 'name', 'version', 'permissions', 'path')
 
 logging.basicConfig()
@@ -53,7 +54,7 @@ def check_keys(data, keys):
     return sorted(list(data)) == sorted(list(keys))
 
 
-""" End Common """
+# End Common
 
 
 @csrf_exempt
@@ -258,11 +259,9 @@ def storlet_undeploy(request, storlet_id, account, container=None, swift_object=
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
-"""
-------------------------------
-DEPENDENCY PART
-------------------------------
-"""
+# ------------------------------
+# DEPENDENCY PART
+# ------------------------------
 
 
 @csrf_exempt
@@ -366,9 +365,8 @@ def dependency_deploy(request, dependency_id, account):
         content_length = None
         response = dict()
         try:
-            swift_client.put_object(settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/" + "AUTH_" + str(account), headers["X-Auth-Token"], 'dependency', dependency["name"], f,
-                                    content_length, None, None, "application/octet-stream",
-                                    metadata, None, None, None, response)
+            swift_client.put_object(settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/" + "AUTH_" + str(account), headers["X-Auth-Token"], 'dependency',
+                                    dependency["name"], f, content_length, None, None, "application/octet-stream", metadata, None, None, None, response)
         except ClientException:
             return JSONResponse(response.get("reason"), status=response.get('status'))
         finally:
@@ -460,15 +458,14 @@ def deploy(r, target, storlet, parameters, headers):
     # except IOError:
     #     return status.HTTP_404_NOT_FOUND
 
-    #content_length = int(storlet["content_length"])
-    content_length = None
+    # content_length = int(storlet["content_length"])
+    # content_length = None
     swift_response = dict()
 
     # Change to API Call
     try:
-        url = settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/" + "AUTH_" + str(target_list[0])
-        swift_client.put_object(url,
-                                headers["X-Auth-Token"], "storlet", storlet["name"], storlet_file, content_length,
+        swift_client.put_object(settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/" + "AUTH_" + str(target_list[0]),
+                                headers["X-Auth-Token"], "storlet", storlet["name"], storlet_file, None,
                                 None, None, "application/octet-stream", metadata, None, None, None, swift_response)
     except ClientException as e:
         logging.error('Error in Swift put_object %s', e)

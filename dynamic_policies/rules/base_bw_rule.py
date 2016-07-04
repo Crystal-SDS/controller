@@ -2,8 +2,10 @@ import redis
 import pika
 import logging
 import ConfigParser
+from redis.exceptions import RedisError
 
 logging.basicConfig(filename='./rule.log', format='%(asctime)s %(message)s', level=logging.INFO)
+
 
 class AbstractEnforcementAlgorithm(object):
     """
@@ -11,7 +13,7 @@ class AbstractEnforcementAlgorithm(object):
 
     AbstractEnforcementAlgorithm:
     """
-    _sync = {'get_tenant':'2'}
+    _sync = {'get_tenant': '2'}
     _async = ['update', 'run']
     _ref = []
     _parallel = []
@@ -27,7 +29,7 @@ class AbstractEnforcementAlgorithm(object):
         self.rmq_pass = settings.get('rabbitmq', 'password')
         self.rmq_host = settings.get('rabbitmq', 'host')
         self.rmq_port = int(settings.get('rabbitmq', 'port'))
-        self.rmq_exchange = "bw_assignations" #settings.get('rabbitmq', 'exchange')
+        self.rmq_exchange = "bw_assignations"  # settings.get('rabbitmq', 'exchange')
         
         self.redis_host = settings.get('redis', 'host')
         self.redis_port = int(settings.get('redis', 'port'))
@@ -39,7 +41,7 @@ class AbstractEnforcementAlgorithm(object):
             self.r = redis.Redis(connection_pool=redis.ConnectionPool(host=self.redis_host, 
                                                                       port=self.redis_port, 
                                                                       db=self.redis_db))
-        except:
+        except RedisError:
             logging.info('"Error connecting with Redis DB"')
             print "Error connecting with Redis DB"
             
@@ -63,7 +65,7 @@ class AbstractEnforcementAlgorithm(object):
             raise Exception('Error attaching to metric bw_info: '+str(e))
 
     def connect_rmq(self):
-        #TODO: WARNING: BlockingConnection can block the actor
+        # TODO: WARNING: BlockingConnection can block the actor
         self._connection = pika.BlockingConnection(pika.ConnectionParameters(
             host=self.redis_host, credentials=self.credentials))
         self._channel = self._connection.channel()
@@ -75,8 +77,8 @@ class AbstractEnforcementAlgorithm(object):
 
     def send_message_rmq(self, message, routing_key):
         self.connect_rmq()
-        self._channel.basic_publish(exchange=self.rmq_exchange,routing_key=routing_key, body=str(message))
-        #self.disconnect_rmq()
+        self._channel.basic_publish(exchange=self.rmq_exchange, routing_key=routing_key, body=str(message))
+        # self.disconnect_rmq()
 
     def update(self, metric, info):
         results = self.compute_algorithm(info)
@@ -109,9 +111,9 @@ class AbstractEnforcementAlgorithm(object):
                 if not new_flow and int(assign[account][ip]) == int(self.last_bw[account][ip]):
                     break
                 node_ip = ip.split('-')
-                address = node_ip[0]+'/'+account+'/'+self.method+'/'+ node_ip[1]+'/'+node_ip[2]+'/'+str(round(assign[account][ip],1))
-                routing_key = '.'+node_ip[0].replace('.','-').replace(':','-') + "."
-                print "BW CHANGED: "+ str(address)
+                address = node_ip[0]+'/'+account+'/'+self.method+'/' + node_ip[1]+'/'+node_ip[2]+'/'+str(round(assign[account][ip], 1))
+                routing_key = '.'+node_ip[0].replace('.', '-').replace(':', '-') + "."
+                print "BW CHANGED: " + str(address)
                 self.send_message_rmq(address, routing_key)
 
     def get_tenant(self):

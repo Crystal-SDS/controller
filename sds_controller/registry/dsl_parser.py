@@ -6,23 +6,19 @@ import redis
 # By default, PyParsing treats \n as whitespace and ignores it
 # In our grammer, \n is significant, so tell PyParsing not to ignore it
 # ParserElement.setDefaultWhitespaceChars(" \t")
-
-"""
-rule ::= "FOR Tenant WHEN"+property +"[< > = <= >=]+X+"DO"+action
-
-condition ::= property +"[< > = <= >=]+X
-condition_list ::= condition
-                    | condition_list AND condition
-                    | condition_list OR condition
-FOR Tenant WHEN"+ condition_list +"DO"+action
-
-FOR Tenant WHEN"+ condition AND condition AND condition OR condition etc.+"DO"+action
-
-TODO: Parse = TRUE or = False or condicion number. Check to convert to float or convert to boolean.
-"""
-
-# TODO: take this value from configuration
-r = redis.Redis(connection_pool=settings.REDIS_CON_POOL)
+#
+#
+# rule ::= "FOR Tenant WHEN"+property +"[< > = <= >=]+X+"DO"+action
+#
+# condition ::= property +"[< > = <= >=]+X
+# condition_list ::= condition
+#                     | condition_list AND condition
+#                     | condition_list OR condition
+# FOR Tenant WHEN"+ condition_list +"DO"+action
+#
+# FOR Tenant WHEN"+ condition AND condition AND condition OR condition etc.+"DO"+action
+#
+# TODO: Parse = TRUE or = False or condicion number. Check to convert to float or convert to boolean.
 
 
 def get_redis_connection():
@@ -30,6 +26,7 @@ def get_redis_connection():
 
 
 def parse_group_tenants(tokens):
+    r = get_redis_connection()
     data = r.lrange(tokens[0], 0, -1)
     return data
 
@@ -37,6 +34,8 @@ def parse_group_tenants(tokens):
 def parse(input_string):
     # TODO Raise an exception if not metrics or not action registered
     # TODO Raise an exception if group of tenants don't exist.
+    r = get_redis_connection()
+
     # Support words to construct the grammar.
     word = Word(alphas)
     when = Suppress(Literal("WHEN"))
@@ -45,7 +44,6 @@ def parse(input_string):
     # Condition part
     param = Word(alphanums+"_") + Suppress(Literal("=")) + Word(alphanums+"_")
     metrics_workload = r.keys("metric:*")
-    
     services = map(lambda x: "".join(x.split(":")[1]), metrics_workload)
     services_options = oneOf(services)
     operand = oneOf("< > == != <= >=")
@@ -77,8 +75,10 @@ def parse(input_string):
     server_execution = oneOf("PROXY OBJECT")
     # TRANSIENT
     transient = Literal("TRANSIENT")
-    action = Group(action("action") + oneOf(sfilter)("filter") + Optional(with_params + params_list("params") +
-            Optional(Suppress("ON")+server_execution("server_execution"))) + Optional(transient("transient")))
+    action = Group(action("action") + oneOf(sfilter)("filter") +
+                   Optional(with_params + params_list("params") +
+                            Optional(Suppress("ON")+server_execution("server_execution"))) +
+                   Optional(transient("transient")))
     
     action_list = Group(delimitedList(action))
     # Object types
@@ -86,7 +86,7 @@ def parse(input_string):
     object_parameter = oneOf("OBJECT_TYPE OBJECT_SIZE")
     object_type = Group(Literal("OBJECT_TYPE")("type") + Literal("=") + word(alphanums)("object_value"))("object_type")
     object_size = Group(Literal("OBJECT_SIZE")("type") + operand_object("operand") + number("object_value"))("object_size")
-    object_list = Group(object_type ^ object_size ^ object_type + "," + object_size ^ object_size +"," + object_type)
+    object_list = Group(object_type ^ object_size ^ object_type + "," + object_size ^ object_size + "," + object_type)
     to = Suppress("TO")
     
     # Functions post-parsed
@@ -98,9 +98,9 @@ def parse(input_string):
     tenant_group.setParseAction(parse_group_tenants)
     
     # Final rule structure
-    rule_parse = literal_for + target("target") + Optional(when +
-                condition_list("condition_list")) + do + action_list("action_list") +\
-                Optional(to + object_list("object_list"))
+    rule_parse = literal_for + target("target") + \
+                 Optional(when + condition_list("condition_list")) + do + \
+                 action_list("action_list") + Optional(to + object_list("object_list"))
                 
     # Parse the rule
     parsed_rule = rule_parse.parseString(input_string)

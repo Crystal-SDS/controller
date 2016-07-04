@@ -7,7 +7,7 @@ import socket
 
 class SwiftMetric(Metric):
     _sync = {}
-    _async = ['get_value', 'attach', 'detach', 'notify', 'start_consuming','stop_consuming', 'init_consum', 'stop_actor']
+    _async = ['get_value', 'attach', 'detach', 'notify', 'start_consuming', 'stop_consuming', 'init_consum', 'stop_actor']
     _ref = ['attach', 'detach']
     _parallel = []
 
@@ -28,7 +28,7 @@ class SwiftMetric(Metric):
         """
 
         data = json.loads(body)
-        Thread(target=self._send_data_to_logstash,args=(data, )).start()
+        Thread(target=self._send_data_to_logstash, args=(data, )).start()
             
         """
         try:
@@ -48,7 +48,7 @@ class SwiftMetric(Metric):
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             for source_ip in data:
                 monitoring_data['metric_name'] = self.queue
-                monitoring_data['source_ip'] = source_ip.replace('.','-')
+                monitoring_data['source_ip'] = source_ip.replace('.', '-')
                 for key, value in data[source_ip].items():
                                             
                     monitoring_data['metric_target'] = key.replace('AUTH_', '')
@@ -68,6 +68,6 @@ class SwiftMetric(Metric):
                     self.last_metrics[key] = monitoring_data
                     
                 monitoring_data = dict()
-        except:
+        except socket.error:
             print "Error sending monitoring data to logstash"
             pass

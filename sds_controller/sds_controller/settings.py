@@ -23,7 +23,7 @@ ANSIBLE_DIR = os.path.join(BASE_DIR, "swift", "ansible")
 # See https://docs.djangoproject.com/en/1.8/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = '&yx_=2@s(evyq=l9t2efrgmgryz^ea85$csdb_rprvc-9b&#r8'
+SECRET_KEY = '&yx_=2@s(evyq=l9t2efrgmgryz^ea85$csdb_rprvc-9b&#r8' # noqa
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -122,21 +122,21 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 
-#Swift info
+# Swift info
 KEYSTONE_ADMIN_URL = "http://10.30.235.235:5000/v2.0/"
 KEYSTONE_URL = "http://10.30.235.235:35357/v2.0/"
 SWIFT_URL= "http://10.30.235.235:8080/"
 SWIFT_API_VERSION = "v1"
 
-#redis
+# redis
 REDIS_CON_POOL = redis.ConnectionPool(host='localhost', port=6379, db=0)
 
-#swift admin
-MANAGMENT_ACCOUNT = "storlet_management"
-MANAGMENT_ADMIN_USERNAME = "storlet_manager"
-MANAGMENT_ADMIN_PASSWORD = "storlet_manager"
+# swift admin
+MANAGEMENT_ACCOUNT = "storlet_management"
+MANAGEMENT_ADMIN_USERNAME = "storlet_manager"
+MANAGEMENT_ADMIN_PASSWORD = "storlet_manager" # noqa
 
-#pyactive
+# pyactive
 PYACTIVE_URL = "tcp://127.0.0.1:6375/"
 PYACTIVE_IP = "127.0.0.1"
 PYACTIVE_PORT = 6375

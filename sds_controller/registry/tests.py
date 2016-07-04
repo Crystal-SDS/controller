@@ -6,12 +6,14 @@ import mock
 from django.test import TestCase, override_settings
 from django.conf import settings
 from django.http import HttpResponse
+from pyparsing import ParseException
 from rest_framework import status
 from rest_framework.test import APIRequestFactory
 
 from .views import policy_list
 from storlet.views import storlet_list, storlet_deploy, StorletData
 from .views import object_type_list, object_type_detail
+from .dsl_parser import parse
 
 
 # Tests use database=10 instead of 0.
@@ -20,15 +22,16 @@ class RegistryTestCase(TestCase):
     def setUp(self):
         # Every test needs access to the request factory.
         # Using rest_framework's APIRequestFactory: http://www.django-rest-framework.org/api-guide/testing/
+        self.r = redis.Redis(connection_pool=settings.REDIS_CON_POOL)
         self.factory = APIRequestFactory()
         self.create_storlet()
         self.upload_filter()
         self.deploy_storlet()
         self.create_object_type_docs()
 
+
     def tearDown(self):
-        r = redis.Redis(connection_pool=settings.REDIS_CON_POOL)
-        r.flushdb()
+        self.r.flushdb()
 
     #
     # Static policy tests
@@ -221,6 +224,96 @@ class RegistryTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     #
+    # Parse tests
+    #
+
+    # TODO To test dsl_parser correctly, we need to have metrics and filters in Redis.
+
+    def test_parse_target_tenant_ok(self):
+        self.setup_dsl_parser_data()
+        has_condition_list, rule_parsed = parse('FOR TENANT:123456789abcdef DO SET compression')
+        self.assertFalse(has_condition_list)
+        self.assertIsNotNone(rule_parsed)
+        targets = rule_parsed.target
+        action_list = rule_parsed.action_list
+        self.assertEqual(len(targets), 1)
+        self.assertEqual(len(action_list), 1)
+        target = targets[0]
+        self.assertEqual(target.type, 'TENANT')
+        self.assertEqual(target[1], '123456789abcdef')
+        action_info = action_list[0]
+        self.assertEqual(action_info.action, 'SET')
+        self.assertEqual(action_info.filter, 'compression')
+        self.assertEqual(action_info.execution_server, '')
+        self.assertEqual(action_info.params, '')
+
+    def test_parse_target_container_ok(self):
+        self.setup_dsl_parser_data()
+        has_condition_list, rule_parsed = parse('FOR CONTAINER:123456789abcdef/container1 DO SET compression')
+        self.assertIsNotNone(rule_parsed)
+        targets = rule_parsed.target
+        self.assertEqual(len(targets), 1)
+        target = targets[0]
+        self.assertEqual(target.type, 'CONTAINER')
+        self.assertEqual(target[1], '123456789abcdef/container1')
+
+    def test_parse_target_object_ok(self):
+        self.setup_dsl_parser_data()
+        has_condition_list, rule_parsed = parse('FOR OBJECT:123456789abcdef/container1/object.txt DO SET compression')
+        self.assertIsNotNone(rule_parsed)
+        targets = rule_parsed.target
+        self.assertEqual(len(targets), 1)
+        target = targets[0]
+        self.assertEqual(target.type, 'OBJECT')
+        self.assertEqual(target[1], '123456789abcdef/container1/object.txt')
+
+    def test_parse_target_tenant_2_actions_ok(self):
+        self.setup_dsl_parser_data()
+        has_condition_list, rule_parsed = parse('FOR TENANT:123456789abcdef DO SET compression, SET encryption')
+        self.assertFalse(has_condition_list)
+        self.assertIsNotNone(rule_parsed)
+        targets = rule_parsed.target
+        action_list = rule_parsed.action_list
+        self.assertEqual(len(targets), 1)
+        self.assertEqual(len(action_list), 2)
+        action_info = action_list[0]
+        self.assertEqual(action_info.action, 'SET')
+        self.assertEqual(action_info.filter, 'compression')
+        self.assertEqual(action_info.execution_server, '')
+        self.assertEqual(action_info.params, '')
+        action_info = action_list[1]
+        self.assertEqual(action_info.action, 'SET')
+        self.assertEqual(action_info.filter, 'encryption')
+        self.assertEqual(action_info.execution_server, '')
+        self.assertEqual(action_info.params, '')
+
+    def test_parse_target_tenant_to_object_type_ok(self):
+        self.setup_dsl_parser_data()
+        has_condition_list, rule_parsed = parse('FOR TENANT:123456789abcdef DO SET compression TO OBJECT_TYPE=DOCS')
+        self.assertFalse(has_condition_list)
+        self.assertIsNotNone(rule_parsed)
+        object_list = rule_parsed.object_list
+        self.assertIsNotNone(object_list)
+        object_type = object_list.object_type
+        self.assertIsNotNone(object_type)
+        self.assertIsNotNone(object_type.object_value)
+        self.assertEqual(object_type.object_value, 'DOCS')
+
+    def test_parse_rule_not_starting_with_for(self):
+        self.setup_dsl_parser_data()
+        with self.assertRaises(ParseException):
+            parse('TENANT:1234 DO SET compression')
+
+    def test_parse_rule_with_invalid_target(self):
+        self.setup_dsl_parser_data()
+        with self.assertRaises(ParseException):
+            parse('FOR xxxxxxx DO SET compression')
+
+
+    # TODO tests for conditional rules
+
+
+    #
     # Aux methods
     #
 
@@ -264,3 +357,9 @@ class RegistryTestCase(TestCase):
         request = self.factory.post('/registry/object_type', object_type_data, format='json')
         response = object_type_list(request)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def setup_dsl_parser_data(self):
+        self.r.hmset('filter:compression', {'valid_parameters': '["cparam1", "cparam2", "cparam3"]'})
+        self.r.hmset('filter:encryption', {'valid_parameters': '["eparam1", "eparam2", "eparam3"]'})
+        self.r.hmset('metric:metric1', {'network_location': '?', 'type': 'integer'})
+        self.r.hmset('metric:metric2', {'network_location': '?', 'type': 'integer'})

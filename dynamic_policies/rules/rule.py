@@ -6,8 +6,8 @@ import logging
 import ConfigParser
 
 mappings = {'>': operator.gt, '>=': operator.ge,
-        '==': operator.eq, '<=': operator.le, '<': operator.lt,
-        '!=':operator.ne, "OR":operator.or_, "AND":operator.and_}
+            '==': operator.eq, '<=': operator.le, '<': operator.lt,
+            '!=': operator.ne, "OR": operator.or_, "AND": operator.and_}
 
 logging.basicConfig(filename='./rule.log', format='%(asctime)s %(message)s', level=logging.INFO)
 
@@ -19,14 +19,14 @@ class Rule(object):
     the conditions defined in the policy,the Rule actor executes an Action that it is
     also defined in the policy. Once the rule executed the action, this actor is destroyed.
     """
-    _sync = {'get_target':'2'}
+    _sync = {'get_target': '2'}
     _async = ['update', 'start_rule', 'stop_actor']
     _ref = []
     _parallel = []
 
     def __init__(self, rule_parsed, action, target, remote_host):
         """
-        Inicialize all the variables needed for the rule.
+        Initialize all the variables needed for the rule.
 
         :param rule_parsed: The rule parsed by the dsl_parser.
         :type rule_parsed: **any** PyParsing type
@@ -72,8 +72,9 @@ class Rule(object):
         """
         Method called to obtain the admin credentials, which we need to deploy filters in accounts.
         """
-        body = json.dumps({"auth":{"tenantName": self.openstack_tenant, "passwordCredentials": {"username": self.openstack_user, "password": self.openstack_pass}}})
-        headers = {"Content-type":"application/json"}
+        body = json.dumps({"auth": {"tenantName": self.openstack_tenant, "passwordCredentials": {"username": self.openstack_user,
+                                                                                                 "password": self.openstack_pass}}})
+        headers = {"Content-type": "application/json"}
         r = requests.post(self.openstack_keystone_url, data=body, headers=headers)
         if r.status_code == 200:
             self.token = r.json()["access"]["token"]["id"]
@@ -99,7 +100,6 @@ class Rule(object):
         print 'Start rule'
         self.check_metrics(self.conditions)
 
-
     def add_metric(self, workload_name):
         """
         The `add_metric()` method subscribes the rule to all workload metrics that it
@@ -110,16 +110,15 @@ class Rule(object):
 
         """
         print 'hello into add metric'
-        print "--> WN:",workload_name
+        print "--> WN:", workload_name
         if workload_name not in self.observers_values.keys():
-            #Trying the new PyActive version. New lookup function.
+            # Trying the new PyActive version. New lookup function.
             print 'workload_name', workload_name
             observer = self.remote_host.lookup(workload_name)
             print 'observer', observer, observer.get_id()
             observer.attach(self.proxy)
             self.observers_proxies[workload_name] = observer
             self.observers_values[workload_name] = None
-
 
     def check_metrics(self, condition_list):
         """
@@ -151,12 +150,12 @@ class Rule(object):
         """
         print 'Success update:  ', tenant_info
 
-        self.observers_values[metric]=tenant_info.value
+        self.observers_values[metric] = tenant_info.value
 
-        #TODO Check the last time updated the value
-        #Check the condition of the policy if all values are setted. If the condition
-        #result is true, it calls the method do_action
-        if all(val!=None for val in self.observers_values.values()):
+        # TODO Check the last time updated the value
+        # Check the condition of the policy if all values are setted. If the condition
+        # result is true, it calls the method do_action
+        if all(val is not None for val in self.observers_values.values()):
             if self.check_conditions(self.conditions):
                 self.do_action()
         else:
@@ -191,7 +190,6 @@ class Rule(object):
         """
         return self.target
 
-
     def do_action(self):
         """
         The do_action method is called after the conditions are satisfied. So this method
@@ -201,13 +199,13 @@ class Rule(object):
         if not self.token:
             self.admin_login()
 
-        headers = {"X-Auth-Token":self.token}
+        headers = {"X-Auth-Token": self.token}
         dynamic_filter = self.redis.hgetall("filter:"+str(self.action_list.filter))
         
         if self.action_list.action == "SET":
             print "--> SET <--"
 
-            #TODO Review if this tenant has already deployed this filter. Not deploy the same filter more than one time.
+            # TODO Review if this tenant has already deployed this filter. Not deploy the same filter more than one time.
 
             url = dynamic_filter["activation_url"]+"/"+self.target+"/deploy/"+str(dynamic_filter["identifier"])
             print 'params: ', self.action_list.params
