@@ -10,10 +10,10 @@ from redis.exceptions import RedisError
 from rest_framework import status
 from rest_framework.parsers import JSONParser
 from rest_framework.renderers import JSONRenderer
-from storlet.views import deploy, undeploy
-from sds_controller.exceptions import SwiftClientError, StorletNotFoundException
 
 import dsl_parser
+from sds_controller.exceptions import SwiftClientError, StorletNotFoundException
+from storlet.views import deploy, undeploy
 
 host = None
 remote_host = None
@@ -476,9 +476,7 @@ def policy_list(request):
     if request.method == 'POST':
         headers = is_valid_request(request)
         if not headers:
-            return JSONResponse(
-                'You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ',
-                status=status.HTTP_401_UNAUTHORIZED)
+            return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=status.HTTP_401_UNAUTHORIZED)
         rules_string = request.body.splitlines()
 
         for rule_string in rules_string:

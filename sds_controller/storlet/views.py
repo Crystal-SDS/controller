@@ -1,8 +1,8 @@
 import hashlib
 import json
 import logging
-import redis
 
+import redis
 from django.conf import settings
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -15,6 +15,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from swiftclient import client as swift_client
 from swiftclient.exceptions import ClientException
+
 from sds_controller.exceptions import SwiftClientError, StorletNotFoundException
 
 # TODO create a common file and put this into the new file
@@ -187,8 +188,22 @@ def storlet_deploy(request, storlet_id, account, container=None, swift_object=No
 
         if not storlet:
             return JSONResponse('Filter does not exist', status=status.HTTP_404_NOT_FOUND)
+        try:
+            params = json.loads(JSONParser().parse(request)['params'])
+        except ParseError:
+            return JSONResponse("Invalid format or empty request", status=status.HTTP_400_BAD_REQUEST)
 
-        params = JSONParser().parse(request)
+        # Get an identifier of this new policy
+        policy_id = r.incr("policies:id")
+
+        # Set the policy data
+        policy_data = {
+            "policy_id": policy_id,
+            "object_type": params['object_type'],
+            "object_size": params['object_size'],
+            "execution_order": policy_id,
+            "params": params['params']
+        }
 
         # TODO: Try to improve this part
         if container and swift_object:
@@ -199,7 +214,7 @@ def storlet_deploy(request, storlet_id, account, container=None, swift_object=No
             target = account
 
         try:
-            deploy(r, target, storlet, params, headers)
+            deploy(r, target, storlet, policy_data, headers)
             return JSONResponse('Successfully deployed.', status=status.HTTP_201_CREATED)
         except SwiftClientError:
             return JSONResponse('Error accessing Swift.', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -469,7 +484,6 @@ def deploy(r, target, storlet, parameters, headers):
                                 None, None, "application/octet-stream", metadata, None, None, None, swift_response)
     except ClientException as e:
         logging.error('Error in Swift put_object %s', e)
-        # return status.HTTP_500_INTERNAL_SERVER_ERROR
         raise SwiftClientError("A problem occurred accessing Swift")
     finally:
         storlet_file.close()
