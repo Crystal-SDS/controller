@@ -91,10 +91,10 @@ def parse(input_string):
     
     # Functions post-parsed
     convertToDict = lambda tokens: dict(zip(*[iter(tokens)]*2))
-    remove_repeted_elements = lambda tokens: [list(set(tokens[0]))]
+    remove_repeated_elements = lambda tokens: [list(set(tokens[0]))]
     
     params_list.setParseAction(convertToDict)
-    target.setParseAction(remove_repeted_elements)
+    target.setParseAction(remove_repeated_elements)
     tenant_group.setParseAction(parse_group_tenants)
     
     # Final rule structure

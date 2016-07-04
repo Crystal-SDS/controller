@@ -299,6 +299,23 @@ class RegistryTestCase(TestCase):
         self.assertIsNotNone(object_type.object_value)
         self.assertEqual(object_type.object_value, 'DOCS')
 
+    def test_parse_target_tenant_with_parameters_ok(self):
+        self.setup_dsl_parser_data()
+        has_condition_list, rule_parsed = parse('FOR TENANT:123456789abcdef DO SET compression WITH cparam1=11, cparam2=12, cparam3=13')
+        self.assertFalse(has_condition_list)
+        self.assertIsNotNone(rule_parsed)
+        targets = rule_parsed.target
+        action_list = rule_parsed.action_list
+        self.assertEqual(len(targets), 1)
+        self.assertEqual(len(action_list), 1)
+        action_info = action_list[0]
+        self.assertEqual(action_info.action, 'SET')
+        self.assertEqual(action_info.filter, 'compression')
+        self.assertEqual(action_info.execution_server, '')
+        self.assertEqual(len(action_info.params), 6) # ???
+
+    # TODO Add tests with wrong number of parameters, non existent parameters, wrong type parameters, ...
+
     def test_parse_rule_not_starting_with_for(self):
         self.setup_dsl_parser_data()
         with self.assertRaises(ParseException):
@@ -310,7 +327,7 @@ class RegistryTestCase(TestCase):
             parse('FOR xxxxxxx DO SET compression')
 
 
-    # TODO tests for conditional rules
+    # TODO Add tests for conditional rules
 
 
     #
@@ -359,7 +376,7 @@ class RegistryTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
     def setup_dsl_parser_data(self):
-        self.r.hmset('filter:compression', {'valid_parameters': '["cparam1", "cparam2", "cparam3"]'})
-        self.r.hmset('filter:encryption', {'valid_parameters': '["eparam1", "eparam2", "eparam3"]'})
+        self.r.hmset('filter:compression', {'valid_parameters': '{"cparam1": "integer", "cparam2": "integer", "cparam3": "integer"}'})
+        self.r.hmset('filter:encryption', {'valid_parameters': '{"eparam1": "integer", "eparam2": "bool", "eparam3": "string"}'})
         self.r.hmset('metric:metric1', {'network_location': '?', 'type': 'integer'})
         self.r.hmset('metric:metric2', {'network_location': '?', 'type': 'integer'})
