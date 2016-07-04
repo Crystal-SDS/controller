@@ -189,7 +189,7 @@ def storlet_deploy(request, storlet_id, account, container=None, swift_object=No
         if not storlet:
             return JSONResponse('Filter does not exist', status=status.HTTP_404_NOT_FOUND)
         try:
-            params = json.loads(JSONParser().parse(request)['params'])
+            params = JSONParser().parse(request)
         except ParseError:
             return JSONResponse("Invalid format or empty request", status=status.HTTP_400_BAD_REQUEST)
 
