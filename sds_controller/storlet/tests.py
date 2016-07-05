@@ -185,7 +185,11 @@ class StorletTestCase(TestCase):
             StorletData.as_view()(request, 1)
 
         # Call storlet_deploy
-        request = self.factory.put('/filters/0123456789abcdef/deploy/1', {"policy_id": "1"}, format='json')
+        data = {"filter_id": "1", "target_id": "0123456789abcdef",
+                "execution_server": "proxy", "execution_server_reverse": "proxy",
+                 "object_type": "", "object_size": "", "params": ""}
+
+        request = self.factory.put('/filters/0123456789abcdef/deploy/1', data, format='json')
         request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
         response = storlet_deploy(request, "1", "0123456789abcdef")
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
@@ -205,7 +209,11 @@ class StorletTestCase(TestCase):
             StorletData.as_view()(request, 1)
 
         # Call storlet_deploy
-        request = self.factory.put('/filters/0123456789abcdef/container1/deploy/1', {"policy_id": "1"}, format='json')
+        data = {"filter_id": "1", "target_id": "0123456789abcdef",
+                "execution_server": "proxy", "execution_server_reverse": "proxy",
+                "object_type": "", "object_size": "", "params": ""}
+
+        request = self.factory.put('/filters/0123456789abcdef/container1/deploy/1', data, format='json')
         request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
         response = storlet_deploy(request, "1", "0123456789abcdef", "container1")
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
