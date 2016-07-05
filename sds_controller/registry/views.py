@@ -248,29 +248,33 @@ def storage_node_detail(request, snode_id):
 @csrf_exempt
 def add_tenants_group(request):
     """
-    Add a filter with its default parameters in the registry (redis). List all the tenants groups saved in the registry.
+    Add a tenant group or list all the tenants groups saved in the registry.
     """
     try:
         r = get_redis_connection()
     except RedisError:
-        return JSONResponse('Error connecting with DB', status=500)
+        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     if request.method == 'GET':
         keys = r.keys("G:*")
         gtenants = {}
         for key in keys:
             gtenant = r.lrange(key, 0, -1)
-            gtenants[key] = gtenant
+            gtenant_id = key.split(":")[1]
+            gtenants[gtenant_id] = gtenant
             # gtenants.extend(eval(gtenant[0]))
-        return JSONResponse(gtenants, status=200)
+        return JSONResponse(gtenants, status=status.HTTP_200_OK)
 
     if request.method == 'POST':
-        gtenant_id = r.incr("gtenant:id")
         data = JSONParser().parse(request)
+        if not data:
+            return JSONResponse('Tenant group cannot be empty',
+                                status=status.HTTP_400_BAD_REQUEST)
+        gtenant_id = r.incr("gtenant:id")
         r.rpush('G:' + str(gtenant_id), *data)
-        return JSONResponse('Tenants group has been added in the registy', status=201)
+        return JSONResponse('Tenant group has been added to the registry', status=status.HTTP_201_CREATED)
 
-    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
 @csrf_exempt
@@ -281,27 +285,39 @@ def tenants_group_detail(request, gtenant_id):
     try:
         r = get_redis_connection()
     except RedisError:
-        return JSONResponse('Error connecting with DB', status=500)
+        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     if request.method == 'GET':
-        gtenant = r.lrange("G:" + str(gtenant_id), 0, -1)
-        # r.hgetall("gtenants:"+str(gtenant_id))
-        return JSONResponse(gtenant, status=200)
+        key = 'G:' + str(gtenant_id)
+        if r.exists(key):
+            gtenant = r.lrange(key, 0, -1)
+            return JSONResponse(gtenant, status=status.HTTP_200_OK)
+        else:
+            return JSONResponse('The tenant group with id:  ' + str(gtenant_id) + ' does not exist.', status=status.HTTP_404_NOT_FOUND)
 
     if request.method == 'PUT':
-        if not r.exists('G:' + str(gtenant_id)):
-            return JSONResponse('The members of the tenants group with id:  ' + str(gtenant_id) + ' not exists.',
-                                status=404)
-        data = JSONParser().parse(request)
-        # for tenant in data:
-        r.rpush('G:' + str(gtenant_id), *data)
-        return JSONResponse('The members of the tenants group with id: ' + str(gtenant_id) + ' has been updated',
-                            status=201)
+        key = 'G:' + str(gtenant_id)
+        if r.exists(key):
+            data = JSONParser().parse(request)
+            if not data:
+                return JSONResponse('Tenant group cannot be empty',
+                                    status=status.HTTP_400_BAD_REQUEST)
+            pipe = r.pipeline()
+            # the following commands are buffered in a single atomic request (to replace current contents)
+            if pipe.delete(key).rpush(key, *data).execute():
+                return JSONResponse('The members of the tenants group with id: ' + str(gtenant_id) + ' has been updated', status=status.HTTP_201_CREATED)
+            return JSONResponse('Error storing the tenant group in the DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        else:
+            return JSONResponse('The tenant group with id:  ' + str(gtenant_id) + ' does not exist.', status=status.HTTP_404_NOT_FOUND)
 
     if request.method == 'DELETE':
-        r.delete("G:" + str(gtenant_id))
-        return JSONResponse('Tenants grpup has been deleted', status=204)
-    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
+        key = 'G:' + str(gtenant_id)
+        if r.exists(key):
+            r.delete("G:" + str(gtenant_id))
+            return JSONResponse('Tenants grpup has been deleted', status=status.HTTP_204_NO_CONTENT)
+        else:
+            return JSONResponse('The tenant group with id:  ' + str(gtenant_id) + ' does not exist.', status=status.HTTP_404_NOT_FOUND)
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
 @csrf_exempt
@@ -312,12 +328,12 @@ def gtenants_tenant_detail(request, gtenant_id, tenant_id):
     try:
         r = get_redis_connection()
     except RedisError:
-        return JSONResponse('Error connecting with DB', status=500)
+        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     if request.method == 'DELETE':
         r.lrem("G:" + str(gtenant_id), str(tenant_id), 1)
-        return JSONResponse('Tenant' + str(tenant_id) + 'has been deleted from group with the id: ' + str(gtenant_id),
-                            status=204)
-    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
+        return JSONResponse('Tenant ' + str(tenant_id) + ' has been deleted from group with the id: ' + str(gtenant_id),
+                            status=status.HTTP_204_NO_CONTENT)
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
 #
@@ -409,17 +425,15 @@ def object_type_detail(request, object_type_name):
 @csrf_exempt
 def object_type_items_detail(request, object_type_name, item_name):
     """
-    Delete a extencion from a object type definition.
+    Delete an extension from an object type definition.
     """
-    tenant_id = 0  # DELETE
-    gtenant_id = 0  # DELETE
     try:
         r = get_redis_connection()
     except RedisError:
         return JSONResponse('Error connecting with DB', status=500)
     if request.method == 'DELETE':
         r.lrem("object_type:" + str(object_type_name), str(item_name), 1)
-        return JSONResponse('Tenant' + str(tenant_id) + 'has been deleted from group with the id: ' + str(gtenant_id),
+        return JSONResponse('Extension ' + str(item_name) + ' has been deleted from object type ' + str(object_type_name),
                             status=204)
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
 

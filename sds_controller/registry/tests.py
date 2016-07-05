@@ -12,7 +12,7 @@ from rest_framework.test import APIRequestFactory
 
 from .views import policy_list
 from storlet.views import storlet_list, storlet_deploy, StorletData
-from .views import object_type_list, object_type_detail
+from .views import object_type_list, object_type_detail, add_tenants_group, tenants_group_detail, gtenants_tenant_detail
 from .dsl_parser import parse
 
 
@@ -28,7 +28,7 @@ class RegistryTestCase(TestCase):
         self.upload_filter()
         self.deploy_storlet()
         self.create_object_type_docs()
-
+        self.create_tenant_group_1()
 
     def tearDown(self):
         self.r.flushdb()
@@ -223,6 +223,159 @@ class RegistryTestCase(TestCase):
         response = object_type_detail(request, name)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
+    # TODO Add tests for object_type_items_detail()
+
+    #
+    # Tenant groups
+    #
+
+    def test_add_tenants_group_with_method_not_allowed(self):
+        request = self.factory.delete('/registry/gtenants')
+        response = add_tenants_group(request)
+        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    def test_tenants_group_detail_with_method_not_allowed(self):
+        gtenant_id = 1
+        tenants = ['1234567890abcdf', 'abcdef1234567890']
+        request = self.factory.post('/registry/gtenants/' + str(gtenant_id), tenants, format='json')
+        response = tenants_group_detail(request, gtenant_id)
+        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    def test_gtenants_tenant_detail_with_method_not_allowed(self):
+        gtenant_id = '1'
+        tenant_id = '1234567890abcdef'
+        request = self.factory.get('/registry/gtenants/' + gtenant_id + '/tenants/' + tenant_id)
+        response = gtenants_tenant_detail(request, gtenant_id, tenant_id)
+        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    def test_list_tenants_group_ok(self):
+        request = self.factory.get('/registry/gtenants')
+        response = add_tenants_group(request)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        tenants_groups = json.loads(response.content)
+        self.assertEqual(len(tenants_groups), 1)  # 1 group
+        self.assertEqual(len(tenants_groups['1']), 2)  # 2 tenants in the group
+        self.assertTrue('1234567890abcdef' in tenants_groups['1'])
+        self.assertTrue('abcdef1234567890' in tenants_groups['1'])
+
+    def test_create_tenant_group_ok(self):
+        # Create a second tenant group
+        tenant_group_data = ['tenant1_id', 'tenant2_id', 'tenant3_id']
+        request = self.factory.post('/registry/gtenants', tenant_group_data, format='json')
+        response = add_tenants_group(request)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        request = self.factory.get('/registry/gtenants')
+        response = add_tenants_group(request)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        tenants_groups = json.loads(response.content)
+        self.assertEqual(len(tenants_groups), 2)  # 2 groups
+        self.assertEqual(len(tenants_groups['2']), 3)  # 3 tenants in the 2nd group
+        self.assertTrue('tenant1_id' in tenants_groups['2'])
+        self.assertTrue('tenant2_id' in tenants_groups['2'])
+        self.assertTrue('tenant3_id' in tenants_groups['2'])
+        self.assertFalse('1234567890abcdef' in tenants_groups['2'])
+
+    def test_create_tenant_group_with_empty_data(self):
+        # Create a second tenant group with empty data --> ERROR
+        tenant_group_data = []
+        request = self.factory.post('/registry/gtenants', tenant_group_data, format='json')
+        response = add_tenants_group(request)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_tenant_group_detail_ok(self):
+        gtenant_id = '1'
+        request = self.factory.get('/registry/gtenants/' + gtenant_id)
+        response = tenants_group_detail(request, gtenant_id)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        tenant_list = json.loads(response.content)
+        self.assertEqual(len(tenant_list), 2)
+        self.assertTrue('1234567890abcdef' in tenant_list)
+        self.assertTrue('abcdef1234567890' in tenant_list)
+
+    def test_tenant_group_detail_with_non_existent_id(self):
+        gtenant_id = '2'
+        request = self.factory.get('/registry/gtenants/' + gtenant_id)
+        response = tenants_group_detail(request, gtenant_id)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_delete_tenant_group_ok(self):
+        gtenant_id = '1'
+        request = self.factory.delete('/registry/gtenants/' + gtenant_id)
+        response = tenants_group_detail(request, gtenant_id)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+        request = self.factory.get('/registry/gtenants')
+        response = add_tenants_group(request)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.content, "{}")
+        tenants_groups = json.loads(response.content)
+        self.assertEqual(len(tenants_groups), 0)
+
+    def test_delete_tenant_group_with_non_existent_id(self):
+        gtenant_id = '2'
+        request = self.factory.delete('/registry/gtenants/' + gtenant_id)
+        response = tenants_group_detail(request, gtenant_id)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+        # Check nothing was deleted
+        request = self.factory.get('/registry/gtenants')
+        response = add_tenants_group(request)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertNotEqual(response.content, "{}")
+        tenants_groups = json.loads(response.content)
+        self.assertEqual(len(tenants_groups), 1)  # 1 group
+        self.assertEqual(len(tenants_groups['1']), 2)  # 2 tenants in the group
+
+    def test_update_tenant_group_ok(self):
+        gtenant_id = '1'
+        data = ['1234567890abcdef', 'abcdef1234567890', '3333333333']
+        request = self.factory.put('/registry/gtenants/' + gtenant_id, data, format='json')
+        response = tenants_group_detail(request, gtenant_id)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        # Check the object type was updated properly
+        request = self.factory.get('/registry/gtenants')
+        response = add_tenants_group(request)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        tenants_groups = json.loads(response.content)
+        self.assertEqual(len(tenants_groups), 1)  # 1 group
+        self.assertEqual(len(tenants_groups['1']), 3)  # 2 tenants in the group
+        self.assertTrue('1234567890abcdef' in tenants_groups['1'])
+        self.assertTrue('abcdef1234567890' in tenants_groups['1'])
+        self.assertTrue('3333333333' in tenants_groups['1'])
+
+    def test_update_tenant_group_with_non_existent_id(self):
+        gtenant_id = '2'
+        data = ['1234567890abcdef', 'abcdef1234567890', '3333333333']
+        request = self.factory.put('/registry/gtenants/' + gtenant_id, data, format='json')
+        response = tenants_group_detail(request, gtenant_id)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_update_tenant_group_with_empty_data(self):
+        gtenant_id = '1'
+        data = []
+        request = self.factory.put('/registry/gtenants/' + gtenant_id, data, format='json')
+        response = tenants_group_detail(request, gtenant_id)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_delete_individual_tenant_from_group_ok(self):
+        gtenant_id = '1'
+        tenant_id = '1234567890abcdef'
+        request = self.factory.delete('/registry/gtenants/' + gtenant_id + '/tenants/' + tenant_id)
+        response = gtenants_tenant_detail(request, gtenant_id, tenant_id)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+        # Check delete was successful
+        request = self.factory.get('/registry/gtenants')
+        response = add_tenants_group(request)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        tenants_groups = json.loads(response.content)
+        self.assertEqual(len(tenants_groups), 1)
+        self.assertEqual(len(tenants_groups['1']), 1)
+        self.assertFalse('1234567890abcdef' in tenants_groups['1'])
+        self.assertTrue('abcdef1234567890' in tenants_groups['1'])
+
     #
     # Parse tests
     #
@@ -326,9 +479,7 @@ class RegistryTestCase(TestCase):
         with self.assertRaises(ParseException):
             parse('FOR xxxxxxx DO SET compression')
 
-
     # TODO Add tests for conditional rules
-
 
     #
     # Aux methods
@@ -380,3 +531,9 @@ class RegistryTestCase(TestCase):
         self.r.hmset('filter:encryption', {'valid_parameters': '{"eparam1": "integer", "eparam2": "bool", "eparam3": "string"}'})
         self.r.hmset('metric:metric1', {'network_location': '?', 'type': 'integer'})
         self.r.hmset('metric:metric2', {'network_location': '?', 'type': 'integer'})
+
+    def create_tenant_group_1(self):
+        tenant_group_data = ['1234567890abcdef', 'abcdef1234567890']
+        request = self.factory.post('/registry/gtenants', tenant_group_data, format='json')
+        response = add_tenants_group(request)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
