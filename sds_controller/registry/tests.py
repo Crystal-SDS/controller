@@ -12,7 +12,7 @@ from rest_framework.test import APIRequestFactory
 
 from .views import policy_list
 from storlet.views import storlet_list, storlet_deploy, StorletData
-from .views import object_type_list, object_type_detail, add_tenants_group, tenants_group_detail, gtenants_tenant_detail
+from .views import object_type_list, object_type_detail, add_tenants_group, tenants_group_detail, gtenants_tenant_detail, node_list
 from .dsl_parser import parse
 
 
@@ -29,6 +29,7 @@ class RegistryTestCase(TestCase):
         self.deploy_storlet()
         self.create_object_type_docs()
         self.create_tenant_group_1()
+        self.create_nodes()
 
     def tearDown(self):
         self.r.flushdb()
@@ -224,6 +225,30 @@ class RegistryTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     # TODO Add tests for object_type_items_detail()
+
+    #
+    # Nodes
+    #
+
+    def test_node_list_with_method_not_allowed(self):
+        request = self.factory.delete('/registry/nodes')
+        response = node_list(request)
+        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    def test_list_nodes_ok(self):
+        request = self.factory.get('/registry/nodes')
+        response = node_list(request)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertNotEqual(response.content, "[]")
+
+        nodes = json.loads(response.content)
+        self.assertEqual(len(nodes), 3)
+        node_names = [node['name'] for node in nodes]
+        self.assertTrue('controller' in node_names)
+        self.assertTrue('storagenode1' in node_names)
+        self.assertTrue('storagenode2' in node_names)
+        a_device =  nodes[0]['devices'].keys()[0]
+        self.assertIsNotNone(nodes[0]['devices'][a_device]['free'])
 
     #
     # Tenant groups
@@ -537,3 +562,14 @@ class RegistryTestCase(TestCase):
         request = self.factory.post('/registry/gtenants', tenant_group_data, format='json')
         response = add_tenants_group(request)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def create_nodes(self):
+        self.r.hmset('node:controller',
+                     {'ip': '192.168.2.1', 'last_ping': '1467623304.332646', 'type': 'proxy', 'name': 'controller',
+                      'devices': '{"sdb1": {"free": 16832876544, "size": 16832880640}}'})
+        self.r.hmset('node:storagenode1',
+                     {'ip': '192.168.2.3', 'last_ping': '1467623304.332646', 'type': 'storage', 'name': 'storagenode1',
+                      'devices': '{"sdb1": {"free": 16832876544, "size": 16832880640}}'})
+        self.r.hmset('node:storagenode2',
+                     {'ip': '192.168.2.3', 'last_ping': '1467623304.332646', 'type': 'storage', 'name': 'storagenode2',
+                      'devices': '{"sdb1": {"free": 16832876544, "size": 16832880640}}'})

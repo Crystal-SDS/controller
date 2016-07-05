@@ -208,7 +208,7 @@ def list_storage_node(request):
         sn_id = r.incr("storage_nodes:id")
         data = JSONParser().parse(request)
         r.hmset('SN:' + str(sn_id), data)
-        return JSONResponse('Tenants group has been added in the registy', status=201)
+        return JSONResponse('Storage node has been added to the registry', status=201)
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
 
 
@@ -436,6 +436,33 @@ def object_type_items_detail(request, object_type_name, item_name):
         return JSONResponse('Extension ' + str(item_name) + ' has been deleted from object type ' + str(object_type_name),
                             status=204)
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
+
+
+#
+# Node part
+#
+
+
+@csrf_exempt
+def node_list(request):
+    """
+    GET: List all nodes.
+    """
+    try:
+        r = get_redis_connection()
+    except RedisError:
+        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    if request.method == 'GET':
+        keys = r.keys("node:*")
+        nodes = []
+        for key in keys:
+            node = r.hgetall(key)
+            node['devices'] = json.loads(node['devices'])
+            nodes.append(node)
+        return JSONResponse(nodes, status=status.HTTP_200_OK)
+
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
 @csrf_exempt
