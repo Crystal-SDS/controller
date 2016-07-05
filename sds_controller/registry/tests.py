@@ -12,7 +12,8 @@ from rest_framework.test import APIRequestFactory
 
 from .views import policy_list
 from storlet.views import storlet_list, storlet_deploy, StorletData
-from .views import object_type_list, object_type_detail, add_tenants_group, tenants_group_detail, gtenants_tenant_detail, node_list
+from .views import object_type_list, object_type_detail, add_tenants_group, tenants_group_detail, gtenants_tenant_detail, node_list, \
+    add_metric, metric_detail, list_storage_node, storage_node_detail
 from .dsl_parser import parse
 
 
@@ -30,6 +31,7 @@ class RegistryTestCase(TestCase):
         self.create_object_type_docs()
         self.create_tenant_group_1()
         self.create_nodes()
+        self.create_storage_nodes()
 
     def tearDown(self):
         self.r.flushdb()
@@ -58,6 +60,133 @@ class RegistryTestCase(TestCase):
         request = self.factory.get('/registry/static_policy')
         response = policy_list(request)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    #
+    # Metric workload tests
+    #
+
+    def test_list_metrics_ok(self):
+        self.setup_dsl_parser_data()
+        request = self.factory.get('/registry/metrics')
+        response = add_metric(request)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        metrics = json.loads(response.content)
+        self.assertEqual(len(metrics), 2)
+
+    def test_create_metric_ok(self):
+        self.setup_dsl_parser_data()
+        data = {'name': 'metric3', 'network_location': '?', 'type': 'integer'}
+        request = self.factory.post('/registry/metrics', data, format='json')
+        response = add_metric(request)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        # Assert metric was created successfully
+        request = self.factory.get('/registry/metrics')
+        response = add_metric(request)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        metrics = json.loads(response.content)
+        self.assertEqual(len(metrics), 3)
+
+    def test_get_metric_ok(self):
+        self.setup_dsl_parser_data()
+        metric_name = 'metric1'
+        request = self.factory.get('/registry/metrics/' + metric_name)
+        response = metric_detail(request, metric_name)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        metric_data = json.loads(response.content)
+        self.assertEqual(metric_data['type'], 'integer')
+
+    def test_update_metric_ok(self):
+        self.setup_dsl_parser_data()
+        metric_name = 'metric1'
+        data = {'network_location': '?', 'type': 'float'}
+        request = self.factory.put('/registry/metrics/' + metric_name, data, format='json')
+        response = metric_detail(request, metric_name)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        # Assert metric was updated successfully
+        request = self.factory.get('/registry/metrics/' + metric_name)
+        response = metric_detail(request, metric_name)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        metric_data = json.loads(response.content)
+        self.assertEqual(metric_data['type'], 'float')
+
+    def test_delete_metric_ok(self):
+        self.setup_dsl_parser_data()
+        metric_name = 'metric1'
+        request = self.factory.delete('/registry/metrics/' + metric_name)
+        response = metric_detail(request, metric_name)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+        # Assert metric was deleted successfully
+        request = self.factory.get('/registry/metrics')
+        response = add_metric(request)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        metrics = json.loads(response.content)
+        self.assertEqual(len(metrics), 1)
+
+    #
+    # Storage nodes tests
+    #
+
+    def test_list_storage_nodes_ok(self):
+        request = self.factory.get('/registry/snode')
+        response = list_storage_node(request)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        storage_nodes = json.loads(response.content)
+        self.assertEqual(len(storage_nodes), 1)
+
+    def test_create_storage_node_ok(self):
+        data = {'name': 'storagenode2', 'location': 'location2', 'type': 'type2'}
+        request = self.factory.post('/registry/snode', data, format='json')
+        response = list_storage_node(request)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        # Assert the storage node was created successfully
+        request = self.factory.get('/registry/snode')
+        response = list_storage_node(request)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        storage_nodes = json.loads(response.content)
+        self.assertEqual(len(storage_nodes), 2)
+
+    def test_get_storage_node_ok(self):
+        snode_id = 1
+        request = self.factory.get('/registry/snode/' + str(snode_id))
+        response = storage_node_detail(request, str(snode_id))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        metric_data = json.loads(response.content)
+        self.assertEqual(metric_data['name'], 'storagenode1')
+        self.assertEqual(metric_data['location'], 'location1')
+        self.assertEqual(metric_data['type'], 'type1')
+
+    def test_update_storage_node_ok(self):
+        snode_id = 1
+        data = {'name': 'storagenode1updated', 'location': 'location1updated', 'type': 'type1updated'}
+        request = self.factory.put('/registry/snode/' + str(snode_id), data, format='json')
+        response = storage_node_detail(request, str(snode_id))
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        # asserts it was modified successfully
+        request = self.factory.get('/registry/snode/' + str(snode_id))
+        response = storage_node_detail(request, str(snode_id))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        metric_data = json.loads(response.content)
+        self.assertEqual(metric_data['name'], 'storagenode1updated')
+        self.assertEqual(metric_data['location'], 'location1updated')
+        self.assertEqual(metric_data['type'], 'type1updated')
+
+    def test_delete_storage_node_ok(self):
+        snode_id = 1
+        request = self.factory.delete('/registry/snode/' + str(snode_id))
+        response = storage_node_detail(request, str(snode_id))
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+        # assert it was deleted successfully
+        request = self.factory.get('/registry/snode')
+        response = list_storage_node(request)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        storage_nodes = json.loads(response.content)
+        self.assertEqual(len(storage_nodes), 0)
 
     #
     # object_type tests
@@ -573,3 +702,7 @@ class RegistryTestCase(TestCase):
         self.r.hmset('node:storagenode2',
                      {'ip': '192.168.2.3', 'last_ping': '1467623304.332646', 'type': 'storage', 'name': 'storagenode2',
                       'devices': '{"sdb1": {"free": 16832876544, "size": 16832880640}}'})
+
+    def create_storage_nodes(self):
+        self.r.incr("storage_nodes:id")  # setting autoincrement to 1
+        self.r.hmset('SN:1', {'name': 'storagenode1', 'location': 'location1', 'type': 'type1'})

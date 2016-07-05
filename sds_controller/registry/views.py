@@ -75,7 +75,6 @@ def add_metric(request):
 
     if request.method == 'GET':
         keys = r.keys("metric:*")
-        print 'keys', keys
         metrics = []
         for key in keys:
             metric = r.hgetall(key)
@@ -116,7 +115,7 @@ def metric_detail(request, name):
                             status=201)
 
     if request.method == 'DELETE':
-        r.delete("metric:" + str(id))
+        r.delete("metric:" + str(name))
         return JSONResponse('Metric workload has been deleted', status=204)
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
 
@@ -196,7 +195,6 @@ def list_storage_node(request):
 
     if request.method == "GET":
         keys = r.keys("SN:*")
-        print 'keys', keys
         storage_nodes = []
         for k in keys:
             sn = r.hgetall(k)
