@@ -568,7 +568,7 @@ class RegistryTestCase(TestCase):
                      {'ip': '192.168.2.1', 'last_ping': '1467623304.332646', 'type': 'proxy', 'name': 'controller',
                       'devices': '{"sdb1": {"free": 16832876544, "size": 16832880640}}'})
         self.r.hmset('node:storagenode1',
-                     {'ip': '192.168.2.3', 'last_ping': '1467623304.332646', 'type': 'storage', 'name': 'storagenode1',
+                     {'ip': '192.168.2.2', 'last_ping': '1467623304.332646', 'type': 'storage', 'name': 'storagenode1',
                       'devices': '{"sdb1": {"free": 16832876544, "size": 16832880640}}'})
         self.r.hmset('node:storagenode2',
                      {'ip': '192.168.2.3', 'last_ping': '1467623304.332646', 'type': 'storage', 'name': 'storagenode2',
