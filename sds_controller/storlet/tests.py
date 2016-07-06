@@ -220,8 +220,8 @@ class StorletTestCase(TestCase):
         mock_put_object.assert_called_with(settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/AUTH_0123456789abcdef",
                                            'fake_token', "storlet", "FakeFilter", mock.ANY, mock.ANY, mock.ANY,
                                            mock.ANY, mock.ANY, mock.ANY, mock.ANY, mock.ANY, mock.ANY, mock.ANY)
-        self.assertTrue(self.r.hexists("pipeline:AUTH_0123456789abcdef/container1", "1"))
-        dumped_data = self.r.hget("pipeline:AUTH_0123456789abcdef/container1", "1")
+        self.assertTrue(self.r.hexists("pipeline:AUTH_0123456789abcdef:container1", "1"))
+        dumped_data = self.r.hget("pipeline:AUTH_0123456789abcdef:container1", "1")
         json_data = json.loads(dumped_data)
         self.assertEqual(json_data["filter_name"], "FakeFilter")
 
