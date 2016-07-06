@@ -265,7 +265,6 @@ class StorletTestCase(TestCase):
     #     print response
     #     self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
-
     def test_get_all_dependencies_ok(self):
         request = self.factory.get('/filters/dependencies')
         response = dependency_list(request)
@@ -275,6 +274,60 @@ class StorletTestCase(TestCase):
         dependencies = json.loads(response.content)
         self.assertEqual(len(dependencies), 1)
         self.assertEqual(dependencies[0]['name'], 'DependencyName')
+
+    def test_create_dependency_ok(self):
+        dependency_data = {'name': 'SecondDependencyName', 'version': '2.0', 'permissions': '0755'}
+        request = self.factory.post('/filters/dependencies', dependency_data, format='json')
+        response = dependency_list(request)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        # Check dependency was created successfully
+        request = self.factory.get('/filters/dependencies')
+        response = dependency_list(request)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        dependencies = json.loads(response.content)
+        self.assertEqual(len(dependencies), 2)
+        dependency_names = [dependency['name'] for dependency in dependencies]
+        self.assertTrue('DependencyName' in dependency_names)
+        self.assertTrue('SecondDependencyName' in dependency_names)
+
+    def test_get_dependency_ok(self):
+        dependency_id = 1
+        request = self.factory.get('/filters/dependencies/' + str(dependency_id))
+        response = dependency_detail(request, dependency_id)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        dependency = json.loads(response.content)
+        self.assertEqual(dependency['name'], 'DependencyName')
+
+    def test_update_dependency_ok(self):
+        dependency_id = 1
+        dependency_data = {'name': 'DependencyName', 'version': '1.1', 'permissions': '0777'}
+        request = self.factory.put('/filters/dependencies/' + str(dependency_id), dependency_data, format='json')
+        response = dependency_detail(request, dependency_id)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        # Check dependency was updated successfully
+        request = self.factory.get('/filters/dependencies')
+        response = dependency_list(request)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        dependencies = json.loads(response.content)
+        self.assertEqual(len(dependencies), 1)
+        self.assertEqual(dependencies[0]['version'], '1.1')
+        self.assertEqual(dependencies[0]['permissions'], '0777')
+
+    def test_delete_dependency_ok(self):
+        dependency_id = 1
+        request = self.factory.delete('/filters/dependencies/' + str(dependency_id))
+        response = dependency_detail(request, dependency_id)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+        # Check dependency was deleted successfully
+        request = self.factory.get('/filters/dependencies')
+        response = dependency_list(request)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        dependencies = json.loads(response.content)
+        self.assertEqual(len(dependencies), 0)
+
 
 
     #
