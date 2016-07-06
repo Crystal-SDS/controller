@@ -1,21 +1,19 @@
 language: python
-
 python:
-  - "2.7"
-
+- '2.7'
 services:
-  - redis-server
-
-# command to install dependencies
+- redis-server
 install:
-  - pip install -r requirements.txt
-  - pip install -r test-requirements.txt
-  - git clone https://github.com/cloudspaces/pyactive.git && cd pyactive/pyactive_project && python setup.py develop && cd ../..
-  #- pip install -q $DJANGO --use-mirrors
-
-# command to run tests
+- pip install -r requirements.txt
+- pip install -r test-requirements.txt
+- git clone https://github.com/cloudspaces/pyactive.git && cd pyactive/pyactive_project
+  && python setup.py develop && cd ../..
 script:
-  - cd sds_controller/ && coverage run --source='.' manage.py test
-#  - coverage run --source='.' manage.py test
-after_success:
-  coveralls
+- cd sds_controller/ && coverage run --source='.' manage.py test
+after_success: coveralls
+notifications:
+  slack:
+    rooms:
+      secure: LA5rDP5xhGjLQma0VqoYKc+VUOf6Iwhffe4D7kqfC07gm29RnRkfX+B5WeIYGKln5CKVFeKVoSTVoPuOwKrylZEfSwjnrqVIF6nzPGSXaq7iC/DL5P9JyHOWmaTXQXSkfbOTuTwQ8fB6yS+umI0ZhtWS7L+haDW55VEs4MaRzeuei1wpcQARt1x/OhBPW/551PP8R3Qd31bk5acCYlsiO4tMeDJLmiqAc+pZCPP+LfM2MdaM//qSwGF7cmrl75Pzs1nzHtF3pKX1SDCQCZ7cjXpGUG3J51Nak1Oyfu96Jr/AfPSc3NgwNdlGL+LAIszn9bjS9BQAHEYIL/hmJPs34pasdN+bSAE9nxVO81c9ISsJxH/ZOHw2+4jgx+ylz7PLKl6wcyBrxvuFmRGm/jiPAlmhQ99MUoiQ9OTnJKUzp2VhI4GwjMwJ3Zhgh61JoYaQmaY1Uwa+VNp1Xu4/JQumcOlkS8WZghArj8Xh2KiJShSHCJw4gOKHaA/uUNRzlCeJOEg0SUdlLdM9Wd7a001ktl6XgIIDamXkUrTLA0uNYS9bMHURzGAekvTFNSyqPJVQm66c1kKT1km5kIqFEDW+f4Jpr9SgyW3pGJ21HBCv64JHl3TtH1bImu4tzW/5Velid/le1sxRDLrf31l4wOTLfXg5Qym9l4r0Nr8CWFnYEd4=
+    on_success: change
+    on_failure: always
