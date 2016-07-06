@@ -7,18 +7,21 @@ from django.conf import settings
 from rest_framework import status
 from rest_framework.test import APIRequestFactory
 
-from .views import storlet_list, storlet_detail, storlet_list_deployed, storlet_deploy, storlet_undeploy, StorletData
+from .views import dependency_list, dependency_detail, storlet_list, storlet_detail, storlet_list_deployed, storlet_deploy, storlet_undeploy, \
+    StorletData
 
 
 # Tests use database=10 instead of 0.
 @override_settings(REDIS_CON_POOL=redis.ConnectionPool(host='localhost', port=6379, db=10))
 class StorletTestCase(TestCase):
+
     def setUp(self):
         # Every test needs access to the request factory.
         # Using rest_framework's APIRequestFactory: http://www.django-rest-framework.org/api-guide/testing/
         self.factory = APIRequestFactory()
-        self.create_storlet()
         self.r = redis.Redis(connection_pool=settings.REDIS_CON_POOL)
+        self.create_storlet()
+        self.create_dependency()
 
     def tearDown(self):
         self.r.flushdb()
@@ -27,23 +30,19 @@ class StorletTestCase(TestCase):
         """
         Retrieve storlet list
         """
-
         # Create an instance of a GET request.
         request = self.factory.get('/filters')
         response = storlet_list(request)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertNotEqual(response.content, "[]")
-
         storlets = json.loads(response.content)
-
         self.assertEqual(storlets[0]['name'], "FakeFilter")
 
     def test_delete_storlet_ok(self):
         """
         Delete a storlet
         """
-
         request = self.factory.delete('/filters/1')
         response = storlet_detail(request, "1")
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
@@ -65,7 +64,6 @@ class StorletTestCase(TestCase):
         """
         Update a storlet
         """
-
         filter_updated_data = {
             'name': 'FakeFilter', 'language': 'java', 'interface_version': '', 'dependencies': '',
             'object_metadata': '', 'main': 'com.example.UpdatedFakeMain', 'is_put': 'False', 'is_get': 'False',
@@ -267,6 +265,18 @@ class StorletTestCase(TestCase):
     #     print response
     #     self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
+
+    def test_get_all_dependencies_ok(self):
+        request = self.factory.get('/filters/dependencies')
+        response = dependency_list(request)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertNotEqual(response.content, '[]')
+        dependencies = json.loads(response.content)
+        self.assertEqual(len(dependencies), 1)
+        self.assertEqual(dependencies[0]['name'], 'DependencyName')
+
+
     #
     # Aux methods
     #
@@ -277,4 +287,10 @@ class StorletTestCase(TestCase):
                        'has_reverse': 'False', 'execution_server': 'proxy', 'execution_server_reverse': 'proxy'}
         request = self.factory.post('/filters/', filter_data, format='json')
         response = storlet_list(request)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def create_dependency(self):
+        dependency_data = {'name': 'DependencyName', 'version': '1.0', 'permissions': '0755'}
+        request = self.factory.post('/filters/dependencies', dependency_data, format='json')
+        response = dependency_list(request)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
