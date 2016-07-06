@@ -457,6 +457,7 @@ def deploy(r, target, storlet, parameters, headers):
         parameters = {}
 
     target_list = target.split('/', 3)
+    target = str(target).replace('/', ':')
 
     metadata = {"X-Object-Meta-Storlet-Language": storlet["language"],
                 "X-Object-Meta-Storlet-Interface-Version": storlet["interface_version"],

@@ -493,7 +493,7 @@ def policy_list(request):
                 for key, value in r.hgetall(it).items():
                     json_value = json.loads(value)
                     policies.append({'id': key, 'target_id': it.replace('pipeline:AUTH_', ''),
-                                     'target_name': tenants_list[it.replace('pipeline:AUTH_', '')],
+                                     'target_name': tenants_list[it.replace('pipeline:AUTH_', '').split(':')[0]],
                                      'filter_name': json_value['filter_name'], 'object_type': json_value['object_type'],
                                      'object_size': json_value['object_size'],
                                      'execution_server': json_value['execution_server'],
@@ -563,8 +563,9 @@ def static_policy_detail(request, policy_id):
     except RedisError:
         return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    target = str(policy_id).split(':')[0]
-    policy = str(policy_id).split(':')[1]
+    target = str(policy_id).split(':')[:-1]
+    target = ':'.join(target)
+    policy = str(policy_id).split(':')[-1]
 
     if request.method == 'GET':
         headers = is_valid_request(request)
@@ -582,7 +583,7 @@ def static_policy_detail(request, policy_id):
         data = json.loads(policy_redis)
         data["id"] = policy
         data["target_id"] = target
-        data["target_name"] = tenants_list[target]
+        data["target_name"] = tenants_list[target.split(':')[0]]
         return JSONResponse(data, status=200)
     elif request.method == 'PUT':
         data = JSONParser().parse(request)
