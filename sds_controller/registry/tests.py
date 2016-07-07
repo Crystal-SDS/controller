@@ -640,7 +640,7 @@ class RegistryTestCase(TestCase):
     #
 
     def create_storlet(self):
-        filter_data = {'name': 'FakeFilter', 'language': 'java', 'interface_version': '', 'dependencies': '',
+        filter_data = {'filter_type': 'java', 'interface_version': '', 'dependencies': '',
                        'object_metadata': '', 'main': 'com.example.FakeMain', 'is_put': 'False', 'is_get': 'False',
                        'has_reverse': 'False', 'execution_server': 'proxy', 'execution_server_reverse': 'proxy'}
         request = self.factory.post('/filters/', filter_data, format='json')
