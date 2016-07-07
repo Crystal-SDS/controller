@@ -200,7 +200,7 @@ class Rule(object):
             self.admin_login()
 
         headers = {"X-Auth-Token": self.token}
-        dynamic_filter = self.redis.hgetall("filter:"+str(self.action_list.filter))
+        dynamic_filter = self.redis.hgetall("dsl_filter:"+str(self.action_list.filter))
         
         if self.action_list.action == "SET":
             print "--> SET <--"

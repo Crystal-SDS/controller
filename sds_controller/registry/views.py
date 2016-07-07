@@ -135,7 +135,7 @@ def add_dynamic_filter(request):
     except RedisError:
         return JSONResponse('Error connecting with DB', status=500)
     if request.method == 'GET':
-        keys = r.keys("filter:*")
+        keys = r.keys("dsl_filter:*")
         dynamic_filters = []
         for key in keys:
             dynamic_filter = r.hgetall(key)
@@ -148,7 +148,7 @@ def add_dynamic_filter(request):
         name = data.pop("name", None)
         if not name:
             return JSONResponse('Filter must have a name', status=400)
-        r.hmset('filter:' + str(name), data)
+        r.hmset('dsl_filter:' + str(name), data)
         return JSONResponse('Filter has been added in the registy', status=201)
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
 
@@ -164,19 +164,21 @@ def dynamic_filter_detail(request, name):
         return JSONResponse('Error connecting with DB', status=500)
 
     if request.method == 'GET':
-        dynamic_filter = r.hgetall("filter:" + str(name))
+        dynamic_filter = r.hgetall("dsl_filter:" + str(name))
         return JSONResponse(dynamic_filter, status=200)
 
     if request.method == 'PUT':
-        if not r.exists('filter:' + str(name)):
+        if not r.exists('dsl_filter:' + str(name)):
             return JSONResponse('Dynamic filter with name:  ' + str(name) + ' not exists.', status=404)
         data = JSONParser().parse(request)
-        r.hmset('filter:' + str(name), data)
+        if 'name' in data:
+            del data['name']
+        r.hmset('dsl_filter:' + str(name), data)
         return JSONResponse('The metadata of the dynamic filter with name: ' + str(name) + ' has been updated',
                             status=201)
 
     if request.method == 'DELETE':
-        r.delete("filter:" + str(name))
+        r.delete("dsl_filter:" + str(name))
         return JSONResponse('Dynamic filter has been deleted', status=204)
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
 
@@ -622,7 +624,7 @@ def do_action(request, r, rule_parsed, headers):
     for target in rule_parsed.target:
         for action_info in rule_parsed.action_list:
             print("TARGET RULE: ", action_info)
-            dynamic_filter = r.hgetall("filter:" + str(action_info.filter))
+            dynamic_filter = r.hgetall("dsl_filter:" + str(action_info.filter))
             storlet = r.hgetall("storlet:" + dynamic_filter["identifier"])
 
             if not storlet:

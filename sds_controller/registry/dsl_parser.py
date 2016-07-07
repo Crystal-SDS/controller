@@ -67,7 +67,7 @@ def parse(input_string):
     # Group(tenant_list ^ tenant_group_list ^ container_list ^ obj_list)
     # Action part
     action = oneOf("SET DELETE")
-    sfilters_list = r.keys("filter:*")
+    sfilters_list = r.keys("dsl_filter:*")
     sfilter = map(lambda x: "".join(x.split(":")[1]), sfilters_list)
     with_params = Suppress(Literal("WITH"))
     do = Suppress(Literal("DO"))
@@ -112,7 +112,7 @@ def parse(input_string):
         
     for action in parsed_rule.action_list:
         if action.params:
-            filter_info = r.hgetall("filter:"+str(action.filter))
+            filter_info = r.hgetall("dsl_filter:"+str(action.filter))
             if "valid_parameters" in filter_info.keys():
                 params = eval(filter_info["valid_parameters"])
                 result = set(action.params.keys()).intersection(params.keys())
