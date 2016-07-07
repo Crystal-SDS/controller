@@ -68,7 +68,7 @@ def storlet_list(request):
     except RedisError:
         return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     if request.method == 'GET':
-        keys = r.keys("storlet:*")
+        keys = r.keys("filter:*")
         storlets = []
         for key in keys:
             storlet = r.hgetall(key)
@@ -84,13 +84,13 @@ def storlet_list(request):
         if not check_keys(data.keys(), STORLET_KEYS[2:-1]):
             return JSONResponse("Invalid parameters in request", status=status.HTTP_400_BAD_REQUEST)
 
-        storlet_id = r.incr("storlets:id")
+        storlet_id = r.incr("filters:id")
         # TODO: Not needed?
-        # if r.exists('storlet:' + str(storlet_id)):
+        # if r.exists('filter:' + str(storlet_id)):
         #     return JSONResponse("Object already exists!", status=status.HTTP_409_CONFLICT)
         try:
             data['id'] = storlet_id
-            r.hmset('storlet:' + str(storlet_id), data)
+            r.hmset('filter:' + str(storlet_id), data)
             return JSONResponse(data, status=status.HTTP_201_CREATED)
 
         except DataError:
@@ -108,11 +108,11 @@ def storlet_detail(request, storlet_id):
     except RedisError:
         return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    if not r.exists("storlet:" + str(storlet_id)):
+    if not r.exists("filter:" + str(storlet_id)):
         return JSONResponse('Object does not exist!', status=status.HTTP_404_NOT_FOUND)
 
     if request.method == 'GET':
-        storlet = r.hgetall("storlet:" + str(storlet_id))
+        storlet = r.hgetall("filter:" + str(storlet_id))
         return JSONResponse(storlet, status=status.HTTP_200_OK)
 
     elif request.method == 'PUT':
@@ -125,14 +125,14 @@ def storlet_detail(request, storlet_id):
             return JSONResponse("Invalid parameters in request", status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            r.hmset('storlet:' + str(storlet_id), data)
+            r.hmset('filter:' + str(storlet_id), data)
             return JSONResponse("Data updated", status=status.HTTP_200_OK)
         except DataError:
             return JSONResponse("Error updating data", status=status.HTTP_408_REQUEST_TIMEOUT)
 
     elif request.method == 'DELETE':
         try:
-            r.delete("storlet:" + str(storlet_id))
+            r.delete("filter:" + str(storlet_id))
             return JSONResponse('Filter has been deleted', status=status.HTTP_204_NO_CONTENT)
         except DataError:
             return JSONResponse("Error deleting filter", status=status.HTTP_408_REQUEST_TIMEOUT)
@@ -150,16 +150,16 @@ class StorletData(APIView):
             r = get_redis_connection()
         except RedisError:
             return JSONResponse('Error connecting with DB', status=500)
-        if r.exists("storlet:" + str(storlet_id)):
+        if r.exists("filter:" + str(storlet_id)):
             file_obj = request.FILES['file']
             path = save_file(file_obj, settings.STORLET_DIR)
             md5_etag = md5(path)
             try:
                 # r = get_redis_connection()
-                r.hset("storlet:" + str(storlet_id), "filter_name", str(path).split('/')[-1])
-                r.hset("storlet:" + str(storlet_id), "path", str(path))
-                r.hset("storlet:" + str(storlet_id), "content_length", str(request.META["CONTENT_LENGTH"]))
-                r.hset("storlet:" + str(storlet_id), "etag", str(md5_etag))
+                r.hset("filter:" + str(storlet_id), "filter_name", str(path).split('/')[-1])
+                r.hset("filter:" + str(storlet_id), "path", str(path))
+                r.hset("filter:" + str(storlet_id), "content_length", str(request.META["CONTENT_LENGTH"]))
+                r.hset("filter:" + str(storlet_id), "etag", str(md5_etag))
             except RedisError:
                 return JSONResponse('Problems connecting with DB', status=500)
             return JSONResponse('Filter has been updated', status=201)
@@ -185,7 +185,7 @@ def storlet_deploy(request, storlet_id, account, container=None, swift_object=No
         headers = is_valid_request(request)
         if not headers:
             return JSONResponse('You must be authenticated. You can authenticate yourself with the header X-Auth-Token.', status=status.HTTP_401_UNAUTHORIZED)
-        storlet = r.hgetall("storlet:" + str(storlet_id))
+        storlet = r.hgetall("filter:" + str(storlet_id))
 
         if not storlet:
             return JSONResponse('Filter does not exist', status=status.HTTP_404_NOT_FOUND)
@@ -253,7 +253,7 @@ def storlet_list_deployed(request, account):
 #         r = get_redis_connection()
 #     except RedisError:
 #         return JSONResponse('Problems to connect with the DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-#     storlet = r.hgetall("storlet:" + str(storlet_id))
+#     storlet = r.hgetall("filter:" + str(storlet_id))
 #     if not storlet:
 #         return JSONResponse('Filter does not exist', status=status.HTTP_404_NOT_FOUND)
 #     if not r.exists("AUTH_" + str(account) + ":" + str(storlet["filter_name"])):
@@ -450,7 +450,7 @@ def dependency_undeploy(request, dependency_id, account):
 # FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 DO SET compression, SET caching
 def deploy(r, target, storlet, parameters, headers):
     # print("Storlet ID: " + storlet["id"])
-    # print("Storlet Details: " + str(r.hgetall("storlet:" + storlet["id"])))
+    # print("Storlet Details: " + str(r.hgetall("filter:" + storlet["id"])))
     # print("Target: " + target)
     # print("Params: " + str(parameters))
 

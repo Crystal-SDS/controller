@@ -625,7 +625,7 @@ def do_action(request, r, rule_parsed, headers):
         for action_info in rule_parsed.action_list:
             print("TARGET RULE: ", action_info)
             dynamic_filter = r.hgetall("dsl_filter:" + str(action_info.filter))
-            storlet = r.hgetall("storlet:" + dynamic_filter["identifier"])
+            storlet = r.hgetall("filter:" + dynamic_filter["identifier"])
 
             if not storlet:
                 return JSONResponse("Filter does not exist", status=status.HTTP_404_NOT_FOUND)
