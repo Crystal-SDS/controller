@@ -1,8 +1,5 @@
-import storage_policy
-import sds_project
-import requests
 import redis
-
+import requests
 from django.conf import settings
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -12,11 +9,15 @@ from rest_framework.exceptions import ParseError
 from rest_framework.parsers import JSONParser
 from rest_framework.renderers import JSONRenderer
 
+import sds_project
+import storage_policy
+
 
 class JSONResponse(HttpResponse):
     """
     An HttpResponse that renders its content into JSON.
     """
+
     def __init__(self, data, **kwargs):
         content = JSONRenderer().render(data)
         kwargs['content_type'] = 'application/json'
@@ -54,14 +55,34 @@ def tenants_list(request):
         if not headers:
             return JSONResponse('You must be authenticated. You can authenticate yourself with the header X-Auth-Token ', status=status.HTTP_401_UNAUTHORIZED)
         data = JSONParser().parse(request)
-        
+
         try:
             sds_project.add_new_sds_project(data["tenant_name"])
         except:
             return JSONResponse('Error creating a new project.', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
+
         return JSONResponse('Account created successfully', status=status.HTTP_201_CREATED)
     return JSONResponse('Only HTTP GET /tenants/ requests allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+
+@csrf_exempt
+def storage_policy_list(request):
+    """
+    List all storage policies.
+    """
+    try:
+        r = get_redis_connection()
+    except RedisError:
+        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    if request.method == 'GET':
+        keys = r.keys("storage-policy:*")
+        storage_policy_list = []
+        for key in keys:
+            storage_policy = r.hgetall(key)
+            storage_policy['id'] = str(key).split(':')[-1]
+            storage_policy_list.append(storage_policy)
+        return JSONResponse(storage_policy_list, status=status.HTTP_200_OK)
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
 @csrf_exempt
@@ -82,8 +103,8 @@ def storage_policies(request):
             try:
                 storage_policy.create(data)
             except Exception as e:
-                return JSONResponse('Error creating the Storage Policy: '+e, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-            
+                return JSONResponse('Error creating the Storage Policy: ' + e, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
         return JSONResponse('Account created successfully', status=status.HTTP_201_CREATED)
     return JSONResponse('Only HTTP POST /spolicies/ requests allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
