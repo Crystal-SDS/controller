@@ -178,6 +178,16 @@ def dynamic_filter_detail(request, name):
                             status=201)
 
     if request.method == 'DELETE':
+        filter_id = r.hget('dsl_filter:' + str(name), 'identifier')
+        filter_name = r.hget('filter:' + str(filter_id), 'filter_name')
+
+        keys = r.keys("pipeline:AUTH_*")
+        for it in keys:
+            for key, value in r.hgetall(it).items():
+                json_value = json.loads(value)
+                if json_value['filter_name'] == filter_name:
+                    return JSONResponse('Unable to delete Registry DSL, is in use by some policy.', status=status.HTTP_403_FORBIDDEN)
+
         r.delete("dsl_filter:" + str(name))
         return JSONResponse('Dynamic filter has been deleted', status=204)
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
