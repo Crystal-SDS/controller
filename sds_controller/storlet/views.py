@@ -136,6 +136,12 @@ def storlet_detail(request, storlet_id):
 
     elif request.method == 'DELETE':
         try:
+            keys = r.keys('dsl_filter:*')
+            for key in keys:
+                dsl_filter_id = r.hget(key, 'identifier')
+                if dsl_filter_id == storlet_id:
+                    return JSONResponse('Unable to delete filter, is in use by the Registry DSL.', status=status.HTTP_403_FORBIDDEN)
+
             r.delete("filter:" + str(storlet_id))
             return JSONResponse('Filter has been deleted', status=status.HTTP_204_NO_CONTENT)
         except DataError:
