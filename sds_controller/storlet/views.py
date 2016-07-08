@@ -1,10 +1,14 @@
 import hashlib
 import json
 import logging
+import mimetypes
+import os
 
 import redis
 from django.conf import settings
+from django.core.servers.basehttp import FileWrapper
 from django.http import HttpResponse
+from django.http import StreamingHttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from redis.exceptions import RedisError, DataError
 from rest_framework import status
@@ -166,9 +170,27 @@ class StorletData(APIView):
         return JSONResponse('Filter does not exist', status=404)
 
     def get(self, request, storlet_id, format=None):
-        # TODO Return the storlet data
-        data = "File"
-        return Response(data, status=None, template_name=None, headers=None, content_type=None)
+        try:
+            r = get_redis_connection()
+        except RedisError:
+            return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        if r.exists('filter:' + str(storlet_id)):
+            filter_path = r.hget('filter:' + str(storlet_id), 'path')
+            if os.path.exists(filter_path):
+                filter_name = os.path.basename(filter_path)
+                filter_size = os.stat(filter_path).st_size
+
+                # Generate response
+                response = StreamingHttpResponse(FileWrapper(open(filter_path), filter_size), content_type=mimetypes.guess_type(filter_path)[0])
+                response['Content-Length'] = filter_size
+                response['Content-Disposition'] = "attachment; filename=%s" % filter_name
+
+                return response
+            else:
+                return HttpResponse(status=status.HTTP_404_NOT_FOUND)
+        else:
+            return HttpResponse(status=status.HTTP_404_NOT_FOUND)
 
 
 @csrf_exempt
