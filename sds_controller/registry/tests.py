@@ -149,6 +149,36 @@ class RegistryTestCase(TestCase):
         storage_nodes = json.loads(response.content)
         self.assertEqual(len(storage_nodes), 2)
 
+    def test_list_storage_nodes_are_ordered_by_name(self):
+        # Register a new SN
+        data = {'name': 'storagenode3', 'location': 'location3', 'type': 'type3'}
+        request = self.factory.post('/registry/snode', data, format='json')
+        response = list_storage_node(request)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        # Register a new SN
+        data = {'name': 'storagenode2', 'location': 'location2', 'type': 'type2'}
+        request = self.factory.post('/registry/snode', data, format='json')
+        response = list_storage_node(request)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        # Register a new SN
+        data = {'name': 'storagenode4', 'location': 'location4', 'type': 'type4'}
+        request = self.factory.post('/registry/snode', data, format='json')
+        response = list_storage_node(request)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        # Assert the storage nodes are returned ordered by name
+        request = self.factory.get('/registry/snode')
+        response = list_storage_node(request)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        storage_nodes = json.loads(response.content)
+        self.assertEqual(len(storage_nodes), 4)
+        self.assertEqual(storage_nodes[0]['name'], 'storagenode1')
+        self.assertEqual(storage_nodes[1]['name'], 'storagenode2')
+        self.assertEqual(storage_nodes[2]['name'], 'storagenode3')
+        self.assertEqual(storage_nodes[3]['name'], 'storagenode4')
+
     def test_get_storage_node_ok(self):
         snode_id = 1
         request = self.factory.get('/registry/snode/' + str(snode_id))

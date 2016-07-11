@@ -5,6 +5,7 @@ import requests
 from django.conf import settings
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
+from operator import itemgetter
 from pyactive.controller import init_host, start_controller
 from redis.exceptions import RedisError
 from rest_framework import status
@@ -200,6 +201,11 @@ def dynamic_filter_detail(request, name):
 
 @csrf_exempt
 def list_storage_node(request):
+    """
+    Add a storage node or list all the storage nodes saved in the registry.
+    :param request:
+    :return: JSONResponse
+    """
     try:
         r = get_redis_connection()
     except RedisError:
@@ -212,7 +218,8 @@ def list_storage_node(request):
             sn = r.hgetall(k)
             sn["id"] = k.split(":")[1]
             storage_nodes.append(sn)
-        return JSONResponse(storage_nodes, status=200)
+        newlist = sorted(storage_nodes, key=itemgetter('name'))
+        return JSONResponse(newlist, status=200)
 
     if request.method == "POST":
         sn_id = r.incr("storage_nodes:id")
