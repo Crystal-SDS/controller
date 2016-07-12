@@ -75,6 +75,7 @@ class Rule(object):
         body = json.dumps({"auth": {"tenantName": self.openstack_tenant, "passwordCredentials": {"username": self.openstack_user,
                                                                                                  "password": self.openstack_pass}}})
         headers = {"Content-type": "application/json"}
+        
         r = requests.post(self.openstack_keystone_url, data=body, headers=headers)
         if r.status_code == 200:
             self.token = r.json()["access"]["token"]["id"]
@@ -137,7 +138,7 @@ class Rule(object):
                 if element is not "OR" and element is not "AND":
                     self.check_metrics(element)
 
-    def update(self, metric, tenant_info):
+    def update(self, metric, value):
         """
         The method update is called by the workloads metrics following the observer
         pattern. This method is called to send to this actor the data updated.
@@ -148,9 +149,11 @@ class Rule(object):
         :param tenant_info: Contains the timestamp and the value sent from workload metric.
         :type tenant_info: **any** PyParsing type
         """
-        print 'Success update:  ', tenant_info
+        print 'Success update:  ', value
 
-        self.observers_values[metric] = tenant_info.value
+        self.observers_values[metric] = value
+        
+        print self.observers_values
 
         # TODO Check the last time updated the value
         # Check the condition of the policy if all values are setted. If the condition
@@ -196,11 +199,13 @@ class Rule(object):
         is responsible to execute the action defined in the policy.
 
         """
+
         if not self.token:
             self.admin_login()
 
         headers = {"X-Auth-Token": self.token}
-        dynamic_filter = self.redis.hgetall("dsl_filter:"+str(self.action_list.filter))
+
+        dynamic_filter = self.redis.hgetall("dsl_filter:"+str(self.action_list.filter))      
         
         if self.action_list.action == "SET":
             print "--> SET <--"

@@ -86,6 +86,8 @@ def start_redis_rules(host, rules):
     r = get_redis_connection()
     dynamic_policies = r.keys("policy:*")
     
+    
+    
     if dynamic_policies:
         print "\nStarting dynamic rules stored in redis:"
         
@@ -94,9 +96,7 @@ def start_redis_rules(host, rules):
         
         if policy_data['alive'] == 'True':
             _, rule_parsed = dsl_parser.parse(policy_data['policy']) 
-            
             target = rule_parsed.target[0][1]  # Tenant ID or tenant+container
-            
             for action_info in rule_parsed.action_list:
                 if action_info.transient:
                     print 'Transient rule:', policy_data['policy']

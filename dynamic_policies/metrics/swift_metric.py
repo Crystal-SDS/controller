@@ -29,15 +29,17 @@ class SwiftMetric(Metric):
 
         data = json.loads(body)
         Thread(target=self._send_data_to_logstash, args=(data, )).start()
-            
-        """
+        
         try:
-            for observer in self._observers[body_parsed.target]:
-                observer.update(self.name, body_parsed)
+            for host in data:
+                for target in data[host]:
+                    value =  data[host][target]
+                    target = target.replace('AUTH_','')
+                    if target in self._observers:
+                        for observer in self._observers[target]:
+                            observer.update(self.name, value)
         except:
-            #print "fail", body_parsed
-            pass
-        """
+            print "Fail sending to observer: ", data       
 
     def get_value(self):
         return self.value

@@ -21,8 +21,8 @@ from django.conf import settings
 
 
 def get_redis_connection():
-    return redis.Redis(connection_pool=settings.REDIS_CON_POOL)
-
+    #return redis.Redis(connection_pool=settings.REDIS_CON_POOL)
+    return redis.StrictRedis(host="localhost", port=6379, db=0)
 
 def parse_group_tenants(tokens):
     r = get_redis_connection()
