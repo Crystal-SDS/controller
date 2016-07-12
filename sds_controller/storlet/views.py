@@ -92,9 +92,6 @@ def storlet_list(request):
             return JSONResponse("Invalid parameters in request", status=status.HTTP_400_BAD_REQUEST)
 
         storlet_id = r.incr("filters:id")
-        # TODO: Not needed?
-        # if r.exists('filter:' + str(storlet_id)):
-        #     return JSONResponse("Object already exists!", status=status.HTTP_409_CONFLICT)
         try:
             data['id'] = storlet_id
             r.hmset('filter:' + str(storlet_id), data)
@@ -162,23 +159,32 @@ class StorletData(APIView):
         try:
             r = get_redis_connection()
         except RedisError:
-            return JSONResponse('Error connecting with DB', status=500)
-        if r.exists("filter:" + str(storlet_id)):
+            return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        filter_name = "filter:" + str(storlet_id)
+        if r.exists(filter_name):
             file_obj = request.FILES['file']
 
-            make_sure_path_exists(settings.STORLET_FILTERS_DIR)
-            path = save_file(file_obj, settings.STORLET_FILTERS_DIR)
+            filter_type = r.hget(filter_name, 'filter_type')
+            if (filter_type == 'storlet' and not file_obj._get_name().endswith('.jar')) or \
+                    (filter_type == 'native' and not file_obj._get_name().endswith('.py')):
+                return JSONResponse('Uploaded file is incompatible with filter type', status=status.HTTP_400_BAD_REQUEST)
+            if filter_type == 'storlet':
+                filter_dir = settings.STORLET_FILTERS_DIR
+            else:
+                filter_dir = settings.NATIVE_FILTERS_DIR
+            make_sure_path_exists(filter_dir)
+            path = save_file(file_obj, filter_dir)
             md5_etag = md5(path)
+
             try:
-                # r = get_redis_connection()
-                r.hset("filter:" + str(storlet_id), "filter_name", str(path).split('/')[-1])
-                r.hset("filter:" + str(storlet_id), "path", str(path))
-                r.hset("filter:" + str(storlet_id), "content_length", str(request.META["CONTENT_LENGTH"]))
-                r.hset("filter:" + str(storlet_id), "etag", str(md5_etag))
+                r.hset(filter_name, "filter_name", str(path).split('/')[-1])
+                r.hset(filter_name, "path", str(path))
+                r.hset(filter_name, "content_length", str(request.META["CONTENT_LENGTH"]))
+                r.hset(filter_name, "etag", str(md5_etag))
             except RedisError:
-                return JSONResponse('Problems connecting with DB', status=500)
-            return JSONResponse('Filter has been updated', status=201)
-        return JSONResponse('Filter does not exist', status=404)
+                return JSONResponse('Problems connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return JSONResponse('Filter has been updated', status=status.HTTP_201_CREATED)
+        return JSONResponse('Filter does not exist', status=status.HTTP_404_NOT_FOUND)
 
     def get(self, request, storlet_id, format=None):
         try:

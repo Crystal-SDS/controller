@@ -682,7 +682,7 @@ class RegistryTestCase(TestCase):
 
     def upload_filter(self):
         # Upload a filter for the storlet 1
-        with open('test_data/test.txt', 'r') as fp:
+        with open('test_data/test-1.0.jar', 'r') as fp:
             request = self.factory.put('/filters/1/data', {'file': fp})
             StorletData.as_view()(request, 1)
 
