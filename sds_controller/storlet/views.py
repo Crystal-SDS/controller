@@ -10,6 +10,7 @@ from django.core.servers.basehttp import FileWrapper
 from django.http import HttpResponse
 from django.http import StreamingHttpResponse
 from django.views.decorators.csrf import csrf_exempt
+from operator import itemgetter
 from redis.exceptions import RedisError, DataError
 from rest_framework import status
 from rest_framework.exceptions import ParseError
@@ -77,7 +78,8 @@ def storlet_list(request):
         for key in keys:
             storlet = r.hgetall(key)
             storlets.append(storlet)
-        return JSONResponse(storlets, status=status.HTTP_200_OK)
+        sorted_list = sorted(storlets, key=lambda x: int(itemgetter("id")(x)))
+        return JSONResponse(sorted_list, status=status.HTTP_200_OK)
 
     if request.method == 'POST':
         try:
