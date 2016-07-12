@@ -1,6 +1,7 @@
 import json
 
 import mock
+import os
 import redis
 from django.conf import settings
 from django.test import TestCase, override_settings
@@ -11,7 +12,8 @@ from .views import dependency_list, dependency_detail, storlet_list, storlet_det
 
 
 # Tests use database=10 instead of 0.
-@override_settings(REDIS_CON_POOL=redis.ConnectionPool(host='localhost', port=6379, db=10))
+@override_settings(REDIS_CON_POOL=redis.ConnectionPool(host='localhost', port=6379, db=10),
+                   STORLET_FILTERS_DIR=os.path.join("/tmp", "crystal", "storlet_filters"))
 class StorletTestCase(TestCase):
     def setUp(self):
         # Every test needs access to the request factory.
@@ -124,6 +126,47 @@ class StorletTestCase(TestCase):
             storlet2 = storlets[0]
         self.assertEqual(storlet1['main'], 'com.example.FakeMain')
         self.assertEqual(storlet2['main'], 'com.example.SecondMain')
+
+    def test_create_storlets_are_sorted_by_id(self):
+        """
+        Create several storlets and check they are returned as a sorted list by identifier
+        """
+
+        # Create a second storlet
+        filter_data = {'filter_type': 'java', 'interface_version': '', 'dependencies': '',
+                       'object_metadata': '', 'main': 'com.example.SecondMain', 'is_put': 'False',
+                       'is_get': 'False', 'has_reverse': 'False', 'execution_server': 'proxy',
+                       'execution_server_reverse': 'proxy'}
+        request = self.factory.post('/filters/', filter_data, format='json')
+        response = storlet_list(request)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        # Create a third storlet
+        filter_data = {'filter_type': 'java', 'interface_version': '', 'dependencies': '',
+                       'object_metadata': '', 'main': 'com.example.ThirdMain', 'is_put': 'False',
+                       'is_get': 'False', 'has_reverse': 'False', 'execution_server': 'proxy',
+                       'execution_server_reverse': 'proxy'}
+        request = self.factory.post('/filters/', filter_data, format='json')
+        response = storlet_list(request)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        # Create a Fourth storlet
+        filter_data = {'filter_type': 'java', 'interface_version': '', 'dependencies': '',
+                       'object_metadata': '', 'main': 'com.example.FourthMain', 'is_put': 'False',
+                       'is_get': 'False', 'has_reverse': 'False', 'execution_server': 'proxy',
+                       'execution_server_reverse': 'proxy'}
+        request = self.factory.post('/filters/', filter_data, format='json')
+        response = storlet_list(request)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        request = self.factory.get('/filters')
+        response = storlet_list(request)
+        storlets = json.loads(response.content)
+        self.assertEqual(len(storlets), 4)
+        self.assertEqual(storlets[0]['main'], 'com.example.FakeMain')
+        self.assertEqual(storlets[1]['main'], 'com.example.SecondMain')
+        self.assertEqual(storlets[2]['main'], 'com.example.ThirdMain')
+        self.assertEqual(storlets[3]['main'], 'com.example.FourthMain')
 
     def test_create_storlet_with_invalid_request(self):
         # Invalid param

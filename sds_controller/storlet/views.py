@@ -1,3 +1,4 @@
+import errno
 import hashlib
 import json
 import logging
@@ -10,6 +11,7 @@ from django.core.servers.basehttp import FileWrapper
 from django.http import HttpResponse
 from django.http import StreamingHttpResponse
 from django.views.decorators.csrf import csrf_exempt
+from operator import itemgetter
 from redis.exceptions import RedisError, DataError
 from rest_framework import status
 from rest_framework.exceptions import ParseError
@@ -77,7 +79,8 @@ def storlet_list(request):
         for key in keys:
             storlet = r.hgetall(key)
             storlets.append(storlet)
-        return JSONResponse(storlets, status=status.HTTP_200_OK)
+        sorted_list = sorted(storlets, key=lambda x: int(itemgetter("id")(x)))
+        return JSONResponse(sorted_list, status=status.HTTP_200_OK)
 
     if request.method == 'POST':
         try:
@@ -162,7 +165,9 @@ class StorletData(APIView):
             return JSONResponse('Error connecting with DB', status=500)
         if r.exists("filter:" + str(storlet_id)):
             file_obj = request.FILES['file']
-            path = save_file(file_obj, settings.STORLET_DIR)
+
+            make_sure_path_exists(settings.STORLET_FILTERS_DIR)
+            path = save_file(file_obj, settings.STORLET_FILTERS_DIR)
             md5_etag = md5(path)
             try:
                 # r = get_redis_connection()
@@ -560,6 +565,14 @@ def undeploy(r, target, storlet, headers):
         return swift_status
     else:
         return swift_status
+
+
+def make_sure_path_exists(path):
+    try:
+        os.makedirs(path)
+    except OSError as exception:
+        if exception.errno != errno.EEXIST:
+            raise
 
 
 def save_file(file_, path=''):
