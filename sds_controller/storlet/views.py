@@ -4,6 +4,7 @@ import json
 import logging
 import mimetypes
 import os
+from operator import itemgetter
 
 import redis
 from django.conf import settings
@@ -11,7 +12,6 @@ from django.core.servers.basehttp import FileWrapper
 from django.http import HttpResponse
 from django.http import StreamingHttpResponse
 from django.views.decorators.csrf import csrf_exempt
-from operator import itemgetter
 from redis.exceptions import RedisError, DataError
 from rest_framework import status
 from rest_framework.exceptions import ParseError

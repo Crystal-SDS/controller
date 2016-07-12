@@ -7,6 +7,10 @@ urlpatterns = [
     url(r'^/metrics/?$', views.add_metric),
     url(r'^/metrics/(?P<name>\w+)/?$', views.metric_detail),
 
+    url(r'^/metric_module/?$', views.metric_module_list),
+    url(r'^/metric_module/(?P<metric_module_id>\w+)/?$', views.metric_module_detail),
+    url(r'^/metric_module/(?P<metric_module_id>[0-9]+)/data/?$', views.MetricModuleData.as_view()),
+
     url(r'^/filters/?$', views.add_dynamic_filter),
     url(r'^/filters/(?P<name>\w+)/?$', views.dynamic_filter_detail),
 

@@ -1,20 +1,27 @@
 import json
+import mimetypes
+import os
+from operator import itemgetter
 
 import redis
 import requests
 from django.conf import settings
+from django.core.servers.basehttp import FileWrapper
 from django.http import HttpResponse
+from django.http import StreamingHttpResponse
 from django.views.decorators.csrf import csrf_exempt
-from operator import itemgetter
 from pyactive.controller import init_host, start_controller
-from redis.exceptions import RedisError
+from redis.exceptions import RedisError, DataError
 from rest_framework import status
-from rest_framework.parsers import JSONParser
+from rest_framework.exceptions import ParseError
+from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
 from rest_framework.renderers import JSONRenderer
+from rest_framework.views import APIView
 
 import dsl_parser
 from sds_controller.exceptions import SwiftClientError, StorletNotFoundException
 from storlet.views import deploy, undeploy
+from storlet.views import save_file, make_sure_path_exists
 
 host = None
 remote_host = None
@@ -46,17 +53,17 @@ def get_redis_connection():
 
 # TODO: Improve the implementation to create the host connection
 def create_host():
-    print "  --- CREATING HOST ---"
+    print("  --- CREATING HOST ---")
     start_controller("pyactive_thread")
     tcpconf = ('tcp', ('127.0.0.1', 9899))
     # momconf = ('mom',{'name':'api_host','ip':'127.0.0.1','port':61613, 'namespace':'/topic/iostack'})
     global host
     host = init_host(tcpconf)
     global remote_host
-    print "  **  "
+    print("  **  ")
     remote_host = host.lookup_remote_host(settings.PYACTIVE_URL + 'controller/Host/0')
     remote_host.hello()
-    print 'lookup', remote_host
+    print('lookup', remote_host)
 
 
 #
@@ -192,6 +199,128 @@ def dynamic_filter_detail(request, name):
         r.delete("dsl_filter:" + str(name))
         return JSONResponse('Dynamic filter has been deleted', status=204)
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
+
+
+#
+# Metric Modules
+#
+@csrf_exempt
+def metric_module_list(request):
+    """
+    List all metric modules, or create a new metric module.
+    """
+    try:
+        r = get_redis_connection()
+    except RedisError:
+        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    if request.method == 'GET':
+        keys = r.keys("workload_metric:*")
+        workload_metric = []
+        for key in keys:
+            metric = r.hgetall(key)
+            workload_metric.append(metric)
+        return JSONResponse(workload_metric, status=status.HTTP_200_OK)
+
+    if request.method == 'POST':
+        try:
+            data = JSONParser().parse(request)
+        except ParseError:
+            return JSONResponse("Invalid format or empty request", status=status.HTTP_400_BAD_REQUEST)
+
+        workload_metric_id = r.incr("workload_metrics:id")
+        try:
+            data['id'] = workload_metric_id
+            r.hmset('workload_metric:' + str(workload_metric_id), data)
+            return JSONResponse(data, status=status.HTTP_201_CREATED)
+
+        except DataError:
+            return JSONResponse("Error to save the object", status=status.HTTP_400_BAD_REQUEST)
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+
+@csrf_exempt
+def metric_module_detail(request, metric_module_id):
+    """
+    Retrieve, update or delete a metric module.
+    """
+    try:
+        r = get_redis_connection()
+    except RedisError:
+        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    if not r.exists("workload_metric:" + str(metric_module_id)):
+        return JSONResponse('Object does not exist!', status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        metric = r.hgetall("workload_metric:" + str(metric_module_id))
+        return JSONResponse(metric, status=status.HTTP_200_OK)
+
+    elif request.method == 'PUT':
+        try:
+            data = JSONParser().parse(request)
+        except ParseError:
+            return JSONResponse("Invalid format or empty request", status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            r.hmset('workload_metric:' + str(metric_module_id), data)
+            return JSONResponse("Data updated", status=status.HTTP_200_OK)
+        except DataError:
+            return JSONResponse("Error updating data", status=status.HTTP_408_REQUEST_TIMEOUT)
+
+    elif request.method == 'DELETE':
+        try:
+            r.delete("workload_metric:" + str(metric_module_id))
+            return JSONResponse('Workload metric has been deleted', status=status.HTTP_204_NO_CONTENT)
+        except DataError:
+            return JSONResponse("Error deleting workload metric", status=status.HTTP_408_REQUEST_TIMEOUT)
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+
+class MetricModuleData(APIView):
+    """
+    Upload or get a metric module data.
+    """
+    parser_classes = (MultiPartParser, FormParser,)
+
+    def put(self, request, metric_module_id):
+        try:
+            r = get_redis_connection()
+        except RedisError:
+            return JSONResponse('Error connecting with DB', status=500)
+        if r.exists("workload_metric:" + str(metric_module_id)):
+            file_obj = request.FILES['file']
+
+            make_sure_path_exists(settings.WORKLOAD_METRICS_DIR)
+            path = save_file(file_obj, settings.WORKLOAD_METRICS_DIR)
+            try:
+                r.hset("workload_metric:" + str(metric_module_id), "metric_name", str(path).split('/')[-1])
+            except RedisError:
+                return JSONResponse('Problems connecting with DB', status=500)
+            return JSONResponse('Workload metric has been updated', status=201)
+        return JSONResponse('Workload metric does not exist', status=404)
+
+    def get(self, request, metric_module_id):
+        try:
+            r = get_redis_connection()
+        except RedisError:
+            return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        if r.exists('workload_metric:' + str(metric_module_id)):
+            workload_metric_path = settings.WORKLOAD_METRICS_DIR.join('/' + str(r.hget('workload_metric:' + str(metric_module_id), 'metric_name')))
+            if os.path.exists(workload_metric_path):
+                workload_metric_name = os.path.basename(workload_metric_path)
+                workload_metric_size = os.stat(workload_metric_path).st_size
+
+                # Generate response
+                response = StreamingHttpResponse(FileWrapper(open(workload_metric_path), workload_metric_size), content_type=mimetypes.guess_type(workload_metric_path)[0])
+                response['Content-Length'] = workload_metric_size
+                response['Content-Disposition'] = "attachment; filename=%s" % workload_metric_name
+
+                return response
+            else:
+                return HttpResponse(status=status.HTTP_404_NOT_FOUND)
+        else:
+            return HttpResponse(status=status.HTTP_404_NOT_FOUND)
 
 
 #
