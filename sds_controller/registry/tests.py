@@ -409,6 +409,7 @@ class RegistryTestCase(TestCase):
         a_device =  nodes[0]['devices'].keys()[0]
         self.assertIsNotNone(nodes[0]['devices'][a_device]['free'])
 
+
     #
     # Tenant groups
     #

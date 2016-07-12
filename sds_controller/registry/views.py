@@ -218,8 +218,8 @@ def list_storage_node(request):
             sn = r.hgetall(k)
             sn["id"] = k.split(":")[1]
             storage_nodes.append(sn)
-        newlist = sorted(storage_nodes, key=itemgetter('name'))
-        return JSONResponse(newlist, status=200)
+        sorted_list = sorted(storage_nodes, key=itemgetter('name'))
+        return JSONResponse(sorted_list, status=200)
 
     if request.method == "POST":
         sn_id = r.incr("storage_nodes:id")
@@ -463,7 +463,7 @@ def object_type_items_detail(request, object_type_name, item_name):
 @csrf_exempt
 def node_list(request):
     """
-    GET: List all nodes.
+    GET: List all nodes ordered by name
     """
     try:
         r = get_redis_connection()
@@ -477,7 +477,8 @@ def node_list(request):
             node = r.hgetall(key)
             node['devices'] = json.loads(node['devices'])
             nodes.append(node)
-        return JSONResponse(nodes, status=status.HTTP_200_OK)
+        sorted_list = sorted(nodes, key=itemgetter('name'))
+        return JSONResponse(sorted_list, status=status.HTTP_200_OK)
 
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
