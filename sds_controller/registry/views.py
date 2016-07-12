@@ -615,7 +615,7 @@ def node_list(request):
 @csrf_exempt
 def policy_list(request):
     """
-    List all policies. Deploy new policies.
+    List all policies (sorted by execution_order). Deploy new policies.
     """
     try:
         r = get_redis_connection()
@@ -648,7 +648,8 @@ def policy_list(request):
                                      'execution_server': json_value['execution_server'],
                                      'execution_server_reverse': json_value['execution_server_reverse'],
                                      'execution_order': json_value['execution_order'], 'params': json_value['params']})
-            return JSONResponse(policies, status=status.HTTP_200_OK)
+            sorted_policies = sorted(policies, key=lambda x: int(itemgetter('execution_order')(x)))
+            return JSONResponse(sorted_policies, status=status.HTTP_200_OK)
 
         elif 'dynamic' in str(request.path):
             keys = r.keys("policy:*")
