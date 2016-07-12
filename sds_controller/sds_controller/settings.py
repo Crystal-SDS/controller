@@ -16,8 +16,10 @@ import redis
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-STORLET_DIR = os.path.join(BASE_DIR, "storlet", "storlets_jar")
-DEPENDENCY_DIR = os.path.join(BASE_DIR, "storlet", "dependencies_jar")
+WORKLOAD_METRICS_DIR = os.path.join("/opt", "crystal", "workload_metrics")
+NATIVE_FILTERS_DIR = os.path.join("/opt", "crystal", "native_filters")
+STORLET_FILTERS_DIR = os.path.join("/opt", "crystal", "storlet_filters")
+DEPENDENCY_DIR = os.path.join("/opt", "crystal", "dependencies")
 ANSIBLE_DIR = os.path.join(BASE_DIR, "swift", "ansible")
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.8/howto/deployment/checklist/

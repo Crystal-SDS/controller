@@ -1,7 +1,8 @@
 import json
-
-import redis
 import mock
+import os
+import redis
+
 
 from django.test import TestCase, override_settings
 from django.conf import settings
@@ -18,7 +19,8 @@ from .dsl_parser import parse
 
 
 # Tests use database=10 instead of 0.
-@override_settings(REDIS_CON_POOL=redis.ConnectionPool(host='localhost', port=6379, db=10))
+@override_settings(REDIS_CON_POOL=redis.ConnectionPool(host='localhost', port=6379, db=10),
+                   STORLET_FILTERS_DIR=os.path.join("/tmp", "crystal", "storlet_filters"))
 class RegistryTestCase(TestCase):
     def setUp(self):
         # Every test needs access to the request factory.
