@@ -19,7 +19,9 @@ from rest_framework.renderers import JSONRenderer
 from rest_framework.views import APIView
 
 import dsl_parser
-from sds_controller.exceptions import SwiftClientError, StorletNotFoundException
+from sds_controller.exceptions import SwiftClientError, StorletNotFoundException, FileSynchronizationException
+from sds_controller.common_utils import rsync_dir_with_nodes
+
 from storlet.views import deploy, undeploy
 from storlet.views import save_file, make_sure_path_exists
 
@@ -293,6 +295,13 @@ class MetricModuleData(APIView):
 
             make_sure_path_exists(settings.WORKLOAD_METRICS_DIR)
             path = save_file(file_obj, settings.WORKLOAD_METRICS_DIR)
+
+            # synchronize metrics directory with all nodes
+            try:
+                rsync_dir_with_nodes(settings.WORKLOAD_METRICS_DIR)
+            except FileSynchronizationException:
+                pass # FIXME 
+
             try:
                 r.hset("workload_metric:" + str(metric_module_id), "metric_name", str(path).split('/')[-1])
             except RedisError:
