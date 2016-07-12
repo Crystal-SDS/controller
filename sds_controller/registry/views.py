@@ -95,7 +95,7 @@ def add_metric(request):
         if not name:
             return JSONResponse('Metric must have a name', status=400)
         r.hmset('metric:' + str(name), data)
-        return JSONResponse('Metric has been added in the registy', status=201)
+        return JSONResponse('Metric has been added in the registry', status=201)
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
 
 
@@ -215,11 +215,12 @@ def metric_module_list(request):
         return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     if request.method == 'GET':
         keys = r.keys("workload_metric:*")
-        workload_metric = []
+        workload_metrics = []
         for key in keys:
             metric = r.hgetall(key)
-            workload_metric.append(metric)
-        return JSONResponse(workload_metric, status=status.HTTP_200_OK)
+            workload_metrics.append(metric)
+        sorted_workload_metrics = sorted(workload_metrics, key=lambda x: int(itemgetter('id')(x)))
+        return JSONResponse(sorted_workload_metrics, status=status.HTTP_200_OK)
 
     if request.method == 'POST':
         try:
