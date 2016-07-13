@@ -16,8 +16,10 @@ def rsync_dir_with_nodes(directory):
         if not node.viewkeys() & {'ssh_username', 'ssh_password'}:
             raise FileSynchronizationException("SSH credentials missing for some Swift node")
 
-        data = {'directory':  directory, 'node_ip': node['ip'], 'ssh_username': node['ssh_username'], 'ssh_password': node['ssh_password']}
-        rsync_command = 'sshpass -p {ssh_password} rsync --progress -avrz -e ssh {ssh_username}@{node_ip}:{directory} {directory}'.format(**data)
+        dest_directory = '/'.join(directory.split('/')[0:-1])  # The last directory name of the path is not needed because it will be the same as source dir
+        data = {'directory':  directory, 'dest_directory': dest_directory, 'node_ip': node['ip'],
+                'ssh_username': node['ssh_username'], 'ssh_password': node['ssh_password']}
+        rsync_command = 'sshpass -p {ssh_password} rsync --progress -avrz -e ssh {directory} {ssh_username}@{node_ip}:{dest_directory} '.format(**data)
         print "System: %s" % rsync_command
         ret = os.system(rsync_command)
         if ret != 0:
