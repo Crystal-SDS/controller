@@ -65,7 +65,7 @@ class StorletTestCase(TestCase):
         Update a storlet
         """
         filter_updated_data = {
-            'filter_type': 'storlet', 'interface_version': '', 'dependencies': '',
+            'interface_version': '', 'dependencies': '',
             'object_metadata': '', 'main': 'com.example.UpdatedFakeMain', 'is_put': 'False', 'is_get': 'False',
             'has_reverse': 'False', 'execution_server': 'proxy', 'execution_server_reverse': 'proxy'}
         request = self.factory.put('/filters/1', filter_updated_data, format='json')
