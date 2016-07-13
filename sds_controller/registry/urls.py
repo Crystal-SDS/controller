@@ -31,6 +31,6 @@ urlpatterns = [
     url(r'^/object_type/(?P<object_type_name>\w+)/?$', views.object_type_detail),
 
     url(r'^/nodes/?$', views.node_list),
-    url(r'^/nodes/(?P<node_id>\w+)/?$', views.node_detail),
+    url(r'^/nodes/(?P<node_id>[^/]+)/?$', views.node_detail),
 
 ]
