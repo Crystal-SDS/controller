@@ -170,8 +170,8 @@ class StorletData(APIView):
             file_obj = request.FILES['file']
 
             filter_type = r.hget(filter_name, 'filter_type')
-            if (filter_type == 'storlet' and not file_obj._get_name().endswith('.jar')) or \
-                    (filter_type == 'native' and not file_obj._get_name().endswith('.py')):
+            if (filter_type == 'storlet' and not file_obj.name.endswith('.jar')) or \
+                    (filter_type == 'native' and not file_obj.name.endswith('.py')):
                 return JSONResponse('Uploaded file is incompatible with filter type', status=status.HTTP_400_BAD_REQUEST)
             if filter_type == 'storlet':
                 filter_dir = settings.STORLET_FILTERS_DIR
@@ -182,7 +182,7 @@ class StorletData(APIView):
             md5_etag = md5(path)
 
             try:
-                r.hset(filter_name, "filter_name", str(path).split('/')[-1])
+                r.hset(filter_name, "filter_name", os.path.basename(path))
                 r.hset(filter_name, "path", str(path))
                 r.hset(filter_name, "content_length", str(request.META["CONTENT_LENGTH"]))
                 r.hset(filter_name, "etag", str(md5_etag))
@@ -590,7 +590,7 @@ def save_file(file_, path=''):
     """
     Little helper to save a file
     """
-    filename = file_._get_name()
+    filename = file_.name
     fd = open(str(path) + "/" + str(filename), 'wb')
     for chunk in file_.chunks():
         fd.write(chunk)
