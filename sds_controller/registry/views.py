@@ -257,7 +257,7 @@ def metric_module_detail(request, metric_module_id):
     if request.method == 'GET':
         metric = r.hgetall("workload_metric:" + str(metric_module_id))
 
-        metric['status'] = (metric['status'] == "True")
+        metric['enabled'] = (metric['enabled'] == "True")
         metric['in_flow'] = (metric['in_flow'] == "True")
         metric['out_flow'] = (metric['out_flow'] == "True")
 
