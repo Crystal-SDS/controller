@@ -299,8 +299,9 @@ class MetricModuleData(APIView):
             # synchronize metrics directory with all nodes
             try:
                 rsync_dir_with_nodes(settings.WORKLOAD_METRICS_DIR)
-            except FileSynchronizationException:
-                pass # FIXME 
+            except FileSynchronizationException as e:
+                print "FileSynchronizationException", e  # TODO remove
+                return JSONResponse(e.message, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
             try:
                 r.hset("workload_metric:" + str(metric_module_id), "metric_name", str(path).split('/')[-1])
@@ -614,12 +615,48 @@ def node_list(request):
         nodes = []
         for key in keys:
             node = r.hgetall(key)
+            node.pop("ssh_username", None)  # username & password are not returned in the list
+            node.pop("ssh_password", None)
             node['devices'] = json.loads(node['devices'])
             nodes.append(node)
         sorted_list = sorted(nodes, key=itemgetter('name'))
         return JSONResponse(sorted_list, status=status.HTTP_200_OK)
 
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+
+@csrf_exempt
+def node_detail(request, node_id):
+    """
+    GET: Retrieve node details. PUT: Update node.
+    :param request:
+    :param node_id:
+    :return:
+    """
+    try:
+        r = get_redis_connection()
+    except RedisError:
+        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    key = "node:" + node_id
+    if request.method == 'GET':
+        if r.exists(key):
+            node = r.hgetall(key)
+            node['devices'] = json.loads(node['devices'])
+            return JSONResponse(node, status=status.HTTP_200_OK)
+        else:
+            return JSONResponse('Node not found.', status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'PUT':
+        if r.exists(key):
+            data = JSONParser().parse(request)
+            try:
+                r.hmset(key, data)
+                return JSONResponse("Data updated", status=status.HTTP_201_CREATED)
+            except RedisError:
+                return JSONResponse("Error updating data", status=status.HTTP_400_BAD_REQUEST)
+        else:
+            return JSONResponse('Node not found.', status=status.HTTP_404_NOT_FOUND)
 
 
 @csrf_exempt
