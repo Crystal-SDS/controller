@@ -322,7 +322,7 @@ class MetricModuleData(APIView):
             return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         if r.exists('workload_metric:' + str(metric_module_id)):
-            workload_metric_path = settings.WORKLOAD_METRICS_DIR.join('/' + str(r.hget('workload_metric:' + str(metric_module_id), 'metric_name')))
+            workload_metric_path = settings.WORKLOAD_METRICS_DIR + '/' + str(r.hget('workload_metric:' + str(metric_module_id), 'metric_name'))
             if os.path.exists(workload_metric_path):
                 workload_metric_name = os.path.basename(workload_metric_path)
                 workload_metric_size = os.stat(workload_metric_path).st_size
