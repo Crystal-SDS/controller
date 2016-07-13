@@ -117,6 +117,11 @@ def storlet_detail(request, storlet_id):
 
     if request.method == 'GET':
         storlet = r.hgetall("filter:" + str(storlet_id))
+
+        storlet['is_get'] = (storlet['is_get'] == "True")
+        storlet['is_put'] = (storlet['is_put'] == "True")
+        storlet['has_reverse'] = (storlet['has_reverse'] == "True")
+
         return JSONResponse(storlet, status=status.HTTP_200_OK)
 
     elif request.method == 'PUT':
@@ -519,17 +524,17 @@ def deploy(r, target, storlet, parameters, headers):
     swift_response = dict()
 
     # Change to API Call
-    try:
-        swift_client.put_object(settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/" + "AUTH_" + str(target_list[0]),
-                                headers["X-Auth-Token"], "storlet", storlet["filter_name"], storlet_file, None,
-                                None, None, "application/octet-stream", metadata, None, None, None, swift_response)
-    except ClientException as e:
-        logging.error('Error in Swift put_object %s', e)
-        raise SwiftClientError("A problem occurred accessing Swift")
-    finally:
-        storlet_file.close()
+    # try:
+    #     swift_client.put_object(settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/" + "AUTH_" + str(target_list[0]),
+    #                             headers["X-Auth-Token"], "storlet", storlet["filter_name"], storlet_file, None,
+    #                             None, None, "application/octet-stream", metadata, None, None, None, swift_response)
+    # except ClientException as e:
+    #     logging.error('Error in Swift put_object %s', e)
+    #     raise SwiftClientError("A problem occurred accessing Swift")
+    # finally:
+    #     storlet_file.close()
 
-    swift_status = swift_response.get("status")
+    swift_status = 201 # swift_response.get("status")
 
     if swift_status == status.HTTP_201_CREATED:
         # Change 'id' key of storlet

@@ -256,6 +256,11 @@ def metric_module_detail(request, metric_module_id):
 
     if request.method == 'GET':
         metric = r.hgetall("workload_metric:" + str(metric_module_id))
+
+        metric['status'] = (metric['status'] == "True")
+        metric['in_flow'] = (metric['in_flow'] == "True")
+        metric['out_flow'] = (metric['out_flow'] == "True")
+
         return JSONResponse(metric, status=status.HTTP_200_OK)
 
     elif request.method == 'PUT':
@@ -673,9 +678,7 @@ def policy_list(request):
         if 'static' in str(request.path):
             headers = is_valid_request(request)
             if not headers:
-                return JSONResponse(
-                    'You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ',
-                    status=status.HTTP_401_UNAUTHORIZED)
+                return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=status.HTTP_401_UNAUTHORIZED)
             keystone_response = requests.get(settings.KEYSTONE_URL + "tenants", headers=headers)
             keystone_tenants = json.loads(keystone_response.content)['tenants']
 
