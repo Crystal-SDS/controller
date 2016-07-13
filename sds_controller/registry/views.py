@@ -20,7 +20,7 @@ from rest_framework.views import APIView
 
 import dsl_parser
 from sds_controller.exceptions import SwiftClientError, StorletNotFoundException, FileSynchronizationException
-from sds_controller.common_utils import rsync_dir_with_nodes
+from sds_controller.common_utils import rsync_dir_with_nodes, to_json_bools
 
 from storlet.views import deploy, undeploy
 from storlet.views import save_file, make_sure_path_exists
@@ -220,6 +220,7 @@ def metric_module_list(request):
         workload_metrics = []
         for key in keys:
             metric = r.hgetall(key)
+            to_json_bools(metric, 'in_flow', 'out_flow', 'enabled')
             workload_metrics.append(metric)
         sorted_workload_metrics = sorted(workload_metrics, key=lambda x: int(itemgetter('id')(x)))
         return JSONResponse(sorted_workload_metrics, status=status.HTTP_200_OK)
@@ -257,10 +258,7 @@ def metric_module_detail(request, metric_module_id):
     if request.method == 'GET':
         metric = r.hgetall("workload_metric:" + str(metric_module_id))
 
-        metric['enabled'] = (metric['enabled'] == "True")
-        metric['in_flow'] = (metric['in_flow'] == "True")
-        metric['out_flow'] = (metric['out_flow'] == "True")
-
+        to_json_bools(metric, 'in_flow', 'out_flow', 'enabled')
         return JSONResponse(metric, status=status.HTTP_200_OK)
 
     elif request.method == 'PUT':

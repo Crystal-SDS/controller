@@ -23,6 +23,7 @@ from swiftclient import client as swift_client
 from swiftclient.exceptions import ClientException
 
 from sds_controller.exceptions import SwiftClientError, StorletNotFoundException
+from sds_controller.common_utils import to_json_bools
 
 # TODO create a common file and put this into the new file
 # Start Common
@@ -118,10 +119,7 @@ def storlet_detail(request, storlet_id):
     if request.method == 'GET':
         storlet = r.hgetall("filter:" + str(storlet_id))
 
-        storlet['is_get'] = (storlet['is_get'] == "True")
-        storlet['is_put'] = (storlet['is_put'] == "True")
-        storlet['has_reverse'] = (storlet['has_reverse'] == "True")
-
+        to_json_bools(storlet, 'is_get', 'is_put', 'has_reverse')
         return JSONResponse(storlet, status=status.HTTP_200_OK)
 
     elif request.method == 'PUT':
@@ -130,7 +128,7 @@ def storlet_detail(request, storlet_id):
         except ParseError:
             return JSONResponse("Invalid format or empty request", status=status.HTTP_400_BAD_REQUEST)
 
-        if not check_keys(data.keys(), STORLET_KEYS[2:-1]):
+        if not check_keys(data.keys(), STORLET_KEYS[3:-1]):
             return JSONResponse("Invalid parameters in request", status=status.HTTP_400_BAD_REQUEST)
 
         try:

@@ -39,3 +39,9 @@ def get_all_registered_nodes():
         node = r.hgetall(key)
         nodes.append(node)
     return nodes
+
+
+def to_json_bools(dictionary, *args):
+    for arg in args:
+        if arg in dictionary:
+            dictionary[arg] = (dictionary[arg] == 'True')
