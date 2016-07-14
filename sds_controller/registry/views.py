@@ -890,6 +890,7 @@ def deploy_policy(r, rule_string, parsed_rule):
 
             rules[cont].start_rule()
             # Add policy into redis
+            static_policy_rule_string = 
             r.hmset('policy:' + str(policy_id),
                     {"id": policy_id, "policy": rule_string, "policy_description": parsed_rule,
                      "policy_location": settings.PYACTIVE_URL + location + str(policy_id), "alive": True})
