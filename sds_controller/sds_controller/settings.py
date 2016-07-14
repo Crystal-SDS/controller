@@ -125,18 +125,23 @@ USE_TZ = True
 STATIC_URL = '/static/'
 
 # Swift info
-KEYSTONE_ADMIN_URL = "http://10.30.235.235:5000/v2.0/"
-KEYSTONE_URL = "http://10.30.235.235:35357/v2.0/"
-SWIFT_URL= "http://10.30.235.235:8080/"
+KEYSTONE_ADMIN_URL = "http://localhost:5000/v2.0/"
+KEYSTONE_URL = "http://localhost:35357/v2.0/"
+SWIFT_URL= "http://localhost:8080/"
 SWIFT_API_VERSION = "v1"
 
 # redis
 REDIS_CON_POOL = redis.ConnectionPool(host='localhost', port=6379, db=0)
 
-# swift admin
+
+# SDS Project
+STORLET_BIN_DIR = "/opt/ibm"
+STORLET_DOCKER_IMAGE = "192.168.2.1:5001/ubuntu_14.04_jre8_storlets"
+STORLET_TAR_FILE = "ubuntu_14.04_jre8_storlets.tar"
+
 MANAGEMENT_ACCOUNT = "storlet_management"
 MANAGEMENT_ADMIN_USERNAME = "storlet_manager"
-MANAGEMENT_ADMIN_PASSWORD = "storlet_manager" # noqa
+MANAGEMENT_ADMIN_PASSWORD = "storlet_manager"
 
 # pyactive
 PYACTIVE_URL = "tcp://127.0.0.1:6375/"
