@@ -1,6 +1,7 @@
 import json
 import mimetypes
 import os
+import re
 from operator import itemgetter
 
 import redis
@@ -20,7 +21,7 @@ from rest_framework.views import APIView
 
 import dsl_parser
 from sds_controller.exceptions import SwiftClientError, StorletNotFoundException, FileSynchronizationException
-from sds_controller.common_utils import rsync_dir_with_nodes, to_json_bools
+from sds_controller.common_utils import rsync_dir_with_nodes, to_json_bools, remove_extra_whitespaces
 
 from storlet.views import deploy, undeploy
 from storlet.views import save_file, make_sure_path_exists
@@ -880,18 +881,28 @@ def deploy_policy(r, rule_string, parsed_rule):
             if action_info.transient:
                 print 'Transient rule:', parsed_rule
                 rules[cont] = remote_host.spawn_id('policy:' + str(policy_id), 'rule_transient', 'TransientRule',
-                                                   [rules_to_parse[key], action_info, key, remote_host])
-                location = "/rule_transient/TransientRule/"
+                                                    [rules_to_parse[key], action_info, key, remote_host])
+                location = "rule_transient/TransientRule/"
+                is_transient = True
             else:
                 print 'Rule:', parsed_rule
                 rules[cont] = remote_host.spawn_id('policy:' + str(policy_id), 'rule', 'Rule',
                                                    [rules_to_parse[key], action_info, key, remote_host])
-                location = "/rule/Rule/"
+                location = "rule/Rule/"
+                is_transient = False
 
             rules[cont].start_rule()
+
+            # FIXME Should we recreate a static rule for each target and action??
+            condition_re = re.compile(r'.* (WHEN .*) DO .*', re.M|re.I)
+            condition_str = condition_re.match(rule_string).group(1)
+
+            tmp_rule_string = rule_string.replace(condition_str, '').replace('TRANSIENT', '')
+            static_policy_rule_string = remove_extra_whitespaces(tmp_rule_string)
+
             # Add policy into redis
-            static_policy_rule_string = 
             r.hmset('policy:' + str(policy_id),
-                    {"id": policy_id, "policy": rule_string, "policy_description": parsed_rule,
+                    {"id": policy_id, "policy": static_policy_rule_string, "policy_description": parsed_rule,
+                     "condition": condition_str.replace('WHEN ', ''), "transient": is_transient,
                      "policy_location": settings.PYACTIVE_URL + location + str(policy_id), "alive": True})
             cont += 1

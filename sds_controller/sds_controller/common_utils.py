@@ -45,3 +45,7 @@ def to_json_bools(dictionary, *args):
     for arg in args:
         if arg in dictionary:
             dictionary[arg] = (dictionary[arg] == 'True')
+
+
+def remove_extra_whitespaces(_str):
+    return ' '.join(_str.split())
