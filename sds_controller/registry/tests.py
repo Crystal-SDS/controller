@@ -14,7 +14,7 @@ from rest_framework.test import APIRequestFactory
 from .views import policy_list
 from storlet.views import storlet_list, storlet_deploy, StorletData
 from .views import object_type_list, object_type_detail, add_tenants_group, tenants_group_detail, gtenants_tenant_detail, node_list, \
-    add_metric, metric_detail, list_storage_node, storage_node_detail
+    add_metric, metric_detail, metric_module_list, metric_module_detail, MetricModuleData, list_storage_node, storage_node_detail
 from .dsl_parser import parse
 
 
@@ -34,6 +34,7 @@ class RegistryTestCase(TestCase):
         self.create_tenant_group_1()
         self.create_nodes()
         self.create_storage_nodes()
+        self.create_metric_modules()
 
     def tearDown(self):
         self.r.flushdb()
@@ -64,7 +65,7 @@ class RegistryTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     #
-    # Metric workload tests
+    # Metric tests
     #
 
     def test_list_metrics_ok(self):
@@ -126,6 +127,51 @@ class RegistryTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         metrics = json.loads(response.content)
         self.assertEqual(len(metrics), 1)
+
+    #
+    # Metric module tests
+    #
+
+    def test_metric_module_list_with_method_not_allowed(self):
+        # No post for metric module
+        request = self.factory.post('/registry/metric_module')
+        response = metric_module_list(request)
+        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    def test_list_metric_modules_ok(self):
+        request = self.factory.get('/registry/metric_module')
+        response = metric_module_list(request)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        metrics = json.loads(response.content)
+        self.assertEqual(len(metrics), 1)
+        self.assertEqual(metrics[0]['metric_name'], 'm1.py')
+
+    def test_metric_module_detail_with_method_not_allowed(self):
+        request = self.factory.post('/registry/metric_module')
+        response = metric_module_list(request)
+        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    def test_get_metric_module_detail_ok(self):
+        metric_id = '1'
+        request = self.factory.get('/registry/metric_module/' + metric_id)
+        response = metric_module_detail(request, metric_id)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        metric_data = json.loads(response.content)
+        self.assertEqual(metric_data['metric_name'], 'm1.py')
+
+    def test_update_metric_module_detail_ok(self):
+        metric_id = '1'
+        data = {'execution_server': 'object'}
+        request = self.factory.put('/registry/metric_module/' + metric_id, data, format='json')
+        response = metric_module_detail(request, metric_id)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # check the metric_module has been updated
+        request = self.factory.get('/registry/metric_module/' + metric_id)
+        response = metric_module_detail(request, metric_id)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        metric_data = json.loads(response.content)
+        self.assertEqual(metric_data['execution_server'], 'object')
 
     #
     # Storage nodes tests
@@ -739,3 +785,8 @@ class RegistryTestCase(TestCase):
     def create_storage_nodes(self):
         self.r.incr("storage_nodes:id")  # setting autoincrement to 1
         self.r.hmset('SN:1', {'name': 'storagenode1', 'location': 'location1', 'type': 'type1'})
+
+    def create_metric_modules(self):
+        self.r.incr("workload_metrics:id")  # setting autoincrement to 1
+        self.r.hmset('workload_metric:1', {'metric_name': 'm1.py', 'class_name': 'Metric1', 'execution_server': 'proxy', 'out_flow':'False',
+                                           'in_flow': 'False', 'enabled': 'True', 'id': '1'})

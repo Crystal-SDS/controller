@@ -225,20 +225,6 @@ def metric_module_list(request):
         sorted_workload_metrics = sorted(workload_metrics, key=lambda x: int(itemgetter('id')(x)))
         return JSONResponse(sorted_workload_metrics, status=status.HTTP_200_OK)
 
-    if request.method == 'POST':
-        try:
-            data = JSONParser().parse(request)
-        except ParseError:
-            return JSONResponse("Invalid format or empty request", status=status.HTTP_400_BAD_REQUEST)
-
-        workload_metric_id = r.incr("workload_metrics:id")
-        try:
-            data['id'] = workload_metric_id
-            r.hmset('workload_metric:' + str(workload_metric_id), data)
-            return JSONResponse(data, status=status.HTTP_201_CREATED)
-
-        except DataError:
-            return JSONResponse("Error to save the object", status=status.HTTP_400_BAD_REQUEST)
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
@@ -288,30 +274,40 @@ class MetricModuleData(APIView):
     """
     parser_classes = (MultiPartParser, FormParser,)
 
-    def put(self, request, metric_module_id):
+    def post(self, request):
         try:
             r = get_redis_connection()
         except RedisError:
             return JSONResponse('Error connecting with DB', status=500)
-        if r.exists("workload_metric:" + str(metric_module_id)):
+
+        data = json.loads(request.POST['metadata'])  # json data is in metadata parameter for this request
+        if not data:
+            return JSONResponse("Invalid format or empty request", status=status.HTTP_400_BAD_REQUEST)
+
+        workload_metric_id = r.incr("workload_metrics:id")
+        try:
+            data['id'] = workload_metric_id
+
             file_obj = request.FILES['file']
 
             make_sure_path_exists(settings.WORKLOAD_METRICS_DIR)
             path = save_file(file_obj, settings.WORKLOAD_METRICS_DIR)
+            data['metric_name'] = os.path.basename(path)
 
             # synchronize metrics directory with all nodes
             try:
                 rsync_dir_with_nodes(settings.WORKLOAD_METRICS_DIR)
             except FileSynchronizationException as e:
-                print "FileSynchronizationException", e  # TODO remove
+                # print "FileSynchronizationException", e  # TODO remove
                 return JSONResponse(e.message, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-            try:
-                r.hset("workload_metric:" + str(metric_module_id), "metric_name", str(path).split('/')[-1])
-            except RedisError:
-                return JSONResponse('Problems connecting with DB', status=500)
-            return JSONResponse('Workload metric has been updated', status=201)
-        return JSONResponse('Workload metric does not exist', status=404)
+            r.hmset('workload_metric:' + str(workload_metric_id), data)
+            return JSONResponse(data, status=status.HTTP_201_CREATED)
+
+        except DataError:
+            return JSONResponse("Error to save the object", status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return JSONResponse("Error uploading file", status=status.HTTP_400_BAD_REQUEST)
 
     def get(self, request, metric_module_id):
         try:
@@ -646,6 +642,7 @@ def node_detail(request, node_id):
     if request.method == 'GET':
         if r.exists(key):
             node = r.hgetall(key)
+            node.pop("ssh_password", None)  # password is not returned
             node['devices'] = json.loads(node['devices'])
             return JSONResponse(node, status=status.HTTP_200_OK)
         else:
