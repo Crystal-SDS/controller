@@ -13,7 +13,7 @@ from rest_framework.test import APIRequestFactory
 
 from .views import policy_list
 from storlet.views import storlet_list, storlet_deploy, StorletData
-from .views import object_type_list, object_type_detail, add_tenants_group, tenants_group_detail, gtenants_tenant_detail, node_list, \
+from .views import object_type_list, object_type_detail, add_tenants_group, tenants_group_detail, gtenants_tenant_detail, node_list, node_detail, \
     add_metric, metric_detail, metric_module_list, metric_module_detail, MetricModuleData, list_storage_node, storage_node_detail
 from .dsl_parser import parse
 
@@ -457,6 +457,25 @@ class RegistryTestCase(TestCase):
         a_device =  nodes[0]['devices'].keys()[0]
         self.assertIsNotNone(nodes[0]['devices'][a_device]['free'])
 
+    def test_node_detail_with_method_not_allowed(self):
+        node_name = 'storagenode1'
+        request = self.factory.delete('/registry/nodes/' + node_name)
+        response = node_detail(request, node_name)
+        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    def test_get_node_detail_ok(self):
+        node_name = 'storagenode1'
+        request = self.factory.get('/registry/nodes/' + node_name)
+        response = node_detail(request, node_name)
+        node = json.loads(response.content)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(node['name'], 'storagenode1')
+
+    def test_get_node_detail_with_non_existent_node_name(self):
+        node_name = 'storagenode1000'
+        request = self.factory.get('/registry/nodes/' + node_name)
+        response = node_detail(request, node_name)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     #
     # Tenant groups

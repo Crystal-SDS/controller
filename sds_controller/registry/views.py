@@ -659,6 +659,7 @@ def node_detail(request, node_id):
         else:
             return JSONResponse('Node not found.', status=status.HTTP_404_NOT_FOUND)
 
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 @csrf_exempt
 def policy_list(request):
