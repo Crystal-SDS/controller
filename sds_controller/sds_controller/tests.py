@@ -1,10 +1,12 @@
+import mock
 import redis
 
 from django.conf import settings
 from django.core.urlresolvers import resolve
 from django.test import TestCase, override_settings
 
-from .common_utils import get_all_registered_nodes, remove_extra_whitespaces, to_json_bools
+from .common_utils import get_all_registered_nodes, remove_extra_whitespaces, to_json_bools, rsync_dir_with_nodes
+from .exceptions import FileSynchronizationException
 
 # Tests use database=10 instead of 0.
 @override_settings(REDIS_CON_POOL=redis.ConnectionPool(host='localhost', port=6379, db=10))
@@ -43,6 +45,31 @@ class MainTestCase(TestCase):
         self.assertEqual(bdict['d'], 'False')
         self.assertNotEqual(bdict['d'], False)
 
+    @mock.patch('sds_controller.common_utils.os.system')
+    def test_rsync_dir_with_nodes_ok(self, mock_os_system):
+        mock_os_system.return_value = 0  # return value when rsync succeeds
+
+        self.configure_usernames_and_passwords_for_nodes()
+        rsync_dir_with_nodes(settings.WORKLOAD_METRICS_DIR)
+
+        # test that rsync_dir_with_nodes() called os.system with the right parameters
+        calls = [mock.call("sshpass -p s3cr3t rsync --progress --delete -avrz -e ssh /opt/crystal/workload_metrics user1@192.168.2.1:/opt/crystal"),
+                 mock.call("sshpass -p s3cr3t rsync --progress --delete -avrz -e ssh /opt/crystal/workload_metrics user1@192.168.2.2:/opt/crystal"),
+                 mock.call("sshpass -p s3cr3t rsync --progress --delete -avrz -e ssh /opt/crystal/workload_metrics user1@192.168.2.3:/opt/crystal")]
+        mock_os_system.assert_has_calls(calls, any_order=True)
+
+    def test_rsync_dir_with_nodes_when_username_and_password_not_present(self):
+        with self.assertRaises(FileSynchronizationException):
+            rsync_dir_with_nodes(settings.WORKLOAD_METRICS_DIR)
+
+    @mock.patch('sds_controller.common_utils.os.system')
+    def test_rsync_dir_with_nodes_when_rsync_fails(self, mock_os_system):
+        mock_os_system.return_value = 1  # return value when rsync fails
+
+        self.configure_usernames_and_passwords_for_nodes()
+        with self.assertRaises(FileSynchronizationException):
+            rsync_dir_with_nodes(settings.WORKLOAD_METRICS_DIR)
+
     #
     # URL tests
     #
@@ -80,3 +107,8 @@ class MainTestCase(TestCase):
         self.r.hmset('node:storagenode2',
                      {'ip': '192.168.2.3', 'last_ping': '1467623304.332646', 'type': 'object', 'name': 'storagenode2',
                       'devices': '{"sdb1": {"free": 16832876544, "size": 16832880640}}'})
+
+    def configure_usernames_and_passwords_for_nodes(self):
+        self.r.hmset('node:controller', {'ssh_username': 'user1', 'ssh_password': 's3cr3t'})
+        self.r.hmset('node:storagenode1', {'ssh_username': 'user1', 'ssh_password': 's3cr3t'})
+        self.r.hmset('node:storagenode2', {'ssh_username': 'user1', 'ssh_password': 's3cr3t'})
