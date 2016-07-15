@@ -62,7 +62,8 @@ def bw_list(request):
         for it in keys:
             for key, value in r.hgetall(it).items():
                 policy_name = r.hget('storage-policy:' + key, 'name')
-                bw_limits.append({'project_id': it.replace('bw:AUTH_', ''), 'project_name': projects_list[it.replace('bw:AUTH_', '')], 'policy_id': key, 'policy_name': policy_name, 'bandwidth': value})
+                bw_limits.append({'project_id': it.replace('bw:AUTH_', ''), 'project_name': projects_list[it.replace('bw:AUTH_', '')], 'policy_id': key,
+                                  'policy_name': policy_name, 'bandwidth': value})
         return JSONResponse(bw_limits, status=status.HTTP_200_OK)
 
     elif request.method == 'POST':
