@@ -79,6 +79,32 @@ class BwTestCase(TestCase):
         self.assertEqual(sorted_data[1]['policy_name'], 's3y4')
 
     @mock.patch('bw.views.requests.get')
+    def test_create_sla_ok(self, mock_requests_get):
+        """ Test that a POST request to bw_list() returns OK """
+        sla_data = {'project_id': '0123456789abcdef', 'policy_id': '4', 'bandwidth': '4000'}
+        request = self.factory.post('/bw/slas', sla_data, format='json')
+        request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
+        response = bw_list(request)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        # Verify the SLA was created
+        resp = HttpResponse()
+        resp.content = json.dumps({'tenants': [{'name': 'tenantA', 'id': '0123456789abcdef'},
+                                               {'name': 'tenantB', 'id': 'abcdef0123456789'}]})
+        mock_requests_get.return_value = resp
+
+        request = self.factory.get('/bw/slas')
+        request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
+        response = bw_list(request)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_data = json.loads(response.content)
+        self.assertEqual(len(json_data), 3)  # 2 --> 3
+        sorted_data = sorted(json_data, key=lambda datum: datum['policy_id'])
+        self.assertEqual(sorted_data[2]['policy_id'], '4')
+        self.assertEqual(sorted_data[2]['project_id'], '0123456789abcdef')
+        self.assertEqual(sorted_data[2]['bandwidth'], '4000')
+
+    @mock.patch('bw.views.requests.get')
     def test_bw_detail_ok(self, mock_requests_get):
         """ Test that a GET request to bw_list() returns OK """
 
@@ -97,6 +123,51 @@ class BwTestCase(TestCase):
         self.assertEqual(json_data['project_id'], '0123456789abcdef')
         self.assertEqual(json_data['bandwidth'], '2000')
         self.assertEqual(json_data['project_name'], 'tenantA')
+
+    @mock.patch('bw.views.requests.get')
+    def test_update_sla_ok(self, mock_requests_get):
+        """ Test that a PUT request to bw_detail() returns OK """
+        project_policy_key = '0123456789abcdef:2'
+        sla_data = {'bandwidth': '10000'}
+        request = self.factory.put('/bw/slas/' + project_policy_key, sla_data, format='json')
+        request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
+        response = bw_detail(request, project_policy_key)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        # Verify the SLA was updated
+        resp = HttpResponse()
+        resp.content = json.dumps({'tenants': [{'name': 'tenantA', 'id': '0123456789abcdef'},
+                                               {'name': 'tenantB', 'id': 'abcdef0123456789'}]})
+        mock_requests_get.return_value = resp
+        request = self.factory.get('/bw/slas/' + project_policy_key)
+        request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
+        response = bw_detail(request, project_policy_key)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_data = json.loads(response.content)
+        self.assertEqual(json_data['bandwidth'], '10000')
+
+    @mock.patch('bw.views.requests.get')
+    def test_delete_sla_ok(self, mock_requests_get):
+        """ Test that a DELETE request to bw_detail() returns OK """
+        project_policy_key = '0123456789abcdef:2'
+        request = self.factory.delete('/bw/slas/' + project_policy_key)
+        request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
+        response = bw_detail(request, project_policy_key)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+        # Verify the SLA was deleted
+        resp = HttpResponse()
+        resp.content = json.dumps({'tenants': [{'name': 'tenantA', 'id': '0123456789abcdef'},
+                                               {'name': 'tenantB', 'id': 'abcdef0123456789'}]})
+        mock_requests_get.return_value = resp
+
+        request = self.factory.get('/bw/slas')
+        request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
+        response = bw_list(request)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_data = json.loads(response.content)
+        self.assertEqual(len(json_data), 1)  # 2 --> 1
+        self.assertEqual(json_data[0]['policy_id'], '3')
 
     #
     # Aux functions
