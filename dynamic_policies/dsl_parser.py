@@ -1,7 +1,6 @@
 from pyparsing import Word, Group, Literal, nums, alphanums, operatorPrecedence, Regex, oneOf
 from pyparsing import opAssoc, Suppress, alphas, Combine, delimitedList, ZeroOrMore, Optional
 import redis
-from django.conf import settings
 
 # By default, PyParsing treats \n as whitespace and ignores it
 # In our grammer, \n is significant, so tell PyParsing not to ignore it
@@ -21,8 +20,7 @@ from django.conf import settings
 
 
 def get_redis_connection():
-    return redis.Redis(connection_pool=settings.REDIS_CON_POOL)
-
+    return redis.StrictRedis(host="localhost", port=6379, db=0)
 
 def parse_group_tenants(tokens):
     r = get_redis_connection()
@@ -71,7 +69,7 @@ def parse(input_string):
 
     # Action part
     action = oneOf("SET DELETE")
-    sfilters_list = r.keys("filter:*")
+    sfilters_list = r.keys("dsl_filter:*")
     sfilter = map(lambda x: "".join(x.split(":")[1]), sfilters_list)
 
     with_params = Suppress(Literal("WITH"))
@@ -117,7 +115,7 @@ def parse(input_string):
 
     for action in parsed_rule.action_list:
         if action.params:
-            filter_info = r.hgetall("filter:"+str(action.filter))
+            filter_info = r.hgetall("dsl_filter:"+str(action.filter))
             if "valid_parameters" in filter_info.keys():
                 params = eval(filter_info["valid_parameters"])
                 result = set(action.params.keys()).intersection(params.keys())

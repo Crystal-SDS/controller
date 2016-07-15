@@ -1,19 +1,30 @@
 import json
+import mimetypes
+import os
+import re
+from operator import itemgetter
 
 import redis
 import requests
 from django.conf import settings
+from django.core.servers.basehttp import FileWrapper
 from django.http import HttpResponse
+from django.http import StreamingHttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from pyactive.controller import init_host, start_controller
-from redis.exceptions import RedisError
+from redis.exceptions import RedisError, DataError
 from rest_framework import status
-from rest_framework.parsers import JSONParser
+from rest_framework.exceptions import ParseError
+from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
 from rest_framework.renderers import JSONRenderer
-from storlet.views import deploy, undeploy
-from sds_controller.exceptions import SwiftClientError, StorletNotFoundException
+from rest_framework.views import APIView
 
 import dsl_parser
+from sds_controller.exceptions import SwiftClientError, StorletNotFoundException, FileSynchronizationException
+from sds_controller.common_utils import rsync_dir_with_nodes, to_json_bools, remove_extra_whitespaces
+
+from storlet.views import deploy, undeploy
+from storlet.views import save_file, make_sure_path_exists
 
 host = None
 remote_host = None
@@ -45,17 +56,17 @@ def get_redis_connection():
 
 # TODO: Improve the implementation to create the host connection
 def create_host():
-    print "  --- CREATING HOST ---"
+    print("  --- CREATING HOST ---")
     start_controller("pyactive_thread")
     tcpconf = ('tcp', ('127.0.0.1', 9899))
     # momconf = ('mom',{'name':'api_host','ip':'127.0.0.1','port':61613, 'namespace':'/topic/iostack'})
     global host
     host = init_host(tcpconf)
     global remote_host
-    print "  **  "
+    print("  **  ")
     remote_host = host.lookup_remote_host(settings.PYACTIVE_URL + 'controller/Host/0')
     remote_host.hello()
-    print 'lookup', remote_host
+    print('lookup', remote_host)
 
 
 #
@@ -75,7 +86,6 @@ def add_metric(request):
 
     if request.method == 'GET':
         keys = r.keys("metric:*")
-        print 'keys', keys
         metrics = []
         for key in keys:
             metric = r.hgetall(key)
@@ -88,7 +98,7 @@ def add_metric(request):
         if not name:
             return JSONResponse('Metric must have a name', status=400)
         r.hmset('metric:' + str(name), data)
-        return JSONResponse('Metric has been added in the registy', status=201)
+        return JSONResponse('Metric has been added in the registry', status=201)
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
 
 
@@ -116,7 +126,7 @@ def metric_detail(request, name):
                             status=201)
 
     if request.method == 'DELETE':
-        r.delete("metric:" + str(id))
+        r.delete("metric:" + str(name))
         return JSONResponse('Metric workload has been deleted', status=204)
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
 
@@ -136,7 +146,7 @@ def add_dynamic_filter(request):
     except RedisError:
         return JSONResponse('Error connecting with DB', status=500)
     if request.method == 'GET':
-        keys = r.keys("filter:*")
+        keys = r.keys("dsl_filter:*")
         dynamic_filters = []
         for key in keys:
             dynamic_filter = r.hgetall(key)
@@ -149,7 +159,7 @@ def add_dynamic_filter(request):
         name = data.pop("name", None)
         if not name:
             return JSONResponse('Filter must have a name', status=400)
-        r.hmset('filter:' + str(name), data)
+        r.hmset('dsl_filter:' + str(name), data)
         return JSONResponse('Filter has been added in the registy', status=201)
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
 
@@ -165,21 +175,164 @@ def dynamic_filter_detail(request, name):
         return JSONResponse('Error connecting with DB', status=500)
 
     if request.method == 'GET':
-        dynamic_filter = r.hgetall("filter:" + str(name))
+        dynamic_filter = r.hgetall("dsl_filter:" + str(name))
         return JSONResponse(dynamic_filter, status=200)
 
     if request.method == 'PUT':
-        if not r.exists('filter:' + str(name)):
+        if not r.exists('dsl_filter:' + str(name)):
             return JSONResponse('Dynamic filter with name:  ' + str(name) + ' not exists.', status=404)
         data = JSONParser().parse(request)
-        r.hmset('filter:' + str(name), data)
+        if 'name' in data:
+            del data['name']
+        r.hmset('dsl_filter:' + str(name), data)
         return JSONResponse('The metadata of the dynamic filter with name: ' + str(name) + ' has been updated',
                             status=201)
 
     if request.method == 'DELETE':
-        r.delete("filter:" + str(name))
+        filter_id = r.hget('dsl_filter:' + str(name), 'identifier')
+        filter_name = r.hget('filter:' + str(filter_id), 'filter_name')
+
+        keys = r.keys("pipeline:AUTH_*")
+        for it in keys:
+            for value in r.hgetall(it).values():
+                json_value = json.loads(value)
+                if json_value['filter_name'] == filter_name:
+                    return JSONResponse('Unable to delete Registry DSL, is in use by some policy.', status=status.HTTP_403_FORBIDDEN)
+
+        r.delete("dsl_filter:" + str(name))
         return JSONResponse('Dynamic filter has been deleted', status=204)
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
+
+
+#
+# Metric Modules
+#
+@csrf_exempt
+def metric_module_list(request):
+    """
+    List all metric modules, or create a new metric module.
+    """
+    try:
+        r = get_redis_connection()
+    except RedisError:
+        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    if request.method == 'GET':
+        keys = r.keys("workload_metric:*")
+        workload_metrics = []
+        for key in keys:
+            metric = r.hgetall(key)
+            to_json_bools(metric, 'in_flow', 'out_flow', 'enabled')
+            workload_metrics.append(metric)
+        sorted_workload_metrics = sorted(workload_metrics, key=lambda x: int(itemgetter('id')(x)))
+        return JSONResponse(sorted_workload_metrics, status=status.HTTP_200_OK)
+
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+
+@csrf_exempt
+def metric_module_detail(request, metric_module_id):
+    """
+    Retrieve, update or delete a metric module.
+    """
+    try:
+        r = get_redis_connection()
+    except RedisError:
+        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    if not r.exists("workload_metric:" + str(metric_module_id)):
+        return JSONResponse('Object does not exist!', status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        metric = r.hgetall("workload_metric:" + str(metric_module_id))
+
+        to_json_bools(metric, 'in_flow', 'out_flow', 'enabled')
+        return JSONResponse(metric, status=status.HTTP_200_OK)
+
+    elif request.method == 'PUT':
+        try:
+            data = JSONParser().parse(request)
+        except ParseError:
+            return JSONResponse("Invalid format or empty request", status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            r.hmset('workload_metric:' + str(metric_module_id), data)
+            return JSONResponse("Data updated", status=status.HTTP_200_OK)
+        except DataError:
+            return JSONResponse("Error updating data", status=status.HTTP_408_REQUEST_TIMEOUT)
+
+    elif request.method == 'DELETE':
+        try:
+            r.delete("workload_metric:" + str(metric_module_id))
+            return JSONResponse('Workload metric has been deleted', status=status.HTTP_204_NO_CONTENT)
+        except DataError:
+            return JSONResponse("Error deleting workload metric", status=status.HTTP_408_REQUEST_TIMEOUT)
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+
+class MetricModuleData(APIView):
+    """
+    Upload or get a metric module data.
+    """
+    parser_classes = (MultiPartParser, FormParser,)
+
+    def post(self, request):
+        try:
+            r = get_redis_connection()
+        except RedisError:
+            return JSONResponse('Error connecting with DB', status=500)
+
+        data = json.loads(request.POST['metadata'])  # json data is in metadata parameter for this request
+        if not data:
+            return JSONResponse("Invalid format or empty request", status=status.HTTP_400_BAD_REQUEST)
+
+        workload_metric_id = r.incr("workload_metrics:id")
+        try:
+            data['id'] = workload_metric_id
+
+            file_obj = request.FILES['file']
+
+            make_sure_path_exists(settings.WORKLOAD_METRICS_DIR)
+            path = save_file(file_obj, settings.WORKLOAD_METRICS_DIR)
+            data['metric_name'] = os.path.basename(path)
+
+            # synchronize metrics directory with all nodes
+            try:
+                rsync_dir_with_nodes(settings.WORKLOAD_METRICS_DIR)
+            except FileSynchronizationException as e:
+                # print "FileSynchronizationException", e  # TODO remove
+                return JSONResponse(e.message, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+            r.hmset('workload_metric:' + str(workload_metric_id), data)
+            return JSONResponse(data, status=status.HTTP_201_CREATED)
+
+        except DataError:
+            return JSONResponse("Error to save the object", status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return JSONResponse("Error uploading file", status=status.HTTP_400_BAD_REQUEST)
+
+    def get(self, request, metric_module_id):
+        try:
+            r = get_redis_connection()
+        except RedisError:
+            return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        if r.exists('workload_metric:' + str(metric_module_id)):
+            workload_metric_path = os.path.join(settings.WORKLOAD_METRICS_DIR,
+                                                str(r.hget('workload_metric:' + str(metric_module_id), 'metric_name')))
+            if os.path.exists(workload_metric_path):
+                workload_metric_name = os.path.basename(workload_metric_path)
+                workload_metric_size = os.stat(workload_metric_path).st_size
+
+                # Generate response
+                response = StreamingHttpResponse(FileWrapper(open(workload_metric_path), workload_metric_size), content_type=mimetypes.guess_type(workload_metric_path)[0])
+                response['Content-Length'] = workload_metric_size
+                response['Content-Disposition'] = "attachment; filename=%s" % workload_metric_name
+
+                return response
+            else:
+                return HttpResponse(status=status.HTTP_404_NOT_FOUND)
+        else:
+            return HttpResponse(status=status.HTTP_404_NOT_FOUND)
 
 
 #
@@ -189,6 +342,11 @@ def dynamic_filter_detail(request, name):
 
 @csrf_exempt
 def list_storage_node(request):
+    """
+    Add a storage node or list all the storage nodes saved in the registry.
+    :param request:
+    :return: JSONResponse
+    """
     try:
         r = get_redis_connection()
     except RedisError:
@@ -196,19 +354,19 @@ def list_storage_node(request):
 
     if request.method == "GET":
         keys = r.keys("SN:*")
-        print 'keys', keys
         storage_nodes = []
         for k in keys:
             sn = r.hgetall(k)
             sn["id"] = k.split(":")[1]
             storage_nodes.append(sn)
-        return JSONResponse(storage_nodes, status=200)
+        sorted_list = sorted(storage_nodes, key=itemgetter('name'))
+        return JSONResponse(sorted_list, status=200)
 
     if request.method == "POST":
         sn_id = r.incr("storage_nodes:id")
         data = JSONParser().parse(request)
         r.hmset('SN:' + str(sn_id), data)
-        return JSONResponse('Tenants group has been added in the registy', status=201)
+        return JSONResponse('Storage node has been added to the registry', status=201)
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
 
 
@@ -248,29 +406,33 @@ def storage_node_detail(request, snode_id):
 @csrf_exempt
 def add_tenants_group(request):
     """
-    Add a filter with its default parameters in the registry (redis). List all the tenants groups saved in the registry.
+    Add a tenant group or list all the tenants groups saved in the registry.
     """
     try:
         r = get_redis_connection()
     except RedisError:
-        return JSONResponse('Error connecting with DB', status=500)
+        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     if request.method == 'GET':
         keys = r.keys("G:*")
         gtenants = {}
         for key in keys:
             gtenant = r.lrange(key, 0, -1)
-            gtenants[key] = gtenant
+            gtenant_id = key.split(":")[1]
+            gtenants[gtenant_id] = gtenant
             # gtenants.extend(eval(gtenant[0]))
-        return JSONResponse(gtenants, status=200)
+        return JSONResponse(gtenants, status=status.HTTP_200_OK)
 
     if request.method == 'POST':
-        gtenant_id = r.incr("gtenant:id")
         data = JSONParser().parse(request)
+        if not data:
+            return JSONResponse('Tenant group cannot be empty',
+                                status=status.HTTP_400_BAD_REQUEST)
+        gtenant_id = r.incr("gtenant:id")
         r.rpush('G:' + str(gtenant_id), *data)
-        return JSONResponse('Tenants group has been added in the registy', status=201)
+        return JSONResponse('Tenant group has been added to the registry', status=status.HTTP_201_CREATED)
 
-    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
 @csrf_exempt
@@ -281,27 +443,39 @@ def tenants_group_detail(request, gtenant_id):
     try:
         r = get_redis_connection()
     except RedisError:
-        return JSONResponse('Error connecting with DB', status=500)
+        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     if request.method == 'GET':
-        gtenant = r.lrange("G:" + str(gtenant_id), 0, -1)
-        # r.hgetall("gtenants:"+str(gtenant_id))
-        return JSONResponse(gtenant, status=200)
+        key = 'G:' + str(gtenant_id)
+        if r.exists(key):
+            gtenant = r.lrange(key, 0, -1)
+            return JSONResponse(gtenant, status=status.HTTP_200_OK)
+        else:
+            return JSONResponse('The tenant group with id:  ' + str(gtenant_id) + ' does not exist.', status=status.HTTP_404_NOT_FOUND)
 
     if request.method == 'PUT':
-        if not r.exists('G:' + str(gtenant_id)):
-            return JSONResponse('The members of the tenants group with id:  ' + str(gtenant_id) + ' not exists.',
-                                status=404)
-        data = JSONParser().parse(request)
-        # for tenant in data:
-        r.rpush('G:' + str(gtenant_id), *data)
-        return JSONResponse('The members of the tenants group with id: ' + str(gtenant_id) + ' has been updated',
-                            status=201)
+        key = 'G:' + str(gtenant_id)
+        if r.exists(key):
+            data = JSONParser().parse(request)
+            if not data:
+                return JSONResponse('Tenant group cannot be empty',
+                                    status=status.HTTP_400_BAD_REQUEST)
+            pipe = r.pipeline()
+            # the following commands are buffered in a single atomic request (to replace current contents)
+            if pipe.delete(key).rpush(key, *data).execute():
+                return JSONResponse('The members of the tenants group with id: ' + str(gtenant_id) + ' has been updated', status=status.HTTP_201_CREATED)
+            return JSONResponse('Error storing the tenant group in the DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        else:
+            return JSONResponse('The tenant group with id:  ' + str(gtenant_id) + ' does not exist.', status=status.HTTP_404_NOT_FOUND)
 
     if request.method == 'DELETE':
-        r.delete("G:" + str(gtenant_id))
-        return JSONResponse('Tenants grpup has been deleted', status=204)
-    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
+        key = 'G:' + str(gtenant_id)
+        if r.exists(key):
+            r.delete("G:" + str(gtenant_id))
+            return JSONResponse('Tenants grpup has been deleted', status=status.HTTP_204_NO_CONTENT)
+        else:
+            return JSONResponse('The tenant group with id:  ' + str(gtenant_id) + ' does not exist.', status=status.HTTP_404_NOT_FOUND)
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
 @csrf_exempt
@@ -312,12 +486,12 @@ def gtenants_tenant_detail(request, gtenant_id, tenant_id):
     try:
         r = get_redis_connection()
     except RedisError:
-        return JSONResponse('Error connecting with DB', status=500)
+        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     if request.method == 'DELETE':
         r.lrem("G:" + str(gtenant_id), str(tenant_id), 1)
-        return JSONResponse('Tenant' + str(tenant_id) + 'has been deleted from group with the id: ' + str(gtenant_id),
-                            status=204)
-    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
+        return JSONResponse('Tenant ' + str(tenant_id) + ' has been deleted from group with the id: ' + str(gtenant_id),
+                            status=status.HTTP_204_NO_CONTENT)
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
 #
@@ -409,25 +583,89 @@ def object_type_detail(request, object_type_name):
 @csrf_exempt
 def object_type_items_detail(request, object_type_name, item_name):
     """
-    Delete a extencion from a object type definition.
+    Delete an extension from an object type definition.
     """
-    tenant_id = 0  # DELETE
-    gtenant_id = 0  # DELETE
     try:
         r = get_redis_connection()
     except RedisError:
         return JSONResponse('Error connecting with DB', status=500)
     if request.method == 'DELETE':
         r.lrem("object_type:" + str(object_type_name), str(item_name), 1)
-        return JSONResponse('Tenant' + str(tenant_id) + 'has been deleted from group with the id: ' + str(gtenant_id),
+        return JSONResponse('Extension ' + str(item_name) + ' has been deleted from object type ' + str(object_type_name),
                             status=204)
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
 
 
+#
+# Node part
+#
+
+
+@csrf_exempt
+def node_list(request):
+    """
+    GET: List all nodes ordered by name
+    """
+    try:
+        r = get_redis_connection()
+    except RedisError:
+        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    if request.method == 'GET':
+        keys = r.keys("node:*")
+        nodes = []
+        for key in keys:
+            node = r.hgetall(key)
+            node.pop("ssh_username", None)  # username & password are not returned in the list
+            node.pop("ssh_password", None)
+            node['devices'] = json.loads(node['devices'])
+            nodes.append(node)
+        sorted_list = sorted(nodes, key=itemgetter('name'))
+        return JSONResponse(sorted_list, status=status.HTTP_200_OK)
+
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+
+@csrf_exempt
+def node_detail(request, node_id):
+    """
+    GET: Retrieve node details. PUT: Update node.
+    :param request:
+    :param node_id:
+    :return:
+    """
+    try:
+        r = get_redis_connection()
+    except RedisError:
+        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    key = "node:" + node_id
+    if request.method == 'GET':
+        if r.exists(key):
+            node = r.hgetall(key)
+            node.pop("ssh_password", None)  # password is not returned
+            node['devices'] = json.loads(node['devices'])
+            return JSONResponse(node, status=status.HTTP_200_OK)
+        else:
+            return JSONResponse('Node not found.', status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'PUT':
+        if r.exists(key):
+            data = JSONParser().parse(request)
+            try:
+                r.hmset(key, data)
+                return JSONResponse("Data updated", status=status.HTTP_201_CREATED)
+            except RedisError:
+                return JSONResponse("Error updating data", status=status.HTTP_400_BAD_REQUEST)
+        else:
+            return JSONResponse('Node not found.', status=status.HTTP_404_NOT_FOUND)
+
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
 @csrf_exempt
 def policy_list(request):
     """
-    List all policies. Deploy new policies.
+    List all policies (sorted by execution_order). Deploy new policies.
     """
     try:
         r = get_redis_connection()
@@ -438,9 +676,7 @@ def policy_list(request):
         if 'static' in str(request.path):
             headers = is_valid_request(request)
             if not headers:
-                return JSONResponse(
-                    'You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ',
-                    status=status.HTTP_401_UNAUTHORIZED)
+                return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=status.HTTP_401_UNAUTHORIZED)
             keystone_response = requests.get(settings.KEYSTONE_URL + "tenants", headers=headers)
             keystone_tenants = json.loads(keystone_response.content)['tenants']
 
@@ -454,13 +690,14 @@ def policy_list(request):
                 for key, value in r.hgetall(it).items():
                     json_value = json.loads(value)
                     policies.append({'id': key, 'target_id': it.replace('pipeline:AUTH_', ''),
-                                     'target_name': tenants_list[it.replace('pipeline:AUTH_', '')],
+                                     'target_name': tenants_list[it.replace('pipeline:AUTH_', '').split(':')[0]],
                                      'filter_name': json_value['filter_name'], 'object_type': json_value['object_type'],
                                      'object_size': json_value['object_size'],
                                      'execution_server': json_value['execution_server'],
                                      'execution_server_reverse': json_value['execution_server_reverse'],
                                      'execution_order': json_value['execution_order'], 'params': json_value['params']})
-            return JSONResponse(policies, status=status.HTTP_200_OK)
+            sorted_policies = sorted(policies, key=lambda x: int(itemgetter('execution_order')(x)))
+            return JSONResponse(sorted_policies, status=status.HTTP_200_OK)
 
         elif 'dynamic' in str(request.path):
             keys = r.keys("policy:*")
@@ -476,19 +713,17 @@ def policy_list(request):
     if request.method == 'POST':
         headers = is_valid_request(request)
         if not headers:
-            return JSONResponse(
-                'You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ',
-                status=status.HTTP_401_UNAUTHORIZED)
+            return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=status.HTTP_401_UNAUTHORIZED)
         rules_string = request.body.splitlines()
 
         for rule_string in rules_string:
-            """
-            Rules improved:
-            TODO: Handle the new parameters of the rule
-            Add containers and object in rules
-            Add execution server in rules
-            Add object type in rules
-            """
+            #
+            # Rules improved:
+            # TODO: Handle the new parameters of the rule
+            # Add containers and object in rules
+            # Add execution server in rules
+            # Add object type in rules
+            #
             try:
                 condition_list, rule_parsed = dsl_parser.parse(rule_string)
 
@@ -526,8 +761,9 @@ def static_policy_detail(request, policy_id):
     except RedisError:
         return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    target = str(policy_id).split(':')[0]
-    policy = str(policy_id).split(':')[1]
+    target = str(policy_id).split(':')[:-1]
+    target = ':'.join(target)
+    policy = str(policy_id).split(':')[-1]
 
     if request.method == 'GET':
         headers = is_valid_request(request)
@@ -545,7 +781,7 @@ def static_policy_detail(request, policy_id):
         data = json.loads(policy_redis)
         data["id"] = policy
         data["target_id"] = target
-        data["target_name"] = tenants_list[target]
+        data["target_name"] = tenants_list[target.split(':')[0]]
         return JSONResponse(data, status=200)
     elif request.method == 'PUT':
         data = JSONParser().parse(request)
@@ -555,7 +791,7 @@ def static_policy_detail(request, policy_id):
             json_data.update(data)
             r.hset("pipeline:AUTH_" + str(target), policy, json.dumps(json_data))
             return JSONResponse("Data updated", status=201)
-        except:
+        except DataError:
             return JSONResponse("Error updating data", status=400)
     elif request.method == 'DELETE':
         r.hdel('pipeline:AUTH_' + target, policy)
@@ -584,8 +820,8 @@ def do_action(request, r, rule_parsed, headers):
     for target in rule_parsed.target:
         for action_info in rule_parsed.action_list:
             print("TARGET RULE: ", action_info)
-            dynamic_filter = r.hgetall("filter:" + str(action_info.filter))
-            storlet = r.hgetall("storlet:" + dynamic_filter["identifier"])
+            dynamic_filter = r.hgetall("dsl_filter:" + str(action_info.filter))
+            storlet = r.hgetall("filter:" + dynamic_filter["identifier"])
 
             if not storlet:
                 return JSONResponse("Filter does not exist", status=status.HTTP_404_NOT_FOUND)
@@ -645,17 +881,28 @@ def deploy_policy(r, rule_string, parsed_rule):
             if action_info.transient:
                 print 'Transient rule:', parsed_rule
                 rules[cont] = remote_host.spawn_id('policy:' + str(policy_id), 'rule_transient', 'TransientRule',
-                                                   [rules_to_parse[key], action_info, key, remote_host])
-                location = "/rule_transient/TransientRule/"
+                                                    [rules_to_parse[key], action_info, key, remote_host])
+                location = "rule_transient/TransientRule/"
+                is_transient = True
             else:
                 print 'Rule:', parsed_rule
                 rules[cont] = remote_host.spawn_id('policy:' + str(policy_id), 'rule', 'Rule',
                                                    [rules_to_parse[key], action_info, key, remote_host])
-                location = "/rule/Rule/"
+                location = "rule/Rule/"
+                is_transient = False
 
             rules[cont].start_rule()
+
+            # FIXME Should we recreate a static rule for each target and action??
+            condition_re = re.compile(r'.* (WHEN .*) DO .*', re.M|re.I)
+            condition_str = condition_re.match(rule_string).group(1)
+
+            tmp_rule_string = rule_string.replace(condition_str, '').replace('TRANSIENT', '')
+            static_policy_rule_string = remove_extra_whitespaces(tmp_rule_string)
+
             # Add policy into redis
             r.hmset('policy:' + str(policy_id),
-                    {"id": policy_id, "policy": rule_string, "policy_description": parsed_rule,
+                    {"id": policy_id, "policy": static_policy_rule_string, "policy_description": parsed_rule,
+                     "condition": condition_str.replace('WHEN ', ''), "transient": is_transient,
                      "policy_location": settings.PYACTIVE_URL + location + str(policy_id), "alive": True})
             cont += 1

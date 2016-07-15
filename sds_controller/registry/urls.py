@@ -7,6 +7,10 @@ urlpatterns = [
     url(r'^/metrics/?$', views.add_metric),
     url(r'^/metrics/(?P<name>\w+)/?$', views.metric_detail),
 
+    url(r'^/metric_module/?$', views.metric_module_list),
+    url(r'^/metric_module/data/?$', views.MetricModuleData.as_view()),
+    url(r'^/metric_module/(?P<metric_module_id>\w+)/?$', views.metric_module_detail),
+
     url(r'^/filters/?$', views.add_dynamic_filter),
     url(r'^/filters/(?P<name>\w+)/?$', views.dynamic_filter_detail),
 
@@ -25,5 +29,8 @@ urlpatterns = [
 
     url(r'^/object_type/?$', views.object_type_list),
     url(r'^/object_type/(?P<object_type_name>\w+)/?$', views.object_type_detail),
+
+    url(r'^/nodes/?$', views.node_list),
+    url(r'^/nodes/(?P<node_id>[^/]+)/?$', views.node_detail),
 
 ]

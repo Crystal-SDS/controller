@@ -17,3 +17,8 @@ class StorletNotFoundException(CrystalControllerException):
     """Exception to be raised when a storlet file is not found."""
     pass
 
+
+class FileSynchronizationException(CrystalControllerException):
+    """Exception to be raised when a file synchronization between controller and Swift nodes fails."""
+    pass
+
