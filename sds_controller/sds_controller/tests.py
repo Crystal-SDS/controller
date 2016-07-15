@@ -1,6 +1,7 @@
 import redis
 
 from django.conf import settings
+from django.core.urlresolvers import resolve
 from django.test import TestCase, override_settings
 
 from .common_utils import get_all_registered_nodes, remove_extra_whitespaces, to_json_bools
@@ -41,6 +42,29 @@ class MainTestCase(TestCase):
         self.assertNotEqual(bdict['c'], 'True')
         self.assertEqual(bdict['d'], 'False')
         self.assertNotEqual(bdict['d'], False)
+
+    #
+    # URL tests
+    #
+
+    def test_urls(self):
+        resolver = resolve('/filters/')
+        self.assertEqual(resolver.view_name, 'storlet.views.storlet_list')
+
+        resolver = resolve('/filters/123')
+        self.assertEqual(resolver.view_name, 'storlet.views.storlet_detail')
+        self.assertEqual(resolver.kwargs, {'storlet_id': '123'})
+
+        resolver = resolve('/filters/123/data')
+        self.assertEqual(resolver.view_name, 'storlet.views.StorletData')
+        self.assertEqual(resolver.kwargs, {'storlet_id': '123'})
+
+        resolver = resolve('/registry/nodes/')
+        self.assertEqual(resolver.view_name, 'registry.views.node_list')
+
+        resolver = resolve('/registry/nodes/node1')
+        self.assertEqual(resolver.view_name, 'registry.views.node_detail')
+        self.assertEqual(resolver.kwargs, {'node_id': 'node1'})
 
     #
     # Aux methods
