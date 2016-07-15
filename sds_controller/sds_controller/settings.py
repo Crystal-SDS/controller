@@ -141,7 +141,7 @@ STORLET_TAR_FILE = "ubuntu_14.04_jre8_storlets.tar"
 
 MANAGEMENT_ACCOUNT = "storlet_management"
 MANAGEMENT_ADMIN_USERNAME = "storlet_manager"
-MANAGEMENT_ADMIN_PASSWORD = "storlet_manager"  #noqa
+MANAGEMENT_ADMIN_PASSWORD = "storlet_manager"  # noqa
 
 # pyactive
 PYACTIVE_URL = "tcp://127.0.0.1:6375/"

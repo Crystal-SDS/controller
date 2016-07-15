@@ -194,7 +194,7 @@ def dynamic_filter_detail(request, name):
 
         keys = r.keys("pipeline:AUTH_*")
         for it in keys:
-            for key, value in r.hgetall(it).items():
+            for value in r.hgetall(it).values():
                 json_value = json.loads(value)
                 if json_value['filter_name'] == filter_name:
                     return JSONResponse('Unable to delete Registry DSL, is in use by some policy.', status=status.HTTP_403_FORBIDDEN)
@@ -717,13 +717,13 @@ def policy_list(request):
         rules_string = request.body.splitlines()
 
         for rule_string in rules_string:
-            """
-            Rules improved:
-            TODO: Handle the new parameters of the rule
-            Add containers and object in rules
-            Add execution server in rules
-            Add object type in rules
-            """
+            #
+            # Rules improved:
+            # TODO: Handle the new parameters of the rule
+            # Add containers and object in rules
+            # Add execution server in rules
+            # Add object type in rules
+            #
             try:
                 condition_list, rule_parsed = dsl_parser.parse(rule_string)
 
@@ -791,7 +791,7 @@ def static_policy_detail(request, policy_id):
             json_data.update(data)
             r.hset("pipeline:AUTH_" + str(target), policy, json.dumps(json_data))
             return JSONResponse("Data updated", status=201)
-        except:
+        except DataError:
             return JSONResponse("Error updating data", status=400)
     elif request.method == 'DELETE':
         r.hdel('pipeline:AUTH_' + target, policy)

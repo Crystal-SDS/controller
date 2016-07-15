@@ -58,7 +58,7 @@ def tenants_list(request):
 
         try:
             sds_project.add_new_sds_project(data["tenant_name"])
-        except:
+        except Exception:
             return JSONResponse('Error creating a new project.', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         return JSONResponse('Account created successfully', status=status.HTTP_201_CREATED)
@@ -98,7 +98,8 @@ def storage_policies(request):
         data = JSONParser().parse(request)
         storage_nodes_list = []
         if isinstance(data["storage_node"], dict):
-            [storage_nodes_list.extend([k, v]) for k, v in data["storage_node"].items()]
+            for k, v in data["storage_node"].items():
+                storage_nodes_list.extend([k, v])
             data["storage_node"] = ','.join(map(str, storage_nodes_list))
             try:
                 storage_policy.create(data)

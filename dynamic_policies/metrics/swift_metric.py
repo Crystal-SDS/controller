@@ -72,4 +72,3 @@ class SwiftMetric(Metric):
                 monitoring_data = dict()
         except socket.error:
             print "Error sending monitoring data to logstash"
-            pass
