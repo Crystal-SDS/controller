@@ -172,21 +172,21 @@ def dynamic_filter_detail(request, name):
     try:
         r = get_redis_connection()
     except RedisError:
-        return JSONResponse('Error connecting with DB', status=500)
+        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     if request.method == 'GET':
         dynamic_filter = r.hgetall("dsl_filter:" + str(name))
-        return JSONResponse(dynamic_filter, status=200)
+        return JSONResponse(dynamic_filter, status=status.HTTP_200_OK)
 
     if request.method == 'PUT':
         if not r.exists('dsl_filter:' + str(name)):
-            return JSONResponse('Dynamic filter with name:  ' + str(name) + ' not exists.', status=404)
+            return JSONResponse('Dynamic filter with name:  ' + str(name) + ' does not exist.', status=status.HTTP_404_NOT_FOUND)
         data = JSONParser().parse(request)
         if 'name' in data:
             del data['name']
         r.hmset('dsl_filter:' + str(name), data)
         return JSONResponse('The metadata of the dynamic filter with name: ' + str(name) + ' has been updated',
-                            status=201)
+                            status=status.HTTP_201_CREATED)
 
     if request.method == 'DELETE':
         filter_id = r.hget('dsl_filter:' + str(name), 'identifier')
@@ -200,8 +200,8 @@ def dynamic_filter_detail(request, name):
                     return JSONResponse('Unable to delete Registry DSL, is in use by some policy.', status=status.HTTP_403_FORBIDDEN)
 
         r.delete("dsl_filter:" + str(name))
-        return JSONResponse('Dynamic filter has been deleted', status=204)
-    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
+        return JSONResponse('Dynamic filter has been deleted', status=status.HTTP_204_NO_CONTENT)
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
 #
