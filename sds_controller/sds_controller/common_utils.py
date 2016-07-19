@@ -20,7 +20,7 @@ def rsync_dir_with_nodes(directory):
         dest_directory = os.path.dirname(directory)
         data = {'directory':  directory, 'dest_directory': dest_directory, 'node_ip': node['ip'],
                 'ssh_username': node['ssh_username'], 'ssh_password': node['ssh_password']}
-        rsync_command = 'sshpass -p {ssh_password} rsync --progress --delete -avrz -e ssh {directory} {ssh_username}@{node_ip}:{dest_directory} '.format(**data)
+        rsync_command = 'sshpass -p {ssh_password} rsync --progress --delete -avrz -e ssh {directory} {ssh_username}@{node_ip}:{dest_directory}'.format(**data)
         print "System: %s" % rsync_command
         ret = os.system(rsync_command)
         if ret != 0:

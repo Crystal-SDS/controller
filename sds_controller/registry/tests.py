@@ -14,13 +14,15 @@ from rest_framework.test import APIRequestFactory
 from .views import policy_list
 from storlet.views import storlet_list, storlet_deploy, StorletData
 from .views import object_type_list, object_type_detail, add_tenants_group, tenants_group_detail, gtenants_tenant_detail, node_list, node_detail, \
-    add_metric, metric_detail, metric_module_list, metric_module_detail, MetricModuleData, list_storage_node, storage_node_detail
+    add_metric, metric_detail, metric_module_list, metric_module_detail, MetricModuleData, list_storage_node, storage_node_detail, add_dynamic_filter, \
+    dynamic_filter_detail
 from .dsl_parser import parse
 
 
 # Tests use database=10 instead of 0.
 @override_settings(REDIS_CON_POOL=redis.ConnectionPool(host='localhost', port=6379, db=10),
-                   STORLET_FILTERS_DIR=os.path.join("/tmp", "crystal", "storlet_filters"))
+                   STORLET_FILTERS_DIR=os.path.join("/tmp", "crystal", "storlet_filters"),
+                   WORKLOAD_METRICS_DIR=os.path.join("/tmp", "crystal", "native_metrics"))
 class RegistryTestCase(TestCase):
     def setUp(self):
         # Every test needs access to the request factory.
@@ -172,6 +174,146 @@ class RegistryTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         metric_data = json.loads(response.content)
         self.assertEqual(metric_data['execution_server'], 'object')
+
+    def test_delete_metric_module_detail_ok(self):
+        metric_id = '1'
+        request = self.factory.delete('/registry/metric_module/' + metric_id)
+        response = metric_module_detail(request, metric_id)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+        # check the metric module has been deleted
+        request = self.factory.get('/registry/metric_module')
+        response = metric_module_list(request)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        metrics = json.loads(response.content)
+        self.assertEqual(len(metrics), 0)
+
+    def test_metric_module_data_view_with_method_not_allowed(self):
+        # No PUT method for this API call
+        request = self.factory.put('/registry/metric_module/data/')
+        response = MetricModuleData.as_view()(request)
+        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    @mock.patch('registry.views.rsync_dir_with_nodes')
+    def test_create_metric_module_ok(self, mock_rsync_dir):
+        with open('test_data/test.py', 'r') as fp:
+            metadata = {'class_name': 'Metric1', 'execution_server': 'proxy', 'out_flow': False,
+                        'in_flow': False, 'enabled': 'True'}
+            request = self.factory.post('/registry/metric_module/data/', {'file': fp, 'metadata': json.dumps(metadata)})
+            response = MetricModuleData.as_view()(request)
+            mock_rsync_dir.assert_called_with(settings.WORKLOAD_METRICS_DIR)
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        metric = json.loads(response.content)
+        self.assertEqual(metric['id'], 2)
+        self.assertEqual(metric['metric_name'], 'test.py')
+        self.assertEqual(metric['execution_server'], 'proxy')
+
+        # check the metric module has been created
+        metric_id = '2'
+        request = self.factory.get('/registry/metric_module/' + metric_id)
+        response = metric_module_detail(request, metric_id)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        metric_data = json.loads(response.content)
+        self.assertEqual(metric_data['metric_name'], 'test.py')
+
+
+
+    #
+    # DSL Filters tests
+    #
+
+    def test_add_dynamic_filter_with_method_not_allowed(self):
+        # No DELETE method for this API call
+        request = self.factory.delete('/registry/filters')
+        response = add_dynamic_filter(request)
+        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    def test_get_all_dsl_filters_ok(self):
+        # Create 2 dsl filters in redis
+        self.setup_dsl_parser_data()
+
+        request = self.factory.get('/registry/filters')
+        response = add_dynamic_filter(request)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        dsl_filters = json.loads(response.content)
+        self.assertEqual(len(dsl_filters), 2)
+        sorted_list = sorted(dsl_filters, key=lambda dslf: dslf['name'])
+        self.assertEqual(sorted_list[0]['name'], 'compression')
+        self.assertEqual(sorted_list[1]['name'], 'encryption')
+
+    def test_create_dsl_filter_ok(self):
+        data = {'name': 'caching', 'identifier': 'caching-1.0.jar', 'activation_url': 'http://localhost:7000/caching', 'valid_parameters': ''}
+        request = self.factory.post('/registry/filters', data, format='json')
+        response = add_dynamic_filter(request)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        # Check the DSL filter has been created successfully
+        request = self.factory.get('/registry/filters')
+        response = add_dynamic_filter(request)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        dsl_filters = json.loads(response.content)
+        self.assertEqual(len(dsl_filters), 1)
+        self.assertEqual(dsl_filters[0]['name'], 'caching')
+
+    def test_dynamic_filter_detail_with_method_not_allowed(self):
+        # No POST method for this API call
+        request = self.factory.post('/registry/filters/dummy', {'activation_url': 'http://www.example.com'}, format='json')
+        response = dynamic_filter_detail(request, 'dummy')
+        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    def test_get_dsl_filter_ok(self):
+        # Create 2 dsl filters in redis
+        self.setup_dsl_parser_data()
+
+        dsl_filter_name = 'encryption'
+        request = self.factory.get('/registry/filters/' + dsl_filter_name)
+        response = dynamic_filter_detail(request, dsl_filter_name)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        dsl_filter = json.loads(response.content)
+        valid_parameters = json.loads(dsl_filter['valid_parameters'])
+        self.assertEqual(len(valid_parameters), 3)
+        self.assertEqual(valid_parameters['eparam1'], 'integer')
+
+    def test_update_dsl_filter_ok(self):
+        # Create 2 dsl filters in redis
+        self.setup_dsl_parser_data()
+
+        dsl_filter_name = 'encryption'
+        data = {'activation_url': 'http://www.example.com/encryption'}
+        request = self.factory.put('/registry/filters/' + dsl_filter_name, data, format='json')
+        response = dynamic_filter_detail(request, dsl_filter_name)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        # Verify the DSL filter has been updated successfully
+        request = self.factory.get('/registry/filters/' + dsl_filter_name)
+        response = dynamic_filter_detail(request, dsl_filter_name)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        dsl_filter = json.loads(response.content)
+        self.assertEqual(dsl_filter['activation_url'], data['activation_url'])
+
+    def test_update_dsl_filter_with_non_existent_name(self):
+        dsl_filter_name = 'unknown'
+        data = {'activation_url': 'http://www.example.com'}
+        request = self.factory.put('/registry/filters/' + dsl_filter_name, data, format='json')
+        response = dynamic_filter_detail(request, dsl_filter_name)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_delete_dsl_filter_ok(self):
+        # Create 2 dsl filters in redis
+        self.setup_dsl_parser_data()
+
+        dsl_filter_name = 'encryption'
+        request = self.factory.delete('/registry/filters/' + dsl_filter_name)
+        response = dynamic_filter_detail(request, dsl_filter_name)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+        # Verify the DSL filter has been deleted successfully
+        request = self.factory.get('/registry/filters')
+        response = add_dynamic_filter(request)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        dsl_filters = json.loads(response.content)
+        self.assertEqual(len(dsl_filters), 1)
 
     #
     # Storage nodes tests

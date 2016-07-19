@@ -22,8 +22,9 @@ from rest_framework.views import APIView
 from swiftclient import client as swift_client
 from swiftclient.exceptions import ClientException
 
-from sds_controller.exceptions import SwiftClientError, StorletNotFoundException
-from sds_controller.common_utils import to_json_bools
+from sds_controller.exceptions import SwiftClientError, StorletNotFoundException, FileSynchronizationException
+from sds_controller.common_utils import rsync_dir_with_nodes, to_json_bools
+
 
 # TODO create a common file and put this into the new file
 # Start Common
@@ -186,6 +187,14 @@ class StorletData(APIView):
                 r.hset(filter_name, "etag", str(md5_etag))
             except RedisError:
                 return JSONResponse('Problems connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+            if filter_type == 'native':
+                # synchronize metrics directory with all nodes
+                try:
+                    rsync_dir_with_nodes(filter_dir)
+                except FileSynchronizationException as e:
+                    return JSONResponse(e.message, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
             return JSONResponse('Filter has been updated', status=status.HTTP_201_CREATED)
         return JSONResponse('Filter does not exist', status=status.HTTP_404_NOT_FOUND)
 
@@ -502,55 +511,48 @@ def deploy(r, target, storlet, parameters, headers):
     target_list = target.split('/', 3)
     target = str(target).replace('/', ':')
 
-    metadata = {"X-Object-Meta-Storlet-Language": storlet["filter_type"],
-                "X-Object-Meta-Storlet-Interface-Version": storlet["interface_version"],
-                "X-Object-Meta-Storlet-Dependency": storlet["dependencies"],
-                "X-Object-Meta-Storlet-Object-Metadata": storlet["object_metadata"],
-                "X-Object-Meta-Storlet-Main": storlet["main"]
-                }
-
     storlet_path = storlet["path"]
     del storlet["path"]
 
-    # try:
-    storlet_file = open(storlet_path, 'r')
-    # except IOError:
-    #     return status.HTTP_404_NOT_FOUND
+    if storlet['filter_type'] == 'storlet':
 
-    # content_length = int(storlet["content_length"])
-    # content_length = None
-    swift_response = dict()
+        metadata = {"X-Object-Meta-Storlet-Language": storlet["filter_type"],
+                    "X-Object-Meta-Storlet-Interface-Version": storlet["interface_version"],
+                    "X-Object-Meta-Storlet-Dependency": storlet["dependencies"],
+                    "X-Object-Meta-Storlet-Object-Metadata": storlet["object_metadata"],
+                    "X-Object-Meta-Storlet-Main": storlet["main"]
+                    }
 
-    # Change to API Call
-    try:
-        swift_client.put_object(settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/" + "AUTH_" + str(target_list[0]),
-                                headers["X-Auth-Token"], "storlet", storlet["filter_name"], storlet_file, None,
-                                None, None, "application/octet-stream", metadata, None, None, None, swift_response)
-    except ClientException as e:
-        logging.error('Error in Swift put_object %s', e)
+        storlet_file = open(storlet_path, 'r')
+
+        swift_response = dict()
+        try:
+            swift_client.put_object(settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/" + "AUTH_" + str(target_list[0]),
+                                    headers["X-Auth-Token"], "storlet", storlet["filter_name"], storlet_file, None,
+                                    None, None, "application/octet-stream", metadata, None, None, None, swift_response)
+        except ClientException as e:
+            logging.error('Error in Swift put_object %s', e)
+            raise SwiftClientError("A problem occurred accessing Swift")
+        finally:
+            storlet_file.close()
+
+        swift_status = swift_response.get("status")
+
+    if swift_status != status.HTTP_201_CREATED:
         raise SwiftClientError("A problem occurred accessing Swift")
-    finally:
-        storlet_file.close()
 
-    swift_status = swift_response.get("status")
+    # Change 'id' key of storlet
+    storlet["filter_id"] = storlet.pop("id")
+    # Get policy id
+    policy_id = parameters["policy_id"]
+    del parameters["policy_id"]
+    # Add all storlet and policy metadata to policy_id in pipeline
+    data = storlet.copy()
+    data.update(parameters)
 
-    if swift_status == status.HTTP_201_CREATED:
-        # Change 'id' key of storlet
-        storlet["filter_id"] = storlet.pop("id")
-        # Get policy id
-        policy_id = parameters["policy_id"]
-        del parameters["policy_id"]
-        # Add all storlet and policy metadata to policy_id in pipeline
-        data = storlet.copy()
-        data.update(parameters)
+    data_dumped = json.dumps(data).replace('"True"', 'true').replace('"False"', 'false')
 
-        data_dumped = json.dumps(data).replace('"True"', 'true').replace('"False"', 'false')
-
-        r.hset("pipeline:AUTH_" + str(target), policy_id, data_dumped)
-        # return status.HTTP_201_CREATED
-    else:
-        raise SwiftClientError("A problem occurred accessing Swift")
-        # return status.HTTP_400_BAD_REQUEST
+    r.hset("pipeline:AUTH_" + str(target), policy_id, data_dumped)
 
 
 # FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 DO DELETE compression
