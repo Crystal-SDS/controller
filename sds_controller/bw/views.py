@@ -46,7 +46,7 @@ def bw_list(request):
         return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     if request.method == 'GET':
-
+        
         headers = is_valid_request(request)
         if not headers:
             return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=status.HTTP_401_UNAUTHORIZED)
@@ -56,14 +56,18 @@ def bw_list(request):
         projects_list = {}
         for project in keystone_projects:
             projects_list[project['id']] = project['name']
-
+        
         keys = r.keys('bw:AUTH_*')
-        bw_limits = []
+        bw_limits = []        
         for it in keys:
             for key, value in r.hgetall(it).items():
                 policy_name = r.hget('storage-policy:' + key, 'name')
-                bw_limits.append({'project_id': it.replace('bw:AUTH_', ''), 'project_name': projects_list[it.replace('bw:AUTH_', '')], 'policy_id': key,
+                try:
+                    bw_limits.append({'project_id': it.replace('bw:AUTH_', ''), 'project_name': projects_list[it.replace('bw:AUTH_', '')], 'policy_id': key,
                                   'policy_name': policy_name, 'bandwidth': value})
+                except Exception as e:
+                    print "Error getting SLAs: "+str(e)               
+
         return JSONResponse(bw_limits, status=status.HTTP_200_OK)
 
     elif request.method == 'POST':

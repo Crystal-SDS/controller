@@ -76,7 +76,7 @@ def start_actors():
                                       'SimpleProportionalReplicationBandwidth', ["abstract_enforcement_algorithm_ssync", "SSYNC"])
     rules["ssync_bw"].run("ssync_bw_info")
     
-    start_redis_rules(host, rules)
+    #start_redis_rules(host, rules)
     
     return host
 
