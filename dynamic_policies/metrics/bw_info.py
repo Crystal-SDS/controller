@@ -1,5 +1,4 @@
 from abstract_metric import Metric
-from metrics_parser import SwiftMetricsParse
 from threading import Thread
 import json
 import time
@@ -22,7 +21,6 @@ class BwInfo(Metric):
         self.name = queue
         self.exchange = exchange
         self.method = method
-        self.parser_instance = SwiftMetricsParse()
         print '{0} initialized'.format(queue)
         self.count = {}
         self.last_bw = {}
