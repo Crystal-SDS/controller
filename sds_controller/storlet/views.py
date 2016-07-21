@@ -3,6 +3,7 @@ import hashlib
 import json
 import logging
 import mimetypes
+import requests
 import os
 from operator import itemgetter
 
@@ -223,9 +224,9 @@ class StorletData(APIView):
 
 
 @csrf_exempt
-def storlet_deploy(request, storlet_id, account, container=None, swift_object=None):
+def filter_deploy(request, filter_id, account, container=None, swift_object=None):
     """
-    Deploy a storlet to a specific swift account.
+    Deploy a filter to a specific swift account.
     """
     try:
         r = get_redis_connection()
@@ -234,16 +235,26 @@ def storlet_deploy(request, storlet_id, account, container=None, swift_object=No
 
     if request.method == 'PUT':
         headers = is_valid_request(request)
-        if not headers:
-            return JSONResponse('You must be authenticated. You can authenticate yourself with the header X-Auth-Token.', status=status.HTTP_401_UNAUTHORIZED)
-        storlet = r.hgetall("filter:" + str(storlet_id))
 
-        if not storlet:
+        if not headers:
+            return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=status.HTTP_401_UNAUTHORIZED)
+            
+        keystone_response = requests.get(settings.KEYSTONE_URL + "/tenants", headers=headers)            
+        keystone_tenants = json.loads(keystone_response.content)['tenants']
+        
+        for tenant in keystone_tenants:
+            if tenant["id"] == account:
+                project_name = tenant["name"]
+        
+        filter = r.hgetall("filter:" + str(filter_id))
+
+        if not filter:
             return JSONResponse('Filter does not exist', status=status.HTTP_404_NOT_FOUND)
+        
         try:
             params = JSONParser().parse(request)
         except ParseError:
-            return JSONResponse("Invalid format or empty request", status=status.HTTP_400_BAD_REQUEST)
+            return JSONResponse("Invalid format or empty request params", status=status.HTTP_400_BAD_REQUEST)
 
         # Get an identifier of this new policy
         policy_id = r.incr("policies:id")
@@ -264,10 +275,14 @@ def storlet_deploy(request, storlet_id, account, container=None, swift_object=No
             target = account + "/" + container
         else:
             target = account
-
+        
         try:
-            deploy(r, target, storlet, policy_data, headers)
-            return JSONResponse('Successfully deployed.', status=status.HTTP_201_CREATED)
+            if filter['filter_type'] == 'storlet':
+                deploy_storlet(r, target, filter, policy_data, project_name)
+                return JSONResponse('Successfully deployed.', status=status.HTTP_201_CREATED)
+            else:
+                # TODO: Native filters
+                pass
         except SwiftClientError:
             return JSONResponse('Error accessing Swift.', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         except StorletNotFoundException:
@@ -498,8 +513,15 @@ def dependency_undeploy(request, dependency_id, account):
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
 
 
-# FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 DO SET compression, SET caching
-def deploy(r, target, storlet, parameters, headers):
+def get_crystal_token(project):
+    os_options = {'tenant_name': project}    
+    try:
+        url, token = swift_client.get_auth(settings.KEYSTONE_URL, project+":"+settings.MANAGEMENT_ADMIN_USERNAME, settings.MANAGEMENT_ADMIN_PASSWORD, os_options = os_options, auth_version="2.0")
+    except Exception as e:
+        print e    
+    return url, token
+    
+def deploy_storlet(r, target, storlet, parameters, project_name):
     # print("Storlet ID: " + storlet["id"])
     # print("Storlet Details: " + str(r.hgetall("filter:" + storlet["id"])))
     # print("Target: " + target)
@@ -508,35 +530,34 @@ def deploy(r, target, storlet, parameters, headers):
     if not parameters:
         parameters = {}
 
-    target_list = target.split('/', 3)
     target = str(target).replace('/', ':')
 
     storlet_path = storlet["path"]
     del storlet["path"]
 
-    if storlet['filter_type'] == 'storlet':
+    metadata = {"X-Object-Meta-Storlet-Language": 'java',
+                "X-Object-Meta-Storlet-Interface-Version": storlet["interface_version"],
+                "X-Object-Meta-Storlet-Dependency": storlet["dependencies"],
+                "X-Object-Meta-Storlet-Object-Metadata": storlet["object_metadata"],
+                "X-Object-Meta-Storlet-Main": storlet["main"]
+                }
 
-        metadata = {"X-Object-Meta-Storlet-Language": storlet["filter_type"],
-                    "X-Object-Meta-Storlet-Interface-Version": storlet["interface_version"],
-                    "X-Object-Meta-Storlet-Dependency": storlet["dependencies"],
-                    "X-Object-Meta-Storlet-Object-Metadata": storlet["object_metadata"],
-                    "X-Object-Meta-Storlet-Main": storlet["main"]
-                    }
+    storlet_file = open(storlet_path, 'r')
 
-        storlet_file = open(storlet_path, 'r')
+    url, token = get_crystal_token(project_name)
+    
+    swift_response = dict()
+    try:
+        swift_client.put_object(url, token, "storlet", storlet["filter_name"], storlet_file, None,
+                                None, None, "application/octet-stream", metadata, None, None, None, swift_response)
+    except ClientException as e:
+        logging.error('Error in Swift put_object %s', e)
+        raise SwiftClientError("A problem occurred accessing Swift")
+    
+    finally:
+        storlet_file.close()
 
-        swift_response = dict()
-        try:
-            swift_client.put_object(settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/" + "AUTH_" + str(target_list[0]),
-                                    headers["X-Auth-Token"], "storlet", storlet["filter_name"], storlet_file, None,
-                                    None, None, "application/octet-stream", metadata, None, None, None, swift_response)
-        except ClientException as e:
-            logging.error('Error in Swift put_object %s', e)
-            raise SwiftClientError("A problem occurred accessing Swift")
-        finally:
-            storlet_file.close()
-
-        swift_status = swift_response.get("status")
+    swift_status = swift_response.get("status")
 
     if swift_status != status.HTTP_201_CREATED:
         raise SwiftClientError("A problem occurred accessing Swift")
@@ -556,7 +577,7 @@ def deploy(r, target, storlet, parameters, headers):
 
 
 # FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 DO DELETE compression
-def undeploy(r, target, storlet, headers):
+def undeploy_storlet(r, target, storlet, headers):
     target_list = target.split('/', 3)
     swift_response = dict()
     try:

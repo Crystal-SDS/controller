@@ -23,7 +23,7 @@ import dsl_parser
 from sds_controller.exceptions import SwiftClientError, StorletNotFoundException, FileSynchronizationException
 from sds_controller.common_utils import rsync_dir_with_nodes, to_json_bools, remove_extra_whitespaces
 
-from storlet.views import deploy, undeploy
+from storlet.views import deploy_storlet, undeploy_storlet
 from storlet.views import save_file, make_sure_path_exists
 
 host = None
@@ -677,13 +677,14 @@ def policy_list(request):
             headers = is_valid_request(request)
             if not headers:
                 return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=status.HTTP_401_UNAUTHORIZED)
-            keystone_response = requests.get(settings.KEYSTONE_URL + "tenants", headers=headers)
+            
+            keystone_response = requests.get(settings.KEYSTONE_URL + "/tenants", headers=headers)            
             keystone_tenants = json.loads(keystone_response.content)['tenants']
 
             tenants_list = {}
             for tenant in keystone_tenants:
                 tenants_list[tenant["id"]] = tenant["name"]
-
+            
             keys = r.keys("pipeline:AUTH_*")
             policies = []
             for it in keys:
@@ -697,6 +698,7 @@ def policy_list(request):
                                      'execution_server_reverse': json_value['execution_server_reverse'],
                                      'execution_order': json_value['execution_order'], 'params': json_value['params']})
             sorted_policies = sorted(policies, key=lambda x: int(itemgetter('execution_order')(x)))
+            
             return JSONResponse(sorted_policies, status=status.HTTP_200_OK)
 
         elif 'dynamic' in str(request.path):
@@ -853,10 +855,10 @@ def do_action(request, r, rule_parsed, headers):
                     policy_data["params"] = action_info.params
 
                 # Deploy (an exception is raised if something goes wrong)
-                deploy(r, target[1], storlet, policy_data, headers)
+                deploy_storlet(r, target[1], storlet, policy_data, headers)
 
             elif action_info.action == "DELETE":
-                undeploy_response = undeploy(r, target[1], storlet, headers)
+                undeploy_response = undeploy_storlet(r, target[1], storlet, headers)
                 if undeploy_response != status.HTTP_204_NO_CONTENT:
                     return undeploy_response
 

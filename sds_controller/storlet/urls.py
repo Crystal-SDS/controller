@@ -9,9 +9,9 @@ urlpatterns = [
     url(r'^/(?P<account>\w+)/deploy/?$', views.storlet_list_deployed),
 
     # Deploy to tenant container or object
-    url(r'^/(?P<account>\w+)/deploy/(?P<storlet_id>[0-9]+)/?$', views.storlet_deploy),
-    url(r'^/(?P<account>\w+)/(?P<container>\w+)/deploy/(?P<storlet_id>[0-9]+)/?$', views.storlet_deploy),
-    url(r'^/(?P<account>\w+)/(?P<container>\w+)/(?P<swift_object>\w+)/deploy/(?P<storlet_id>[0-9]+)/?$', views.storlet_deploy),
+    url(r'^/(?P<account>\w+)/deploy/(?P<filter_id>[0-9]+)/?$', views.filter_deploy),
+    url(r'^/(?P<account>\w+)/(?P<container>\w+)/deploy/(?P<filter_id>[0-9]+)/?$', views.filter_deploy),
+    url(r'^/(?P<account>\w+)/(?P<container>\w+)/(?P<swift_object>\w+)/deploy/(?P<filter_id>[0-9]+)/?$', views.filter_deploy),
 
     # Undeploy to tenant container or object
     # url(r'^/(?P<account>\w+)/undeploy/(?P<storlet_id>[0-9]+)/?$', views.storlet_undeploy),

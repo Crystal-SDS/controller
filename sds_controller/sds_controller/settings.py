@@ -125,8 +125,8 @@ USE_TZ = True
 STATIC_URL = '/static/'
 
 # Swift info
-KEYSTONE_ADMIN_URL = "http://localhost:5000/v2.0/"
-KEYSTONE_URL = "http://localhost:35357/v2.0/"
+KEYSTONE_ADMIN_URL = "http://localhost:5000/v2.0"
+KEYSTONE_URL = "http://localhost:35357/v2.0"
 SWIFT_URL= "http://localhost:8080/"
 SWIFT_API_VERSION = "v1"
 

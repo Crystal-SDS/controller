@@ -42,7 +42,7 @@ class TransientRule(Rule):
         """
         print 'Success update:  ', tenant_info
 
-        self.observers_values[metric] = tenant_info.value
+        self.observers_values[metric] = tenant_info
         
         if all(val is not None for val in self.observers_values.values()):
             condition_accomplished = self.check_conditions(self.conditions)
@@ -69,27 +69,41 @@ class TransientRule(Rule):
         dynamic_filter = self.redis.hgetall("dsl_filter:"+str(self.action_list.filter))
 
         if action == "SET":
-
             # TODO Review if this tenant has already deployed this filter. Don't deploy the same filter more than one time.
 
+            data = dict()
             url = dynamic_filter["activation_url"]+"/"+self.target+"/deploy/"+str(dynamic_filter["identifier"])
-            print 'params: ', self.action_list.params
+
+            if self.rule_parsed.object_list.object_type:
+                data['object_type'] = self.rule_parsed.object_list.object_type.object_value
+            else:
+                data['object_type'] = ''
+ 
+            if self.rule_parsed.object_list.object_size :
+                data['object_size'] = self.rule_parsed.object_list.object_size.object_value
+            else:
+                data['object_size'] = ''
+
+            data['params'] = self.action_list.params
             
-            response = requests.put(url, json.dumps(self.action_list.params), headers=headers)
+            print data
+            
+            response = requests.put(url, json.dumps(data), headers=headers)
 
             if 200 > response.status_code >= 300:
                 print 'ERROR RESPONSE'
             else:
-                print response.text, response.status_code
+                print "ERROR: "+str(response.status_code)
 
         elif action == "DELETE":
             print "Deleting filter"
+            """
             url = dynamic_filter["activation_url"]+"/"+self.target+"/undeploy/"+str(dynamic_filter["identifier"])
             response = requests.put(url, json.dumps(self.action_list.params), headers=headers)
 
             if 200 > response.status_code >= 300:
                 print 'ERROR RESPONSE'
             else:
-                print response.text, response.status_code
-
+                print "ERROR: "+str(response.status_code)
+            """
         return 'Not action supported'

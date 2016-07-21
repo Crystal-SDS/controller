@@ -76,7 +76,7 @@ def start_actors():
                                       'SimpleProportionalReplicationBandwidth', ["abstract_enforcement_algorithm_ssync", "SSYNC"])
     rules["ssync_bw"].run("ssync_bw_info")
     
-    #start_redis_rules(host, rules)
+    start_redis_rules(host, rules)
     
     return host
 
@@ -95,15 +95,15 @@ def start_redis_rules(host, rules):
         policy_data = r.hgetall(policy)
         
         if policy_data['alive'] == 'True':
-            _, rule_parsed = dsl_parser.parse(policy_data['policy']) 
+            _, rule_parsed = dsl_parser.parse(policy_data['policy_description']) 
             target = rule_parsed.target[0][1]  # Tenant ID or tenant+container
             for action_info in rule_parsed.action_list:
                 if action_info.transient:
-                    print 'Transient rule:', policy_data['policy']
+                    print 'Transient rule:', policy_data['policy_description']
                     rules[policy] = host.spawn_id(str(policy), 'rule_transient', 'TransientRule', [rule_parsed, action_info, target, host])
                     rules[policy].start_rule()
                 else:
-                    print 'Rule:', policy_data['policy']
+                    print 'Rule:', policy_data['policy_description']
                     rules[policy] = host.spawn_id(str(policy), 'rule', 'Rule', [rule_parsed, action_info, target, host])
                     rules[policy].start_rule()
 
