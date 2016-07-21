@@ -54,7 +54,6 @@ class TransientRule(Rule):
         """
         The do_action method is called after the conditions are satisfied. So this method
         is responsible to execute the action defined in the policy.
-
         """
         if not condition_result and self.action_list.action == "SET":
             action = "DELETE"
@@ -71,7 +70,7 @@ class TransientRule(Rule):
 
         if action == "SET":
 
-            # TODO Review if this tenant has already deployed this filter. Not deploy the same filter more than one time.
+            # TODO Review if this tenant has already deployed this filter. Don't deploy the same filter more than one time.
 
             url = dynamic_filter["activation_url"]+"/"+self.target+"/deploy/"+str(dynamic_filter["identifier"])
             print 'params: ', self.action_list.params
@@ -84,7 +83,7 @@ class TransientRule(Rule):
                 print response.text, response.status_code
 
         elif action == "DELETE":
-            print "Deleteing filter"
+            print "Deleting filter"
             url = dynamic_filter["activation_url"]+"/"+self.target+"/undeploy/"+str(dynamic_filter["identifier"])
             response = requests.put(url, json.dumps(self.action_list.params), headers=headers)
 
