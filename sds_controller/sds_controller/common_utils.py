@@ -1,14 +1,59 @@
+from exceptions import FileSynchronizationException
+from rest_framework.renderers import JSONRenderer
+from swiftclient import client as swift_client
+from django.http import HttpResponse
+from django.conf import settings
+import requests
 import redis
+import json
 import os
 
-from django.conf import settings
-from exceptions import FileSynchronizationException
+
+class JSONResponse(HttpResponse):
+    """
+    An HttpResponse that renders its content into JSON.
+    """
+
+    def __init__(self, data, **kwargs):
+        content = JSONRenderer().render(data)
+        kwargs['content_type'] = 'application/json'
+        super(JSONResponse, self).__init__(content, **kwargs)
 
 
 def get_redis_connection():
     return redis.Redis(connection_pool=settings.REDIS_CON_POOL)
 
 
+def get_crystal_admin_token():
+
+    admin_project = settings.MANAGEMENT_ACCOUNT
+    admin_user = settings.MANAGEMENT_ADMIN_USERNAME
+    admin_passwd = settings.MANAGEMENT_ADMIN_PASSWORD
+    keystone_url = settings.KEYSTONE_URL
+    
+    try:
+        _, token = swift_client.get_auth(keystone_url, 
+                                         admin_project+":"+admin_user, 
+                                         admin_passwd,
+                                         auth_version="2.0")
+    except Exception as e:
+        print e
+            
+    return token
+
+
+def get_project_list():    
+    token = get_crystal_admin_token()
+    keystone_response = requests.get(settings.KEYSTONE_URL + "/tenants", headers={'X-Auth-Token':token})
+    keystone_projects = json.loads(keystone_response.content)["tenants"]
+
+    project_list = {}
+    for project in keystone_projects:
+        project_list[project["id"]] = project["name"]
+        
+    return project_list
+        
+        
 def rsync_dir_with_nodes(directory):
     # retrieve nodes
     nodes = get_all_registered_nodes()

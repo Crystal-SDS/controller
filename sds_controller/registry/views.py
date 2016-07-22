@@ -1,57 +1,27 @@
-import json
-import mimetypes
-import os
-import re
-from operator import itemgetter
-
-import redis
-import requests
 from django.conf import settings
 from django.core.servers.basehttp import FileWrapper
 from django.http import HttpResponse
 from django.http import StreamingHttpResponse
 from django.views.decorators.csrf import csrf_exempt
-from pyactive.controller import init_host, start_controller
-from redis.exceptions import RedisError, DataError
 from rest_framework import status
 from rest_framework.exceptions import ParseError
 from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
-from rest_framework.renderers import JSONRenderer
 from rest_framework.views import APIView
-
-import dsl_parser
+from operator import itemgetter
+from pyactive.controller import init_host, start_controller
+from redis.exceptions import RedisError, DataError
 from sds_controller.exceptions import SwiftClientError, StorletNotFoundException, FileSynchronizationException
-from sds_controller.common_utils import rsync_dir_with_nodes, to_json_bools, remove_extra_whitespaces
-
+from sds_controller.common_utils import rsync_dir_with_nodes, to_json_bools, remove_extra_whitespaces, JSONResponse, get_redis_connection, get_project_list
 from storlet.views import set_filter, unset_filter
 from storlet.views import save_file, make_sure_path_exists
+import json
+import mimetypes
+import os
+import re
+import dsl_parser
 
 host = None
 remote_host = None
-
-
-class JSONResponse(HttpResponse):
-    """
-    An HttpResponse that renders its content into JSON.
-    """
-
-    def __init__(self, data, **kwargs):
-        content = JSONRenderer().render(data)
-        kwargs['content_type'] = 'application/json'
-        super(JSONResponse, self).__init__(content, **kwargs)
-
-
-def is_valid_request(request):
-    headers = {}
-    try:
-        headers['X-Auth-Token'] = request.META['HTTP_X_AUTH_TOKEN']
-        return headers
-    except KeyError:
-        return None
-
-
-def get_redis_connection():
-    return redis.Redis(connection_pool=settings.REDIS_CON_POOL)
 
 
 # TODO: Improve the implementation to create the host connection
@@ -674,24 +644,14 @@ def policy_list(request):
 
     if request.method == 'GET':
         if 'static' in str(request.path):
-            headers = is_valid_request(request)
-            if not headers:
-                return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=status.HTTP_401_UNAUTHORIZED)
-            
-            keystone_response = requests.get(settings.KEYSTONE_URL + "/tenants", headers=headers)            
-            keystone_tenants = json.loads(keystone_response.content)['tenants']
-
-            tenants_list = {}
-            for tenant in keystone_tenants:
-                tenants_list[tenant["id"]] = tenant["name"]
-            
+            project_list = get_project_list()
             keys = r.keys("pipeline:AUTH_*")
             policies = []
             for it in keys:
                 for key, value in r.hgetall(it).items():
                     json_value = json.loads(value)
                     policies.append({'id': key, 'target_id': it.replace('pipeline:AUTH_', ''),
-                                     'target_name': tenants_list[it.replace('pipeline:AUTH_', '').split(':')[0]],
+                                     'target_name': project_list[it.replace('pipeline:AUTH_', '').split(':')[0]],
                                      'filter_name': json_value['filter_name'], 'object_type': json_value['object_type'],
                                      'object_size': json_value['object_size'],
                                      'execution_server': json_value['execution_server'],
@@ -713,9 +673,7 @@ def policy_list(request):
             return JSONResponse("Invalid request", status=status.HTTP_400_BAD_REQUEST)
 
     if request.method == 'POST':
-        headers = is_valid_request(request)
-        if not headers:
-            return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=status.HTTP_401_UNAUTHORIZED)
+
         rules_string = request.body.splitlines()
 
         for rule_string in rules_string:
@@ -735,7 +693,7 @@ def policy_list(request):
                     deploy_policy(r, rule_string, rule_parsed)
                 else:
                     # Static Rule
-                    response = do_action(request, r, rule_parsed, headers)
+                    response = do_action(request, r, rule_parsed)
                     print("RESPONSE: " + str(response))
 
             except SwiftClientError:
@@ -768,22 +726,12 @@ def static_policy_detail(request, policy_id):
     policy = str(policy_id).split(':')[-1]
 
     if request.method == 'GET':
-        headers = is_valid_request(request)
-        if not headers:
-            return JSONResponse(
-                'You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
-        keystone_response = requests.get(settings.KEYSTONE_URL + "tenants", headers=headers)
-        keystone_tenants = json.loads(keystone_response.content)["tenants"]
-
-        tenants_list = {}
-        for tenant in keystone_tenants:
-            tenants_list[tenant["id"]] = tenant["name"]
-
+        project_list = get_project_list()
         policy_redis = r.hget("pipeline:AUTH_" + str(target), policy)
         data = json.loads(policy_redis)
         data["id"] = policy
         data["target_id"] = target
-        data["target_name"] = tenants_list[target.split(':')[0]]
+        data["target_name"] = project_list[target.split(':')[0]]
         return JSONResponse(data, status=200)
     elif request.method == 'PUT':
         data = JSONParser().parse(request)
@@ -815,10 +763,11 @@ def dynamic_policy_detail(request, policy_id):
         # TODO: Kill actor when deletes a redis key
         r.delete('policy:' + policy_id)
         return JSONResponse('Policy has been deleted', status=204)
+    
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
 
 
-def do_action(request, r, rule_parsed, headers):
+def do_action(request, r, rule_parsed):
     for target in rule_parsed.target:
         for action_info in rule_parsed.action_list:
             print("TARGET RULE: ", action_info)
@@ -855,10 +804,10 @@ def do_action(request, r, rule_parsed, headers):
                     policy_data["params"] = action_info.params
 
                 # Deploy (an exception is raised if something goes wrong)
-                set_filter(r, target[1], filter_data, policy_data, headers)
+                set_filter(r, target[1], filter_data, policy_data)
 
             elif action_info.action == "DELETE":
-                undeploy_response = unset_filter(r, target[1], filter_data, headers)
+                undeploy_response = unset_filter(r, target[1], filter_data)
                 if undeploy_response != status.HTTP_204_NO_CONTENT:
                     return undeploy_response
 

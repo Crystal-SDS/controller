@@ -1,5 +1,3 @@
-import redis
-import requests
 from django.conf import settings
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -7,34 +5,12 @@ from redis.exceptions import RedisError
 from rest_framework import status
 from rest_framework.exceptions import ParseError
 from rest_framework.parsers import JSONParser
-from rest_framework.renderers import JSONRenderer
-
+import storage_policies
 import sds_project
-import storage_policy
+import requests
+import redis
 
-
-class JSONResponse(HttpResponse):
-    """
-    An HttpResponse that renders its content into JSON.
-    """
-
-    def __init__(self, data, **kwargs):
-        content = JSONRenderer().render(data)
-        kwargs['content_type'] = 'application/json'
-        super(JSONResponse, self).__init__(content, **kwargs)
-
-
-def is_valid_request(request):
-    headers = {}
-    try:
-        headers['X-Auth-Token'] = request.META['HTTP_X_AUTH_TOKEN']
-        return headers
-    except KeyError:
-        return None
-
-
-def get_redis_connection():
-    return redis.Redis(connection_pool=settings.REDIS_CON_POOL)
+from sds_controller.common_utils import get_crystal_admin_token, JSONResponse, get_redis_connection
 
 
 @csrf_exempt
@@ -43,17 +19,11 @@ def tenants_list(request):
     List swift tenants.
     """
     if request.method == 'GET':
-        headers = is_valid_request(request)
-        if not headers:
-            return JSONResponse('You must be authenticated. You can authenticate yourself with the header X-Auth-Token ', status=status.HTTP_401_UNAUTHORIZED)
-        r = requests.get(settings.KEYSTONE_URL + "tenants", headers=headers)
-
+        token = get_crystal_admin_token()
+        r = requests.get(settings.KEYSTONE_URL + "/tenants", headers={'X-Auth-Token':token})
         return HttpResponse(r.content, content_type='application/json', status=r.status_code)
 
     if request.method == "POST":
-        headers = is_valid_request(request)
-        if not headers:
-            return JSONResponse('You must be authenticated. You can authenticate yourself with the header X-Auth-Token ', status=status.HTTP_401_UNAUTHORIZED)
         data = JSONParser().parse(request)
 
         try:
@@ -62,6 +32,7 @@ def tenants_list(request):
             return JSONResponse('Error creating a new project.', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         return JSONResponse('Account created successfully', status=status.HTTP_201_CREATED)
+    
     return JSONResponse('Only HTTP GET /tenants/ requests allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
@@ -92,9 +63,6 @@ def storage_policies(request):
     Allows create replication storage policies and erasure code storage policies
     """
     if request.method == "POST":
-        headers = is_valid_request(request)
-        if not headers:
-            return JSONResponse('You must be authenticated. You can authenticate yourself with the header X-Auth-Token ', status=status.HTTP_401_UNAUTHORIZED)
         data = JSONParser().parse(request)
         storage_nodes_list = []
         if isinstance(data["storage_node"], dict):
@@ -102,7 +70,7 @@ def storage_policies(request):
                 storage_nodes_list.extend([k, v])
             data["storage_node"] = ','.join(map(str, storage_nodes_list))
             try:
-                storage_policy.create(data)
+                storage_policies.create(data)
             except Exception as e:
                 return JSONResponse('Error creating the Storage Policy: ' + e, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -118,11 +86,11 @@ def locality_list(request, account, container=None, swift_object=None):
     """
     if request.method == 'GET':
         if not container:
-            r = requests.get(settings.SWIFT_URL + "endpoints/v2/" + account)
+            r = requests.get(settings.SWIFT_URL + "/endpoints/v2/" + account)
         elif not swift_object:
-            r = requests.get(settings.SWIFT_URL + "endpoints/v2/" + account + "/" + container)
+            r = requests.get(settings.SWIFT_URL + "/endpoints/v2/" + account + "/" + container)
         elif container and swift_object:
-            r = requests.get(settings.SWIFT_URL + "endpoints/v2/" + account + "/" + container + "/" + swift_object)
+            r = requests.get(settings.SWIFT_URL + "/endpoints/v2/" + account + "/" + container + "/" + swift_object)
         return HttpResponse(r.content, content_type='application/json', status=r.status_code)
     return JSONResponse('Only HTTP GET /locality/ requests allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 

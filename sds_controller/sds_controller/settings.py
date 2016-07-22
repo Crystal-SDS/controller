@@ -32,7 +32,6 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
-
 # Application definition
 
 INSTALLED_APPS = (
@@ -104,23 +103,11 @@ DATABASES = {
 #     }
 # }
 
-
-# Internationalization
-# https://docs.djangoproject.com/en/1.8/topics/i18n/
-
 LANGUAGE_CODE = 'en-us'
-
 TIME_ZONE = 'UTC'
-
 USE_I18N = True
-
 USE_L10N = True
-
 USE_TZ = True
-
-
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/1.8/howto/static-files/
 
 STATIC_URL = '/static/'
 
@@ -132,7 +119,6 @@ SWIFT_API_VERSION = "v1"
 
 # redis
 REDIS_CON_POOL = redis.ConnectionPool(host='localhost', port=6379, db=0)
-
 
 # SDS Project
 STORLET_BIN_DIR = "/opt/ibm"
@@ -148,4 +134,3 @@ PYACTIVE_URL = "tcp://127.0.0.1:6375/"
 PYACTIVE_IP = "127.0.0.1"
 PYACTIVE_PORT = 6375
 PYACTIVE_TRANSPORT = "tcp"
-
