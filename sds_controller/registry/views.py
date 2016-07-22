@@ -11,7 +11,7 @@ from operator import itemgetter
 from pyactive.controller import init_host, start_controller
 from redis.exceptions import RedisError, DataError
 from sds_controller.exceptions import SwiftClientError, StorletNotFoundException, FileSynchronizationException
-from sds_controller.common_utils import rsync_dir_with_nodes, to_json_bools, remove_extra_whitespaces, JSONResponse, get_redis_connection, get_project_list
+from sds_controller.common_utils import is_valid_request, rsync_dir_with_nodes, to_json_bools, remove_extra_whitespaces, JSONResponse, get_redis_connection, get_project_list
 from storlet.views import set_filter, unset_filter
 from storlet.views import save_file, make_sure_path_exists
 import json
@@ -49,6 +49,11 @@ def add_metric(request):
     """
     Add a metric workload in the registry (redis)
     """
+    """ Validate request: only Crystal admin user can access to this method """
+    token = is_valid_request(request)
+    if not token:
+        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
+ 
     try:
         r = get_redis_connection()
     except RedisError:
@@ -77,6 +82,11 @@ def metric_detail(request, name):
     """
     Get, update or delete a metric workload from the registry.
     """
+    """ Validate request: only Crystal admin user can access to this method """
+    token = is_valid_request(request)
+    if not token:
+        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
+ 
     try:
         r = get_redis_connection()
     except RedisError:
@@ -111,6 +121,11 @@ def add_dynamic_filter(request):
     """
     Add a filter with its default parameters in the registry (redis). List all the dynamic filters registered.
     """
+    """ Validate request: only Crystal admin user can access to this method """
+    token = is_valid_request(request)
+    if not token:
+        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
+ 
     try:
         r = get_redis_connection()
     except RedisError:
@@ -139,6 +154,11 @@ def dynamic_filter_detail(request, name):
     """
     Get, update or delete a dynamic filter from the registry.
     """
+    """ Validate request: only Crystal admin user can access to this method """
+    token = is_valid_request(request)
+    if not token:
+        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
+ 
     try:
         r = get_redis_connection()
     except RedisError:
@@ -182,6 +202,11 @@ def metric_module_list(request):
     """
     List all metric modules, or create a new metric module.
     """
+    """ Validate request: only Crystal admin user can access to this method """
+    token = is_valid_request(request)
+    if not token:
+        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
+ 
     try:
         r = get_redis_connection()
     except RedisError:
@@ -204,6 +229,11 @@ def metric_module_detail(request, metric_module_id):
     """
     Retrieve, update or delete a metric module.
     """
+    """ Validate request: only Crystal admin user can access to this method """
+    token = is_valid_request(request)
+    if not token:
+        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
+ 
     try:
         r = get_redis_connection()
     except RedisError:
@@ -317,6 +347,11 @@ def list_storage_node(request):
     :param request:
     :return: JSONResponse
     """
+    """ Validate request: only Crystal admin user can access to this method """
+    token = is_valid_request(request)
+    if not token:
+        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
+ 
     try:
         r = get_redis_connection()
     except RedisError:
@@ -345,6 +380,11 @@ def storage_node_detail(request, snode_id):
     """
     Get, update or delete a storage node from the registry.
     """
+    """ Validate request: only Crystal admin user can access to this method """
+    token = is_valid_request(request)
+    if not token:
+        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
+ 
     try:
         r = get_redis_connection()
     except RedisError:
@@ -378,6 +418,11 @@ def add_tenants_group(request):
     """
     Add a tenant group or list all the tenants groups saved in the registry.
     """
+    """ Validate request: only Crystal admin user can access to this method """
+    token = is_valid_request(request)
+    if not token:
+        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
+ 
     try:
         r = get_redis_connection()
     except RedisError:
@@ -410,6 +455,11 @@ def tenants_group_detail(request, gtenant_id):
     """
     Get, update or delete a tenants group from the registry.
     """
+    """ Validate request: only Crystal admin user can access to this method """
+    token = is_valid_request(request)
+    if not token:
+        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
+ 
     try:
         r = get_redis_connection()
     except RedisError:
@@ -453,6 +503,11 @@ def gtenants_tenant_detail(request, gtenant_id, tenant_id):
     """
     Delete a member from a tenants group.
     """
+    """ Validate request: only Crystal admin user can access to this method """
+    token = is_valid_request(request)
+    if not token:
+        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
+ 
     try:
         r = get_redis_connection()
     except RedisError:
@@ -475,6 +530,11 @@ def object_type_list(request):
     GET: List all object types.
     POST: Bind a new object type.
     """
+    """ Validate request: only Crystal admin user can access to this method """
+    token = is_valid_request(request)
+    if not token:
+        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
+ 
     try:
         r = get_redis_connection()
     except RedisError:
@@ -514,6 +574,11 @@ def object_type_detail(request, object_type_name):
     PUT: Update the object type word registered.
     DELETE: Delete the object type word registered.
     """
+    """ Validate request: only Crystal admin user can access to this method """
+    token = is_valid_request(request)
+    if not token:
+        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
+ 
     try:
         r = get_redis_connection()
     except RedisError:
@@ -555,6 +620,11 @@ def object_type_items_detail(request, object_type_name, item_name):
     """
     Delete an extension from an object type definition.
     """
+    """ Validate request: only Crystal admin user can access to this method """
+    token = is_valid_request(request)
+    if not token:
+        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
+ 
     try:
         r = get_redis_connection()
     except RedisError:
@@ -570,12 +640,16 @@ def object_type_items_detail(request, object_type_name, item_name):
 # Node part
 #
 
-
 @csrf_exempt
 def node_list(request):
     """
     GET: List all nodes ordered by name
     """
+    """ Validate request: only Crystal admin user can access to this method """
+    token = is_valid_request(request)
+    if not token:
+        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
+ 
     try:
         r = get_redis_connection()
     except RedisError:
@@ -604,6 +678,11 @@ def node_detail(request, node_id):
     :param node_id:
     :return:
     """
+    """ Validate request: only Crystal admin user can access to this method """
+    token = is_valid_request(request)
+    if not token:
+        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
+ 
     try:
         r = get_redis_connection()
     except RedisError:
@@ -637,6 +716,11 @@ def policy_list(request):
     """
     List all policies (sorted by execution_order). Deploy new policies.
     """
+    """ Validate request: only Crystal admin user can access to this method """
+    token = is_valid_request(request)
+    if not token:
+        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
+ 
     try:
         r = get_redis_connection()
     except RedisError:
@@ -644,7 +728,7 @@ def policy_list(request):
 
     if request.method == 'GET':
         if 'static' in str(request.path):
-            project_list = get_project_list()
+            project_list = get_project_list(token)
             keys = r.keys("pipeline:AUTH_*")
             policies = []
             for it in keys:
@@ -716,6 +800,11 @@ def static_policy_detail(request, policy_id):
     """
     Retrieve, update or delete SLA.
     """
+    """ Validate request: only Crystal admin user can access to this method """
+    token = is_valid_request(request)
+    if not token:
+        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
+ 
     try:
         r = get_redis_connection()
     except RedisError:
@@ -726,7 +815,7 @@ def static_policy_detail(request, policy_id):
     policy = str(policy_id).split(':')[-1]
 
     if request.method == 'GET':
-        project_list = get_project_list()
+        project_list = get_project_list(token)
         policy_redis = r.hget("pipeline:AUTH_" + str(target), policy)
         data = json.loads(policy_redis)
         data["id"] = policy
@@ -754,6 +843,11 @@ def dynamic_policy_detail(request, policy_id):
     """
     Retrieve, update or delete SLA.
     """
+    """ Validate request: only Crystal admin user can access to this method """
+    token = is_valid_request(request)
+    if not token:
+        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
+ 
     try:
         r = get_redis_connection()
     except RedisError:
@@ -768,6 +862,11 @@ def dynamic_policy_detail(request, policy_id):
 
 
 def do_action(request, r, rule_parsed):
+    """ Validate request: only Crystal admin user can access to this method """
+    token = is_valid_request(request)
+    if not token:
+        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
+ 
     for target in rule_parsed.target:
         for action_info in rule_parsed.action_list:
             print("TARGET RULE: ", action_info)

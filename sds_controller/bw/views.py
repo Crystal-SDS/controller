@@ -2,14 +2,18 @@ from django.views.decorators.csrf import csrf_exempt
 from redis.exceptions import RedisError, DataError
 from rest_framework import status
 from rest_framework.parsers import JSONParser
-from sds_controller.common_utils import  JSONResponse, get_redis_connection, get_project_list
+from sds_controller.common_utils import  JSONResponse, get_redis_connection, get_project_list, is_valid_request
 
 
 @csrf_exempt
 def bw_list(request):
     """
     List all slas, or create a SLA.
-    """
+    """ 
+    token = is_valid_request(request)
+    if not token:
+        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED) 
+              
     try:
         r = get_redis_connection()
     except RedisError:
@@ -17,7 +21,7 @@ def bw_list(request):
 
     if request.method == 'GET':
         try:
-            project_list = get_project_list()
+            project_list = get_project_list(token)
             keys = r.keys('bw:AUTH_*')
         except:
             print "Error getting project list in bw_list"
@@ -50,6 +54,10 @@ def bw_detail(request, project_key):
     """
     Retrieve, update or delete SLA.
     """
+    token = is_valid_request(request)
+    if not token:
+        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
+    
     try:
         r = get_redis_connection()
     except RedisError:
@@ -61,7 +69,7 @@ def bw_detail(request, project_key):
     if request.method == 'GET':
 
         try:
-            project_list = get_project_list()
+            project_list = get_project_list(token)
         except:
             print "Error getting project list in bw_details"
 

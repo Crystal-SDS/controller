@@ -10,7 +10,7 @@ import sds_project
 import requests
 import redis
 
-from sds_controller.common_utils import get_crystal_admin_token, JSONResponse, get_redis_connection
+from sds_controller.common_utils import JSONResponse, get_redis_connection, is_valid_request
 
 
 @csrf_exempt
@@ -18,8 +18,12 @@ def tenants_list(request):
     """
     List swift tenants.
     """
+    """ Validate request: only Crystal admin user can access to this method """
+    token = is_valid_request(request)
+    if not token:
+        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
+ 
     if request.method == 'GET':
-        token = get_crystal_admin_token()
         r = requests.get(settings.KEYSTONE_URL + "/tenants", headers={'X-Auth-Token':token})
         return HttpResponse(r.content, content_type='application/json', status=r.status_code)
 
@@ -41,6 +45,11 @@ def storage_policy_list(request):
     """
     List all storage policies.
     """
+    """ Validate request: only Crystal admin user can access to this method """
+    token = is_valid_request(request)
+    if not token:
+        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
+ 
     try:
         r = get_redis_connection()
     except RedisError:
@@ -62,6 +71,11 @@ def storage_policies(request):
     Creates a storage policy to swift with an specific ring.
     Allows create replication storage policies and erasure code storage policies
     """
+    """ Validate request: only Crystal admin user can access to this method """
+    token = is_valid_request(request)
+    if not token:
+        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
+ 
     if request.method == "POST":
         data = JSONParser().parse(request)
         storage_nodes_list = []
@@ -84,6 +98,11 @@ def locality_list(request, account, container=None, swift_object=None):
     Shows the nodes where the account/container/object is stored. In the case that
     the account/container/object does not exist, return the nodes where it will be save.
     """
+    """ Validate request: only Crystal admin user can access to this method """
+    token = is_valid_request(request)
+    if not token:
+        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
+ 
     if request.method == 'GET':
         if not container:
             r = requests.get(settings.SWIFT_URL + "/endpoints/v2/" + account)
@@ -100,6 +119,11 @@ def sort_list(request):
     """
     List all proxy sortings, or create a proxy sortings.
     """
+    """ Validate request: only Crystal admin user can access to this method """
+    token = is_valid_request(request)
+    if not token:
+        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
+ 
     try:
         r = get_redis_connection()
     except RedisError:
@@ -134,6 +158,11 @@ def sort_detail(request, id):
     """
     Retrieve, update or delete a Proxy Sorting.
     """
+    """ Validate request: only Crystal admin user can access to this method """
+    token = is_valid_request(request)
+    if not token:
+        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
+ 
     try:
         r = get_redis_connection()
     except RedisError:

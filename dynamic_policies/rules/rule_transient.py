@@ -75,12 +75,12 @@ class TransientRule(Rule):
             data = dict()
             url = dynamic_filter["activation_url"]+"/"+self.target+"/deploy/"+str(dynamic_filter["identifier"])
 
-            if self.rule_parsed.object_list.object_type:
+            if hasattr(self.rule_parsed.object_list, "object_type"):
                 data['object_type'] = self.rule_parsed.object_list.object_type.object_value
             else:
                 data['object_type'] = ''
  
-            if self.rule_parsed.object_list.object_size:
+            if hasattr(self.rule_parsed.object_list, "object_size"):
                 data['object_size'] = self.rule_parsed.object_list.object_size.object_value
             else:
                 data['object_size'] = ''
@@ -100,8 +100,7 @@ class TransientRule(Rule):
             print "Deleting static policy "+self.static_policy_id
             
             url = dynamic_filter["activation_url"].rsplit("/",1)[0]+"/registry/static_policy/"+self.target+":"+str(self.static_policy_id)
-
-            response = requests.delete(url)
+            response = requests.delete(url, headers=headers)
 
             if 200 > response.status_code >= 300:
                 print 'Error Deleting policy'

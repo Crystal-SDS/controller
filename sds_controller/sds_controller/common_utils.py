@@ -1,11 +1,10 @@
 from exceptions import FileSynchronizationException
 from rest_framework.renderers import JSONRenderer
-from swiftclient import client as swift_client
+import keystoneclient.v2_0.client as keystone_client
 from django.http import HttpResponse
 from django.conf import settings
-import requests
 import redis
-import json
+from datetime import datetime
 import os
 
 
@@ -24,32 +23,51 @@ def get_redis_connection():
     return redis.Redis(connection_pool=settings.REDIS_CON_POOL)
 
 
-def get_crystal_admin_token():
-
+def get_keystone_admin_auth():
     admin_project = settings.MANAGEMENT_ACCOUNT
     admin_user = settings.MANAGEMENT_ADMIN_USERNAME
     admin_passwd = settings.MANAGEMENT_ADMIN_PASSWORD
     keystone_url = settings.KEYSTONE_URL
-    
+        
     try:
-        _, token = swift_client.get_auth(keystone_url, 
-                                         admin_project+":"+admin_user, 
-                                         admin_passwd,
-                                         auth_version="2.0")
+        keystone = keystone_client.Client(auth_url = keystone_url,
+                                          username = admin_user,
+                                          password = admin_passwd,
+                                          tenant_name = admin_project)
     except Exception as e:
         print e
             
-    return token
+    return keystone
 
 
-def get_project_list():    
-    token = get_crystal_admin_token()
-    keystone_response = requests.get(settings.KEYSTONE_URL + "/tenants", headers={'X-Auth-Token':token})
-    keystone_projects = json.loads(keystone_response.content)["tenants"]
+def is_valid_request(request):    
+    token =  request.META['HTTP_X_AUTH_TOKEN']
+    admin_user = settings.MANAGEMENT_ADMIN_USERNAME
+    admin_project = settings.MANAGEMENT_ACCOUNT
+    keystone = get_keystone_admin_auth()
 
+    try:
+        token_data = keystone.tokens.validate(token)
+        token_expiration = datetime.strptime(token_data.expires, '%Y-%m-%dT%H:%M:%SZ')
+        now = datetime.now()
+        token_user = token_data.user['name']
+        token_project = token_data.tenant['name']
+        
+        if token_expiration > now and token_user == admin_user and admin_project == token_project:
+            return token
+    except:
+        return False
+
+    return False
+
+
+def get_project_list(token):    
+    keystone = get_keystone_admin_auth()
+    tenants =  keystone.tenants.list()
+    
     project_list = {}
-    for project in keystone_projects:
-        project_list[project["id"]] = project["name"]
+    for tenant in tenants:
+        project_list[tenant.id] = tenant.name
         
     return project_list
         

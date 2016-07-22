@@ -14,7 +14,7 @@ from swiftclient import client as swift_client
 from swiftclient.exceptions import ClientException
 
 from sds_controller.exceptions import SwiftClientError, StorletNotFoundException, FileSynchronizationException
-from sds_controller.common_utils import rsync_dir_with_nodes, to_json_bools, get_crystal_admin_token, JSONResponse, get_redis_connection
+from sds_controller.common_utils import rsync_dir_with_nodes, to_json_bools, JSONResponse, get_redis_connection, is_valid_request
 
 import errno
 import hashlib
@@ -41,6 +41,11 @@ def storlet_list(request):
     """
     List all storlets, or create a new storlet.
     """
+    """ Validate request: only Crystal admin user can access to this method """
+    token = is_valid_request(request)
+    if not token:
+        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
+    
     try:
         r = get_redis_connection()
     except RedisError:
@@ -79,6 +84,11 @@ def storlet_detail(request, storlet_id):
     """
     Retrieve, update or delete a Storlet.
     """
+    """ Validate request: only Crystal admin user can access to this method """
+    token = is_valid_request(request)
+    if not token:
+        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
+    
     try:
         r = get_redis_connection()
     except RedisError:
@@ -197,6 +207,11 @@ def filter_deploy(request, filter_id, account, container=None, swift_object=None
     """
     Deploy a filter to a specific swift account.
     """
+    """ Validate request: only Crystal admin user can access to this method """
+    token = is_valid_request(request)
+    if not token:
+        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
+    
     if request.method == 'PUT':
         try:
             r = get_redis_connection()
@@ -234,7 +249,7 @@ def filter_deploy(request, filter_id, account, container=None, swift_object=None
             target = account
 
         try:
-            set_filter(r, target, filter_data, policy_data)
+            set_filter(r, target, filter_data, policy_data, token)
             return JSONResponse(policy_id, status=status.HTTP_201_CREATED)
         except SwiftClientError:
             return JSONResponse('Error accessing Swift.', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -249,6 +264,11 @@ def storlet_list_deployed(request, account):
     """
     List all the storlets deployed.
     """
+    """ Validate request: only Crystal admin user can access to this method """
+    token = is_valid_request(request)
+    if not token:
+        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
+    
     if request.method == 'GET':
         try:
             r = get_redis_connection()
@@ -269,6 +289,11 @@ def filter_undeploy(request, filter_id, account, container=None, swift_object=No
     """
     Undeploy a storlet from a specific swift account.
     """
+    """ Validate request: only Crystal admin user can access to this method """
+    token = is_valid_request(request)
+    if not token:
+        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
+    
     if request.method == 'PUT':
         try:
             r = get_redis_connection()
@@ -292,7 +317,7 @@ def filter_undeploy(request, filter_id, account, container=None, swift_object=No
  
         print target
          
-        return unset_filter(r, target, filter_data,)
+        return unset_filter(r, target, filter_data, token)
      
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
@@ -307,6 +332,11 @@ def dependency_list(request):
     """
     List all dependencies, or create a Dependency.
     """
+    """ Validate request: only Crystal admin user can access to this method """
+    token = is_valid_request(request)
+    if not token:
+        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
+    
     try:
         r = get_redis_connection()
     except RedisError:
@@ -336,6 +366,11 @@ def dependency_detail(request, dependency_id):
     """
     Retrieve, update or delete a Dependency.
     """
+    """ Validate request: only Crystal admin user can access to this method """
+    token = is_valid_request(request)
+    if not token:
+        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
+    
     try:
         r = get_redis_connection()
     except RedisError:
@@ -383,6 +418,11 @@ class DependencyData(APIView):
 @csrf_exempt
 def dependency_deploy(request, dependency_id, account):
 
+    """ Validate request: only Crystal admin user can access to this method """
+    token = is_valid_request(request)
+    if not token:
+        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
+    
     if request.method == 'PUT':   
         try:
             r = get_redis_connection()
@@ -401,8 +441,7 @@ def dependency_deploy(request, dependency_id, account):
             dependency_file = open(dependency["path"], 'r')
             content_length = None
             response = dict()
-            token = get_crystal_admin_token()
-            url = settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/AUTH_" + str(account)
+            url = settings.SWIFT_URget_crystal_admin_tokenL + settings.SWIFT_API_VERSION + "/AUTH_" + str(account)
             swift_client.put_object(url, token, 'dependency', dependency["name"], dependency_file, content_length,  
                                     None, None, "application/octet-stream", metadata, None, None, None, response)
         except ClientException:
@@ -425,7 +464,11 @@ def dependency_deploy(request, dependency_id, account):
 
 @csrf_exempt
 def dependency_list_deployed(request, account):
-
+    """ Validate request: only Crystal admin user can access to this method """
+    token = is_valid_request(request)
+    if not token:
+        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
+    
     if request.method == 'GET':
         try:
             r = get_redis_connection()
@@ -443,6 +486,10 @@ def dependency_list_deployed(request, account):
 
 @csrf_exempt
 def dependency_undeploy(request, dependency_id, account):
+    """ Validate request: only Crystal admin user can access to this method """
+    token = is_valid_request(request)
+    if not token:
+        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
     
     if request.method == 'PUT':
         try:
@@ -459,7 +506,6 @@ def dependency_undeploy(request, dependency_id, account):
 
         try:
             response = dict()
-            token = get_crystal_admin_token()
             url = settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/AUTH_" + str(account)
             swift_client.delete_object(url, token,'dependency', dependency["name"], None, None, None, None, response)
         except ClientException:
@@ -476,7 +522,7 @@ def dependency_undeploy(request, dependency_id, account):
     
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
 
-def set_filter(r, target, filter_data, parameters):
+def set_filter(r, target, filter_data, parameters, token):
     
     if filter_data['filter_type'] == 'storlet':
         metadata = {"X-Object-Meta-Storlet-Language": 'java',
@@ -486,7 +532,6 @@ def set_filter(r, target, filter_data, parameters):
             "X-Object-Meta-Storlet-Main": filter_data["main"]
             }
             
-        token = get_crystal_admin_token()
         target_list = target.split('/', 3)
         url = settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/AUTH_" + str(target_list[0])
         swift_response = dict()
@@ -530,11 +575,10 @@ def set_filter(r, target, filter_data, parameters):
 
 
 # FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 DO DELETE compression
-def unset_filter(r, target, filter_data):
+def unset_filter(r, target, filter_data, token):
     swift_response = dict()
     if filter_data['filter_type'] == 'storlet':
         try:
-            token = get_crystal_admin_token()
             target_list = target.split('/', 3)
             url = settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/AUTH_" + str(target_list[0]) 
             swift_client.delete_object(url, token, "storlet", filter_data["filter_name"], None, None, None, None, swift_response)
