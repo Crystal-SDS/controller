@@ -903,10 +903,10 @@ def do_action(request, r, rule_parsed):
                     policy_data["params"] = action_info.params
 
                 # Deploy (an exception is raised if something goes wrong)
-                set_filter(r, target[1], filter_data, policy_data)
+                set_filter(r, target[1], filter_data, policy_data, token)
 
             elif action_info.action == "DELETE":
-                undeploy_response = unset_filter(r, target[1], filter_data)
+                undeploy_response = unset_filter(r, target[1], filter_data, token)
                 if undeploy_response != status.HTTP_204_NO_CONTENT:
                     return undeploy_response
 
