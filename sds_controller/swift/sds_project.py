@@ -17,3 +17,7 @@ def add_new_sds_project(tenant_name):
     print 'sudo python '+bin_dir+'/deploy_image.py '+tenant_name+' '+tar_file+' '+docker_image
     deploy_image = subprocess.Popen(['sudo','python', bin_dir+'/deploy_image.py', tenant_name, tar_file, docker_image])
     deploy_image.communicate()
+
+    print "Setting permissions for Crystal admin user"
+    # TODO(josep): swift post -w 'crystal_management:crystal_manager' storlet, swift post -r 'crystal_management:crystal_manager' storlet
+    # swift post -w 'crystal_management:crystal_manager' dependency, swift post -r 'crystal_management:crystal_manager' dependency

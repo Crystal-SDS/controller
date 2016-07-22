@@ -23,7 +23,7 @@ import dsl_parser
 from sds_controller.exceptions import SwiftClientError, StorletNotFoundException, FileSynchronizationException
 from sds_controller.common_utils import rsync_dir_with_nodes, to_json_bools, remove_extra_whitespaces
 
-from storlet.views import deploy_storlet, undeploy_storlet
+from storlet.views import set_filter, unset_filter
 from storlet.views import save_file, make_sure_path_exists
 
 host = None
@@ -823,9 +823,9 @@ def do_action(request, r, rule_parsed, headers):
         for action_info in rule_parsed.action_list:
             print("TARGET RULE: ", action_info)
             dynamic_filter = r.hgetall("dsl_filter:" + str(action_info.filter))
-            storlet = r.hgetall("filter:" + dynamic_filter["identifier"])
+            filter_data = r.hgetall("filter:" + dynamic_filter["identifier"])
 
-            if not storlet:
+            if not filter_data:
                 return JSONResponse("Filter does not exist", status=status.HTTP_404_NOT_FOUND)
 
             if action_info.action == "SET":
@@ -855,10 +855,10 @@ def do_action(request, r, rule_parsed, headers):
                     policy_data["params"] = action_info.params
 
                 # Deploy (an exception is raised if something goes wrong)
-                deploy_storlet(r, target[1], storlet, policy_data, headers)
+                set_filter(r, target[1], filter_data, policy_data, headers)
 
             elif action_info.action == "DELETE":
-                undeploy_response = undeploy_storlet(r, target[1], storlet, headers)
+                undeploy_response = unset_filter(r, target[1], filter_data, headers)
                 if undeploy_response != status.HTTP_204_NO_CONTENT:
                     return undeploy_response
 

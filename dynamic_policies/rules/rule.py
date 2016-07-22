@@ -208,19 +208,18 @@ class Rule(object):
         dynamic_filter = self.redis.hgetall("dsl_filter:"+str(self.action_list.filter))      
         
         if self.action_list.action == "SET":
-            print "--> SET <--"
-
             # TODO Review if this tenant has already deployed this filter. Not deploy the same filter more than one time.
 
             url = dynamic_filter["activation_url"]+"/"+self.target+"/deploy/"+str(dynamic_filter["identifier"])
 
             data = dict()
-            if self.rule_parsed.object_list.object_type:
+            
+            if hasattr(self.rule_parsed.object_list, "object_type"):
                 data['object_type'] = self.rule_parsed.object_list.object_type.object_value
             else:
                 data['object_type'] = ''
  
-            if self.rule_parsed.object_list.object_size :
+            if hasattr(self.rule_parsed.object_list, "object_size"):
                 data['object_size'] = self.rule_parsed.object_list.object_size.object_value
             else:
                 data['object_size'] = ''
@@ -230,10 +229,10 @@ class Rule(object):
             response = requests.put(url, json.dumps(data), headers=headers)
 
             if 200 > response.status_code >= 300:
-                print 'ERROR RESPONSE'
+                print 'Error setting policy'
             else:
-                print "ERROR: " + str(response.status_code)
-                self.stop_actor()
+                print "Policy applied"
+                self.stop_actor()  # TODO: stop_actor shows timeout error
 
         elif self.action_list.action == "DELETE":
             print "--> DELETE <--"
