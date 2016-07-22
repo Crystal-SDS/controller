@@ -514,13 +514,15 @@ def dependency_undeploy(request, dependency_id, account):
 
 
 def get_crystal_token(project):
-    os_options = {'tenant_name': project}    
+    os_options = {'tenant_name': project}
+    url = token = None
     try:
         url, token = swift_client.get_auth(settings.KEYSTONE_URL, project+":"+settings.MANAGEMENT_ADMIN_USERNAME, settings.MANAGEMENT_ADMIN_PASSWORD, os_options = os_options, auth_version="2.0")
     except Exception as e:
         print e    
     return url, token
-    
+
+
 def deploy_storlet(r, target, storlet, parameters, project_name):
     # print("Storlet ID: " + storlet["id"])
     # print("Storlet Details: " + str(r.hgetall("filter:" + storlet["id"])))

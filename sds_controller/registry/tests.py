@@ -12,7 +12,7 @@ from rest_framework import status
 from rest_framework.test import APIRequestFactory
 
 from .views import policy_list
-from storlet.views import storlet_list, storlet_deploy, StorletData
+from storlet.views import storlet_list, filter_deploy, StorletData
 from .views import object_type_list, object_type_detail, add_tenants_group, tenants_group_detail, gtenants_tenant_detail, node_list, node_detail, \
     add_metric, metric_detail, metric_module_list, metric_module_detail, MetricModuleData, list_storage_node, storage_node_detail, add_dynamic_filter, \
     dynamic_filter_detail
@@ -899,9 +899,14 @@ class RegistryTestCase(TestCase):
                                        query_string=None, response_dict=None):
         response_dict['status'] = status.HTTP_201_CREATED
 
+    @mock.patch('storlet.views.get_crystal_token')
     @mock.patch('storlet.views.swift_client.put_object', side_effect=mock_put_object_status_created)
-    def deploy_storlet(self, mock_put_object):
-        # Call storlet_deploy
+    @mock.patch('registry.views.requests.get')
+    def deploy_storlet(self, mock_requests_get, mock_put_object, mock_get_crystal_token):
+        mock_requests_get.return_value = self.keystone_get_tenants_response()
+        mock_get_crystal_token.return_value = settings.SWIFT_URL + settings.SWIFT_API_VERSION + '/AUTH_0123456789abcdef', 'fake_token'
+
+        # Call filter_deploy
         policy_data = {
             "policy_id": "1",
             "object_type": None,
@@ -911,7 +916,7 @@ class RegistryTestCase(TestCase):
         }
         request = self.factory.put('/0123456789abcdef/deploy/1', policy_data, format='json')
         request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
-        response = storlet_deploy(request, "1", "0123456789abcdef")
+        response = filter_deploy(request, "1", "0123456789abcdef")
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
     def create_object_type_docs(self):
@@ -951,3 +956,9 @@ class RegistryTestCase(TestCase):
         self.r.incr("workload_metrics:id")  # setting autoincrement to 1
         self.r.hmset('workload_metric:1', {'metric_name': 'm1.py', 'class_name': 'Metric1', 'execution_server': 'proxy', 'out_flow':'False',
                                            'in_flow': 'False', 'enabled': 'True', 'id': '1'})
+
+    def keystone_get_tenants_response(self):
+        resp = HttpResponse()
+        resp.content = json.dumps({'tenants': [{'name': 'tenantA', 'id': '0123456789abcdef'},
+                                               {'name': 'tenantB', 'id': '2'}]})
+        return resp

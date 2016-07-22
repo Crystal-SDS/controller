@@ -4,11 +4,12 @@ import mock
 import os
 import redis
 from django.conf import settings
+from django.http import HttpResponse
 from django.test import TestCase, override_settings
 from rest_framework import status
 from rest_framework.test import APIRequestFactory
 
-from .views import dependency_list, dependency_detail, storlet_list, storlet_detail, storlet_list_deployed, storlet_deploy, StorletData
+from .views import dependency_list, dependency_detail, storlet_list, storlet_detail, storlet_list_deployed, filter_deploy, StorletData
 
 
 # Tests use database=10 instead of 0.
@@ -222,21 +223,26 @@ class StorletTestCase(TestCase):
                                        query_string=None, response_dict=None):
         response_dict['status'] = status.HTTP_201_CREATED
 
+    @mock.patch('storlet.views.get_crystal_token')
     @mock.patch('storlet.views.swift_client.put_object', side_effect=mock_put_object_status_created)
-    def test_storlet_deploy_to_project_ok(self, mock_put_object):
+    @mock.patch('registry.views.requests.get')
+    def test_filter_deploy_to_project_ok(self, mock_requests_get, mock_put_object, mock_get_crystal_token):
+        mock_requests_get.return_value = self.keystone_get_tenants_response()
+        mock_get_crystal_token.return_value = settings.SWIFT_URL + settings.SWIFT_API_VERSION + '/AUTH_0123456789abcdef', 'fake_token'
+
         # Upload a filter for the storlet 1
         with open('test_data/test-1.0.jar', 'r') as fp:
             request = self.factory.put('/filters/1/data', {'file': fp})
             StorletData.as_view()(request, 1)
 
-        # Call storlet_deploy
+        # Call filter_deploy
         data = {"filter_id": "1", "target_id": "0123456789abcdef",
                 "execution_server": "proxy", "execution_server_reverse": "proxy",
                 "object_type": "", "object_size": "", "params": ""}
 
         request = self.factory.put('/filters/0123456789abcdef/deploy/1', data, format='json')
         request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
-        response = storlet_deploy(request, "1", "0123456789abcdef")
+        response = filter_deploy(request, "1", "0123456789abcdef")
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         mock_put_object.assert_called_with(settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/AUTH_0123456789abcdef",
                                            'fake_token', "storlet", "test-1.0.jar", mock.ANY, mock.ANY, mock.ANY,
@@ -246,21 +252,26 @@ class StorletTestCase(TestCase):
         json_data = json.loads(dumped_data)
         self.assertEqual(json_data["filter_name"], "test-1.0.jar")
 
+    @mock.patch('storlet.views.get_crystal_token')
     @mock.patch('storlet.views.swift_client.put_object', side_effect=mock_put_object_status_created)
-    def test_storlet_deploy_to_project_and_container_ok(self, mock_put_object):
+    @mock.patch('registry.views.requests.get')
+    def test_filter_deploy_to_project_and_container_ok(self, mock_requests_get, mock_put_object, mock_get_crystal_token):
+        mock_requests_get.return_value = self.keystone_get_tenants_response()
+        mock_get_crystal_token.return_value = settings.SWIFT_URL + settings.SWIFT_API_VERSION + '/AUTH_0123456789abcdef', 'fake_token'
+
         # Upload a filter for the storlet 1
         with open('test_data/test-1.0.jar', 'r') as fp:
             request = self.factory.put('/filters/1/data', {'file': fp})
             StorletData.as_view()(request, 1)
 
-        # Call storlet_deploy
+        # Call filter_deploy
         data = {"filter_id": "1", "target_id": "0123456789abcdef",
                 "execution_server": "proxy", "execution_server_reverse": "proxy",
                 "object_type": "", "object_size": "", "params": ""}
 
         request = self.factory.put('/filters/0123456789abcdef/container1/deploy/1', data, format='json')
         request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
-        response = storlet_deploy(request, "1", "0123456789abcdef", "container1")
+        response = filter_deploy(request, "1", "0123456789abcdef", "container1")
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         mock_put_object.assert_called_with(settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/AUTH_0123456789abcdef",
                                            'fake_token', "storlet", "test-1.0.jar", mock.ANY, mock.ANY, mock.ANY,
@@ -270,9 +281,9 @@ class StorletTestCase(TestCase):
         json_data = json.loads(dumped_data)
         self.assertEqual(json_data["filter_name"], "test-1.0.jar")
 
-    def test_storlet_deploy_without_auth_token(self):
+    def test_filter_deploy_without_auth_token(self):
         request = self.factory.put('/filters/0123456789abcdef/deploy/1', {"policy_id": "1"}, format='json')
-        response = storlet_deploy(request, "1", "0123456789abcdef")
+        response = filter_deploy(request, "1", "0123456789abcdef")
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     # def _test_storlet_undeploy_for_non_existent_storlet(self):
@@ -293,10 +304,10 @@ class StorletTestCase(TestCase):
     #         request = self.factory.put('/filters/1/data', {'file': fp})
     #         response = StorletData.as_view()(request, 1)
     #
-    #     # Call storlet_deploy
+    #     # Call filter_deploy
     #     request = self.factory.put('/filters/0123456789abcdef/deploy/1', {"policy_id": "1"}, format='json')
     #     request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
-    #     response = storlet_deploy(request, "1", "0123456789abcdef")
+    #     response = filter_deploy(request, "1", "0123456789abcdef")
     #     self.assertEqual(response.status_code, status.HTTP_201_CREATED)
     #     mock_put_object.assert_called_with(settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/AUTH_0123456789abcdef",
     #                                        'fake_token', "storlet", "FakeFilter", mock.ANY, mock.ANY, mock.ANY,
@@ -394,3 +405,9 @@ class StorletTestCase(TestCase):
         request = self.factory.post('/filters/dependencies', dependency_data, format='json')
         response = dependency_list(request)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def keystone_get_tenants_response(self):
+        resp = HttpResponse()
+        resp.content = json.dumps({'tenants': [{'name': 'tenantA', 'id': '0123456789abcdef'},
+                                               {'name': 'tenantB', 'id': '2'}]})
+        return resp
