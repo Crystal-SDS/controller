@@ -30,10 +30,10 @@ def get_keystone_admin_auth():
     keystone_url = settings.KEYSTONE_URL
         
     try:
-        keystone = keystone_client.Client(auth_url = keystone_url,
-                                          username = admin_user,
-                                          password = admin_passwd,
-                                          tenant_name = admin_project)
+        keystone = keystone_client.Client(auth_url=keystone_url,
+                                          username=admin_user,
+                                          password=admin_passwd,
+                                          tenant_name=admin_project)
     except Exception as e:
         print e
             
@@ -41,7 +41,7 @@ def get_keystone_admin_auth():
 
 
 def is_valid_request(request):    
-    token =  request.META['HTTP_X_AUTH_TOKEN']
+    token = request.META['HTTP_X_AUTH_TOKEN']
     admin_user = settings.MANAGEMENT_ADMIN_USERNAME
     admin_project = settings.MANAGEMENT_ACCOUNT
     keystone = get_keystone_admin_auth()

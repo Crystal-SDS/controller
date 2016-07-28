@@ -441,7 +441,7 @@ def dependency_deploy(request, dependency_id, account):
             dependency_file = open(dependency["path"], 'r')
             content_length = None
             response = dict()
-            url = settings.SWIFT_URget_crystal_admin_tokenL + settings.SWIFT_API_VERSION + "/AUTH_" + str(account)
+            url = settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/AUTH_" + str(account)
             swift_client.put_object(url, token, 'dependency', dependency["name"], dependency_file, content_length,  
                                     None, None, "application/octet-stream", metadata, None, None, None, response)
         except ClientException:
