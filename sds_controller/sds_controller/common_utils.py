@@ -63,7 +63,7 @@ def is_valid_request(request):
 
 def get_project_list(token):    
     keystone = get_keystone_admin_auth()
-    tenants =  keystone.tenants.list()
+    tenants = keystone.tenants.list()
     
     project_list = {}
     for tenant in tenants:

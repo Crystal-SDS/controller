@@ -13,6 +13,7 @@ from .views import bw_list, bw_detail
 
 # Tests use database=10 instead of 0.
 @override_settings(REDIS_CON_POOL=redis.ConnectionPool(host='localhost', port=6379, db=10))
+@mock.patch('bw.views.is_valid_request')
 class BwTestCase(TestCase):
     def setUp(self):
         # Every test needs access to the request factory.
@@ -25,43 +26,45 @@ class BwTestCase(TestCase):
     def tearDown(self):
         self.r.flushdb()
 
-    def test_bw_list_with_method_not_allowed(self):
+    def test_bw_list_with_method_not_allowed(self, mock_is_valid_request):
         """ Test that DELETE requests to bw_list() return METHOD_NOT_ALLOWED """
+        mock_is_valid_request.return_value = 'fake_token'
         request = self.factory.delete('/bw/slas')
         response = bw_list(request)
         self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
-    def test_bw_detail_with_method_not_allowed(self):
+    def test_bw_detail_with_method_not_allowed(self, mock_is_valid_request):
         """ Test that POST requests to bw_detail() return METHOD_NOT_ALLOWED """
+        mock_is_valid_request.return_value = 'fake_token'
         project_policy_key = '123456789abcdef:1'
         request = self.factory.post('/bw/sla/' + project_policy_key)
         response = bw_detail(request, project_policy_key)
         self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
-    def test_get_slas_without_auth_token(self):
+    def test_get_slas_without_auth_token(self, mock_is_valid_request):
         # Create an instance of a GET request without auth token
+        mock_is_valid_request.return_value = False
         request = self.factory.get('/bw/slas')
         response = bw_list(request)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
-    def test_get_sla_detail_without_auth_token(self):
+    def test_get_sla_detail_without_auth_token(self, mock_is_valid_request):
         # Create an instance of a GET request without auth token
+        mock_is_valid_request.return_value = False
         project_policy_key = '123456789abcdef:1'
         request = self.factory.get('/bw/sla/' + project_policy_key)
         response = bw_detail(request, project_policy_key)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
-    @mock.patch('bw.views.requests.get')
-    def test_bw_list_ok(self, mock_requests_get):
+    @mock.patch('bw.views.get_project_list')
+    def test_bw_list_ok(self, mock_get_project_list, mock_is_valid_request):
         """ Test that a GET request to bw_list() returns OK """
 
-        resp = HttpResponse()
-        resp.content = json.dumps({'tenants': [{'name': 'tenantA', 'id': '0123456789abcdef'},
-                                               {'name': 'tenantB', 'id': 'abcdef0123456789'}]})
-        mock_requests_get.return_value = resp
+        mock_is_valid_request.return_value = 'fake_token'
+        mock_get_project_list.return_value = {'0123456789abcdef': 'tenantA', 'abcdef0123456789': 'tenantB'}
 
         request = self.factory.get('/bw/slas')
-        request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
+        # request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
         response = bw_list(request)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         json_data = json.loads(response.content)
@@ -78,23 +81,19 @@ class BwTestCase(TestCase):
         self.assertEqual(sorted_data[1]['project_name'], 'tenantB')
         self.assertEqual(sorted_data[1]['policy_name'], 's3y4')
 
-    @mock.patch('bw.views.requests.get')
-    def test_create_sla_ok(self, mock_requests_get):
+    @mock.patch('bw.views.get_project_list')
+    def test_create_sla_ok(self, mock_get_project_list, mock_is_valid_request):
         """ Test that a POST request to bw_list() returns OK """
+        mock_is_valid_request.return_value = 'fake_token'
         sla_data = {'project_id': '0123456789abcdef', 'policy_id': '4', 'bandwidth': '4000'}
         request = self.factory.post('/bw/slas', sla_data, format='json')
-        request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
         response = bw_list(request)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         # Verify the SLA was created
-        resp = HttpResponse()
-        resp.content = json.dumps({'tenants': [{'name': 'tenantA', 'id': '0123456789abcdef'},
-                                               {'name': 'tenantB', 'id': 'abcdef0123456789'}]})
-        mock_requests_get.return_value = resp
+        mock_get_project_list.return_value = {'0123456789abcdef': 'tenantA', 'abcdef0123456789': 'tenantB'}
 
         request = self.factory.get('/bw/slas')
-        request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
         response = bw_list(request)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         json_data = json.loads(response.content)
@@ -104,18 +103,15 @@ class BwTestCase(TestCase):
         self.assertEqual(sorted_data[2]['project_id'], '0123456789abcdef')
         self.assertEqual(sorted_data[2]['bandwidth'], '4000')
 
-    @mock.patch('bw.views.requests.get')
-    def test_bw_detail_ok(self, mock_requests_get):
+    @mock.patch('bw.views.get_project_list')
+    def test_bw_detail_ok(self, mock_get_project_list, mock_is_valid_request):
         """ Test that a GET request to bw_list() returns OK """
 
-        resp = HttpResponse()
-        resp.content = json.dumps({'tenants': [{'name': 'tenantA', 'id': '0123456789abcdef'},
-                                               {'name': 'tenantB', 'id': 'abcdef0123456789'}]})
-        mock_requests_get.return_value = resp
+        mock_is_valid_request.return_value = 'fake_token'
+        mock_get_project_list.return_value = {'0123456789abcdef': 'tenantA', 'abcdef0123456789': 'tenantB'}
 
         project_policy_key = '0123456789abcdef:2'
         request = self.factory.get('/bw/slas/' + project_policy_key)
-        request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
         response = bw_detail(request, project_policy_key)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         json_data = json.loads(response.content)
@@ -124,45 +120,38 @@ class BwTestCase(TestCase):
         self.assertEqual(json_data['bandwidth'], '2000')
         self.assertEqual(json_data['project_name'], 'tenantA')
 
-    @mock.patch('bw.views.requests.get')
-    def test_update_sla_ok(self, mock_requests_get):
+    @mock.patch('bw.views.get_project_list')
+    def test_update_sla_ok(self, mock_get_project_list, mock_is_valid_request):
         """ Test that a PUT request to bw_detail() returns OK """
+        mock_is_valid_request.return_value = 'fake_token'
+
         project_policy_key = '0123456789abcdef:2'
         sla_data = {'bandwidth': '10000'}
         request = self.factory.put('/bw/slas/' + project_policy_key, sla_data, format='json')
-        request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
         response = bw_detail(request, project_policy_key)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         # Verify the SLA was updated
-        resp = HttpResponse()
-        resp.content = json.dumps({'tenants': [{'name': 'tenantA', 'id': '0123456789abcdef'},
-                                               {'name': 'tenantB', 'id': 'abcdef0123456789'}]})
-        mock_requests_get.return_value = resp
+        mock_get_project_list.return_value = {'0123456789abcdef': 'tenantA', 'abcdef0123456789': 'tenantB'}
         request = self.factory.get('/bw/slas/' + project_policy_key)
-        request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
         response = bw_detail(request, project_policy_key)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         json_data = json.loads(response.content)
         self.assertEqual(json_data['bandwidth'], '10000')
 
-    @mock.patch('bw.views.requests.get')
-    def test_delete_sla_ok(self, mock_requests_get):
+    @mock.patch('bw.views.get_project_list')
+    def test_delete_sla_ok(self, mock_get_project_list, mock_is_valid_request):
         """ Test that a DELETE request to bw_detail() returns OK """
+
+        mock_is_valid_request.return_value = 'fake_token'
         project_policy_key = '0123456789abcdef:2'
         request = self.factory.delete('/bw/slas/' + project_policy_key)
-        request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
         response = bw_detail(request, project_policy_key)
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
         # Verify the SLA was deleted
-        resp = HttpResponse()
-        resp.content = json.dumps({'tenants': [{'name': 'tenantA', 'id': '0123456789abcdef'},
-                                               {'name': 'tenantB', 'id': 'abcdef0123456789'}]})
-        mock_requests_get.return_value = resp
-
+        mock_get_project_list.return_value = {'0123456789abcdef': 'tenantA', 'abcdef0123456789': 'tenantB'}
         request = self.factory.get('/bw/slas')
-        request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
         response = bw_list(request)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         json_data = json.loads(response.content)
