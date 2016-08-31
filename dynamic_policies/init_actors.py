@@ -1,6 +1,7 @@
 from pyactive.controller import init_host, serve_forever, start_controller
 import redis
 import dsl_parser
+from eventlet import sleep
 
 
 def get_redis_connection():
@@ -27,8 +28,6 @@ def start_actors():
     metrics["active_put_requests"] = host.spawn_id("active_put_requests", 'metrics.swift_metric', 'SwiftMetric',
                                                    ["amq.topic", "active_put_requests", "metrics.active_put_requests"])
 
-    # metrics["head_ops_tenant"] = host.spawn_id("head_ops_tenant", 'metrics.collectd_metric', 'CollectdMetric',
-    #                                            ["amq.topic", "head_ops_tenant", "collectd.*.groupingtail.tm.*.head_ops.#"])
     metrics["get_bw"] = host.spawn_id("get_bw_tenant", 'metrics.swift_metric', 'SwiftMetric', ["amq.topic", "get_bw", "metrics.get_bw"])
     metrics["put_bw"] = host.spawn_id("put_bw_tenant", 'metrics.swift_metric', 'SwiftMetric', ["amq.topic", "put_bw", "metrics.put_bw"])
     
@@ -37,12 +36,6 @@ def start_actors():
     metrics["put_ops_container"] = host.spawn_id("put_ops_container", 'metrics.swift_metric', 'SwiftMetric',
                                                  ["amq.topic", "put_ops_container", "metrics.put_container"])
 
-    # metrics["head_ops_container"] = host.spawn_id("head_ops_container", 'metrics.collectd_metric', 'CollectdMetric',
-    #                                               ["amq.topic", "head_ops_container", "collectd.*.groupingtail.cm.*.head_ops.#"])
-    # metrics["get_bw_container"] = host.spawn_id("get_bw_container", 'metrics.collectd_metric', 'CollectdMetric',
-    #                                             ["amq.topic", "get_bw_container", "collectd.*.groupingtail.cm.*.get_bw.#"])
-    # metrics["put_bw_container"] = host.spawn_id("put_bw_container", 'metrics.collectd_metric', 'CollectdMetric',
-    #                                             ["amq.topic", "put_bw_container", "collectd.*.groupingtail.cm.*.put_bw.#"])
     
     # Metrics for Bandwidth differentiation
     metrics["get_bw_info"] = host.spawn_id("get_bw_info", 'metrics.bw_info', 'BwInfo', ["amq.topic", "get_bw_info", "bwdifferentiation.get_bw_info.#", "GET"])
@@ -53,6 +46,7 @@ def start_actors():
     try:
         for metric in metrics.values():
             metric.init_consum()
+            sleep(0.1)
     except Exception as e:
         print e.args
         for metric in metrics.values():
@@ -60,6 +54,7 @@ def start_actors():
             metric.stop_actor()
 
     rules = {}
+    
     # rules["get_bw"] = host.spawn_id("abstract_enforcement_algorithm_get", 'rules.min_slo_tenant_global_share_spare_bw', 'MinTenantSLOGlobalSpareBWShare',
     #                                 ["abstract_enforcement_algorithm_get","GET"])
     rules["get_bw"] = host.spawn_id("abstract_enforcement_algorithm_get", 'rules.simple_proportional_bandwidth', 'SimpleProportionalBandwidthPerTenant',
@@ -72,9 +67,9 @@ def start_actors():
                                     ["abstract_enforcement_algorithm_put", "PUT"])
     rules["put_bw"].run("put_bw_info")
     
-    rules["ssync_bw"] = host.spawn_id("abstract_enforcement_algorithm_ssync", 'rules.simple_proportional_replication_bandwidth',
-                                      'SimpleProportionalReplicationBandwidth', ["abstract_enforcement_algorithm_ssync", "SSYNC"])
-    rules["ssync_bw"].run("ssync_bw_info")
+    #rules["ssync_bw"] = host.spawn_id("abstract_enforcement_algorithm_ssync", 'rules.simple_proportional_replication_bandwidth',
+    #                                  'SimpleProportionalReplicationBandwidth', ["abstract_enforcement_algorithm_ssync", "SSYNC"])
+    #rules["ssync_bw"].run("ssync_bw_info")
     
     start_redis_rules(host, rules)
     
