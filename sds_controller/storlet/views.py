@@ -104,7 +104,7 @@ def storlet_detail(request, storlet_id):
     if request.method == 'GET':
         storlet = r.hgetall("filter:" + str(storlet_id))
 
-        to_json_bools(storlet, 'is_get', 'is_put', 'has_reverse')
+        to_json_bools(storlet, 'is_get', 'is_put', 'has_reverse', 'is_pre_get', 'is_post_get', 'is_pre_put', 'is_post_put')
         return JSONResponse(storlet, status=status.HTTP_200_OK)
 
     elif request.method == 'PUT':
@@ -113,9 +113,10 @@ def storlet_detail(request, storlet_id):
         except ParseError:
             return JSONResponse("Invalid format or empty request", status=status.HTTP_400_BAD_REQUEST)
 
-        if (('filter_type' not in data) or
-                (data['filter_type'] == 'storlet' and not check_keys(data.keys(), STORLET_KEYS[3:-1])) or
-                (data['filter_type'] == 'native' and not check_keys(data.keys(), NATIVE_FILTER_KEYS[3:-1]))):
+        storlet = r.hgetall("filter:" + str(storlet_id))
+
+        if ((storlet['filter_type'] == 'storlet' and not check_keys(data.keys(), STORLET_KEYS[3:-1])) or
+                (storlet['filter_type'] == 'native' and not check_keys(data.keys(), NATIVE_FILTER_KEYS[3:-1]))):
             return JSONResponse("Invalid parameters in request", status=status.HTTP_400_BAD_REQUEST)
 
         try:
