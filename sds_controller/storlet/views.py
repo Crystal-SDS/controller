@@ -27,6 +27,8 @@ import os
 # Start Common
 STORLET_KEYS = ('id', 'filter_name', 'filter_type', 'interface_version', 'dependencies', 'object_metadata', 'main', 'is_put', 'is_get', 'has_reverse',
                 'execution_server', 'execution_server_reverse', 'path')
+NATIVE_FILTER_KEYS = ('id', 'filter_name', 'filter_type', 'interface_version', 'dependencies', 'object_metadata', 'main', 'is_pre_put', 'is_post_put',
+                      'is_pre_get', 'is_post_get', 'has_reverse', 'execution_server', 'execution_server_reverse', 'path')
 DEPENDENCY_KEYS = ('id', 'name', 'version', 'permissions', 'path')
 
 logging.basicConfig()
@@ -41,7 +43,7 @@ def storlet_list(request):
     """
     List all storlets, or create a new storlet.
     """
-    """ Validate request: only Crystal admin user can access to this method """
+    # Validate request: only Crystal admin user can access to this method
     token = is_valid_request(request)
     if not token:
         return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
@@ -65,7 +67,9 @@ def storlet_list(request):
         except ParseError:
             return JSONResponse("Invalid format or empty request", status=status.HTTP_400_BAD_REQUEST)
 
-        if not check_keys(data.keys(), STORLET_KEYS[2:-1]):
+        if (('filter_type' not in data) or
+                (data['filter_type'] == 'storlet' and not check_keys(data.keys(), STORLET_KEYS[2:-1])) or
+                (data['filter_type'] == 'native' and not check_keys(data.keys(), NATIVE_FILTER_KEYS[2:-1]))):
             return JSONResponse("Invalid parameters in request", status=status.HTTP_400_BAD_REQUEST)
 
         storlet_id = r.incr("filters:id")
@@ -109,7 +113,9 @@ def storlet_detail(request, storlet_id):
         except ParseError:
             return JSONResponse("Invalid format or empty request", status=status.HTTP_400_BAD_REQUEST)
 
-        if not check_keys(data.keys(), STORLET_KEYS[3:-1]):
+        if (('filter_type' not in data) or
+                (data['filter_type'] == 'storlet' and not check_keys(data.keys(), STORLET_KEYS[3:-1])) or
+                (data['filter_type'] == 'native' and not check_keys(data.keys(), NATIVE_FILTER_KEYS[3:-1]))):
             return JSONResponse("Invalid parameters in request", status=status.HTTP_400_BAD_REQUEST)
 
         try:
@@ -418,10 +424,10 @@ class DependencyData(APIView):
 @csrf_exempt
 def dependency_deploy(request, dependency_id, account):
 
-    """ Validate request: only Crystal admin user can access to this method """
+    # Validate request: only Crystal admin user can access to this method
     token = is_valid_request(request)
     if not token:
-        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
+        return JSONResponse('You must be authenticated as Crystal admin.', status=401)
     
     if request.method == 'PUT':   
         try:
