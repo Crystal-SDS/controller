@@ -74,7 +74,8 @@ class StorletTestCase(TestCase):
         mock_is_valid_request.return_value = 'fake_token'
         filter_updated_data = {
             'interface_version': '', 'dependencies': '',
-            'object_metadata': '', 'main': 'com.example.UpdatedFakeMain', 'is_put': 'False', 'is_get': 'False',
+            'object_metadata': '', 'main': 'com.example.UpdatedFakeMain', 'is_pre_put': 'False', 'is_post_get': 'False',
+            'is_post_put': 'False', 'is_pre_get': 'False',
             'has_reverse': 'False', 'execution_server': 'proxy', 'execution_server_reverse': 'proxy'}
         request = self.factory.put('/filters/1', filter_updated_data, format='json')
         response = storlet_detail(request, "1")
@@ -101,7 +102,8 @@ class StorletTestCase(TestCase):
         # With name missing
         filter_updated_data = {
             'filter_name': 'FakeFilter', 'filter_type': 'storlet', 'interface_version': '', 'dependencies': '',
-            'object_metadata': '', 'main': 'com.example.UpdatedFakeMain', 'is_put': 'False', 'is_get': 'False',
+            'object_metadata': '', 'main': 'com.example.UpdatedFakeMain', 'is_pre_put': 'False', 'is_post_get': 'False',
+            'is_post_put': 'False', 'is_pre_get': 'False',
             'has_reverse': 'False', 'execution_server': 'proxy', 'execution_server_reverse': 'proxy'}
         request = self.factory.put('/filters/1', filter_updated_data, format='json')
         response = storlet_detail(request, "1")
@@ -114,8 +116,8 @@ class StorletTestCase(TestCase):
         mock_is_valid_request.return_value = 'fake_token'
         # Create a second storlet
         filter_data = {'filter_type': 'storlet', 'interface_version': '', 'dependencies': '',
-                       'object_metadata': '', 'main': 'com.example.SecondMain', 'is_put': 'False',
-                       'is_get': 'False', 'has_reverse': 'False', 'execution_server': 'proxy',
+                       'object_metadata': '', 'main': 'com.example.SecondMain', 'is_pre_put': 'False', 'is_post_get': 'False',
+                       'is_post_put': 'False', 'is_pre_get': 'False', 'has_reverse': 'False', 'execution_server': 'proxy',
                        'execution_server_reverse': 'proxy'}
         request = self.factory.post('/filters/', filter_data, format='json')
         response = storlet_list(request)
@@ -142,8 +144,8 @@ class StorletTestCase(TestCase):
         mock_is_valid_request.return_value = 'fake_token'
         # Create a second storlet
         filter_data = {'filter_type': 'storlet', 'interface_version': '', 'dependencies': '',
-                       'object_metadata': '', 'main': 'com.example.SecondMain', 'is_put': 'False',
-                       'is_get': 'False', 'has_reverse': 'False', 'execution_server': 'proxy',
+                       'object_metadata': '', 'main': 'com.example.SecondMain', 'is_pre_put': 'False', 'is_post_get': 'False',
+                       'is_post_put': 'False', 'is_pre_get': 'False', 'has_reverse': 'False', 'execution_server': 'proxy',
                        'execution_server_reverse': 'proxy'}
         request = self.factory.post('/filters/', filter_data, format='json')
         response = storlet_list(request)
@@ -151,8 +153,8 @@ class StorletTestCase(TestCase):
 
         # Create a third storlet
         filter_data = {'filter_type': 'storlet', 'interface_version': '', 'dependencies': '',
-                       'object_metadata': '', 'main': 'com.example.ThirdMain', 'is_put': 'False',
-                       'is_get': 'False', 'has_reverse': 'False', 'execution_server': 'proxy',
+                       'object_metadata': '', 'main': 'com.example.ThirdMain', 'is_pre_put': 'False', 'is_post_get': 'False',
+                       'is_post_put': 'False', 'is_pre_get': 'False', 'has_reverse': 'False', 'execution_server': 'proxy',
                        'execution_server_reverse': 'proxy'}
         request = self.factory.post('/filters/', filter_data, format='json')
         response = storlet_list(request)
@@ -160,8 +162,8 @@ class StorletTestCase(TestCase):
 
         # Create a Fourth storlet
         filter_data = {'filter_type': 'storlet', 'interface_version': '', 'dependencies': '',
-                       'object_metadata': '', 'main': 'com.example.FourthMain', 'is_put': 'False',
-                       'is_get': 'False', 'has_reverse': 'False', 'execution_server': 'proxy',
+                       'object_metadata': '', 'main': 'com.example.FourthMain', 'is_pre_put': 'False', 'is_post_get': 'False',
+                       'is_post_put': 'False', 'is_pre_get': 'False', 'has_reverse': 'False', 'execution_server': 'proxy',
                        'execution_server_reverse': 'proxy'}
         request = self.factory.post('/filters/', filter_data, format='json')
         response = storlet_list(request)
@@ -191,7 +193,8 @@ class StorletTestCase(TestCase):
 
         # with name present
         filter_data = {'filter_name': 'secondFilter', 'filter_type': 'storlet', 'interface_version': '', 'dependencies': '',
-                       'object_metadata': '', 'main': 'com.example.FakeMain', 'is_put': 'False', 'is_get': 'False',
+                       'object_metadata': '', 'main': 'com.example.FakeMain', 'is_pre_put': 'False', 'is_post_get': 'False',
+                       'is_post_put': 'False', 'is_pre_get': 'False',
                        'has_reverse': 'False', 'execution_server': 'proxy', 'execution_server_reverse': 'proxy'}
         request = self.factory.post('/filters/', filter_data, format='json')
         response = storlet_list(request)
@@ -406,7 +409,8 @@ class StorletTestCase(TestCase):
     def create_storlet(self, mock_is_valid_request):
         mock_is_valid_request.return_value = 'fake_token'
         filter_data = {'filter_type': 'storlet', 'interface_version': '', 'dependencies': '',
-                       'object_metadata': '', 'main': 'com.example.FakeMain', 'is_put': 'False', 'is_get': 'False',
+                       'object_metadata': '', 'main': 'com.example.FakeMain', 'is_pre_put': 'False', 'is_post_get': 'False',
+                       'is_post_put': 'False', 'is_pre_get': 'False',
                        'has_reverse': 'False', 'execution_server': 'proxy', 'execution_server_reverse': 'proxy'}
         request = self.factory.post('/filters/', filter_data, format='json')
         response = storlet_list(request)

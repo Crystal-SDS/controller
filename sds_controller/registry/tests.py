@@ -948,7 +948,8 @@ class RegistryTestCase(TestCase):
     def create_storlet(self, mock_is_valid_request):
         mock_is_valid_request.return_value = 'fake_token'
         filter_data = {'filter_type': 'storlet', 'interface_version': '', 'dependencies': '',
-                       'object_metadata': '', 'main': 'com.example.FakeMain', 'is_put': 'False', 'is_get': 'False',
+                       'object_metadata': '', 'main': 'com.example.FakeMain', 'is_pre_put': 'False', 'is_post_get': 'False',
+                       'is_post_put': 'False', 'is_pre_get': 'False',
                        'has_reverse': 'False', 'execution_server': 'proxy', 'execution_server_reverse': 'proxy'}
         request = self.factory.post('/filters/', filter_data, format='json')
         response = storlet_list(request)
