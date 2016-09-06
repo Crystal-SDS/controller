@@ -154,12 +154,16 @@ class StorletData(APIView):
 
             filter_type = r.hget(filter_name, 'filter_type')
             if (filter_type == 'storlet' and not file_obj.name.endswith('.jar')) or \
-                    (filter_type == 'native' and not file_obj.name.endswith('.py')):
+                    (filter_type == 'native' and not file_obj.name.endswith('.py')) or \
+                    (filter_type == 'global' and not file_obj.name.endswith('.py')):
                 return JSONResponse('Uploaded file is incompatible with filter type', status=status.HTTP_400_BAD_REQUEST)
             if filter_type == 'storlet':
                 filter_dir = settings.STORLET_FILTERS_DIR
-            else:
+            elif filter_type == 'native':
                 filter_dir = settings.NATIVE_FILTERS_DIR
+            else:  # global
+                filter_dir = settings.GLOBAL_NATIVE_FILTERS_DIR
+
             make_sure_path_exists(filter_dir)
             path = save_file(file_obj, filter_dir)
             md5_etag = md5(path)
@@ -172,7 +176,7 @@ class StorletData(APIView):
             except RedisError:
                 return JSONResponse('Problems connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-            if filter_type == 'native':
+            if filter_type == 'native' or filter_type == 'global':
                 # synchronize metrics directory with all nodes
                 try:
                     rsync_dir_with_nodes(filter_dir)

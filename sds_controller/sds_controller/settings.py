@@ -19,6 +19,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WORKLOAD_METRICS_DIR = os.path.join("/opt", "crystal", "workload_metrics")
 NATIVE_FILTERS_DIR = os.path.join("/opt", "crystal", "native_filters")
 STORLET_FILTERS_DIR = os.path.join("/opt", "crystal", "storlet_filters")
+GLOBAL_NATIVE_FILTERS_DIR = os.path.join("/opt", "crystal", "global_native_filters")
 DEPENDENCY_DIR = os.path.join("/opt", "crystal", "dependencies")
 ANSIBLE_DIR = os.path.join(BASE_DIR, "swift", "ansible")
 # Quick-start development settings - unsuitable for production
