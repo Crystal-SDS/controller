@@ -27,6 +27,8 @@ import os
 # Start Common
 FILTER_KEYS = ('id', 'filter_name', 'filter_type', 'interface_version', 'dependencies', 'object_metadata', 'main', 'is_pre_put', 'is_post_put',
                'is_pre_get', 'is_post_get', 'has_reverse', 'execution_server', 'execution_server_reverse', 'path')
+GLOBAL_FILTER_KEYS = ('id', 'filter_name', 'filter_type', 'interface_version', 'dependencies', 'object_metadata', 'main', 'is_pre_put', 'is_post_put',
+                      'is_pre_get', 'is_post_get', 'has_reverse', 'execution_server', 'execution_server_reverse', 'order', 'enable', 'path')
 DEPENDENCY_KEYS = ('id', 'name', 'version', 'permissions', 'path')
 
 logging.basicConfig()
@@ -68,7 +70,9 @@ def storlet_list(request):
         except ParseError:
             return JSONResponse("Invalid format or empty request", status=status.HTTP_400_BAD_REQUEST)
 
-        if not check_keys(data.keys(), FILTER_KEYS[2:-1]):
+        if (('filter_type' not in data) or
+                ((data['filter_type'] == 'storlet' or data['filter_type'] == 'native') and not check_keys(data.keys(), FILTER_KEYS[2:-1])) or
+                ((data['filter_type'] == 'global') and not check_keys(data.keys(), GLOBAL_FILTER_KEYS[2:-1]))):
             return JSONResponse("Invalid parameters in request", status=status.HTTP_400_BAD_REQUEST)
 
         storlet_id = r.incr("filters:id")
@@ -113,7 +117,10 @@ def storlet_detail(request, storlet_id):
         except ParseError:
             return JSONResponse("Invalid format or empty request", status=status.HTTP_400_BAD_REQUEST)
 
-        if not check_keys(data.keys(), FILTER_KEYS[3:-1]):
+        filter = r.hgetall("filter:" + str(storlet_id))
+
+        if (((filter['filter_type'] == 'storlet' or filter['filter_type'] == 'native') and not check_keys(data.keys(), FILTER_KEYS[3:-1])) or
+                ((filter['filter_type'] == 'global') and not check_keys(data.keys(), GLOBAL_FILTER_KEYS[3:-1]))):
             return JSONResponse("Invalid parameters in request", status=status.HTTP_400_BAD_REQUEST)
 
         try:
