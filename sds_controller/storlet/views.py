@@ -133,6 +133,7 @@ def storlet_detail(request, storlet_id):
             if filter['filter_type'] == 'global':
                 if data['enabled'] == True or data['enabled'] == 'True' or data['enabled'] == 'true':
                     to_json_bools(data, 'has_reverse', 'is_pre_get', 'is_post_get', 'is_pre_put', 'is_post_put', 'enabled')
+                    data['filter_type'] = 'global' # Adding filter type
                     r.hset("global_filters", str(storlet_id), json.dumps(data))
                 else:
                     r.hdel("global_filters", str(storlet_id))
