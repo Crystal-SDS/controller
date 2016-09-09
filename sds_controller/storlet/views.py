@@ -149,6 +149,7 @@ def storlet_detail(request, storlet_id):
                 if dsl_filter_id == storlet_id:
                     return JSONResponse('Unable to delete filter, is in use by the Registry DSL.', status=status.HTTP_403_FORBIDDEN)
 
+            filter = r.hgetall("filter:" + str(storlet_id))
             r.delete("filter:" + str(storlet_id))
             if filter['filter_type'] == 'global':
                 r.hdel("global_filters", str(storlet_id))
