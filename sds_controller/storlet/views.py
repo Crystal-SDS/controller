@@ -28,7 +28,7 @@ import os
 FILTER_KEYS = ('id', 'filter_name', 'filter_type', 'interface_version', 'dependencies', 'object_metadata', 'main', 'is_pre_put', 'is_post_put',
                'is_pre_get', 'is_post_get', 'has_reverse', 'execution_server', 'execution_server_reverse', 'path')
 GLOBAL_FILTER_KEYS = ('id', 'filter_name', 'filter_type', 'interface_version', 'dependencies', 'object_metadata', 'main', 'is_pre_put', 'is_post_put',
-                      'is_pre_get', 'is_post_get', 'has_reverse', 'execution_server', 'execution_server_reverse', 'order', 'enable', 'path')
+                      'is_pre_get', 'is_post_get', 'has_reverse', 'execution_server', 'execution_server_reverse', 'execution_order', 'enable', 'path')
 DEPENDENCY_KEYS = ('id', 'name', 'version', 'permissions', 'path')
 
 logging.basicConfig()
@@ -61,7 +61,7 @@ def storlet_list(request):
         for key in keys:
             storlet = r.hgetall(key)
             storlets.append(storlet)
-        sorted_list = sorted(storlets, key=lambda x: int(itemgetter("id")(x)))
+        sorted_list = sorted(storlets, key=lambda x: int(itemgetter('id')(x)))
         return JSONResponse(sorted_list, status=status.HTTP_200_OK)
 
     if request.method == 'POST':
@@ -79,6 +79,12 @@ def storlet_list(request):
         try:
             data['id'] = storlet_id
             r.hmset('filter:' + str(storlet_id), data)
+
+            if data['filter_type'] == 'global':
+                if data['enable'] == True or data['enable'] == 'True' or data['enable'] == 'true':
+                    to_json_bools(data, 'has_reverse', 'is_pre_get', 'is_post_get', 'is_pre_put', 'is_post_put', 'enable')
+                    r.hset("global_filters", str(storlet_id), json.dumps(data))
+
             return JSONResponse(data, status=status.HTTP_201_CREATED)
 
         except DataError:
@@ -107,13 +113,12 @@ def storlet_detail(request, storlet_id):
     if request.method == 'GET':
         filter = r.hgetall("filter:" + str(storlet_id))
 
-        to_json_bools(filter, 'has_reverse', 'is_pre_get', 'is_post_get', 'is_pre_put', 'is_post_put')
+        to_json_bools(filter, 'has_reverse', 'is_pre_get', 'is_post_get', 'is_pre_put', 'is_post_put', 'enable')
         return JSONResponse(filter, status=status.HTTP_200_OK)
 
     elif request.method == 'PUT':
         try:
             data = JSONParser().parse(request)
-            # print data
         except ParseError:
             return JSONResponse("Invalid format or empty request", status=status.HTTP_400_BAD_REQUEST)
 
@@ -125,6 +130,13 @@ def storlet_detail(request, storlet_id):
 
         try:
             r.hmset('filter:' + str(storlet_id), data)
+            if filter['filter_type'] == 'global':
+                if data['enable'] == True or data['enable'] == 'True' or data['enable'] == 'true':
+                    to_json_bools(data, 'has_reverse', 'is_pre_get', 'is_post_get', 'is_pre_put', 'is_post_put', 'enable')
+                    r.hset("global_filters", str(storlet_id), json.dumps(data))
+                else:
+                    r.hdel("global_filters", str(storlet_id))
+
             return JSONResponse("Data updated", status=status.HTTP_200_OK)
         except DataError:
             return JSONResponse("Error updating data", status=status.HTTP_408_REQUEST_TIMEOUT)
@@ -138,6 +150,8 @@ def storlet_detail(request, storlet_id):
                     return JSONResponse('Unable to delete filter, is in use by the Registry DSL.', status=status.HTTP_403_FORBIDDEN)
 
             r.delete("filter:" + str(storlet_id))
+            if filter['filter_type'] == 'global':
+                r.hdel("global_filters", str(storlet_id))
             return JSONResponse('Filter has been deleted', status=status.HTTP_204_NO_CONTENT)
         except DataError:
             return JSONResponse("Error deleting filter", status=status.HTTP_408_REQUEST_TIMEOUT)

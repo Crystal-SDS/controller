@@ -107,7 +107,10 @@ def get_all_registered_nodes():
 def to_json_bools(dictionary, *args):
     for arg in args:
         if arg in dictionary:
-            dictionary[arg] = (dictionary[arg] == 'True')
+            if dictionary[arg] == 'True':
+                dictionary[arg] = True
+            elif dictionary[arg] == 'False':
+                dictionary[arg] = False
 
 
 def remove_extra_whitespaces(_str):
