@@ -28,7 +28,7 @@ import os
 FILTER_KEYS = ('id', 'filter_name', 'filter_type', 'interface_version', 'dependencies', 'object_metadata', 'main', 'is_pre_put', 'is_post_put',
                'is_pre_get', 'is_post_get', 'has_reverse', 'execution_server', 'execution_server_reverse', 'path')
 GLOBAL_FILTER_KEYS = ('id', 'filter_name', 'filter_type', 'interface_version', 'dependencies', 'object_metadata', 'main', 'is_pre_put', 'is_post_put',
-                      'is_pre_get', 'is_post_get', 'has_reverse', 'execution_server', 'execution_server_reverse', 'execution_order', 'enable', 'path')
+                      'is_pre_get', 'is_post_get', 'has_reverse', 'execution_server', 'execution_server_reverse', 'execution_order', 'enabled', 'path')
 DEPENDENCY_KEYS = ('id', 'name', 'version', 'permissions', 'path')
 
 logging.basicConfig()
@@ -81,8 +81,8 @@ def storlet_list(request):
             r.hmset('filter:' + str(storlet_id), data)
 
             if data['filter_type'] == 'global':
-                if data['enable'] == True or data['enable'] == 'True' or data['enable'] == 'true':
-                    to_json_bools(data, 'has_reverse', 'is_pre_get', 'is_post_get', 'is_pre_put', 'is_post_put', 'enable')
+                if data['enabled'] == True or data['enabled'] == 'True' or data['enabled'] == 'true':
+                    to_json_bools(data, 'has_reverse', 'is_pre_get', 'is_post_get', 'is_pre_put', 'is_post_put', 'enabled')
                     r.hset("global_filters", str(storlet_id), json.dumps(data))
 
             return JSONResponse(data, status=status.HTTP_201_CREATED)
@@ -113,7 +113,7 @@ def storlet_detail(request, storlet_id):
     if request.method == 'GET':
         filter = r.hgetall("filter:" + str(storlet_id))
 
-        to_json_bools(filter, 'has_reverse', 'is_pre_get', 'is_post_get', 'is_pre_put', 'is_post_put', 'enable')
+        to_json_bools(filter, 'has_reverse', 'is_pre_get', 'is_post_get', 'is_pre_put', 'is_post_put', 'enabled')
         return JSONResponse(filter, status=status.HTTP_200_OK)
 
     elif request.method == 'PUT':
@@ -131,8 +131,8 @@ def storlet_detail(request, storlet_id):
         try:
             r.hmset('filter:' + str(storlet_id), data)
             if filter['filter_type'] == 'global':
-                if data['enable'] == True or data['enable'] == 'True' or data['enable'] == 'true':
-                    to_json_bools(data, 'has_reverse', 'is_pre_get', 'is_post_get', 'is_pre_put', 'is_post_put', 'enable')
+                if data['enabled'] == True or data['enabled'] == 'True' or data['enabled'] == 'true':
+                    to_json_bools(data, 'has_reverse', 'is_pre_get', 'is_post_get', 'is_pre_put', 'is_post_put', 'enabled')
                     r.hset("global_filters", str(storlet_id), json.dumps(data))
                 else:
                     r.hdel("global_filters", str(storlet_id))
