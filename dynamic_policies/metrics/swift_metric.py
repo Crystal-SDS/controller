@@ -3,6 +3,7 @@ from threading import Thread
 import datetime
 import json
 import socket
+from copy import deepcopy
 
 
 class SwiftMetric(Metric):
@@ -28,10 +29,11 @@ class SwiftMetric(Metric):
         """
 
         data = json.loads(body)
-        Thread(target=self._send_data_to_logstash, args=(data, )).start()
-        
+        Thread(target=self._send_data_to_logstash, args=(deepcopy(data), )).start()
+
         try:
             for host in data:
+                del data[host]['@timestamp']
                 for target in data[host]:
                     value =  data[host][target]
                     target = target.replace('AUTH_','')
@@ -39,7 +41,7 @@ class SwiftMetric(Metric):
                         for observer in self._observers[target]:
                             observer.update(self.name, value)
         except Exception as e:
-            print "Fail sending to observer: ", e       
+            print "Fail sending monitoring data to observer: ", e       
 
     def get_value(self):
         return self.value

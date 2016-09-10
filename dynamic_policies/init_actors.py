@@ -40,8 +40,8 @@ def start_actors():
     # Metrics for Bandwidth differentiation
     metrics["get_bw_info"] = host.spawn_id("get_bw_info", 'metrics.bw_info', 'BwInfo', ["amq.topic", "get_bw_info", "bwdifferentiation.get_bw_info.#", "GET"])
     metrics["put_bw_info"] = host.spawn_id("put_bw_info", 'metrics.bw_info', 'BwInfo', ["amq.topic", "put_bw_info", "bwdifferentiation.put_bw_info.#", "PUT"])
-    metrics["ssync_bw_info"] = host.spawn_id("ssync_bw_info", 'metrics.bw_info_ssync', 'BwInfoSSYNC',
-                                             ["amq.topic", "ssync_bw_info", "bwdifferentiation.ssync_bw_info.#", "SSYNC"])
+    #metrics["ssync_bw_info"] = host.spawn_id("ssync_bw_info", 'metrics.bw_info_ssync', 'BwInfoSSYNC',
+    #                                         ["amq.topic", "ssync_bw_info", "bwdifferentiation.ssync_bw_info.#", "SSYNC"])
     
     try:
         for metric in metrics.values():

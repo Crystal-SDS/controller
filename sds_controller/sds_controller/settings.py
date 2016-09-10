@@ -126,9 +126,9 @@ STORLET_BIN_DIR = "/opt/ibm"
 STORLET_DOCKER_IMAGE = "192.168.2.1:5001/ubuntu_14.04_jre8_storlets"
 STORLET_TAR_FILE = "ubuntu_14.04_jre8_storlets.tar"
 
-MANAGEMENT_ACCOUNT = "crystal_management"
-MANAGEMENT_ADMIN_USERNAME = "crystal_manager"
-MANAGEMENT_ADMIN_PASSWORD = "crystal_manager"  # noqa
+MANAGEMENT_ACCOUNT = "management"
+MANAGEMENT_ADMIN_USERNAME = "manager"
+MANAGEMENT_ADMIN_PASSWORD = "manager"
 
 # pyactive
 PYACTIVE_URL = "tcp://127.0.0.1:6375/"
