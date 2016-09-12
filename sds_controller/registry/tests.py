@@ -68,6 +68,17 @@ class RegistryTestCase(TestCase):
         response = policy_list(request)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
+    def test_registry_dynamic_policy(self, mock_is_valid_request):
+        mock_is_valid_request.return_value = 'fake_token'
+
+        # Create an instance of a GET request.
+        request = self.factory.get('/registry/dynamic_policy')
+        request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
+        response = policy_list(request)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_data = json.loads(response.content)
+        self.assertEqual(len(json_data), 0)  # is empty
+
     #
     # Metric tests
     #
@@ -1032,9 +1043,3 @@ class RegistryTestCase(TestCase):
         self.r.incr("workload_metrics:id")  # setting autoincrement to 1
         self.r.hmset('workload_metric:1', {'metric_name': 'm1.py', 'class_name': 'Metric1', 'execution_server': 'proxy', 'out_flow':'False',
                                            'in_flow': 'False', 'enabled': 'True', 'id': '1'})
-
-    # def keystone_get_tenants_response(self):
-    #     resp = HttpResponse()
-    #     resp.content = json.dumps({'tenants': [{'name': 'tenantA', 'id': '0123456789abcdef'},
-    #                                            {'name': 'tenantB', 'id': '2'}]})
-    #     return resp

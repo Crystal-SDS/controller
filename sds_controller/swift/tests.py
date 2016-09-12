@@ -8,7 +8,7 @@ from django.conf import settings
 from rest_framework import status
 from rest_framework.test import APIRequestFactory
 
-from .views import tenants_list, storage_policies, locality_list, sort_list, sort_detail
+from .views import tenants_list, storage_policy_list, storage_policies, locality_list, sort_list, sort_detail
 
 
 # Tests use database=10 instead of 0.
@@ -33,6 +33,13 @@ class BwTestCase(TestCase):
         mock_is_valid_request.return_value = 'fake_token'
         request = self.api_factory.delete('/swift/tenants')
         response = tenants_list(request)
+        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    def test_storage_policy_list_with_method_not_allowed(self, mock_is_valid_request):
+        """ Test that DELETE requests to storage_policy_list() return METHOD_NOT_ALLOWED """
+        mock_is_valid_request.return_value = 'fake_token'
+        request = self.api_factory.delete('/swift/storage_policies')
+        response = storage_policy_list(request)
         self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
     def test_storage_policies_with_method_not_allowed(self, mock_is_valid_request):
@@ -182,6 +189,15 @@ class BwTestCase(TestCase):
         response = sort_list(request)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.content, '[]')
+
+    def test_storage_policy_list_ok(self, mock_is_valid_request):
+        """ Test that GET requests to storage_policy_list() return METHOD_NOT_ALLOWED """
+        mock_is_valid_request.return_value = 'fake_token'
+        request = self.api_factory.get('/swift/storage_policies')
+        response = storage_policy_list(request)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        storage_policies_json = json.loads(response.content)
+        self.assertEqual(len(storage_policies_json), 5)
 
     #
     # Aux functions
