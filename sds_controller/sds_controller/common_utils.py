@@ -42,18 +42,20 @@ def get_keystone_admin_auth():
 
 def is_valid_request(request):    
     token = request.META['HTTP_X_AUTH_TOKEN']
-    admin_user = settings.MANAGEMENT_ADMIN_USERNAME
-    admin_project = settings.MANAGEMENT_ACCOUNT
+    is_admin = False
     keystone = get_keystone_admin_auth()
 
     try:
         token_data = keystone.tokens.validate(token)
         token_expiration = datetime.strptime(token_data.expires, '%Y-%m-%dT%H:%M:%SZ')
         now = datetime.now()
-        token_user = token_data.user['name']
-        token_project = token_data.tenant['name']
-        
-        if token_expiration > now and token_user == admin_user and admin_project == token_project:
+
+        token_roles = token_data.user['roles']
+        for role in token_roles:
+            if role['name'] == 'admin':
+                is_admin = True
+
+        if token_expiration > now and is_admin:
             return token
     except:
         return False
