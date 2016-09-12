@@ -3,6 +3,7 @@ from threading import Thread
 import datetime
 import json
 import socket
+from copy import deepcopy
 
 
 class SwiftMetric(Metric):
@@ -28,18 +29,19 @@ class SwiftMetric(Metric):
         """
 
         data = json.loads(body)
-        Thread(target=self._send_data_to_logstash, args=(data, )).start()
-        
+        Thread(target=self._send_data_to_logstash, args=(deepcopy(data), )).start()
+
         try:
             for host in data:
+                del data[host]['@timestamp']
                 for target in data[host]:
                     value =  data[host][target]
                     target = target.replace('AUTH_','')
                     if target in self._observers:
                         for observer in self._observers[target]:
                             observer.update(self.name, value)
-        except:
-            print "Fail sending to observer: ", data       
+        except Exception as e:
+            print "Fail sending monitoring data to observer: ", e       
 
     def get_value(self):
         return self.value
@@ -48,27 +50,27 @@ class SwiftMetric(Metric):
         monitoring_data = dict()
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            for source_ip in data:
+            for source_ip in data:   
                 monitoring_data['metric_name'] = self.queue
                 monitoring_data['source_ip'] = source_ip.replace('.', '-')
-                for key, value in data[source_ip].items():
-                                            
-                    monitoring_data['metric_target'] = key.replace('AUTH_', '')
-  
-                    if (key in self.last_metrics and self.last_metrics[key]['value'] == 0) or key not in self.last_metrics:
+                monitoring_data['@timestamp'] = data[source_ip]['@timestamp']
+                del data[source_ip]['@timestamp']
+
+                for tenant, value in data[source_ip].items():                 
+                    monitoring_data['metric_target'] = tenant.replace('AUTH_', '')
+                    if (tenant in self.last_metrics and self.last_metrics[tenant]['value'] == 0) or tenant not in self.last_metrics:
                         monitoring_data['value'] = 0
+                        current_time = monitoring_data['@timestamp']
                         date = datetime.datetime.now() - datetime.timedelta(seconds=1)
                         monitoring_data['@timestamp'] = str(date.isoformat())
                         message = json.dumps(monitoring_data)+'\n'    
                         sock.sendto(message, self.logstah_server)
-                        
+                        monitoring_data['@timestamp'] = current_time
+
                     monitoring_data['value'] = value
-                    if '@timestamp' in monitoring_data:
-                        del monitoring_data['@timestamp']
                     message = json.dumps(monitoring_data)+'\n'    
                     sock.sendto(message, self.logstah_server)                  
-                    self.last_metrics[key] = monitoring_data
-                    
+                    self.last_metrics[tenant] = monitoring_data
                 monitoring_data = dict()
         except socket.error:
             print "Error sending monitoring data to logstash"

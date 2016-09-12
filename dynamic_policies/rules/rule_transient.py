@@ -28,6 +28,7 @@ class TransientRule(Rule):
         print "-- Rule Transient --"
         self.execution_stat = False
         super(TransientRule, self).__init__(rule_parsed, action, target, remote_host)
+        self.static_policy_id = None
 
     def update(self, metric, tenant_info):
         """
@@ -40,9 +41,9 @@ class TransientRule(Rule):
         :param tenant_info: Contains the timestamp and the value sent from workload metric.
         :type tenant_info: **any** PyParsing type
         """
-        print 'Success update:  ', tenant_info
+        print '\nSuccess update: ', tenant_info
 
-        self.observers_values[metric] = tenant_info.value
+        self.observers_values[metric] = tenant_info
         
         if all(val is not None for val in self.observers_values.values()):
             condition_accomplished = self.check_conditions(self.conditions)
@@ -54,7 +55,6 @@ class TransientRule(Rule):
         """
         The do_action method is called after the conditions are satisfied. So this method
         is responsible to execute the action defined in the policy.
-
         """
         if not condition_result and self.action_list.action == "SET":
             action = "DELETE"
@@ -70,27 +70,41 @@ class TransientRule(Rule):
         dynamic_filter = self.redis.hgetall("dsl_filter:"+str(self.action_list.filter))
 
         if action == "SET":
-
-            # TODO Review if this tenant has already deployed this filter. Not deploy the same filter more than one time.
-
+            # TODO Review if this tenant has already deployed this filter. Don't deploy the same filter more than one time.
+            print "Setting static policy"
+            data = dict()
             url = dynamic_filter["activation_url"]+"/"+self.target+"/deploy/"+str(dynamic_filter["identifier"])
-            print 'params: ', self.action_list.params
+
+            if hasattr(self.rule_parsed.object_list, "object_type"):
+                data['object_type'] = self.rule_parsed.object_list.object_type.object_value
+            else:
+                data['object_type'] = ''
+ 
+            if hasattr(self.rule_parsed.object_list, "object_size"):
+                data['object_size'] = self.rule_parsed.object_list.object_size.object_value
+            else:
+                data['object_size'] = ''
+
+            data['params'] = self.action_list.params
             
-            response = requests.put(url, json.dumps(self.action_list.params), headers=headers)
+            response = requests.put(url, json.dumps(data), headers=headers)
 
             if 200 > response.status_code >= 300:
-                print 'ERROR RESPONSE'
+                print 'Error setting policy'
             else:
-                print response.text, response.status_code
+                print "Static policy applied with ID: " + response.content
+                self.static_policy_id = response.content
+                
 
         elif action == "DELETE":
-            print "Deleteing filter"
-            url = dynamic_filter["activation_url"]+"/"+self.target+"/undeploy/"+str(dynamic_filter["identifier"])
-            response = requests.put(url, json.dumps(self.action_list.params), headers=headers)
+            print "Deleting static policy "+self.static_policy_id
+            
+            url = dynamic_filter["activation_url"].rsplit("/",1)[0]+"/registry/static_policy/"+self.target+":"+str(self.static_policy_id)
+            response = requests.delete(url, headers=headers)
 
             if 200 > response.status_code >= 300:
-                print 'ERROR RESPONSE'
+                print 'Error Deleting policy'
             else:
-                print response.text, response.status_code
-
+                print "Policy "+str(self.static_policy_id)+" successfully deleted"
+            
         return 'Not action supported'

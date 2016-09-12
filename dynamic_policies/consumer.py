@@ -14,8 +14,7 @@ class Consumer(object):
     def __init__(self, host, port, username, password, exchange, queue, routing_key, obj):
 
         credentials = pika.PlainCredentials(username, password)
-        self._channel = pika.BlockingConnection(pika.ConnectionParameters(
-            host=host, port=port, credentials=credentials)).channel()
+        self._channel = pika.BlockingConnection(pika.ConnectionParameters(host=host, port=port, credentials=credentials)).channel()
 
         self.obj = obj
         self.queue = queue
@@ -25,11 +24,13 @@ class Consumer(object):
         self._channel.queue_declare(queue=queue)
         # queue_name = result.method.queue
         print 'routing_key', routing_key
+        
+        
         if routing_key:
+            
             self._channel.queue_bind(exchange=exchange,
                                      queue=queue,
                                      routing_key=routing_key)
-
             self.consumer = self._channel.basic_consume(self.callback,
                                                         queue=queue,
                                                         no_ack=True)

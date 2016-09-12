@@ -1,12 +1,4 @@
-import errno
-import hashlib
-import json
-import logging
-import mimetypes
-import os
 from operator import itemgetter
-
-import redis
 from django.conf import settings
 from django.core.servers.basehttp import FileWrapper
 from django.http import HttpResponse
@@ -16,47 +8,30 @@ from redis.exceptions import RedisError, DataError
 from rest_framework import status
 from rest_framework.exceptions import ParseError
 from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
-from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from swiftclient import client as swift_client
 from swiftclient.exceptions import ClientException
 
 from sds_controller.exceptions import SwiftClientError, StorletNotFoundException, FileSynchronizationException
-from sds_controller.common_utils import rsync_dir_with_nodes, to_json_bools
+from sds_controller.common_utils import rsync_dir_with_nodes, to_json_bools, JSONResponse, get_redis_connection, is_valid_request
 
+import errno
+import hashlib
+import json
+import logging
+import mimetypes
+import os
 
 # TODO create a common file and put this into the new file
 # Start Common
-STORLET_KEYS = ('id', 'filter_name', 'filter_type', 'interface_version', 'dependencies', 'object_metadata', 'main', 'is_put', 'is_get', 'has_reverse',
-                'execution_server', 'execution_server_reverse', 'path')
+FILTER_KEYS = ('id', 'filter_name', 'filter_type', 'interface_version', 'dependencies', 'object_metadata', 'main', 'is_pre_put', 'is_post_put',
+               'is_pre_get', 'is_post_get', 'has_reverse', 'execution_server', 'execution_server_reverse', 'path')
+GLOBAL_FILTER_KEYS = ('id', 'filter_name', 'filter_type', 'interface_version', 'dependencies', 'object_metadata', 'main', 'is_pre_put', 'is_post_put',
+                      'is_pre_get', 'is_post_get', 'has_reverse', 'execution_server', 'execution_server_reverse', 'execution_order', 'enabled', 'path')
 DEPENDENCY_KEYS = ('id', 'name', 'version', 'permissions', 'path')
 
 logging.basicConfig()
-
-
-class JSONResponse(HttpResponse):
-    """
-    An HttpResponse that renders its content into JSON.
-    """
-
-    def __init__(self, data, **kwargs):
-        content = JSONRenderer().render(data)
-        kwargs['content_type'] = 'application/json'
-        super(JSONResponse, self).__init__(content, **kwargs)
-
-
-def is_valid_request(request):
-    headers = {}
-    try:
-        headers['X-Auth-Token'] = request.META['HTTP_X_AUTH_TOKEN']
-        return headers
-    except KeyError:
-        return None
-
-
-def get_redis_connection():
-    return redis.Redis(connection_pool=settings.REDIS_CON_POOL)
 
 
 def check_keys(data, keys):
@@ -71,6 +46,11 @@ def storlet_list(request):
     """
     List all storlets, or create a new storlet.
     """
+    # Validate request: only Crystal admin user can access to this method
+    token = is_valid_request(request)
+    if not token:
+        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
+
     try:
         r = get_redis_connection()
     except RedisError:
@@ -81,7 +61,7 @@ def storlet_list(request):
         for key in keys:
             storlet = r.hgetall(key)
             storlets.append(storlet)
-        sorted_list = sorted(storlets, key=lambda x: int(itemgetter("id")(x)))
+        sorted_list = sorted(storlets, key=lambda x: int(itemgetter('id')(x)))
         return JSONResponse(sorted_list, status=status.HTTP_200_OK)
 
     if request.method == 'POST':
@@ -90,13 +70,21 @@ def storlet_list(request):
         except ParseError:
             return JSONResponse("Invalid format or empty request", status=status.HTTP_400_BAD_REQUEST)
 
-        if not check_keys(data.keys(), STORLET_KEYS[2:-1]):
+        if (('filter_type' not in data) or
+                ((data['filter_type'] == 'storlet' or data['filter_type'] == 'native') and not check_keys(data.keys(), FILTER_KEYS[2:-1])) or
+                ((data['filter_type'] == 'global') and not check_keys(data.keys(), GLOBAL_FILTER_KEYS[2:-1]))):
             return JSONResponse("Invalid parameters in request", status=status.HTTP_400_BAD_REQUEST)
 
         storlet_id = r.incr("filters:id")
         try:
             data['id'] = storlet_id
             r.hmset('filter:' + str(storlet_id), data)
+
+            if data['filter_type'] == 'global':
+                if data['enabled'] == True or data['enabled'] == 'True' or data['enabled'] == 'true':
+                    to_json_bools(data, 'has_reverse', 'is_pre_get', 'is_post_get', 'is_pre_put', 'is_post_put', 'enabled')
+                    r.hset("global_filters", str(storlet_id), json.dumps(data))
+
             return JSONResponse(data, status=status.HTTP_201_CREATED)
 
         except DataError:
@@ -109,6 +97,11 @@ def storlet_detail(request, storlet_id):
     """
     Retrieve, update or delete a Storlet.
     """
+    """ Validate request: only Crystal admin user can access to this method """
+    token = is_valid_request(request)
+    if not token:
+        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
+
     try:
         r = get_redis_connection()
     except RedisError:
@@ -118,10 +111,10 @@ def storlet_detail(request, storlet_id):
         return JSONResponse('Object does not exist!', status=status.HTTP_404_NOT_FOUND)
 
     if request.method == 'GET':
-        storlet = r.hgetall("filter:" + str(storlet_id))
+        filter = r.hgetall("filter:" + str(storlet_id))
 
-        to_json_bools(storlet, 'is_get', 'is_put', 'has_reverse')
-        return JSONResponse(storlet, status=status.HTTP_200_OK)
+        to_json_bools(filter, 'has_reverse', 'is_pre_get', 'is_post_get', 'is_pre_put', 'is_post_put', 'enabled')
+        return JSONResponse(filter, status=status.HTTP_200_OK)
 
     elif request.method == 'PUT':
         try:
@@ -129,11 +122,22 @@ def storlet_detail(request, storlet_id):
         except ParseError:
             return JSONResponse("Invalid format or empty request", status=status.HTTP_400_BAD_REQUEST)
 
-        if not check_keys(data.keys(), STORLET_KEYS[3:-1]):
+        filter = r.hgetall("filter:" + str(storlet_id))
+
+        if (((filter['filter_type'] == 'storlet' or filter['filter_type'] == 'native') and not check_keys(data.keys(), FILTER_KEYS[3:-1])) or
+                ((filter['filter_type'] == 'global') and not check_keys(data.keys(), GLOBAL_FILTER_KEYS[3:-1]))):
             return JSONResponse("Invalid parameters in request", status=status.HTTP_400_BAD_REQUEST)
 
         try:
             r.hmset('filter:' + str(storlet_id), data)
+            if filter['filter_type'] == 'global':
+                if data['enabled'] == True or data['enabled'] == 'True' or data['enabled'] == 'true':
+                    to_json_bools(data, 'has_reverse', 'is_pre_get', 'is_post_get', 'is_pre_put', 'is_post_put', 'enabled')
+                    data['filter_type'] = 'global' # Adding filter type
+                    r.hset("global_filters", str(storlet_id), json.dumps(data))
+                else:
+                    r.hdel("global_filters", str(storlet_id))
+
             return JSONResponse("Data updated", status=status.HTTP_200_OK)
         except DataError:
             return JSONResponse("Error updating data", status=status.HTTP_408_REQUEST_TIMEOUT)
@@ -146,7 +150,10 @@ def storlet_detail(request, storlet_id):
                 if dsl_filter_id == storlet_id:
                     return JSONResponse('Unable to delete filter, is in use by the Registry DSL.', status=status.HTTP_403_FORBIDDEN)
 
+            filter = r.hgetall("filter:" + str(storlet_id))
             r.delete("filter:" + str(storlet_id))
+            if filter['filter_type'] == 'global':
+                r.hdel("global_filters", str(storlet_id))
             return JSONResponse('Filter has been deleted', status=status.HTTP_204_NO_CONTENT)
         except DataError:
             return JSONResponse("Error deleting filter", status=status.HTTP_408_REQUEST_TIMEOUT)
@@ -170,12 +177,16 @@ class StorletData(APIView):
 
             filter_type = r.hget(filter_name, 'filter_type')
             if (filter_type == 'storlet' and not file_obj.name.endswith('.jar')) or \
-                    (filter_type == 'native' and not file_obj.name.endswith('.py')):
+                    (filter_type == 'native' and not file_obj.name.endswith('.py')) or \
+                    (filter_type == 'global' and not file_obj.name.endswith('.py')):
                 return JSONResponse('Uploaded file is incompatible with filter type', status=status.HTTP_400_BAD_REQUEST)
             if filter_type == 'storlet':
                 filter_dir = settings.STORLET_FILTERS_DIR
-            else:
+            elif filter_type == 'native':
                 filter_dir = settings.NATIVE_FILTERS_DIR
+            else:  # global
+                filter_dir = settings.GLOBAL_NATIVE_FILTERS_DIR
+
             make_sure_path_exists(filter_dir)
             path = save_file(file_obj, filter_dir)
             md5_etag = md5(path)
@@ -188,7 +199,7 @@ class StorletData(APIView):
             except RedisError:
                 return JSONResponse('Problems connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-            if filter_type == 'native':
+            if filter_type == 'native' or filter_type == 'global':
                 # synchronize metrics directory with all nodes
                 try:
                     rsync_dir_with_nodes(filter_dir)
@@ -223,27 +234,30 @@ class StorletData(APIView):
 
 
 @csrf_exempt
-def storlet_deploy(request, storlet_id, account, container=None, swift_object=None):
+def filter_deploy(request, filter_id, account, container=None, swift_object=None):
     """
-    Deploy a storlet to a specific swift account.
+    Deploy a filter to a specific swift account.
     """
-    try:
-        r = get_redis_connection()
-    except RedisError:
-        return JSONResponse('Problems to connect with the DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    """ Validate request: only Crystal admin user can access to this method """
+    token = is_valid_request(request)
+    if not token:
+        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
 
     if request.method == 'PUT':
-        headers = is_valid_request(request)
-        if not headers:
-            return JSONResponse('You must be authenticated. You can authenticate yourself with the header X-Auth-Token.', status=status.HTTP_401_UNAUTHORIZED)
-        storlet = r.hgetall("filter:" + str(storlet_id))
+        try:
+            r = get_redis_connection()
+        except RedisError:
+            return JSONResponse('Problems to connect with the DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        if not storlet:
+        filter_data = r.hgetall("filter:" + str(filter_id))
+
+        if not filter_data:
             return JSONResponse('Filter does not exist', status=status.HTTP_404_NOT_FOUND)
+
         try:
             params = JSONParser().parse(request)
         except ParseError:
-            return JSONResponse("Invalid format or empty request", status=status.HTTP_400_BAD_REQUEST)
+            return JSONResponse("Invalid format or empty request params", status=status.HTTP_400_BAD_REQUEST)
 
         # Get an identifier of this new policy
         policy_id = r.incr("policies:id")
@@ -266,8 +280,8 @@ def storlet_deploy(request, storlet_id, account, container=None, swift_object=No
             target = account
 
         try:
-            deploy(r, target, storlet, policy_data, headers)
-            return JSONResponse('Successfully deployed.', status=status.HTTP_201_CREATED)
+            set_filter(r, target, filter_data, policy_data, token)
+            return JSONResponse(policy_id, status=status.HTTP_201_CREATED)
         except SwiftClientError:
             return JSONResponse('Error accessing Swift.', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         except StorletNotFoundException:
@@ -281,49 +295,62 @@ def storlet_list_deployed(request, account):
     """
     List all the storlets deployed.
     """
-    try:
-        r = get_redis_connection()
-    except RedisError:
-        return JSONResponse('Problems to connect with the DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    """ Validate request: only Crystal admin user can access to this method """
+    token = is_valid_request(request)
+    if not token:
+        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
 
     if request.method == 'GET':
+        try:
+            r = get_redis_connection()
+        except RedisError:
+            return JSONResponse('Problems to connect with the DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
         result = r.lrange("AUTH_" + str(account), 0, -1)
         if result:
             return JSONResponse(result, status=status.HTTP_200_OK)
         else:
             return JSONResponse('Any Storlet deployed', status=status.HTTP_404_NOT_FOUND)
+
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
-# @csrf_exempt
-# def storlet_undeploy(request, storlet_id, account, container=None, swift_object=None):
-#     """
-#     Undeploy a storlet from a specific swift account.
-#     """
-#     try:
-#         r = get_redis_connection()
-#     except RedisError:
-#         return JSONResponse('Problems to connect with the DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-#     storlet = r.hgetall("filter:" + str(storlet_id))
-#     if not storlet:
-#         return JSONResponse('Filter does not exist', status=status.HTTP_404_NOT_FOUND)
-#     if not r.exists("AUTH_" + str(account) + ":" + str(storlet["filter_name"])):
-#         return JSONResponse('Filter ' + str(storlet["filter_name"]) + ' has not been deployed already', status=status.HTTP_404_NOT_FOUND)
-#
-#     if request.method == 'PUT':
-#         headers = is_valid_request(request)
-#         if not headers:
-#             return JSONResponse('You must be authenticated. You can authenticate yourself with the header X-Auth-Token ', status=status.HTTP_401_UNAUTHORIZED)
-#
-#         if container and swift_object:
-#             target = account + "/" + container + "/" + swift_object
-#         elif container:
-#             target = account + "/" + container
-#         else:
-#             target = account
-#
-#         return undeploy(r, target, storlet, headers)
-#     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
+@csrf_exempt
+def filter_undeploy(request, filter_id, account, container=None, swift_object=None):
+    """
+    Undeploy a storlet from a specific swift account.
+    """
+    """ Validate request: only Crystal admin user can access to this method """
+    token = is_valid_request(request)
+    if not token:
+        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
+
+    if request.method == 'PUT':
+        try:
+            r = get_redis_connection()
+        except RedisError:
+            return JSONResponse('Problems to connect with the DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        filter_data = r.hgetall("filter:" + str(filter_id))
+
+        if not filter_data:
+            return JSONResponse('Filter does not exist', status=status.HTTP_404_NOT_FOUND)
+
+        if not r.exists("AUTH_" + str(account) + ":" + str(filter_data["filter_name"])):
+            return JSONResponse('Filter ' + str(filter_data["filter_name"]) + ' has not been deployed already', status=status.HTTP_404_NOT_FOUND)
+
+        if container and swift_object:
+            target = account + "/" + container + "/" + swift_object
+        elif container:
+            target = account + "/" + container
+        else:
+            target = account
+
+        # print target
+
+        return unset_filter(r, target, filter_data, token)
+
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
 # ------------------------------
@@ -336,6 +363,11 @@ def dependency_list(request):
     """
     List all dependencies, or create a Dependency.
     """
+    """ Validate request: only Crystal admin user can access to this method """
+    token = is_valid_request(request)
+    if not token:
+        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
+
     try:
         r = get_redis_connection()
     except RedisError:
@@ -365,6 +397,11 @@ def dependency_detail(request, dependency_id):
     """
     Retrieve, update or delete a Dependency.
     """
+    """ Validate request: only Crystal admin user can access to this method """
+    token = is_valid_request(request)
+    if not token:
+        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
+
     try:
         r = get_redis_connection()
     except RedisError:
@@ -411,15 +448,16 @@ class DependencyData(APIView):
 
 @csrf_exempt
 def dependency_deploy(request, dependency_id, account):
-    try:
-        r = get_redis_connection()
-    except RedisError:
-        return JSONResponse('Problems to connect with the DB', status=500)
+    # Validate request: only Crystal admin user can access to this method
+    token = is_valid_request(request)
+    if not token:
+        return JSONResponse('You must be authenticated as Crystal admin.', status=401)
 
     if request.method == 'PUT':
-        headers = is_valid_request(request)
-        if not headers:
-            return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
+        try:
+            r = get_redis_connection()
+        except RedisError:
+            return JSONResponse('Problems to connect with the DB', status=500)
 
         dependency = r.hgetall("dependency:" + str(dependency_id))
         if not dependency:
@@ -428,16 +466,19 @@ def dependency_deploy(request, dependency_id, account):
 
         if "path" not in dependency.keys():
             return JSONResponse('Dependency path does not exist', status=404)
-        f = open(dependency["path"], 'r')
-        content_length = None
-        response = dict()
+
         try:
-            swift_client.put_object(settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/" + "AUTH_" + str(account), headers["X-Auth-Token"], 'dependency',
-                                    dependency["name"], f, content_length, None, None, "application/octet-stream", metadata, None, None, None, response)
+            dependency_file = open(dependency["path"], 'r')
+            content_length = None
+            response = dict()
+            url = settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/AUTH_" + str(account)
+            swift_client.put_object(url, token, 'dependency', dependency["name"], dependency_file, content_length,
+                                    None, None, "application/octet-stream", metadata, None, None, None, response)
         except ClientException:
             return JSONResponse(response.get("reason"), status=response.get('status'))
         finally:
-            f.close()
+            dependency_file.close()
+
         status = response.get('status')
         if status == 201:
             if r.exists("AUTH_" + str(account) + ":dependency:" + str(dependency['name'])):
@@ -447,107 +488,113 @@ def dependency_deploy(request, dependency_id, account):
                 return JSONResponse("Deployed", status=201)
 
         return JSONResponse("error", status=400)
+
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
 
 
 @csrf_exempt
 def dependency_list_deployed(request, account):
-    try:
-        r = get_redis_connection()
-    except RedisError:
-        return JSONResponse('Problems to connect with the DB', status=500)
+    """ Validate request: only Crystal admin user can access to this method """
+    token = is_valid_request(request)
+    if not token:
+        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
 
     if request.method == 'GET':
+        try:
+            r = get_redis_connection()
+        except RedisError:
+            return JSONResponse('Problems to connect with the DB', status=500)
+
         result = r.lrange("AUTH_" + str(account) + ":dependencies", 0, -1)
         if result:
             return JSONResponse(result, status=200)
         else:
             return JSONResponse('Any Storlet deployed', status=404)
+
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
 
 
 @csrf_exempt
 def dependency_undeploy(request, dependency_id, account):
-    try:
-        r = get_redis_connection()
-    except RedisError:
-        return JSONResponse('Problems to connect with the DB', status=500)
-    dependency = r.hgetall("dependency:" + str(dependency_id))
-
-    if not dependency:
-        return JSONResponse('Dependency does not exist', status=404)
-    if not r.exists("AUTH_" + str(account) + ":dependency:" + str(dependency["name"])):
-        return JSONResponse('Dependency ' + str(dependency["name"]) + ' has not been deployed already', status=404)
+    """ Validate request: only Crystal admin user can access to this method """
+    token = is_valid_request(request)
+    if not token:
+        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
 
     if request.method == 'PUT':
-        headers = is_valid_request(request)
-        if not headers:
-            return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=401)
-        response = dict()
         try:
-            swift_client.delete_object(settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/" + "AUTH_" + str(account), headers["X-Auth-Token"],
-                                       'dependency', dependency["name"], None, None, None, None, response)
+            r = get_redis_connection()
+        except RedisError:
+            return JSONResponse('Problems to connect with the DB', status=500)
+
+        dependency = r.hgetall("dependency:" + str(dependency_id))
+
+        if not dependency:
+            return JSONResponse('Dependency does not exist', status=404)
+        if not r.exists("AUTH_" + str(account) + ":dependency:" + str(dependency["name"])):
+            return JSONResponse('Dependency ' + str(dependency["name"]) + ' has not been deployed already', status=404)
+
+        try:
+            response = dict()
+            url = settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/AUTH_" + str(account)
+            swift_client.delete_object(url, token, 'dependency', dependency["name"], None, None, None, None, response)
         except ClientException:
             return JSONResponse(response.get("reason"), status=response.get('status'))
+
         swift_status = response.get('status')
+
         if 200 <= swift_status < 300:
             r.delete("AUTH_" + str(account) + ":dependency:" + str(dependency["name"]))
             r.lrem("AUTH_" + str(account) + ":dependencies", str(dependency["name"]), 1)
             return JSONResponse('The dependency has been deleted', status=swift_status)
+
         return JSONResponse(response.get("reason"), status=swift_status)
+
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
 
 
-# FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 DO SET compression, SET caching
-def deploy(r, target, storlet, parameters, headers):
-    # print("Storlet ID: " + storlet["id"])
-    # print("Storlet Details: " + str(r.hgetall("filter:" + storlet["id"])))
-    # print("Target: " + target)
-    # print("Params: " + str(parameters))
-
-    if not parameters:
-        parameters = {}
-
-    target_list = target.split('/', 3)
-    target = str(target).replace('/', ':')
-
-    storlet_path = storlet["path"]
-    del storlet["path"]
-
-    if storlet['filter_type'] == 'storlet':
-
-        metadata = {"X-Object-Meta-Storlet-Language": storlet["filter_type"],
-                    "X-Object-Meta-Storlet-Interface-Version": storlet["interface_version"],
-                    "X-Object-Meta-Storlet-Dependency": storlet["dependencies"],
-                    "X-Object-Meta-Storlet-Object-Metadata": storlet["object_metadata"],
-                    "X-Object-Meta-Storlet-Main": storlet["main"]
+def set_filter(r, target, filter_data, parameters, token):
+    if filter_data['filter_type'] == 'storlet':
+        metadata = {"X-Object-Meta-Storlet-Language": 'java',
+                    "X-Object-Meta-Storlet-Interface-Version": filter_data["interface_version"],
+                    "X-Object-Meta-Storlet-Dependency": filter_data["dependencies"],
+                    "X-Object-Meta-Storlet-Object-Metadata": filter_data["object_metadata"],
+                    "X-Object-Meta-Storlet-Main": filter_data["main"]
                     }
 
-        storlet_file = open(storlet_path, 'r')
-
+        target_list = target.split('/', 3)
+        url = settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/AUTH_" + str(target_list[0])
         swift_response = dict()
+
         try:
-            swift_client.put_object(settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/" + "AUTH_" + str(target_list[0]),
-                                    headers["X-Auth-Token"], "storlet", storlet["filter_name"], storlet_file, None,
+            storlet_file = open(filter_data["path"], 'r')
+            swift_client.put_object(url, token, "storlet", filter_data["filter_name"], storlet_file, None,
                                     None, None, "application/octet-stream", metadata, None, None, None, swift_response)
         except ClientException as e:
-            logging.error('Error in Swift put_object %s', e)
+            logging.error(str(e))
             raise SwiftClientError("A problem occurred accessing Swift")
+
         finally:
             storlet_file.close()
 
         swift_status = swift_response.get("status")
 
-    if swift_status != status.HTTP_201_CREATED:
-        raise SwiftClientError("A problem occurred accessing Swift")
+        if swift_status != status.HTTP_201_CREATED:
+            raise SwiftClientError("A problem occurred uploading Storlet to Swift")
 
-    # Change 'id' key of storlet
-    storlet["filter_id"] = storlet.pop("id")
+    if not parameters:
+        parameters = {}
+
+    target = str(target).replace('/', ':')
+    # Change 'id' key of filter
+    filter_data["filter_id"] = filter_data.pop("id")
     # Get policy id
     policy_id = parameters["policy_id"]
+
+    del filter_data["path"]
     del parameters["policy_id"]
-    # Add all storlet and policy metadata to policy_id in pipeline
-    data = storlet.copy()
+    # Add all filter and policy metadata to policy_id in pipeline
+    data = filter_data.copy()
     data.update(parameters)
 
     data_dumped = json.dumps(data).replace('"True"', 'true').replace('"False"', 'false')
@@ -556,26 +603,22 @@ def deploy(r, target, storlet, parameters, headers):
 
 
 # FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 DO DELETE compression
-def undeploy(r, target, storlet, headers):
-    target_list = target.split('/', 3)
+def unset_filter(r, target, filter_data, token):
     swift_response = dict()
-    try:
-        swift_client.delete_object(settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/" + "AUTH_" + str(target_list[0]),
-                                   headers["X-Auth-Token"], "storlet", storlet["filter_name"], None, None, None, None, swift_response)
-    except ClientException:
-        return swift_response.get("status")
+    if filter_data['filter_type'] == 'storlet':
+        try:
+            target_list = target.split('/', 3)
+            url = settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/AUTH_" + str(target_list[0])
+            swift_client.delete_object(url, token, "storlet", filter_data["filter_name"], None, None, None, None, swift_response)
+        except ClientException as e:
+            print swift_response + str(e)
+            return swift_response.get("status")
 
-    swift_status = swift_response.get("status")
-
-    if 200 <= swift_status < 300:
-        keys = r.hgetall("pipeline:AUTH_" + str(target))
-        for key, value in keys.items():
-            json_value = json.loads(value)
-            if json_value["filter_name"] == storlet["filter_name"]:
-                r.hdel("pipeline:AUTH_" + str(target), key)
-        return swift_status
-    else:
-        return swift_status
+    keys = r.hgetall("pipeline:AUTH_" + str(target))
+    for key, value in keys.items():
+        json_value = json.loads(value)
+        if json_value["filter_name"] == filter_data["filter_name"]:
+            r.hdel("pipeline:AUTH_" + str(target), key)
 
 
 def make_sure_path_exists(path):

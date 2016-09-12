@@ -2,6 +2,7 @@ import redis
 import pika
 import logging
 import ConfigParser
+import datetime
 from redis.exceptions import RedisError
 
 logging.basicConfig(filename='./rule.log', format='%(asctime)s %(message)s', level=logging.INFO)
@@ -46,6 +47,7 @@ class AbstractEnforcementAlgorithm(object):
             print "Error connecting with Redis DB"
             
         self.last_bw = dict()
+        self.last_update = datetime.datetime.now()
         self.name = name
         self.method = method
 
@@ -82,8 +84,15 @@ class AbstractEnforcementAlgorithm(object):
 
     def update(self, metric, info):
         results = self.compute_algorithm(info)
+        
+        now = datetime.datetime.now()
+        difference = (now - self.last_update).total_seconds()
+        if difference >= 9:
+            self.last_bw = dict()
+
         self.send_results(results)
         self.last_bw = results
+        self.last_update = now
 
     def compute_algorithm(self, info):
         """

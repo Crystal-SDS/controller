@@ -19,6 +19,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WORKLOAD_METRICS_DIR = os.path.join("/opt", "crystal", "workload_metrics")
 NATIVE_FILTERS_DIR = os.path.join("/opt", "crystal", "native_filters")
 STORLET_FILTERS_DIR = os.path.join("/opt", "crystal", "storlet_filters")
+GLOBAL_NATIVE_FILTERS_DIR = os.path.join("/opt", "crystal", "global_native_filters")
 DEPENDENCY_DIR = os.path.join("/opt", "crystal", "dependencies")
 ANSIBLE_DIR = os.path.join(BASE_DIR, "swift", "ansible")
 # Quick-start development settings - unsuitable for production
@@ -31,7 +32,6 @@ SECRET_KEY = '&yx_=2@s(evyq=l9t2efrgmgryz^ea85$csdb_rprvc-9b&#r8' # noqa
 DEBUG = True
 
 ALLOWED_HOSTS = []
-
 
 # Application definition
 
@@ -104,48 +104,34 @@ DATABASES = {
 #     }
 # }
 
-
-# Internationalization
-# https://docs.djangoproject.com/en/1.8/topics/i18n/
-
 LANGUAGE_CODE = 'en-us'
-
 TIME_ZONE = 'UTC'
-
 USE_I18N = True
-
 USE_L10N = True
-
 USE_TZ = True
-
-
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/1.8/howto/static-files/
 
 STATIC_URL = '/static/'
 
 # Swift info
-KEYSTONE_ADMIN_URL = "http://localhost:5000/v2.0/"
-KEYSTONE_URL = "http://localhost:35357/v2.0/"
+KEYSTONE_ADMIN_URL = "http://localhost:5000/v2.0"
+KEYSTONE_URL = "http://localhost:35357/v2.0"
 SWIFT_URL= "http://localhost:8080/"
 SWIFT_API_VERSION = "v1"
 
 # redis
 REDIS_CON_POOL = redis.ConnectionPool(host='localhost', port=6379, db=0)
 
-
 # SDS Project
 STORLET_BIN_DIR = "/opt/ibm"
 STORLET_DOCKER_IMAGE = "192.168.2.1:5001/ubuntu_14.04_jre8_storlets"
 STORLET_TAR_FILE = "ubuntu_14.04_jre8_storlets.tar"
 
-MANAGEMENT_ACCOUNT = "storlet_management"
-MANAGEMENT_ADMIN_USERNAME = "storlet_manager"
-MANAGEMENT_ADMIN_PASSWORD = "storlet_manager"  # noqa
+MANAGEMENT_ACCOUNT = "management"
+MANAGEMENT_ADMIN_USERNAME = "manager"
+MANAGEMENT_ADMIN_PASSWORD = "manager"  # noqa
 
 # pyactive
 PYACTIVE_URL = "tcp://127.0.0.1:6375/"
 PYACTIVE_IP = "127.0.0.1"
 PYACTIVE_PORT = 6375
 PYACTIVE_TRANSPORT = "tcp"
-

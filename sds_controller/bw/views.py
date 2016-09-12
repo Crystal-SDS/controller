@@ -1,69 +1,41 @@
-import json
-
-import redis
-import requests
-from django.conf import settings
-from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from redis.exceptions import RedisError, DataError
 from rest_framework import status
 from rest_framework.parsers import JSONParser
-from rest_framework.renderers import JSONRenderer
-
-
-class JSONResponse(HttpResponse):
-    """
-    An HttpResponse that renders its content into JSON.
-    """
-
-    def __init__(self, data, **kwargs):
-        content = JSONRenderer().render(data)
-        kwargs['content_type'] = 'application/json'
-        super(JSONResponse, self).__init__(content, **kwargs)
-
-
-def is_valid_request(request):
-    headers = {}
-    try:
-        headers['X-Auth-Token'] = request.META['HTTP_X_AUTH_TOKEN']
-        return headers
-    except KeyError:
-        return None
-
-
-def get_redis_connection():
-    return redis.Redis(connection_pool=settings.REDIS_CON_POOL)
+from sds_controller.common_utils import  JSONResponse, get_redis_connection, get_project_list, is_valid_request
 
 
 @csrf_exempt
 def bw_list(request):
     """
     List all slas, or create a SLA.
-    """
+    """ 
+    token = is_valid_request(request)
+    if not token:
+        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED) 
+              
     try:
         r = get_redis_connection()
     except RedisError:
         return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     if request.method == 'GET':
+        try:
+            project_list = get_project_list(token)
+            keys = r.keys('bw:AUTH_*')
+        except:
+            print "Error getting project list in bw_list"
 
-        headers = is_valid_request(request)
-        if not headers:
-            return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=status.HTTP_401_UNAUTHORIZED)
-        keystone_response = requests.get(settings.KEYSTONE_URL + 'tenants', headers=headers)
-        keystone_projects = json.loads(keystone_response.content)['tenants']
-
-        projects_list = {}
-        for project in keystone_projects:
-            projects_list[project['id']] = project['name']
-
-        keys = r.keys('bw:AUTH_*')
-        bw_limits = []
+        bw_limits = []        
         for it in keys:
             for key, value in r.hgetall(it).items():
                 policy_name = r.hget('storage-policy:' + key, 'name')
-                bw_limits.append({'project_id': it.replace('bw:AUTH_', ''), 'project_name': projects_list[it.replace('bw:AUTH_', '')], 'policy_id': key,
+                try:
+                    bw_limits.append({'project_id': it.replace('bw:AUTH_', ''), 'project_name': project_list[it.replace('bw:AUTH_', '')], 'policy_id': key,
                                   'policy_name': policy_name, 'bandwidth': value})
+                except Exception as e:
+                    print "Error getting SLAs: "+str(e)               
+
         return JSONResponse(bw_limits, status=status.HTTP_200_OK)
 
     elif request.method == 'POST':
@@ -73,6 +45,7 @@ def bw_list(request):
             return JSONResponse(data, status=status.HTTP_201_CREATED)
         except DataError:
             return JSONResponse('Error saving SLA.', status=status.HTTP_400_BAD_REQUEST)
+        
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
@@ -81,6 +54,10 @@ def bw_detail(request, project_key):
     """
     Retrieve, update or delete SLA.
     """
+    token = is_valid_request(request)
+    if not token:
+        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
+    
     try:
         r = get_redis_connection()
     except RedisError:
@@ -91,19 +68,14 @@ def bw_detail(request, project_key):
 
     if request.method == 'GET':
 
-        headers = is_valid_request(request)
-        if not headers:
-            return JSONResponse('You must be authenticated. You can authenticate yourself  with the header X-Auth-Token ', status=status.HTTP_401_UNAUTHORIZED)
-        keystone_response = requests.get(settings.KEYSTONE_URL + 'tenants', headers=headers)
-        keystone_projects = json.loads(keystone_response.content)['tenants']
-
-        projects_list = {}
-        for project in keystone_projects:
-            projects_list[project['id']] = project['name']
+        try:
+            project_list = get_project_list(token)
+        except:
+            print "Error getting project list in bw_details"
 
         bandwidth = r.hget('bw:AUTH_' + project_id, policy_id)
         policy_name = r.hget('storage-policy:' + policy_id, 'name')
-        sla = {'id': project_key, 'project_id': project_id, 'project_name': projects_list[project_id], 'policy_id': policy_id, 'policy_name': policy_name, 'bandwidth': bandwidth}
+        sla = {'id': project_key, 'project_id': project_id, 'project_name': project_list[project_id], 'policy_id': policy_id, 'policy_name': policy_name, 'bandwidth': bandwidth}
         return JSONResponse(sla, status=status.HTTP_200_OK)
 
     elif request.method == 'PUT':
