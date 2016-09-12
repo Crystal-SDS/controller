@@ -18,7 +18,7 @@ def tenants_list(request):
     """
     List swift tenants.
     """
-    """ Validate request: only Crystal admin user can access to this method """
+    # Validate request: only Crystal admin user can access to this method
     token = is_valid_request(request)
     if not token:
         return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
@@ -45,7 +45,7 @@ def storage_policy_list(request):
     """
     List all storage policies.
     """
-    """ Validate request: only Crystal admin user can access to this method """
+    # Validate request: only Crystal admin user can access to this method
     token = is_valid_request(request)
     if not token:
         return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
@@ -71,7 +71,7 @@ def storage_policies(request):
     Creates a storage policy to swift with an specific ring.
     Allows create replication storage policies and erasure code storage policies
     """
-    """ Validate request: only Crystal admin user can access to this method """
+    # Validate request: only Crystal admin user can access to this method
     token = is_valid_request(request)
     if not token:
         return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
@@ -98,7 +98,7 @@ def locality_list(request, account, container=None, swift_object=None):
     Shows the nodes where the account/container/object is stored. In the case that
     the account/container/object does not exist, return the nodes where it will be save.
     """
-    """ Validate request: only Crystal admin user can access to this method """
+    # Validate request: only Crystal admin user can access to this method
     token = is_valid_request(request)
     if not token:
         return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
@@ -119,7 +119,7 @@ def sort_list(request):
     """
     List all proxy sortings, or create a proxy sortings.
     """
-    """ Validate request: only Crystal admin user can access to this method """
+    # Validate request: only Crystal admin user can access to this method
     token = is_valid_request(request)
     if not token:
         return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
@@ -158,7 +158,7 @@ def sort_detail(request, id):
     """
     Retrieve, update or delete a Proxy Sorting.
     """
-    """ Validate request: only Crystal admin user can access to this method """
+    # Validate request: only Crystal admin user can access to this method
     token = is_valid_request(request)
     if not token:
         return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)

@@ -40,7 +40,7 @@ def parse(input_string):
     word = Word(alphas)
     when = Suppress(Literal("WHEN"))
     literal_for = Suppress(Literal("FOR"))
-    boolean_condition = oneOf("AND OR")
+    # boolean_condition = oneOf("AND OR")
     # Condition part
     param = Word(alphanums+"_") + Suppress(Literal("=")) + Word(alphanums+"_")
     metrics_workload = r.keys("metric:*")
@@ -59,10 +59,10 @@ def parse(input_string):
     obj = Group(Literal("OBJECT")("type") + Suppress(":") + Combine(Word(alphanums)+Literal("/") + Word(alphanums+"_-")+Literal("/") + Word(alphanums+"_-.")))
     tenant = Group(Literal("TENANT")("type") + Suppress(":") + Combine(Word(alphanums)))
     tenant_group = Combine(Literal("G:") + group_id)
-    tenant_group_list = tenant_group + ZeroOrMore(Suppress("AND") + tenant_group)
-    tenant_list = tenant + ZeroOrMore(Suppress("AND") + tenant)
-    container_list = container + ZeroOrMore(Suppress("AND") + container)
-    obj_list = obj + ZeroOrMore(Suppress("AND")+obj)
+    # tenant_group_list = tenant_group + ZeroOrMore(Suppress("AND") + tenant_group)
+    # tenant_list = tenant + ZeroOrMore(Suppress("AND") + tenant)
+    # container_list = container + ZeroOrMore(Suppress("AND") + container)
+    # obj_list = obj + ZeroOrMore(Suppress("AND")+obj)
     target = Group(delimitedList(tenant) ^ delimitedList(obj) ^ delimitedList(container) ^ delimitedList(tenant_group))
     # Group(tenant_list ^ tenant_group_list ^ container_list ^ obj_list)
     # Action part
@@ -83,17 +83,17 @@ def parse(input_string):
     action_list = Group(delimitedList(action))
     # Object types
     operand_object = oneOf("< > == != <= >=")
-    object_parameter = oneOf("OBJECT_TYPE OBJECT_SIZE")
+    # object_parameter = oneOf("OBJECT_TYPE OBJECT_SIZE")
     object_type = Group(Literal("OBJECT_TYPE")("type") + Literal("=") + word(alphanums)("object_value"))("object_type")
     object_size = Group(Literal("OBJECT_SIZE")("type") + operand_object("operand") + number("object_value"))("object_size")
     object_list = Group(object_type ^ object_size ^ object_type + "," + object_size ^ object_size + "," + object_type)
     to = Suppress("TO")
     
     # Functions post-parsed
-    convertToDict = lambda tokens: dict(zip(*[iter(tokens)]*2))
+    convert_to_dict = lambda tokens: dict(zip(*[iter(tokens)]*2))
     remove_repeated_elements = lambda tokens: [list(set(tokens[0]))]
     
-    params_list.setParseAction(convertToDict)
+    params_list.setParseAction(convert_to_dict)
     target.setParseAction(remove_repeated_elements)
     tenant_group.setParseAction(parse_group_tenants)
     
@@ -131,7 +131,9 @@ def parse(input_string):
 # print condition_list, rule_parsed
 
 
-# rules ="""FOR OBJECT:4f0279da74ef4584a29dc72c835fe2c9/2/2 AND OBJECT:4f0279da74ef4584a29dc72c835fe2c9/2/2 DO SET compression WITH bw=2 ON OBJECT, SET uonetrace WITH bw=2 ON PROXY """.splitlines()
+# rules ="""FOR OBJECT:4f0279da74ef4584a29dc72c835fe2c9/2/2 AND OBJECT:4f0279da74ef4584a29dc72c835fe2c9/2/2
+# DO SET compression WITH bw=2 ON OBJECT, SET uonetrace WITH bw=2 ON PROXY """.splitlines()
+#
 # # rules = """\
 # #     FOR 4f0279da74ef4584a29dc72c835fe2c9 WHEN througput < 3 OR slowdown == 1 AND througput == 5 OR througput == 6 DO SET compression WITH param1=2
 # #     FOR G:1 WHEN slowdown > 3 OR slowdown > 3 AND slowdown == 5 OR slowdown <= 6 DO SET compression WITH param1=2, param2=3

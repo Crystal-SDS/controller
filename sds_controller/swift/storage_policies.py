@@ -82,5 +82,5 @@ def _monitor_playbook_execution(p):
                 if "FATAL" in read:
                     raise Exception("Error while executing ansible script")
 
-        if p.poll() != None:
+        if p.poll() is not None:
             break
