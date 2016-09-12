@@ -75,7 +75,8 @@ def bw_detail(request, project_key):
 
         bandwidth = r.hget('bw:AUTH_' + project_id, policy_id)
         policy_name = r.hget('storage-policy:' + policy_id, 'name')
-        sla = {'id': project_key, 'project_id': project_id, 'project_name': project_list[project_id], 'policy_id': policy_id, 'policy_name': policy_name, 'bandwidth': bandwidth}
+        sla = {'id': project_key, 'project_id': project_id, 'project_name': project_list[project_id], 'policy_id': policy_id, 'policy_name': policy_name,
+               'bandwidth': bandwidth}
         return JSONResponse(sla, status=status.HTTP_200_OK)
 
     elif request.method == 'PUT':
