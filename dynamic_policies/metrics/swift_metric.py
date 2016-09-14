@@ -31,15 +31,17 @@ class SwiftMetric(Metric):
         data = json.loads(body)
         Thread(target=self._send_data_to_logstash, args=(deepcopy(data), )).start()
 
+        
         try:
             for host in data:
                 del data[host]['@timestamp']
                 for target in data[host]:
                     value =  data[host][target]
                     tenant = target.replace('AUTH_','')
-                    if target in self._observers:
+                    if tenant in self._observers:
                         for observer in self._observers[tenant]:
                             observer.update(self.name, value)
+                            
         except Exception as e:
             print "Fail sending monitoring data to observer: ", e       
 

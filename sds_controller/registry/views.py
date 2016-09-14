@@ -23,34 +23,37 @@ import dsl_parser
 
 host = None
 remote_host = None
+pyactive = settings.PYACTIVE_URL
 
-
-# TODO: Improve the implementation to create the host connection
-def create_host():
-    print("  --- CREATING HOST ---")
-    start_controller("pyactive_thread")
+def create_local_host():
+    print("Creating controller pyactive host")
     tcpconf = ('tcp', ('127.0.0.1', 9899))
     # momconf = ('mom',{'name':'api_host','ip':'127.0.0.1','port':61613, 'namespace':'/topic/iostack'})
     global host
-    host = init_host(tcpconf)
-    global remote_host
-    print("  **  ")
-    remote_host = host.lookup_remote_host(settings.PYACTIVE_URL + 'controller/Host/0')
-    remote_host.hello()
-    print('lookup', remote_host)
+    try:
+        start_controller("pyactive_thread")
+        host = init_host(tcpconf)
+    except:
+        print("Controller pyactive host already created") 
 
+def lookup_remote_host():
+    global remote_host
+    remote_host = host.lookup_remote_host(pyactive + 'controller/Host/0')
+    #remote_host.hello()
+    print 'Lookup remote host: ', remote_host
+    
+    
 
 #
 # Metric Workload part
 #
-
 
 @csrf_exempt
 def add_metric(request):
     """
     Add a metric workload in the registry (redis)
     """
-    # Validate request: only Crystal admin user can access to this method
+    # Validate request: only a user with admin role can access to this method
     token = is_valid_request(request)
     if not token:
         return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
@@ -83,7 +86,7 @@ def metric_detail(request, name):
     """
     Get, update or delete a metric workload from the registry.
     """
-    # Validate request: only Crystal admin user can access to this method
+    # Validate request: only a user with admin role can access to this method
     token = is_valid_request(request)
     if not token:
         return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
@@ -122,7 +125,7 @@ def add_dynamic_filter(request):
     """
     Add a filter with its default parameters in the registry (redis). List all the dynamic filters registered.
     """
-    # Validate request: only Crystal admin user can access to this method
+    # Validate request: only a user with admin role can access to this method
     token = is_valid_request(request)
     if not token:
         return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
@@ -155,7 +158,7 @@ def dynamic_filter_detail(request, name):
     """
     Get, update or delete a dynamic filter from the registry.
     """
-    # Validate request: only Crystal admin user can access to this method
+    # Validate request: only a user with admin role can access to this method
     token = is_valid_request(request)
     if not token:
         return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
@@ -203,7 +206,7 @@ def metric_module_list(request):
     """
     List all metric modules, or create a new metric module.
     """
-    # Validate request: only Crystal admin user can access to this method
+    # Validate request: only a user with admin role can access to this method
     token = is_valid_request(request)
     if not token:
         return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
@@ -230,7 +233,7 @@ def metric_module_detail(request, metric_module_id):
     """
     Retrieve, update or delete a metric module.
     """
-    # Validate request: only Crystal admin user can access to this method
+    # Validate request: only a user with admin role can access to this method
     token = is_valid_request(request)
     if not token:
         return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
@@ -349,7 +352,7 @@ def list_storage_node(request):
     :param request:
     :return: JSONResponse
     """
-    # Validate request: only Crystal admin user can access to this method
+    # Validate request: only a user with admin role can access to this method
     token = is_valid_request(request)
     if not token:
         return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
@@ -382,7 +385,7 @@ def storage_node_detail(request, snode_id):
     """
     Get, update or delete a storage node from the registry.
     """
-    # Validate request: only Crystal admin user can access to this method
+    # Validate request: only a user with admin role can access to this method
     token = is_valid_request(request)
     if not token:
         return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
@@ -420,7 +423,7 @@ def add_tenants_group(request):
     """
     Add a tenant group or list all the tenants groups saved in the registry.
     """
-    # Validate request: only Crystal admin user can access to this method
+    # Validate request: only a user with admin role can access to this method
     token = is_valid_request(request)
     if not token:
         return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
@@ -457,7 +460,7 @@ def tenants_group_detail(request, gtenant_id):
     """
     Get, update or delete a tenants group from the registry.
     """
-    # Validate request: only Crystal admin user can access to this method
+    # Validate request: only a user with admin role can access to this method
     token = is_valid_request(request)
     if not token:
         return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
@@ -505,7 +508,7 @@ def gtenants_tenant_detail(request, gtenant_id, tenant_id):
     """
     Delete a member from a tenants group.
     """
-    # Validate request: only Crystal admin user can access to this method
+    # Validate request: only a user with admin role can access to this method
     token = is_valid_request(request)
     if not token:
         return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
@@ -532,7 +535,7 @@ def object_type_list(request):
     GET: List all object types.
     POST: Bind a new object type.
     """
-    # Validate request: only Crystal admin user can access to this method
+    # Validate request: only a user with admin role can access to this method
     token = is_valid_request(request)
     if not token:
         return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
@@ -576,7 +579,7 @@ def object_type_detail(request, object_type_name):
     PUT: Update the object type word registered.
     DELETE: Delete the object type word registered.
     """
-    # Validate request: only Crystal admin user can access to this method
+    # Validate request: only a user with admin role can access to this method
     token = is_valid_request(request)
     if not token:
         return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
@@ -622,7 +625,7 @@ def object_type_items_detail(request, object_type_name, item_name):
     """
     Delete an extension from an object type definition.
     """
-    # Validate request: only Crystal admin user can access to this method
+    # Validate request: only a user with admin role can access to this method
     token = is_valid_request(request)
     if not token:
         return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
@@ -647,7 +650,7 @@ def node_list(request):
     """
     GET: List all nodes ordered by name
     """
-    # Validate request: only Crystal admin user can access to this method
+    # Validate request: only a user with admin role can access to this method
     token = is_valid_request(request)
     if not token:
         return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
@@ -680,7 +683,7 @@ def node_detail(request, node_id):
     :param node_id:
     :return:
     """
-    # Validate request: only Crystal admin user can access to this method
+    # Validate request: only a user with admin role can access to this method
     token = is_valid_request(request)
     if not token:
         return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
@@ -718,7 +721,7 @@ def policy_list(request):
     """
     List all policies (sorted by execution_order). Deploy new policies.
     """
-    # Validate request: only Crystal admin user can access to this method
+    # Validate request: only a user with admin role can access to this method
     token = is_valid_request(request)
     if not token:
         return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
@@ -802,7 +805,7 @@ def static_policy_detail(request, policy_id):
     """
     Retrieve, update or delete SLA.
     """
-    # Validate request: only Crystal admin user can access to this method
+    # Validate request: only a user with admin role can access to this method
     token = is_valid_request(request)
     if not token:
         return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
@@ -845,7 +848,7 @@ def dynamic_policy_detail(request, policy_id):
     """
     Retrieve, update or delete SLA.
     """
-    # Validate request: only Crystal admin user can access to this method
+    # Validate request: only a user with admin role can access to this method
     token = is_valid_request(request)
     if not token:
         return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
@@ -856,15 +859,27 @@ def dynamic_policy_detail(request, policy_id):
         return JSONResponse('Error connecting with DB', status=500)
 
     if request.method == 'DELETE':
-        # TODO: Kill actor when deletes a redis key
+        create_local_host()
+        lookup_remote_host()
+        
+        try:
+            policy = r.hgetall('policy:' + policy_id)
+            policy_actor = host.lookup_remote_host(policy['policy_location'])
+            policy_actor.stop_actor()
+        except Exception as e:
+            print e
+
         r.delete('policy:' + policy_id)
+        #policies_ids = r.keys('policy:*')
+        #if len(policies_ids) == 0:
+        #    r.set('policies:id',0)
         return JSONResponse('Policy has been deleted', status=204)
     
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
 
 
 def do_action(request, r, rule_parsed):
-    # Validate request: only Crystal admin user can access to this method
+    # Validate request: only a user with admin role can access to this method
     token = is_valid_request(request)
     if not token:
         return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
@@ -914,14 +929,10 @@ def do_action(request, r, rule_parsed):
 
 
 def deploy_policy(r, rule_string, parsed_rule):
-    # self.aref = 'atom://' + self.dispatcher.name + '/controller/Host/0'
-    rules = {}
-    cont = 0
-
-    if not host or not remote_host:
-        create_host()
-
-    rules_to_parse = {}
+    create_local_host()
+    lookup_remote_host()
+    rules = dict()
+    rules_to_parse = dict()
 
     for target in parsed_rule.target:
         rules_to_parse[target[1]] = parsed_rule
@@ -929,21 +940,22 @@ def deploy_policy(r, rule_string, parsed_rule):
     for key in rules_to_parse.keys():
         for action_info in rules_to_parse[key].action_list:
             policy_id = r.incr("policies:id")
+            rule_id = 'policy:' + str(policy_id)
 
             if action_info.transient:
                 print 'Transient rule:', parsed_rule
-                rules[cont] = remote_host.spawn_id('policy:' + str(policy_id), 'rule_transient', 'TransientRule',
-                                                    [rules_to_parse[key], action_info, key, remote_host])
+                rules[policy_id] = remote_host.spawn_id(rule_id, 'rule_transient', 'TransientRule',
+                                                   [rules_to_parse[key], action_info, key, remote_host])
                 location = "rule_transient/TransientRule/"
                 is_transient = True
             else:
                 print 'Rule:', parsed_rule
-                rules[cont] = remote_host.spawn_id('policy:' + str(policy_id), 'rule', 'Rule',
+                rules[policy_id] = remote_host.spawn_id(rule_id, 'rule', 'Rule',
                                                    [rules_to_parse[key], action_info, key, remote_host])
                 location = "rule/Rule/"
                 is_transient = False
 
-            rules[cont].start_rule()
+            rules[policy_id].start_rule()
 
             # FIXME Should we recreate a static rule for each target and action??
             condition_re = re.compile(r'.* (WHEN .*) DO .*', re.M|re.I)
@@ -956,5 +968,5 @@ def deploy_policy(r, rule_string, parsed_rule):
             r.hmset('policy:' + str(policy_id),
                     {"id": policy_id, "policy": static_policy_rule_string, "policy_description": rule_string,
                      "condition": condition_str.replace('WHEN ', ''), "transient": is_transient,
-                     "policy_location": settings.PYACTIVE_URL + location + str(policy_id), "alive": True})
-            cont += 1
+                     "policy_location": settings.PYACTIVE_URL + location + str(rule_id), "alive": True})
+

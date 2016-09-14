@@ -89,16 +89,15 @@ class Rule(object):
         """
         for observer in self.observers_proxies.values():
             observer.detach(self.proxy)
-        self.redis.hset(str(self.id), "alive", False)
         self._atom.stop()
-        print 'Actor rule stopped'
+        print 'Actor rule "'+self.id+'" stopped'
 
     def start_rule(self):
         """
         Method called afeter init to start the rule. Basically this method allows to be called remotelly and calls the
         internal method **check_metrics()** which subscribes the rule to all the workload metrics necessaries.
         """
-        print 'Start rule'
+        print 'Start rule "'+self.id+'"'
         self.check_metrics(self.conditions)
 
     def add_metric(self, workload_name):
@@ -110,13 +109,12 @@ class Rule(object):
         :type workload_name: **any** String type
 
         """
-        print 'hello into add metric'
-        print "--> WN:", workload_name
+        
         if workload_name not in self.observers_values.keys():
             # Trying the new PyActive version. New lookup function.
-            print 'workload_name', workload_name
+            print " - Workload name:", workload_name
             observer = self.remote_host.lookup(workload_name)
-            print 'observer', observer, observer.get_id()
+            print ' - Ovserver: ', observer.get_id(), observer
             observer.attach(self.proxy)
             self.observers_proxies[workload_name] = observer
             self.observers_values[workload_name] = None
@@ -130,7 +128,7 @@ class Rule(object):
         :param condition_list: The list of all the conditions.
         :type condition_list: **any** List type
         """
-        print 'check_metrics', condition_list
+        print ' - Condition: ', condition_list
         if not isinstance(condition_list[0], list):
             self.add_metric(condition_list[0].lower())
         else:
@@ -175,7 +173,7 @@ class Rule(object):
 
         :return: If the values comply the conditions
         :rtype: boolean type.
-        """
+        """        
         if not isinstance(condition_list[0], list):
             result = mappings[condition_list[1]](float(self.observers_values[condition_list[0].lower()]), float(condition_list[2]))
         else:
@@ -199,13 +197,12 @@ class Rule(object):
         is responsible to execute the action defined in the policy.
 
         """
-
         if not self.token:
             self.admin_login()
 
         headers = {"X-Auth-Token": self.token}
         dynamic_filter = self.redis.hgetall("dsl_filter:"+str(self.action_list.filter))      
-        
+
         if self.action_list.action == "SET":
             # TODO Review if this tenant has already deployed this filter. Not deploy the same filter more than one time.
 
@@ -224,7 +221,7 @@ class Rule(object):
                 data['object_size'] = ''
 
             data['params'] = self.action_list.params
-            
+
             response = requests.put(url, json.dumps(data), headers=headers)
 
             if 200 > response.status_code >= 300:

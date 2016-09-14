@@ -72,7 +72,7 @@ class Metric(object):
         try:
             print '---- start_consume ----'
             r = redis.StrictRedis(host=self.redis_host, port=int(self.redis_port), db=int(self.redis_db))
-            r.hmset("metric:"+self.name, {"network_location": self._atom.aref.replace("atom:", "mom:", 1), "type": "integer"})
+            r.hmset("metric:"+self.name, {"network_location": self._atom.aref.replace("atom:", "tcp:", 1), "type": "integer"})
 
             self.consumer = self.host.spawn_id(self.id + "_consumer", "consumer", "Consumer", 
                                                [str(self.rmq_host), int(self.rmq_port), str(self.rmq_user), str(self.rmq_pass),
