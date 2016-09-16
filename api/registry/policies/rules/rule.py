@@ -78,6 +78,8 @@ class Rule(object):
             observer.detach(self.proxy)  
         self._atom.stop()
         self.host.unregister(self.id)
+        
+        self.redis.hset(self.id, 'alive', 'False')
         print 'Actor rule "'+self.id+'" stopped'
 
     def start_rule(self):

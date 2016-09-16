@@ -9,6 +9,9 @@ https://docs.djangoproject.com/en/1.8/howto/deployment/wsgi/
 from django.core.wsgi import get_wsgi_application
 import os
 
+import api.startup as startup
+startup.run()
+
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "api.settings")        
 application = get_wsgi_application()
 

@@ -90,6 +90,12 @@ class Metric(object):
         kills the actor.
         """
         try:
+            
+            # Stop observers
+            for tenant in self._observers:
+                for observer in self._observers[tenant]:
+                    observer.stop_actor()
+            
             self.redis.delete("metric:"+self.name)
             self.consumer.stop_consuming()
             self._atom.stop()

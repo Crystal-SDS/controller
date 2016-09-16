@@ -263,11 +263,7 @@ def metric_module_list(request):
         workload_metrics = []
         for key in keys:
             metric = r.hgetall(key)
-            to_json_bools(metric, 'in_flow', 'out_flow', 'enabled')
-            metric_id =  int(metric['id'])
-            if metric_id not in metrics:
-                metric['enabled'] = False
-                r.hset(key,'enabled', False)
+            to_json_bools(metric, 'in_flow', 'out_flow', 'enabled')   
             workload_metrics.append(metric)
         sorted_workload_metrics = sorted(workload_metrics, key=lambda x: int(itemgetter('id')(x)))
         return JSONResponse(sorted_workload_metrics, status=status.HTTP_200_OK)
@@ -339,11 +335,14 @@ def metric_module_detail(request, metric_module_id):
             return JSONResponse("Error updating data", status=status.HTTP_408_REQUEST_TIMEOUT)
 
     elif request.method == 'DELETE':
-        if metric_id in metrics:
-            stop_actor(metric_id)
-
         try:
+            if metric_id in metrics:
+                stop_actor(metric_id)
+
             r.delete("workload_metric:" + str(metric_id))
+            keys = len(r.keys("workload_metric:*"))
+            r.set('workload_metrics:id',keys)
+            
             return JSONResponse('Workload metric has been deleted', status=status.HTTP_204_NO_CONTENT)
         except DataError:
             return JSONResponse("Error deleting workload metric", status=status.HTTP_408_REQUEST_TIMEOUT)
@@ -846,7 +845,7 @@ def policy_list(request):
             return JSONResponse("Invalid request", status=status.HTTP_400_BAD_REQUEST)
 
     if request.method == 'POST':
-
+        
         rules_string = request.body.splitlines()
 
         for rule_string in rules_string:
@@ -859,7 +858,7 @@ def policy_list(request):
             #
             try:
                 condition_list, rule_parsed = dsl_parser.parse(rule_string)
-
+                
                 if condition_list:
                     # Dynamic Rule
                     #print('Rule parsed:', rule_parsed)
@@ -876,8 +875,8 @@ def policy_list(request):
             except Exception as e:
                 # print("The rule: " + rule_string + " cannot be parsed")
                 # print("Exception message", e)
-                return JSONResponse("Error in rule: " + rule_string + " Error message --> " + str(e),
-                                    status=status.HTTP_401_UNAUTHORIZED)
+                return JSONResponse('Please, review the rule, register the dsl filter and start the workload '
+                                    'metric before create a new policy', status=status.HTTP_401_UNAUTHORIZED)
 
         return JSONResponse('Policies added successfully!', status=status.HTTP_201_CREATED)
 

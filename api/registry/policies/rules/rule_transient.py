@@ -46,7 +46,7 @@ class TransientRule(Rule):
         self.observers_values[metric] = tenant_info
         
         if all(val is not None for val in self.observers_values.values()):
-            condition_accomplished = self.check_conditions(self.conditions)
+            condition_accomplished = self._check_conditions(self.conditions)
             if condition_accomplished != self.execution_stat:
                 self.do_action(condition_accomplished)
                 self.execution_stat = condition_accomplished
@@ -64,7 +64,7 @@ class TransientRule(Rule):
             action = self.action_list.action
 
         if not self.token:
-            self.admin_login()
+            self._admin_login()
 
         headers = {"X-Auth-Token": self.token}
         dynamic_filter = self.redis.hgetall("dsl_filter:"+str(self.action_list.filter))
