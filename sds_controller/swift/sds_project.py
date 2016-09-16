@@ -1,4 +1,5 @@
 from django.conf import settings
+from swiftclient import client
 import subprocess
 
 def add_new_sds_project(tenant_name):
@@ -18,6 +19,9 @@ def add_new_sds_project(tenant_name):
     deploy_image = subprocess.Popen(['sudo','python', bin_dir+'/deploy_image.py', tenant_name, tar_file, docker_image])
     deploy_image.communicate()
 
-    print "Setting permissions for Crystal admin user"
-    # TODO(josep): swift post -w 'crystal_management:crystal_manager' storlet, swift post -r 'crystal_management:crystal_manager' storlet
-    # swift post -w 'crystal_management:crystal_manager' dependency, swift post -r 'crystal_management:crystal_manager' dependency
+    print "Setting container permissions for admin user"
+    headers = {'X-Container-Read':'*:'+admin_user,'X-Container-Write':'*:'+admin_user}
+    os_options = {'tenant_name': tenant_name}
+    url, token = client.get_auth(settings.KEYSTONE_ADMIN_URL, admin_user, admin_password, os_options = os_options, auth_version="2.0")
+    client.post_container(url, token, "storlet", headers)
+    client.post_container(url, token, "dependency", headers)

@@ -27,6 +27,11 @@ def start_actors():
                                                    ["amq.topic", "active_get_requests", "metrics.active_get_requests"])
     metrics["active_put_requests"] = host.spawn_id("active_put_requests", 'metrics.swift_metric', 'SwiftMetric',
                                                    ["amq.topic", "active_put_requests", "metrics.active_put_requests"])
+    
+    metrics["get_request_performance"] = host.spawn_id("get_request_performance", 'metrics.swift_metric', 'SwiftMetric',
+                                                   ["amq.topic", "get_request_performance", "metrics.get_request_performance"])
+    metrics["put_request_performance"] = host.spawn_id("put_request_performance", 'metrics.swift_metric', 'SwiftMetric',
+                                                   ["amq.topic", "put_request_performance", "metrics.put_request_performance"])
 
     metrics["get_bw"] = host.spawn_id("get_bw_tenant", 'metrics.swift_metric', 'SwiftMetric', ["amq.topic", "get_bw", "metrics.get_bw"])
     metrics["put_bw"] = host.spawn_id("put_bw_tenant", 'metrics.swift_metric', 'SwiftMetric', ["amq.topic", "put_bw", "metrics.put_bw"])

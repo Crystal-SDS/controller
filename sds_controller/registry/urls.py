@@ -8,6 +8,7 @@ urlpatterns = [
 
     url(r'^/metric_module/?$', views.metric_module_list),
     url(r'^/metric_module/data/?$', views.MetricModuleData.as_view()),
+    url(r'^/metric_module/(?P<metric_module_id>\w+)/data/?$', views.MetricModuleData.as_view()),
     url(r'^/metric_module/(?P<metric_module_id>\w+)/?$', views.metric_module_detail),
 
     url(r'^/filters/?$', views.add_dynamic_filter),
