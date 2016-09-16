@@ -5,13 +5,12 @@ from redis.exceptions import RedisError
 from rest_framework import status
 from rest_framework.exceptions import ParseError
 from rest_framework.parsers import JSONParser
-import storage_policies
-import sds_project
 import requests
 import redis
 
-from sds_controller.common_utils import JSONResponse, get_redis_connection, is_valid_request
-
+from api.common_utils import JSONResponse, get_redis_connection, is_valid_request
+import storage_policies
+import sds_project
 
 @csrf_exempt
 def tenants_list(request):

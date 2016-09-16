@@ -45,7 +45,7 @@ class MainTestCase(TestCase):
         self.assertEqual(bdict['d'], 'False')
         self.assertNotEqual(bdict['d'], False)
 
-    @mock.patch('sds_controller.common_utils.os.system')
+    @mock.patch('controller.common_utils.os.system')
     def test_rsync_dir_with_nodes_ok(self, mock_os_system):
         mock_os_system.return_value = 0  # return value when rsync succeeds
 
@@ -62,7 +62,7 @@ class MainTestCase(TestCase):
         with self.assertRaises(FileSynchronizationException):
             rsync_dir_with_nodes(settings.WORKLOAD_METRICS_DIR)
 
-    @mock.patch('sds_controller.common_utils.os.system')
+    @mock.patch('controller.common_utils.os.system')
     def test_rsync_dir_with_nodes_when_rsync_fails(self, mock_os_system):
         mock_os_system.return_value = 1  # return value when rsync fails
 

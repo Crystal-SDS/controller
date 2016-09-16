@@ -2,15 +2,11 @@ import requests
 import operator
 import json
 import redis
-import logging
 import ConfigParser
 
 mappings = {'>': operator.gt, '>=': operator.ge,
             '==': operator.eq, '<=': operator.le, '<': operator.lt,
             '!=': operator.ne, "OR": operator.or_, "AND": operator.and_}
-
-logging.basicConfig(filename='./rule.log', format='%(asctime)s %(message)s', level=logging.INFO)
-
 
 class Rule(object):
     """
@@ -24,7 +20,7 @@ class Rule(object):
     _ref = []
     _parallel = []
 
-    def __init__(self, rule_parsed, action, target, remote_host):
+    def __init__(self, rule_parsed, action, target, host):
         """
         Initialize all the variables needed for the rule.
 
@@ -34,19 +30,10 @@ class Rule(object):
         :type target: **any** String type
         :param host: The proxy host provided by the PyActive Middleware.
         :type host: **any** PyActive Proxy type
-        :param host_ip: The host ip adress.
-        :type host_ip: **any** String type
-        :param host_port: The host port address.
-        :type host_port: **any** Numeric type.
-        :param host_transport: The host transport used for the comunication.
-        :type host_transport: **any** String type.
-
-        """        
-        logging.info('Rule init: OK')
-        logging.info('Rule: %s', rule_parsed.asList())
-
+        """
+        
         settings = ConfigParser.ConfigParser()
-        settings.read("./dynamic_policies.config")
+        settings.read("registry/policies/dynamic_policies.config")
         
         self.openstack_tenant = settings.get('openstack', 'admin_tenant')
         self.openstack_user = settings.get('openstack', 'admin_name')
@@ -59,7 +46,7 @@ class Rule(object):
         
         self.redis = redis.StrictRedis(host=self.redis_host, port=self.redis_port, db=self.redis_db)
         
-        self.remote_host = remote_host
+        self.host = host
         self.rule_parsed = rule_parsed
         self.target = target
         self.conditions = rule_parsed.condition_list.asList()
@@ -68,7 +55,7 @@ class Rule(object):
         self.action_list = action
         self.token = None
 
-    def admin_login(self):
+    def _admin_login(self):
         """
         Method called to obtain the admin credentials, which we need to deploy filters in accounts.
         """
@@ -88,8 +75,9 @@ class Rule(object):
         kills the actor of the rule.
         """
         for observer in self.observers_proxies.values():
-            observer.detach(self.proxy)
+            observer.detach(self.proxy)  
         self._atom.stop()
+        self.host.unregister(self.id)
         print 'Actor rule "'+self.id+'" stopped'
 
     def start_rule(self):
@@ -100,7 +88,7 @@ class Rule(object):
         print 'Start rule "'+self.id+'"'
         self.check_metrics(self.conditions)
 
-    def add_metric(self, workload_name):
+    def _add_metric(self, workload_name):
         """
         The `add_metric()` method subscribes the rule to all workload metrics that it
         needs to check the conditions defined in the policy
@@ -113,7 +101,7 @@ class Rule(object):
         if workload_name not in self.observers_values.keys():
             # Trying the new PyActive version. New lookup function.
             print " - Workload name:", workload_name
-            observer = self.remote_host.lookup(workload_name)
+            observer = self.host.lookup(workload_name)
             print ' - Ovserver: ', observer.get_id(), observer
             observer.attach(self.proxy)
             self.observers_proxies[workload_name] = observer
@@ -130,7 +118,7 @@ class Rule(object):
         """
         print ' - Condition: ', condition_list
         if not isinstance(condition_list[0], list):
-            self.add_metric(condition_list[0].lower())
+            self._add_metric(condition_list[0].lower())
         else:
             for element in condition_list:
                 if element is not "OR" and element is not "AND":
@@ -147,22 +135,20 @@ class Rule(object):
         :param tenant_info: Contains the timestamp and the value sent from workload metric.
         :type tenant_info: **any** PyParsing type
         """
-        print 'Success update:  ', value
+        print 'Success update: ', value
 
         self.observers_values[metric] = value
-        
-        print self.observers_values
 
         # TODO Check the last time updated the value
         # Check the condition of the policy if all values are setted. If the condition
         # result is true, it calls the method do_action
         if all(val is not None for val in self.observers_values.values()):
-            if self.check_conditions(self.conditions):
-                self.do_action()
+            if self._check_conditions(self.conditions):
+                self._do_action()
         else:
             print 'not all values setted', self.observers_values.values()
 
-    def check_conditions(self, condition_list):
+    def _check_conditions(self, condition_list):
         """
         The method **check_conditions()** runs the ternary tree of conditions to check if the
         **self.observers_values** complies the conditions. If the values comply the conditions return
@@ -191,14 +177,14 @@ class Rule(object):
         """
         return self.target
 
-    def do_action(self):
+    def _do_action(self):
         """
         The do_action method is called after the conditions are satisfied. So this method
         is responsible to execute the action defined in the policy.
 
         """
         if not self.token:
-            self.admin_login()
+            self._admin_login()
 
         headers = {"X-Auth-Token": self.token}
         dynamic_filter = self.redis.hgetall("dsl_filter:"+str(self.action_list.filter))      
@@ -227,8 +213,13 @@ class Rule(object):
             if 200 > response.status_code >= 300:
                 print 'Error setting policy'
             else:
-                print "Policy applied"
-                self.stop_actor()  # TODO: stop_actor shows timeout error
+                print 'Policy '+ self.id +' applied'
+                self.redis.hset(self.id, 'alive', False)
+                try:
+                    self.stop_actor()
+                except:
+                    pass
+                return
 
         elif self.action_list.action == "DELETE":
             print "--> DELETE <--"
@@ -240,7 +231,10 @@ class Rule(object):
                 print 'ERROR RESPONSE'
             else:
                 print response.text, response.status_code
-                self.stop_actor()
+                try:
+                    self.stop_actor()
+                except:
+                    pass
                 return response.text
 
         return 'Not action supported'

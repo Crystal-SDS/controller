@@ -9,7 +9,7 @@ from copy import deepcopy
 class SwiftMetric(Metric):
     _sync = {}
     _async = ['get_value', 'attach', 'detach', 'notify', 'start_consuming', 'stop_consuming', 'init_consum', 'stop_actor']
-    _ref = ['attach', 'detach']
+    _ref = []
     _parallel = []
 
     def __init__(self, exchange, metric_id, routing_key):
@@ -25,9 +25,12 @@ class SwiftMetric(Metric):
         
     def notify(self, body):
         """
+        Method called from the consumer to indicate the value consumed from the rabbitmq queue. After receive the value,
+        this value is communicated to all the observers subscribed to this metric.
+        """
+        """
         {"controller": {"AUTH_bd34c4073b65426894545b36f0d8dcce": 3}}
         """
-
         data = json.loads(body)
         Thread(target=self._send_data_to_logstash, args=(deepcopy(data), )).start()
 

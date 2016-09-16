@@ -12,7 +12,7 @@ from rest_framework import status
 from rest_framework.test import APIRequestFactory
 
 from .views import policy_list
-from storlet.views import storlet_list, filter_deploy, StorletData
+from filters.views import storlet_list, filter_deploy, StorletData
 from .views import object_type_list, object_type_detail, add_tenants_group, tenants_group_detail, gtenants_tenant_detail, node_list, node_detail, \
     add_metric, metric_detail, metric_module_list, metric_module_detail, MetricModuleData, list_storage_node, storage_node_detail, add_dynamic_filter, \
     dynamic_filter_detail

@@ -16,7 +16,7 @@ class TransientRule(Rule):
     _ref = []
     _parallel = []
 
-    def __init__(self, rule_parsed, action, target, remote_host):
+    def __init__(self, rule_parsed, action, target, host):
         """
         Initialize all the variables needed for the rule.
 
@@ -27,7 +27,7 @@ class TransientRule(Rule):
         """
         print "-- Rule Transient --"
         self.execution_stat = False
-        super(TransientRule, self).__init__(rule_parsed, action, target, remote_host)
+        super(TransientRule, self).__init__(rule_parsed, action, target, host)
         self.static_policy_id = None
 
     def update(self, metric, tenant_info):

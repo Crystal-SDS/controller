@@ -10,39 +10,82 @@ from rest_framework.views import APIView
 from operator import itemgetter
 from pyactive.controller import init_host, start_controller
 from redis.exceptions import RedisError, DataError
-from sds_controller.exceptions import SwiftClientError, StorletNotFoundException, FileSynchronizationException
-from sds_controller.common_utils import is_valid_request, rsync_dir_with_nodes, to_json_bools, remove_extra_whitespaces, JSONResponse, \
-    get_redis_connection, get_project_list
-from storlet.views import set_filter, unset_filter
-from storlet.views import save_file, make_sure_path_exists
+
+from api.exceptions import SwiftClientError, StorletNotFoundException, FileSynchronizationException
+from api.common_utils import is_valid_request, rsync_dir_with_nodes, to_json_bools, remove_extra_whitespaces, JSONResponse, get_redis_connection, get_project_list
+from filters.views import set_filter, unset_filter
+from filters.views import save_file, make_sure_path_exists
+import dsl_parser
+
 import json
 import mimetypes
 import os
 import re
-import dsl_parser
 
 host = None
 remote_host = None
-pyactive = settings.PYACTIVE_URL
+metrics = dict()
+rules = dict()
 
 def create_local_host():
-    print("Creating controller pyactive host")
-    tcpconf = ('tcp', ('127.0.0.1', 9899))
-    # momconf = ('mom',{'name':'api_host','ip':'127.0.0.1','port':61613, 'namespace':'/topic/iostack'})
+    tcpconf = ('tcp', (settings.PYACTIVE_IP, settings.PYACTIVE_PORT))
     global host
     try:
         start_controller("pyactive_thread")
         host = init_host(tcpconf)
+        print("Controller pyactive host created")
     except:
-        print("Controller pyactive host already created") 
+        pass
 
-def lookup_remote_host():
-    global remote_host
-    remote_host = host.lookup_remote_host(pyactive + 'controller/Host/0')
-    #remote_host.hello()
-    print 'Lookup remote host: ', remote_host
+
+def load_metrics():
+    try:
+        r = get_redis_connection()
+    except RedisError:
+        return JSONResponse('Error connecting with DB', status=500)
+    
+    workload_metrics = r.keys("workload_metric:*")
+
+    if workload_metrics:
+        print "\nStarting workload metrics:"
+        
+    for wm in workload_metrics:
+        wm_data = r.hgetall(wm)
+        if wm_data['enabled'] == 'True':
+            actor_id = wm_data['metric_name'].split('.')[0]
+            metric_id = int(wm_data['id'])
+            start_metric(metric_id, actor_id)
     
     
+def load_policies():
+    try:
+        r = get_redis_connection()
+    except RedisError:
+        return JSONResponse('Error connecting with DB', status=500)
+    
+    dynamic_policies = r.keys("policy:*")
+
+    if dynamic_policies:
+        print "\nStarting dynamic rules stored in redis:"
+        
+    for policy in dynamic_policies:
+        policy_data = r.hgetall(policy)
+        
+        if policy_data['alive'] == 'True':
+            _, rule_parsed = dsl_parser.parse(policy_data['policy_description']) 
+            target = rule_parsed.target[0][1]  # Tenant ID or tenant+container
+            for action_info in rule_parsed.action_list:
+                if action_info.transient:
+                    print 'Transient rule:', policy_data['policy_description']
+                    rules[policy] = host.spawn_id(str(policy), settings.RULE_TRANSIENT_CLASS, settings.RULE_TRANSIENT_MAIN, 
+                                                  [rule_parsed, action_info, target, host])
+                    rules[policy].start_rule()
+                else:
+                    print 'Rule:', policy_data['policy_description']
+                    rules[policy] = host.spawn_id(str(policy), settings.RULE_CLASS, settings.RULE_MAIN, 
+                                                  [rule_parsed, action_info, target, host])
+                    rules[policy].start_rule()
+
 
 #
 # Metric Workload part
@@ -204,7 +247,7 @@ def dynamic_filter_detail(request, name):
 @csrf_exempt
 def metric_module_list(request):
     """
-    List all metric modules, or create a new metric module.
+    List all metric modules
     """
     # Validate request: only a user with admin role can access to this method
     token = is_valid_request(request)
@@ -221,12 +264,32 @@ def metric_module_list(request):
         for key in keys:
             metric = r.hgetall(key)
             to_json_bools(metric, 'in_flow', 'out_flow', 'enabled')
+            metric_id =  int(metric['id'])
+            if metric_id not in metrics:
+                metric['enabled'] = False
+                r.hset(key,'enabled', False)
             workload_metrics.append(metric)
         sorted_workload_metrics = sorted(workload_metrics, key=lambda x: int(itemgetter('id')(x)))
         return JSONResponse(sorted_workload_metrics, status=status.HTTP_200_OK)
 
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
+def start_metric(metric_id, actor_id):
+    create_local_host()
+    print "- Starting workload metric actor " + str(metric_id)
+    try:
+        if metric_id not in metrics:
+            metrics[metric_id] = host.spawn_id(actor_id, settings.METRIC_CLASS, settings.METRIC_MAIN, 
+                                               ["amq.topic", actor_id, "metrics."+actor_id])
+            metrics[metric_id].init_consum()
+    except Exception as e:
+        print e
+        
+def stop_actor(metric_id):
+    if metric_id in metrics:
+        print "- Stopping workload metric actor " + str(metric_id)
+        metrics[metric_id].stop_actor()
+        del metrics[metric_id]
 
 @csrf_exempt
 def metric_module_detail(request, metric_module_id):
@@ -237,17 +300,18 @@ def metric_module_detail(request, metric_module_id):
     token = is_valid_request(request)
     if not token:
         return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
- 
+
     try:
         r = get_redis_connection()
     except RedisError:
         return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    if not r.exists("workload_metric:" + str(metric_module_id)):
+    metric_id = int(metric_module_id)
+    if not r.exists("workload_metric:" + str(metric_id)):
         return JSONResponse('Object does not exist!', status=status.HTTP_404_NOT_FOUND)
 
     if request.method == 'GET':
-        metric = r.hgetall("workload_metric:" + str(metric_module_id))
+        metric = r.hgetall("workload_metric:" + str(metric_id))
 
         to_json_bools(metric, 'in_flow', 'out_flow', 'enabled')
         return JSONResponse(metric, status=status.HTTP_200_OK)
@@ -258,24 +322,38 @@ def metric_module_detail(request, metric_module_id):
         except ParseError:
             return JSONResponse("Invalid format or empty request", status=status.HTTP_400_BAD_REQUEST)
 
+        if data['enabled']:
+            if not 'metric_name' in data:
+                wm_data = r.hgetall('workload_metric:' + str(metric_id))
+                data['metric_name'] = wm_data['metric_name']
+            
+            actor_id = data['metric_name'].split('.')[0]
+            start_metric(metric_id, actor_id)
+        else:
+            stop_actor(metric_id)
+            
         try:
-            r.hmset('workload_metric:' + str(metric_module_id), data)
+            r.hmset('workload_metric:' + str(metric_id), data)
             return JSONResponse("Data updated", status=status.HTTP_200_OK)
         except DataError:
             return JSONResponse("Error updating data", status=status.HTTP_408_REQUEST_TIMEOUT)
 
     elif request.method == 'DELETE':
+        if metric_id in metrics:
+            stop_actor(metric_id)
+
         try:
-            r.delete("workload_metric:" + str(metric_module_id))
+            r.delete("workload_metric:" + str(metric_id))
             return JSONResponse('Workload metric has been deleted', status=status.HTTP_204_NO_CONTENT)
         except DataError:
             return JSONResponse("Error deleting workload metric", status=status.HTTP_408_REQUEST_TIMEOUT)
+        
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
 class MetricModuleData(APIView):
     """
-    Upload or get a metric module data.
+    Upload or download a metric module data.
     """
     parser_classes = (MultiPartParser, FormParser,)
 
@@ -307,11 +385,17 @@ class MetricModuleData(APIView):
                 return JSONResponse(e.message, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
             r.hmset('workload_metric:' + str(workload_metric_id), data)
+
+            if data['enabled']:
+                actor_id = data['metric_name'].split('.')[0]
+                start_metric(workload_metric_id, actor_id)
+            
             return JSONResponse(data, status=status.HTTP_201_CREATED)
 
         except DataError:
             return JSONResponse("Error to save the object", status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
+            print e
             return JSONResponse("Error uploading file", status=status.HTTP_400_BAD_REQUEST)
 
     def get(self, request, metric_module_id):
@@ -778,7 +862,7 @@ def policy_list(request):
 
                 if condition_list:
                     # Dynamic Rule
-                    print('Rule parsed:', rule_parsed)
+                    #print('Rule parsed:', rule_parsed)
                     deploy_policy(r, rule_string, rule_parsed)
                 else:
                     # Static Rule
@@ -860,19 +944,17 @@ def dynamic_policy_detail(request, policy_id):
 
     if request.method == 'DELETE':
         create_local_host()
-        lookup_remote_host()
         
         try:
-            policy = r.hgetall('policy:' + policy_id)
-            policy_actor = host.lookup_remote_host(policy['policy_location'])
-            policy_actor.stop_actor()
+            rules[int(policy_id)].stop_actor()
+            del rules[int(policy_id)]
         except Exception as e:
             print e
 
         r.delete('policy:' + policy_id)
-        #policies_ids = r.keys('policy:*')
-        #if len(policies_ids) == 0:
-        #    r.set('policies:id',0)
+        policies_ids = r.keys('policy:*')
+        if len(policies_ids) == 0:
+            r.set('policies:id',0)
         return JSONResponse('Policy has been deleted', status=204)
     
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
@@ -930,8 +1012,6 @@ def do_action(request, r, rule_parsed):
 
 def deploy_policy(r, rule_string, parsed_rule):
     create_local_host()
-    lookup_remote_host()
-    rules = dict()
     rules_to_parse = dict()
 
     for target in parsed_rule.target:
@@ -944,15 +1024,15 @@ def deploy_policy(r, rule_string, parsed_rule):
 
             if action_info.transient:
                 print 'Transient rule:', parsed_rule
-                rules[policy_id] = remote_host.spawn_id(rule_id, 'rule_transient', 'TransientRule',
-                                                   [rules_to_parse[key], action_info, key, remote_host])
-                location = "rule_transient/TransientRule/"
+                rules[policy_id] = host.spawn_id(rule_id, settings.RULE_TRANSIENT_CLASS, settings.RULE_TRANSIENT_MAIN,
+                                                [rules_to_parse[key], action_info, key, host])
+                location = os.path.join(settings.RULE_TRANSIENT_CLASS, settings.RULE_TRANSIENT_MAIN)
                 is_transient = True
             else:
                 print 'Rule:', parsed_rule
-                rules[policy_id] = remote_host.spawn_id(rule_id, 'rule', 'Rule',
-                                                   [rules_to_parse[key], action_info, key, remote_host])
-                location = "rule/Rule/"
+                rules[policy_id] = host.spawn_id(rule_id, settings.RULE_CLASS, settings.RULE_MAIN,
+                                                [rules_to_parse[key], action_info, key, host])
+                location = os.path.join(settings.RULE_CLASS, settings.RULE_MAIN)
                 is_transient = False
 
             rules[policy_id].start_rule()
@@ -968,5 +1048,5 @@ def deploy_policy(r, rule_string, parsed_rule):
             r.hmset('policy:' + str(policy_id),
                     {"id": policy_id, "policy": static_policy_rule_string, "policy_description": rule_string,
                      "condition": condition_str.replace('WHEN ', ''), "transient": is_transient,
-                     "policy_location": settings.PYACTIVE_URL + location + str(rule_id), "alive": True})
+                     "policy_location": settings.PYACTIVE_URL + location + '/' + str(rule_id), "alive": True})
 

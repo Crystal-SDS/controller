@@ -2,7 +2,8 @@ from django.views.decorators.csrf import csrf_exempt
 from redis.exceptions import RedisError, DataError
 from rest_framework import status
 from rest_framework.parsers import JSONParser
-from sds_controller.common_utils import  JSONResponse, get_redis_connection, get_project_list, is_valid_request
+
+from api.common_utils import  JSONResponse, get_redis_connection, get_project_list, is_valid_request
 
 
 @csrf_exempt

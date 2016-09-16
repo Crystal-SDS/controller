@@ -23,7 +23,7 @@ class AbstractEnforcementAlgorithm(object):
         """
         """
         settings = ConfigParser.ConfigParser() 
-        settings.read("./dynamic_policies.config")
+        settings.read("registry/policies/dynamic_policies.config")
 
         logging.info('Rule init: OK')
         self.rmq_user = settings.get('rabbitmq', 'username')

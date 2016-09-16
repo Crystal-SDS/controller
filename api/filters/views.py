@@ -13,8 +13,8 @@ from rest_framework.views import APIView
 from swiftclient import client as swift_client
 from swiftclient.exceptions import ClientException
 
-from sds_controller.exceptions import SwiftClientError, StorletNotFoundException, FileSynchronizationException
-from sds_controller.common_utils import rsync_dir_with_nodes, to_json_bools, JSONResponse, get_redis_connection, is_valid_request
+from api.exceptions import SwiftClientError, StorletNotFoundException, FileSynchronizationException
+from api.common_utils import rsync_dir_with_nodes, to_json_bools, JSONResponse, get_redis_connection, is_valid_request
 
 import errno
 import hashlib

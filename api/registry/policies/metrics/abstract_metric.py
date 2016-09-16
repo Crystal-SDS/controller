@@ -3,6 +3,7 @@ import redis
 import ConfigParser
 import sys
 
+
 class Metric(object):
     """
     Metric: This is an abstract class. This class is the responsible to consume messages
@@ -16,8 +17,7 @@ class Metric(object):
         self.value = None
         self.name = None
         settings = ConfigParser.ConfigParser()
-        settings.read("./dynamic_policies.config")
-        
+        settings.read("registry/policies/dynamic_policies.config")
         self.rmq_user = settings.get('rabbitmq', 'username')
         self.rmq_pass = settings.get('rabbitmq', 'password')
         self.rmq_host = settings.get('rabbitmq', 'host')
@@ -27,7 +27,9 @@ class Metric(object):
         self.redis_db = settings.get('redis', 'db')
         self.logstash_host = settings.get('logstash', 'host')
         self.logstash_port = int(settings.get('logstash', 'port'))
-
+        
+        self.redis = redis.StrictRedis(host=self.redis_host, port=int(self.redis_port), db=int(self.redis_db))
+        
     def attach(self, observer):
         """
         Asyncronous method. This method allows to be called remotelly. It is called from
@@ -39,7 +41,7 @@ class Metric(object):
         :type observer: **any** PyActive Proxy type
         """
         # TODO: Add the possibility to subscribe to container or object
-        print 'attach', observer
+        print ' - Metric attaching, observer: ', observer
         tenant = observer.get_target()
 
         if tenant not in self._observers.keys():
@@ -70,15 +72,13 @@ class Metric(object):
         :raises Exception: Raise an exception when a problem to create the consumer appear.
         """
         try:
-            print '---- start_consume ----'
-            r = redis.StrictRedis(host=self.redis_host, port=int(self.redis_port), db=int(self.redis_db))
-            r.hmset("metric:"+self.name, {"network_location": self._atom.aref.replace("atom:", "tcp:", 1), "type": "integer"})
+            print '- Starting consumer'
+            self.redis.hmset("metric:"+self.name, {"network_location": self._atom.aref.replace("atom:", "tcp:", 1), "type": "integer"})
 
-            self.consumer = self.host.spawn_id(self.id + "_consumer", "consumer", "Consumer", 
-                                               [str(self.rmq_host), int(self.rmq_port), str(self.rmq_user), str(self.rmq_pass),
-                                                self.exchange, self.queue, self.routing_key, self.proxy])
+            self.consumer = self.host.spawn_id(self.id + "_consumer", "registry.policies.consumer", "Consumer", 
+                                              [str(self.rmq_host), int(self.rmq_port), str(self.rmq_user), str(self.rmq_pass),
+                                               self.exchange, self.queue, self.routing_key, self.proxy])
             self.start_consuming()
-            print '---- before_consumer ----'
         except:
             e = sys.exc_info()[0]
             print e
@@ -89,8 +89,16 @@ class Metric(object):
         Asynchronous method. This method allows to be called remotelly. This method ends the workload execution and
         kills the actor.
         """
-        self.consumer.stop_consuming()
-        self._atom.stop()
+        try:
+            self.redis.delete("metric:"+self.name)
+            self.consumer.stop_consuming()
+            self._atom.stop()
+            self.host.unregister(self.id)
+            self.host.unregister(self.id + "_consumer")
+            
+        except Exception as e:
+            print e
+        
 
     def start_consuming(self):
         """
@@ -103,17 +111,3 @@ class Metric(object):
         Stop the consumer.
         """
         self.consumer.stop_consuming()
-
-    def notify(self, body):
-        """
-        Method called from the consumer to indicate the value consumed from the rabbitmq queue. After receive the value,
-        this value is communicated to all the observers subscribed to this metric.
-        """
-        data = json.loads(body)
-        for tenant_info in data:
-            try:
-                for observer in self._observers[tenant_info["tenant_id"]]:
-                    observer.update(self.name, tenant_info)
-            except:
-                # print "fail", tenant_info
-                pass
