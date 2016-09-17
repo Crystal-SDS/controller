@@ -25,7 +25,7 @@ class TransientRule(Rule):
         :param target: The target assigned to this rule.
         :type target: **any** String type
         """
-        print "-- Rule Transient --"
+        print "- Transient Rule"
         self.execution_stat = False
         super(TransientRule, self).__init__(rule_parsed, action, target, host)
         self.static_policy_id = None

@@ -1022,13 +1022,13 @@ def deploy_policy(r, rule_string, parsed_rule):
             rule_id = 'policy:' + str(policy_id)
 
             if action_info.transient:
-                print 'Transient rule:', parsed_rule
+                #print 'Transient rule:', parsed_rule
                 rules[policy_id] = host.spawn_id(rule_id, settings.RULE_TRANSIENT_CLASS, settings.RULE_TRANSIENT_MAIN,
                                                 [rules_to_parse[key], action_info, key, host])
                 location = os.path.join(settings.RULE_TRANSIENT_CLASS, settings.RULE_TRANSIENT_MAIN)
                 is_transient = True
             else:
-                print 'Rule:', parsed_rule
+                #print 'Rule:', parsed_rule
                 rules[policy_id] = host.spawn_id(rule_id, settings.RULE_CLASS, settings.RULE_MAIN,
                                                 [rules_to_parse[key], action_info, key, host])
                 location = os.path.join(settings.RULE_CLASS, settings.RULE_MAIN)

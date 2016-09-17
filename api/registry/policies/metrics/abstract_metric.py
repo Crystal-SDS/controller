@@ -95,6 +95,7 @@ class Metric(object):
             for tenant in self._observers:
                 for observer in self._observers[tenant]:
                     observer.stop_actor()
+                    self.redis.hset(observer.get_id(), 'alive', 'False')
             
             self.redis.delete("metric:"+self.name)
             self.consumer.stop_consuming()

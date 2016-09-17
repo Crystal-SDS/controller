@@ -78,16 +78,14 @@ class Rule(object):
             observer.detach(self.proxy)  
         self._atom.stop()
         self.host.unregister(self.id)
-        
-        self.redis.hset(self.id, 'alive', 'False')
-        print 'Actor rule "'+self.id+'" stopped'
+        print ' - Actor rule "'+self.id+'" stopped'
 
     def start_rule(self):
         """
         Method called afeter init to start the rule. Basically this method allows to be called remotelly and calls the
         internal method **check_metrics()** which subscribes the rule to all the workload metrics necessaries.
         """
-        print 'Start rule "'+self.id+'"'
+        print ' - Start rule "'+self.id+'"'
         self.check_metrics(self.conditions)
 
     def _add_metric(self, workload_name):
@@ -137,7 +135,7 @@ class Rule(object):
         :param tenant_info: Contains the timestamp and the value sent from workload metric.
         :type tenant_info: **any** PyParsing type
         """
-        print 'Success update: ', value
+        print ' --> Success update: ', value
 
         self.observers_values[metric] = value
 
