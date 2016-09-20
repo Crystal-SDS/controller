@@ -1,8 +1,5 @@
-import pika
-import logging
 from threading import Thread
-
-logging.basicConfig()
+import pika
 
 
 class Consumer(object):
@@ -47,6 +44,7 @@ class Consumer(object):
         self.thread.start()
 
     def stop_consuming(self):
+        print '- Stopping to consume from rabbitmq'
+        self._atom.stop()
         self._channel.stop_consuming()
         self._channel.close()
-        self._atom.stop()

@@ -81,7 +81,7 @@ class Metric(object):
             self.redis.hmset("metric:"+self.name, {"network_location": self._atom.aref.replace("atom:", "tcp:", 1), "type": "integer"})
 
             self.consumer = self.host.spawn_id(self.id + "_consumer",
-                                               "registry.policies.consumer",
+                                               "registry.dynamic_policies.consumer",
                                                "Consumer",
                                                [str(self.rmq_host),
                                                 int(self.rmq_port),
@@ -102,7 +102,6 @@ class Metric(object):
         This method ends the workload execution and kills the actor.
         """
         try:
-
             # Stop observers
             for tenant in self._observers:
                 for observer in self._observers[tenant]:
@@ -110,7 +109,7 @@ class Metric(object):
                     self.redis.hset(observer.get_id(), 'alive', 'False')
 
             self.redis.delete("metric:"+self.name)
-            self.consumer.stop_consuming()
+            self.stop_consuming()
             self._atom.stop()
 
         except Exception as e:

@@ -11,10 +11,11 @@ mappings = {'>': operator.gt, '>=': operator.ge,
 
 class Rule(object):
     """
-    Rule: Each policy of each tenant is compiled as Rule. Rule is an Actor and it will be subscribed
-    in the workloads metrics. When the data received from the workloads metrics satisfies
-    the conditions defined in the policy,the Rule actor executes an Action that it is
-    also defined in the policy. Once the rule executed the action, this actor is destroyed.
+    Rule: Each policy of each tenant is compiled as Rule. Rule is an Actor and
+    it will be subscribed in the workloads metrics. When the data received from
+    the workloads metrics satisfies the conditions defined in the policy,the
+    Rule actor executes an Action that it is also defined in the policy. Once
+    the rule executed the action, this actor is destroyed.
     """
     _sync = {'get_target': '2'}
     _async = ['update', 'start_rule', 'stop_actor']
