@@ -186,7 +186,7 @@ class RegistryTestCase(TestCase):
     def test_update_metric_module_detail_ok(self, mock_is_valid_request):
         mock_is_valid_request.return_value = 'fake_token'
         metric_id = '1'
-        data = {'execution_server': 'object'}
+        data = {'execution_server': 'object', 'enabled': False}
         request = self.factory.put('/registry/metric_module/' + metric_id, data, format='json')
         response = metric_module_detail(request, metric_id)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -224,7 +224,7 @@ class RegistryTestCase(TestCase):
         mock_is_valid_request.return_value = 'fake_token'
         with open('test_data/test.py', 'r') as fp:
             metadata = {'class_name': 'Metric1', 'execution_server': 'proxy', 'out_flow': False,
-                        'in_flow': False, 'enabled': 'True'}
+                        'in_flow': False, 'enabled': False}
             request = self.factory.post('/registry/metric_module/data/', {'file': fp, 'metadata': json.dumps(metadata)})
             response = MetricModuleData.as_view()(request)
             mock_rsync_dir.assert_called_with(settings.WORKLOAD_METRICS_DIR)
@@ -955,7 +955,7 @@ class RegistryTestCase(TestCase):
     # Aux methods
     #
 
-    @mock.patch('storlet.views.is_valid_request')
+    @mock.patch('filters.views.is_valid_request')
     def create_storlet(self, mock_is_valid_request):
         mock_is_valid_request.return_value = 'fake_token'
         filter_data = {'filter_type': 'storlet', 'interface_version': '', 'dependencies': '',
@@ -978,10 +978,10 @@ class RegistryTestCase(TestCase):
                                        query_string=None, response_dict=None):
         response_dict['status'] = status.HTTP_201_CREATED
 
-    # @mock.patch('storlet.views.get_crystal_token')
-    @mock.patch('storlet.views.is_valid_request')
+    # @mock.patch('filters.views.get_crystal_token')
+    @mock.patch('filters.views.is_valid_request')
     @mock.patch('registry.views.get_project_list')
-    @mock.patch('storlet.views.swift_client.put_object', side_effect=mock_put_object_status_created)
+    @mock.patch('filters.views.swift_client.put_object', side_effect=mock_put_object_status_created)
     # @mock.patch('registry.views.requests.get')
     def deploy_storlet(self, mock_put_object, mock_get_project_list, mock_is_valid_request):
         mock_get_project_list.return_value = {'0123456789abcdef': 'tenantA', '2': 'tenantB'}

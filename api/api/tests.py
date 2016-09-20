@@ -45,7 +45,7 @@ class MainTestCase(TestCase):
         self.assertEqual(bdict['d'], 'False')
         self.assertNotEqual(bdict['d'], False)
 
-    @mock.patch('controller.common_utils.os.system')
+    @mock.patch('api.common_utils.os.system')
     def test_rsync_dir_with_nodes_ok(self, mock_os_system):
         mock_os_system.return_value = 0  # return value when rsync succeeds
 
@@ -62,7 +62,7 @@ class MainTestCase(TestCase):
         with self.assertRaises(FileSynchronizationException):
             rsync_dir_with_nodes(settings.WORKLOAD_METRICS_DIR)
 
-    @mock.patch('controller.common_utils.os.system')
+    @mock.patch('api.common_utils.os.system')
     def test_rsync_dir_with_nodes_when_rsync_fails(self, mock_os_system):
         mock_os_system.return_value = 1  # return value when rsync fails
 
@@ -76,14 +76,14 @@ class MainTestCase(TestCase):
 
     def test_urls(self):
         resolver = resolve('/filters/')
-        self.assertEqual(resolver.view_name, 'storlet.views.storlet_list')
+        self.assertEqual(resolver.view_name, 'filters.views.storlet_list')
 
         resolver = resolve('/filters/123')
-        self.assertEqual(resolver.view_name, 'storlet.views.storlet_detail')
+        self.assertEqual(resolver.view_name, 'filters.views.storlet_detail')
         self.assertEqual(resolver.kwargs, {'storlet_id': '123'})
 
         resolver = resolve('/filters/123/data')
-        self.assertEqual(resolver.view_name, 'storlet.views.StorletData')
+        self.assertEqual(resolver.view_name, 'filters.views.StorletData')
         self.assertEqual(resolver.kwargs, {'storlet_id': '123'})
 
         resolver = resolve('/registry/nodes/')

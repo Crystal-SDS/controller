@@ -4,7 +4,6 @@ import mock
 import os
 import redis
 from django.conf import settings
-from django.http import HttpResponse
 from django.test import TestCase, override_settings
 from rest_framework import status
 from rest_framework.test import APIRequestFactory
@@ -15,7 +14,7 @@ from .views import dependency_list, dependency_detail, storlet_list, storlet_det
 # Tests use database=10 instead of 0.
 @override_settings(REDIS_CON_POOL=redis.ConnectionPool(host='localhost', port=6379, db=10),
                    STORLET_FILTERS_DIR=os.path.join("/tmp", "crystal", "storlet_filters"))
-@mock.patch('storlet.views.is_valid_request')
+@mock.patch('filters.views.is_valid_request')
 class StorletTestCase(TestCase):
 
     def setUp(self):
@@ -238,7 +237,7 @@ class StorletTestCase(TestCase):
                                        query_string=None, response_dict=None):
         response_dict['status'] = status.HTTP_201_CREATED
 
-    @mock.patch('storlet.views.swift_client.put_object', side_effect=mock_put_object_status_created)
+    @mock.patch('filters.views.swift_client.put_object', side_effect=mock_put_object_status_created)
     def test_filter_deploy_to_project_ok(self, mock_put_object, mock_is_valid_request):
         mock_is_valid_request.return_value = 'fake_token'
 
@@ -264,7 +263,7 @@ class StorletTestCase(TestCase):
         json_data = json.loads(dumped_data)
         self.assertEqual(json_data["filter_name"], "test-1.0.jar")
 
-    @mock.patch('storlet.views.swift_client.put_object', side_effect=mock_put_object_status_created)
+    @mock.patch('filters.views.swift_client.put_object', side_effect=mock_put_object_status_created)
     def test_filter_deploy_to_project_and_container_ok(self, mock_put_object, mock_is_valid_request):
         mock_is_valid_request.return_value = 'fake_token'
 
@@ -307,7 +306,7 @@ class StorletTestCase(TestCase):
     #     response = storlet_undeploy(request, '1', '0123456789abcdef')
     #     self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
-    # @mock.patch('storlet.views.swift_client.put_object', side_effect=mock_put_object_status_created)
+    # @mock.patch('filters.views.swift_client.put_object', side_effect=mock_put_object_status_created)
     # def test_storlet_undeploy_without_auth_token(self, mock_put_object):
     #     # Upload a filter for the storlet 1
     #     with open('test_data/test-1.0.jar', 'r') as fp:
@@ -405,7 +404,7 @@ class StorletTestCase(TestCase):
     # Aux methods
     #
 
-    @mock.patch('storlet.views.is_valid_request')
+    @mock.patch('filters.views.is_valid_request')
     def create_storlet(self, mock_is_valid_request):
         mock_is_valid_request.return_value = 'fake_token'
         filter_data = {'filter_type': 'storlet', 'interface_version': '', 'dependencies': '',
@@ -416,7 +415,7 @@ class StorletTestCase(TestCase):
         response = storlet_list(request)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
-    @mock.patch('storlet.views.is_valid_request')
+    @mock.patch('filters.views.is_valid_request')
     def create_dependency(self, mock_is_valid_request):
         mock_is_valid_request.return_value = 'fake_token'
         dependency_data = {'name': 'DependencyName', 'version': '1.0', 'permissions': '0755'}
