@@ -93,17 +93,6 @@ DATABASES = {
     }
 }
 
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.postgresql_psycopg2',
-#         'NAME': 'controller',
-#         'USER': 'controller_user',
-#         'PASSWORD': 'controller_pass',
-#         'HOST': 'localhost',
-#         'PORT': '5432',
-#     }
-# }
-
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'CET'
 USE_I18N = True
@@ -112,13 +101,15 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 
-# Swift info
+# Keystone
 KEYSTONE_ADMIN_URL = "http://localhost:5000/v2.0"
 KEYSTONE_URL = "http://localhost:35357/v2.0"
-SWIFT_URL= "http://localhost:8080/"
+
+# Swift
+SWIFT_URL = "http://localhost:8080/"
 SWIFT_API_VERSION = "v1"
 
-# redis
+# Redis
 REDIS_CON_POOL = redis.ConnectionPool(host='localhost', port=6379, db=0)
 
 # SDS Project
@@ -126,22 +117,23 @@ STORLET_BIN_DIR = "/opt/ibm"
 STORLET_DOCKER_IMAGE = "192.168.2.1:5001/ubuntu_14.04_jre8_storlets"
 STORLET_TAR_FILE = "ubuntu_14.04_jre8_storlets.tar"
 
+# Openstack Admin
 MANAGEMENT_ACCOUNT = "management"
 MANAGEMENT_ADMIN_USERNAME = "manager"
-MANAGEMENT_ADMIN_PASSWORD = "changeme"  # noqa
+MANAGEMENT_ADMIN_PASSWORD = "manager"  # noqa
 
 # pyactive
-PYACTIVE_URL = "tcp://127.0.0.1:6899/"
+PYACTIVE_TRANSPORT = "tcp"
 PYACTIVE_IP = "127.0.0.1"
 PYACTIVE_PORT = 6899
-PYACTIVE_TRANSPORT = "tcp"
+PYACTIVE_URL = PYACTIVE_TRANSPORT+'://'+PYACTIVE_IP+':'+str(PYACTIVE_PORT)
 
 # Mertrics
-METRIC_CLASS = 'registry.policies.metrics.swift_metric'
+METRIC_CLASS = 'registry.dynamic_policies.metrics.swift_metric'
 METRIC_MAIN = 'SwiftMetric'
 
 # Rules
-RULE_CLASS = 'registry.policies.rules.rule'
+RULE_CLASS = 'registry.dynamic_policies.rules.rule'
 RULE_MAIN = 'Rule'
-RULE_TRANSIENT_CLASS = 'registry.policies.rules.rule_transient'
+RULE_TRANSIENT_CLASS = 'registry.dynamic_policies.rules.rule_transient'
 RULE_TRANSIENT_MAIN = 'TransientRule'

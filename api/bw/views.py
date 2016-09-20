@@ -13,7 +13,7 @@ def bw_list(request):
     """ 
     token = is_valid_request(request)
     if not token:
-        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED) 
+        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED) 
               
     try:
         r = get_redis_connection()
@@ -57,7 +57,7 @@ def bw_detail(request, project_key):
     """
     token = is_valid_request(request)
     if not token:
-        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
+        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
     
     try:
         r = get_redis_connection()

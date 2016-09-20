@@ -79,7 +79,7 @@ def parse(input_string):
                    Optional(with_params + params_list("params") +
                             Optional(Suppress("ON")+server_execution("server_execution"))) +
                    Optional(transient("transient")))
-    
+
     action_list = Group(delimitedList(action))
     # Object types
     operand_object = oneOf("< > == != <= >=")
@@ -88,28 +88,28 @@ def parse(input_string):
     object_size = Group(Literal("OBJECT_SIZE")("type") + operand_object("operand") + number("object_value"))("object_size")
     object_list = Group(object_type ^ object_size ^ object_type + "," + object_size ^ object_size + "," + object_type)
     to = Suppress("TO")
-    
+
     # Functions post-parsed
     convert_to_dict = lambda tokens: dict(zip(*[iter(tokens)]*2))
     remove_repeated_elements = lambda tokens: [list(set(tokens[0]))]
-    
+
     params_list.setParseAction(convert_to_dict)
     target.setParseAction(remove_repeated_elements)
     tenant_group.setParseAction(parse_group_tenants)
-    
+
     # Final rule structure
     rule_parse = literal_for + target("target") + \
                  Optional(when + condition_list("condition_list")) + do + \
                  action_list("action_list") + Optional(to + object_list("object_list"))
-                
+
     # Parse the rule
     parsed_rule = rule_parse.parseString(input_string)
-    
+
     # Pos-parsed validation
     has_condition_list = True
     if not parsed_rule.condition_list:
         has_condition_list = False
-        
+
     for action in parsed_rule.action_list:
         if action.params:
             filter_info = r.hgetall("dsl_filter:"+str(action.filter))
@@ -123,10 +123,10 @@ def parse(input_string):
                     raise Exception
             else:
                 raise Exception
-            
+
     return has_condition_list, parsed_rule
 
-                
+
 # condition_list, rule_parsed = parse("FOR TENANT:T1 WHEN get_ops_tenant > 5 DO SET cache TRANSIENT")
 # print condition_list, rule_parsed
 

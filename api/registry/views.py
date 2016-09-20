@@ -27,6 +27,7 @@ remote_host = None
 metrics = dict()
 rules = dict()
 
+
 def create_local_host():
     tcpconf = ('tcp', (settings.PYACTIVE_IP, settings.PYACTIVE_PORT))
     global host
@@ -43,36 +44,36 @@ def load_metrics():
         r = get_redis_connection()
     except RedisError:
         return JSONResponse('Error connecting with DB', status=500)
-    
+
     workload_metrics = r.keys("workload_metric:*")
 
     if workload_metrics:
         print "\nStarting workload metrics:"
-        
+
     for wm in workload_metrics:
         wm_data = r.hgetall(wm)
         if wm_data['enabled'] == 'True':
             actor_id = wm_data['metric_name'].split('.')[0]
             metric_id = int(wm_data['id'])
             start_metric(metric_id, actor_id)
-    
-    
+
+
 def load_policies():
     try:
         r = get_redis_connection()
     except RedisError:
         return JSONResponse('Error connecting with DB', status=500)
-    
+
     dynamic_policies = r.keys("policy:*")
 
     if dynamic_policies:
         print "\nStarting dynamic rules stored in redis:"
-        
+
     for policy in dynamic_policies:
         policy_data = r.hgetall(policy)
-        
+
         if policy_data['alive'] == 'True':
-            _, rule_parsed = dsl_parser.parse(policy_data['policy_description']) 
+            _, rule_parsed = dsl_parser.parse(policy_data['policy_description'])
             target = rule_parsed.target[0][1]  # Tenant ID or tenant+container
             for action_info in rule_parsed.action_list:
                 if action_info.transient:
@@ -99,8 +100,8 @@ def add_metric(request):
     # Validate request: only a user with admin role can access to this method
     token = is_valid_request(request)
     if not token:
-        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
- 
+        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
+
     try:
         r = get_redis_connection()
     except RedisError:
@@ -132,8 +133,8 @@ def metric_detail(request, name):
     # Validate request: only a user with admin role can access to this method
     token = is_valid_request(request)
     if not token:
-        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
- 
+        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
+
     try:
         r = get_redis_connection()
     except RedisError:
@@ -166,13 +167,14 @@ def metric_detail(request, name):
 @csrf_exempt
 def add_dynamic_filter(request):
     """
-    Add a filter with its default parameters in the registry (redis). List all the dynamic filters registered.
+    Add a filter with its default parameters in the registry (redis). 
+    List all the dynamic filters registered.
     """
     # Validate request: only a user with admin role can access to this method
     token = is_valid_request(request)
     if not token:
-        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
- 
+        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
+
     try:
         r = get_redis_connection()
     except RedisError:
@@ -204,8 +206,8 @@ def dynamic_filter_detail(request, name):
     # Validate request: only a user with admin role can access to this method
     token = is_valid_request(request)
     if not token:
-        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
- 
+        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
+
     try:
         r = get_redis_connection()
     except RedisError:
@@ -252,8 +254,8 @@ def metric_module_list(request):
     # Validate request: only a user with admin role can access to this method
     token = is_valid_request(request)
     if not token:
-        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
- 
+        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
+
     try:
         r = get_redis_connection()
     except RedisError:
@@ -263,12 +265,13 @@ def metric_module_list(request):
         workload_metrics = []
         for key in keys:
             metric = r.hgetall(key)
-            to_json_bools(metric, 'in_flow', 'out_flow', 'enabled')   
+            to_json_bools(metric, 'in_flow', 'out_flow', 'enabled')
             workload_metrics.append(metric)
         sorted_workload_metrics = sorted(workload_metrics, key=lambda x: int(itemgetter('id')(x)))
         return JSONResponse(sorted_workload_metrics, status=status.HTTP_200_OK)
 
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
 
 def start_metric(metric_id, actor_id):
     create_local_host()
@@ -276,16 +279,18 @@ def start_metric(metric_id, actor_id):
     try:
         if metric_id not in metrics:
             metrics[metric_id] = host.spawn_id(actor_id, settings.METRIC_CLASS, settings.METRIC_MAIN, 
-                                               ["amq.topic", actor_id, "metrics."+actor_id])
+                                               ["amq.topic", actor_id, "metrics." + actor_id])
             metrics[metric_id].init_consum()
     except Exception as e:
         print e
-        
-def stop_actor(metric_id):
+
+
+def stop_metric(metric_id):
     if metric_id in metrics:
         print "- Stopping workload metric actor " + str(metric_id)
         metrics[metric_id].stop_actor()
         del metrics[metric_id]
+
 
 @csrf_exempt
 def metric_module_detail(request, metric_module_id):
@@ -295,7 +300,7 @@ def metric_module_detail(request, metric_module_id):
     # Validate request: only a user with admin role can access to this method
     token = is_valid_request(request)
     if not token:
-        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
+        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
 
     try:
         r = get_redis_connection()
@@ -322,12 +327,12 @@ def metric_module_detail(request, metric_module_id):
             if not 'metric_name' in data:
                 wm_data = r.hgetall('workload_metric:' + str(metric_id))
                 data['metric_name'] = wm_data['metric_name']
-            
+
             actor_id = data['metric_name'].split('.')[0]
             start_metric(metric_id, actor_id)
         else:
-            stop_actor(metric_id)
-            
+            stop_metric(metric_id)
+
         try:
             r.hmset('workload_metric:' + str(metric_id), data)
             return JSONResponse("Data updated", status=status.HTTP_200_OK)
@@ -337,16 +342,16 @@ def metric_module_detail(request, metric_module_id):
     elif request.method == 'DELETE':
         try:
             if metric_id in metrics:
-                stop_actor(metric_id)
+                stop_metric(metric_id)
 
             r.delete("workload_metric:" + str(metric_id))
             keys = len(r.keys("workload_metric:*"))
             r.set('workload_metrics:id',keys)
-            
+
             return JSONResponse('Workload metric has been deleted', status=status.HTTP_204_NO_CONTENT)
         except DataError:
             return JSONResponse("Error deleting workload metric", status=status.HTTP_408_REQUEST_TIMEOUT)
-        
+
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
@@ -388,7 +393,7 @@ class MetricModuleData(APIView):
             if data['enabled']:
                 actor_id = data['metric_name'].split('.')[0]
                 start_metric(workload_metric_id, actor_id)
-            
+
             return JSONResponse(data, status=status.HTTP_201_CREATED)
 
         except DataError:
@@ -427,7 +432,6 @@ class MetricModuleData(APIView):
 # Storage nodes
 #
 
-
 @csrf_exempt
 def list_storage_node(request):
     """
@@ -438,8 +442,8 @@ def list_storage_node(request):
     # Validate request: only a user with admin role can access to this method
     token = is_valid_request(request)
     if not token:
-        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
- 
+        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
+
     try:
         r = get_redis_connection()
     except RedisError:
@@ -471,8 +475,8 @@ def storage_node_detail(request, snode_id):
     # Validate request: only a user with admin role can access to this method
     token = is_valid_request(request)
     if not token:
-        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
- 
+        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
+
     try:
         r = get_redis_connection()
     except RedisError:
@@ -499,8 +503,6 @@ def storage_node_detail(request, snode_id):
 #
 # Tenants group part
 #
-
-
 @csrf_exempt
 def add_tenants_group(request):
     """
@@ -509,8 +511,8 @@ def add_tenants_group(request):
     # Validate request: only a user with admin role can access to this method
     token = is_valid_request(request)
     if not token:
-        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
- 
+        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
+
     try:
         r = get_redis_connection()
     except RedisError:
@@ -546,8 +548,8 @@ def tenants_group_detail(request, gtenant_id):
     # Validate request: only a user with admin role can access to this method
     token = is_valid_request(request)
     if not token:
-        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
- 
+        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
+
     try:
         r = get_redis_connection()
     except RedisError:
@@ -594,8 +596,8 @@ def gtenants_tenant_detail(request, gtenant_id, tenant_id):
     # Validate request: only a user with admin role can access to this method
     token = is_valid_request(request)
     if not token:
-        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
- 
+        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
+
     try:
         r = get_redis_connection()
     except RedisError:
@@ -610,8 +612,6 @@ def gtenants_tenant_detail(request, gtenant_id, tenant_id):
 #
 # Object Type part
 #
-
-
 @csrf_exempt
 def object_type_list(request):
     """
@@ -621,8 +621,8 @@ def object_type_list(request):
     # Validate request: only a user with admin role can access to this method
     token = is_valid_request(request)
     if not token:
-        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
- 
+        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
+
     try:
         r = get_redis_connection()
     except RedisError:
@@ -665,8 +665,8 @@ def object_type_detail(request, object_type_name):
     # Validate request: only a user with admin role can access to this method
     token = is_valid_request(request)
     if not token:
-        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
- 
+        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
+
     try:
         r = get_redis_connection()
     except RedisError:
@@ -711,8 +711,8 @@ def object_type_items_detail(request, object_type_name, item_name):
     # Validate request: only a user with admin role can access to this method
     token = is_valid_request(request)
     if not token:
-        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
- 
+        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
+
     try:
         r = get_redis_connection()
     except RedisError:
@@ -736,8 +736,8 @@ def node_list(request):
     # Validate request: only a user with admin role can access to this method
     token = is_valid_request(request)
     if not token:
-        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
- 
+        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
+
     try:
         r = get_redis_connection()
     except RedisError:
@@ -769,8 +769,8 @@ def node_detail(request, node_id):
     # Validate request: only a user with admin role can access to this method
     token = is_valid_request(request)
     if not token:
-        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
- 
+        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
+
     try:
         r = get_redis_connection()
     except RedisError:
@@ -799,6 +799,7 @@ def node_detail(request, node_id):
 
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
+
 @csrf_exempt
 def policy_list(request):
     """
@@ -807,7 +808,7 @@ def policy_list(request):
     # Validate request: only a user with admin role can access to this method
     token = is_valid_request(request)
     if not token:
-        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
+        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
  
     try:
         r = get_redis_connection()
@@ -830,7 +831,7 @@ def policy_list(request):
                                      'execution_server_reverse': json_value['execution_server_reverse'],
                                      'execution_order': json_value['execution_order'], 'params': json_value['params']})
             sorted_policies = sorted(policies, key=lambda x: int(itemgetter('execution_order')(x)))
-            
+
             return JSONResponse(sorted_policies, status=status.HTTP_200_OK)
 
         elif 'dynamic' in str(request.path):
@@ -845,7 +846,7 @@ def policy_list(request):
             return JSONResponse("Invalid request", status=status.HTTP_400_BAD_REQUEST)
 
     if request.method == 'POST':
-        
+
         rules_string = request.body.splitlines()
 
         for rule_string in rules_string:
@@ -858,7 +859,7 @@ def policy_list(request):
             #
             try:
                 condition_list, rule_parsed = dsl_parser.parse(rule_string)
-                
+
                 if condition_list:
                     # Dynamic Rule
                     #print('Rule parsed:', rule_parsed)
@@ -891,8 +892,8 @@ def static_policy_detail(request, policy_id):
     # Validate request: only a user with admin role can access to this method
     token = is_valid_request(request)
     if not token:
-        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
- 
+        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
+
     try:
         r = get_redis_connection()
     except RedisError:
@@ -934,8 +935,8 @@ def dynamic_policy_detail(request, policy_id):
     # Validate request: only a user with admin role can access to this method
     token = is_valid_request(request)
     if not token:
-        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
- 
+        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
+
     try:
         r = get_redis_connection()
     except RedisError:
@@ -943,7 +944,7 @@ def dynamic_policy_detail(request, policy_id):
 
     if request.method == 'DELETE':
         create_local_host()
-        
+
         try:
             rules[int(policy_id)].stop_actor()
             del rules[int(policy_id)]
@@ -955,7 +956,7 @@ def dynamic_policy_detail(request, policy_id):
         if len(policies_ids) == 0:
             r.set('policies:id',0)
         return JSONResponse('Policy has been deleted', status=204)
-    
+
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
 
 
@@ -963,8 +964,8 @@ def do_action(request, r, rule_parsed):
     # Validate request: only a user with admin role can access to this method
     token = is_valid_request(request)
     if not token:
-        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
- 
+        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
+
     for target in rule_parsed.target:
         for action_info in rule_parsed.action_list:
             print("TARGET RULE: ", action_info)
@@ -1044,8 +1045,11 @@ def deploy_policy(r, rule_string, parsed_rule):
             static_policy_rule_string = remove_extra_whitespaces(tmp_rule_string)
 
             # Add policy into redis
-            r.hmset('policy:' + str(policy_id),
-                    {"id": policy_id, "policy": static_policy_rule_string, "policy_description": rule_string,
-                     "condition": condition_str.replace('WHEN ', ''), "transient": is_transient,
-                     "policy_location": settings.PYACTIVE_URL + location + '/' + str(rule_id), "alive": True})
-
+            policy_location = os.path.join(settings.PYACTIVE_URL, location, str(rule_id))
+            r.hmset('policy:' + str(policy_id), {"id": policy_id, 
+                                                 "policy": static_policy_rule_string,
+                                                 "policy_description": rule_string,
+                                                 "condition": condition_str.replace('WHEN ', ''),
+                                                 "transient": is_transient,
+                                                 "policy_location": policy_location,
+                                                 "alive": True})

@@ -8,6 +8,7 @@ mappings = {'>': operator.gt, '>=': operator.ge,
             '==': operator.eq, '<=': operator.le, '<': operator.lt,
             '!=': operator.ne, "OR": operator.or_, "AND": operator.and_}
 
+
 class Rule(object):
     """
     Rule: Each policy of each tenant is compiled as Rule. Rule is an Actor and it will be subscribed
@@ -31,10 +32,10 @@ class Rule(object):
         :param host: The proxy host provided by the PyActive Middleware.
         :type host: **any** PyActive Proxy type
         """
-        
+
         settings = ConfigParser.ConfigParser()
-        settings.read("registry/policies/dynamic_policies.config")
-        
+        settings.read("registry/dynamic_policies/settings.conf")
+
         self.openstack_tenant = settings.get('openstack', 'admin_tenant')
         self.openstack_user = settings.get('openstack', 'admin_name')
         self.openstack_pass = settings.get('openstack', 'admin_pass')
@@ -43,9 +44,11 @@ class Rule(object):
         self.redis_host = settings.get('redis', 'host')
         self.redis_port = int(settings.get('redis', 'port'))
         self.redis_db = int(settings.get('redis', 'db'))
-        
-        self.redis = redis.StrictRedis(host=self.redis_host, port=self.redis_port, db=self.redis_db)
-        
+
+        self.redis = redis.StrictRedis(host=self.redis_host,
+                                       port=self.redis_port,
+                                       db=self.redis_db)
+
         self.host = host
         self.rule_parsed = rule_parsed
         self.target = target
@@ -57,12 +60,13 @@ class Rule(object):
 
     def _admin_login(self):
         """
-        Method called to obtain the admin credentials, which we need to deploy filters in accounts.
+        Method called to obtain the admin credentials, which we need to deploy
+        filters in accounts.
         """
         body = json.dumps({"auth": {"tenantName": self.openstack_tenant, "passwordCredentials": {"username": self.openstack_user,
                                                                                                  "password": self.openstack_pass}}})
         headers = {"Content-type": "application/json"}
-        
+
         r = requests.post(self.openstack_keystone_url, data=body, headers=headers)
         if r.status_code == 200:
             self.token = r.json()["access"]["token"]["id"]
@@ -71,33 +75,33 @@ class Rule(object):
 
     def stop_actor(self):
         """
-        Method called to end the rule. This method unsubscribes the rule from all the workload metrics subscribed, and
-        kills the actor of the rule.
+        Method called to end the rule. This method unsubscribes the rule from
+        all the workload metrics subscribed, and kills the actor of the rule.
         """
         for observer in self.observers_proxies.values():
-            observer.detach(self.proxy)  
+            observer.detach(self.proxy)
         self._atom.stop()
-        self.host.unregister(self.id)
         print ' - Actor rule "'+self.id+'" stopped'
 
     def start_rule(self):
         """
-        Method called afeter init to start the rule. Basically this method allows to be called remotelly and calls the
-        internal method **check_metrics()** which subscribes the rule to all the workload metrics necessaries.
+        Method called afeter init to start the rule. Basically this method
+        allows to be called remotelly and calls the internal method
+        **check_metrics()** which subscribes the rule to all the workload
+        metrics necessaries.
         """
         print ' - Start rule "'+self.id+'"'
         self.check_metrics(self.conditions)
 
     def _add_metric(self, workload_name):
         """
-        The `add_metric()` method subscribes the rule to all workload metrics that it
-        needs to check the conditions defined in the policy
+        The `add_metric()` method subscribes the rule to all workload metrics
+        that it needs to check the conditions defined in the policy
 
         :param workload_name: The name that identifies the workload metric.
         :type workload_name: **any** String type
 
         """
-        
         if workload_name not in self.observers_values.keys():
             # Trying the new PyActive version. New lookup function.
             print " - Workload name:", workload_name
@@ -109,9 +113,9 @@ class Rule(object):
 
     def check_metrics(self, condition_list):
         """
-        The check_metrics method finds in the condition list all the metrics that it
-        needs to check the conditions, when find some metric that it needs, call the
-        method add_metric.
+        The check_metrics method finds in the condition list all the metrics
+        that it needs to check the conditions, when find some metric that it
+        needs, call the method add_metric.
 
         :param condition_list: The list of all the conditions.
         :type condition_list: **any** List type
@@ -126,13 +130,15 @@ class Rule(object):
 
     def update(self, metric, value):
         """
-        The method update is called by the workloads metrics following the observer
-        pattern. This method is called to send to this actor the data updated.
+        The method update is called by the workloads metrics following the
+        observer pattern. This method is called to send to this actor the
+        data updated.
 
         :param metric: The name that identifies the workload metric.
         :type metric: **any** String type
 
-        :param tenant_info: Contains the timestamp and the value sent from workload metric.
+        :param tenant_info: Contains the timestamp and the value sent from
+                            workload metric.
         :type tenant_info: **any** PyParsing type
         """
         print ' --> Success update: ', value
@@ -140,8 +146,8 @@ class Rule(object):
         self.observers_values[metric] = value
 
         # TODO Check the last time updated the value
-        # Check the condition of the policy if all values are setted. If the condition
-        # result is true, it calls the method do_action
+        # Check the condition of the policy if all values are setted. If the
+        # condition result is true, it calls the method do_action
         if all(val is not None for val in self.observers_values.values()):
             if self._check_conditions(self.conditions):
                 self._do_action()
@@ -150,16 +156,16 @@ class Rule(object):
 
     def _check_conditions(self, condition_list):
         """
-        The method **check_conditions()** runs the ternary tree of conditions to check if the
-        **self.observers_values** complies the conditions. If the values comply the conditions return
-        True, else return False.
+        The method **check_conditions()** runs the ternary tree of conditions
+        to check if the **self.observers_values** complies the conditions. If
+        the values comply the conditions return True, else return False.
 
         :param condition_list: A list of all the conditions
         :type condition_list: **any** List type
 
         :return: If the values comply the conditions
         :rtype: boolean type.
-        """        
+        """
         if not isinstance(condition_list[0], list):
             result = mappings[condition_list[1]](float(self.observers_values[condition_list[0].lower()]), float(condition_list[2]))
         else:
@@ -179,15 +185,14 @@ class Rule(object):
 
     def _do_action(self):
         """
-        The do_action method is called after the conditions are satisfied. So this method
-        is responsible to execute the action defined in the policy.
-
+        The do_action method is called after the conditions are satisfied. So
+        this method is responsible to execute the action defined in the policy.
         """
         if not self.token:
             self._admin_login()
 
         headers = {"X-Auth-Token": self.token}
-        dynamic_filter = self.redis.hgetall("dsl_filter:"+str(self.action_list.filter))      
+        dynamic_filter = self.redis.hgetall("dsl_filter:"+str(self.action_list.filter))
 
         if self.action_list.action == "SET":
             # TODO Review if this tenant has already deployed this filter. Not deploy the same filter more than one time.
@@ -195,7 +200,7 @@ class Rule(object):
             url = dynamic_filter["activation_url"]+"/"+self.target+"/deploy/"+str(dynamic_filter["identifier"])
 
             data = dict()
-            
+
             if hasattr(self.rule_parsed.object_list, "object_type"):
                 data['object_type'] = self.rule_parsed.object_list.object_type.object_value
             else:
@@ -213,7 +218,7 @@ class Rule(object):
             if 200 > response.status_code >= 300:
                 print 'Error setting policy'
             else:
-                print 'Policy '+ self.id +' applied'
+                print 'Policy ' + self.id + ' applied'
                 self.redis.hset(self.id, 'alive', False)
                 try:
                     self.stop_actor()

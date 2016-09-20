@@ -46,10 +46,10 @@ def storlet_list(request):
     """
     List all storlets, or create a new storlet.
     """
-    # Validate request: only Crystal admin user can access to this method
+    # Validate request: only admin user can access to this method
     token = is_valid_request(request)
     if not token:
-        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
+        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
 
     try:
         r = get_redis_connection()
@@ -97,10 +97,10 @@ def storlet_detail(request, storlet_id):
     """
     Retrieve, update or delete a Storlet.
     """
-    # Validate request: only Crystal admin user can access to this method
+    # Validate request: only admin user can access to this method
     token = is_valid_request(request)
     if not token:
-        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
+        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
 
     try:
         r = get_redis_connection()
@@ -238,10 +238,10 @@ def filter_deploy(request, filter_id, account, container=None, swift_object=None
     """
     Deploy a filter to a specific swift account.
     """
-    # Validate request: only Crystal admin user can access to this method
+    # Validate request: only admin user can access to this method
     token = is_valid_request(request)
     if not token:
-        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
+        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
 
     if request.method == 'PUT':
         try:
@@ -295,10 +295,10 @@ def storlet_list_deployed(request, account):
     """
     List all the storlets deployed.
     """
-    # Validate request: only Crystal admin user can access to this method
+    # Validate request: only admin user can access to this method
     token = is_valid_request(request)
     if not token:
-        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
+        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
 
     if request.method == 'GET':
         try:
@@ -320,10 +320,10 @@ def filter_undeploy(request, filter_id, account, container=None, swift_object=No
     """
     Undeploy a storlet from a specific swift account.
     """
-    # Validate request: only Crystal admin user can access to this method
+    # Validate request: only admin user can access to this method
     token = is_valid_request(request)
     if not token:
-        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
+        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
 
     if request.method == 'PUT':
         try:
@@ -363,10 +363,10 @@ def dependency_list(request):
     """
     List all dependencies, or create a Dependency.
     """
-    # Validate request: only Crystal admin user can access to this method
+    # Validate request: only admin user can access to this method
     token = is_valid_request(request)
     if not token:
-        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
+        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
 
     try:
         r = get_redis_connection()
@@ -397,10 +397,10 @@ def dependency_detail(request, dependency_id):
     """
     Retrieve, update or delete a Dependency.
     """
-    # Validate request: only Crystal admin user can access to this method
+    # Validate request: only admin user can access to this method
     token = is_valid_request(request)
     if not token:
-        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
+        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
 
     try:
         r = get_redis_connection()
@@ -448,10 +448,10 @@ class DependencyData(APIView):
 
 @csrf_exempt
 def dependency_deploy(request, dependency_id, account):
-    # Validate request: only Crystal admin user can access to this method
+    # Validate request: only admin user can access to this method
     token = is_valid_request(request)
     if not token:
-        return JSONResponse('You must be authenticated as Crystal admin.', status=401)
+        return JSONResponse('You must be authenticated as admin.', status=401)
 
     if request.method == 'PUT':
         try:
@@ -494,10 +494,10 @@ def dependency_deploy(request, dependency_id, account):
 
 @csrf_exempt
 def dependency_list_deployed(request, account):
-    # Validate request: only Crystal admin user can access to this method
+    # Validate request: only admin user can access to this method
     token = is_valid_request(request)
     if not token:
-        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
+        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
 
     if request.method == 'GET':
         try:
@@ -516,10 +516,10 @@ def dependency_list_deployed(request, account):
 
 @csrf_exempt
 def dependency_undeploy(request, dependency_id, account):
-    # Validate request: only Crystal admin user can access to this method
+    # Validate request: only admin user can access to this method
     token = is_valid_request(request)
     if not token:
-        return JSONResponse('You must be authenticated as Crystal admin.', status=status.HTTP_401_UNAUTHORIZED)
+        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
 
     if request.method == 'PUT':
         try:

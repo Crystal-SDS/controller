@@ -14,7 +14,10 @@ class Consumer(object):
     def __init__(self, host, port, username, password, exchange, queue, routing_key, obj):
 
         credentials = pika.PlainCredentials(username, password)
-        self._channel = pika.BlockingConnection(pika.ConnectionParameters(host=host, port=port, credentials=credentials)).channel()
+        parameters = pika.ConnectionParameters(host=host,
+                                               port=port,
+                                               credentials=credentials)
+        self._channel = pika.BlockingConnection(parameters).channel()
 
         self.obj = obj
         self.queue = queue
@@ -24,10 +27,8 @@ class Consumer(object):
         self._channel.queue_declare(queue=queue)
         # queue_name = result.method.queue
         print '- Routing_key: ', routing_key
-        
-        
+
         if routing_key:
-            
             self._channel.queue_bind(exchange=exchange,
                                      queue=queue,
                                      routing_key=routing_key)
@@ -46,8 +47,6 @@ class Consumer(object):
         self.thread.start()
 
     def stop_consuming(self):
-        #print 'intro stop consuming'
         self._channel.stop_consuming()
         self._channel.close()
-        #print 'after close_cannel'
         self._atom.stop()

@@ -7,6 +7,7 @@ import redis
 from datetime import datetime
 import os
 
+valid_tokens = dict()
 
 class JSONResponse(HttpResponse):
     """
@@ -43,12 +44,18 @@ def get_keystone_admin_auth():
 def is_valid_request(request):    
     token = request.META['HTTP_X_AUTH_TOKEN']
     is_admin = False
-    keystone = get_keystone_admin_auth()
+    now = datetime.now()
 
-    try:
-        token_data = keystone.tokens.validate(token)
-        token_expiration = datetime.strptime(token_data.expires, '%Y-%m-%dT%H:%M:%SZ')
-        now = datetime.now()
+    if token not in valid_tokens:
+        keystone = get_keystone_admin_auth()
+    
+        try:
+            token_data = keystone.tokens.validate(token)
+        except:
+            return False
+          
+        token_expiration = datetime.strptime(token_data.expires, 
+                                             '%Y-%m-%dT%H:%M:%SZ')
 
         token_roles = token_data.user['roles']
         for role in token_roles:
@@ -56,9 +63,13 @@ def is_valid_request(request):
                 is_admin = True
 
         if token_expiration > now and is_admin:
+            valid_tokens[token] = token_expiration
             return token
-    except:
-        return False
+        
+    else:
+        token_expiration = valid_tokens[token]
+        if token_expiration > now:
+            return token
 
     return False
 
