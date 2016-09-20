@@ -5,7 +5,7 @@
 
 # Crystal-Controller
 
-This repository contains the code of the SDS Controller for Object Storage in the IOStack architecture. The SDS Controller repository contains two differentiated parts: **The SDS Controller API** and the **Dynamic Policies**. The **SDS Controller API** is a Django project that implements the REST API needed to handle the Storlets and the BW Differentiation. Otherwise, **Dynamic Policies** is a set of python processes who use the [PyActive middleware](https://github.com/cloudspaces/pyactive) (an Object Oriented implementation of the Actor model). This part allows to create simple policies using a DSL (integrated in the SDS Controller API) and deploys them as an actor process, whose analyze the system data, thanks to the monitoring system, allows to set or remove filters to tenants depending of the policy established.
+This repository contains the code of the SDS Controller for Object Storage in the IOStack architecture. The SDS Controller repository contains two differentiated parts: **The SDS Controller API** and the **Dynamic Policies**. The **SDS Controller API** is a Django project that implements the REST API needed to handle the Storlets and the BW Differentiation. Otherwise, **Dynamic Policies** is a set of python processes who use the [PyActive middleware](https://github.com/cloudspaces/pyactive) (an Object Oriented implementation of the Actor model). This part allows to create simple policies using a DSL (integrated in the SDS Controller API) and deploys them as an actor process, who analyze the system data thanks to the monitoring system, and allows to set or remove filters to tenants depending on the established policy.
 
 The repository is structured with the next folders:
 
@@ -15,7 +15,7 @@ The repository is structured with the next folders:
 
 * **scripts:** The scripts folder contains all the scripts needed for the project. The file vagrant-init.sh will be executed each time that you start the virtual machine using vagrant.
 
-* **sds_controller:** The sds_controller contains the source code. It's structure follows a standard Django project structure.
+* **sds_controller:** The sds_controller contains the source code. Its structure follows a standard Django project structure.
 
 * **dynamic_policies** The dynamic_policies contains the source code of this part.
 
@@ -25,7 +25,7 @@ To build the APIs in an easy way we use [Django REST Framework](http://www.djang
 
 # Requirements
 
-These project only have two requirements:
+This project only has two requirements:
 
 1. Install Virtual Box [Visit VirtualBox page!](https://www.virtualbox.org/)
 2. Install Vagrant [Visit Vagrant page!](https://www.vagrantup.com/downloads.html)
@@ -34,7 +34,7 @@ That's all! You don't need Django or Python... Vagrant resolves this problem for
 
 # Installation
 
-Once you have already installed the requirements, you only need to go in the folder location using a terminal, and execute the command: `vagrant up`. First time, the process may take a few minutes because Vagrant downloads the Operative System to create the Virtual Machine. The other times the process will be faster.
+Once you have already installed the requirements, you only need to go in the folder location using a terminal, and execute the command: `vagrant up`. First time, the process may take a few minutes because Vagrant downloads the Operative System to create the Virtual Machine. Next time the process will be faster.
 
 The Virtual Machine that we started has all the tools that we need to run the server. To connect to this machine you only need to run the command `vagrant ssh`. The repository folder is synchronized between your machine and the Virtual Machine, so you can develop the code in your local machine with your prefer IDE, and run the project in the Virtual Machine.
 
