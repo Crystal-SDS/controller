@@ -49,8 +49,8 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'Dynamic Policies'
-copyright = u'2015, Sir. Edgar Zamora-Gómez, Dr. Raúl Gracia'
-author = u'Sir. Edgar Zamora-Gómez, Dr. Raúl Gracia'
+copyright = u'2015-2016, Edgar Zamora-Gómez, Raúl Gracia'
+author = u'Edgar Zamora-Gómez, Raúl Gracia'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the

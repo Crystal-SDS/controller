@@ -45,16 +45,3 @@ If some problem appear, make sure..
 1. redis-server service is running? Start this service, because the SDS Controller API stores the meta-data information in redis.
 2. is PyActive in the PYTHONPATH? At home folder you can found the pyactive folder, where you can find another install.txt, please follow this steps.
 3. review the settings file from SDS Controller and make sure to write the correct IPs (Swift IP, Keystone IP, PyActive IP)
-
-
-# Monitoring
-<!-- out of date -->
-To enable the monitoring module you need to follow this steps. First create a new queue at OpenStack controller host. You need to be logged into the OpenStack controller host and run this command: `sudo rabbitmqadmin declare queue name="myQueue" durable=true auto_delete=false` and assign a binding to it with the service you want to monitor with `sudo rabbitmqadmin declare binding source="ceilometer" destination_type="queue" destination="myQueue" routing_key="metering.sample"` where myQueue will be the name of the queue to retrieve the events.
-
-`TODO:` Then, you need to edit the config file `x` and add the ip:port tuple of the RabbitMQ at OpenStack controller host (by default `rabbitmq_host_ip:5672`) and the name of the queue that you created before, myQueue in this lines.
-
-# Future Work
-
-- [x] Communicate Storlet module with OpenStack Swift.
-- [x] Communicate BW module with OpenStack Swift.
-- [x] Add Monitoring module and communicate with OpenStack Swift using RabbitMQ.
