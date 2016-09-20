@@ -9,7 +9,7 @@ install:
 - git clone https://github.com/cloudspaces/pyactive.git && cd pyactive/pyactive_project
   && python setup.py develop && cd ../..
 script:
-- cd sds_controller/ && coverage run --source='.' manage.py test
+- cd api/ && coverage run --source='.' manage.py test
 after_success: coveralls
 notifications:
   slack:
