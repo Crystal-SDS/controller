@@ -21,6 +21,12 @@ import os
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #sys.path.insert(0, os.path.abspath('.'))
 sys.path.insert(0, os.path.abspath('..'))
+
+# dist_packages_path = os.path.join(os.sep, 'usr', 'lib', 'python2.7', 'dist-packages')
+# sys.path.insert(0, dist_packages_path)
+# local_dist_packages_path = os.path.join(os.sep, 'usr', 'local', 'lib', 'python2.7', 'dist-packages')
+# sys.path.insert(0, local_dist_packages_path)
+
 from django.conf import settings
 settings.configure()
 

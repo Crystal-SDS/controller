@@ -1,0 +1,196 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Metrics &mdash; Crystal Controller 1.0.0 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '1.0.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="top" title="Crystal Controller 1.0.0 documentation" href="../index.html" />
+    <link rel="next" title="Rules" href="rules.html" />
+    <link rel="prev" title="Registry Views" href="views.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="rules.html" title="Rules"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="views.html" title="Registry Views"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">Crystal Controller 1.0.0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="module-registry.dynamic_policies.metrics.__init__">
+<span id="metrics"></span><h1>Metrics<a class="headerlink" href="#module-registry.dynamic_policies.metrics.__init__" title="Permalink to this headline">¶</a></h1>
+<span class="target" id="module-registry.dynamic_policies.metrics.abstract_metric"></span><dl class="class">
+<dt id="registry.dynamic_policies.metrics.abstract_metric.Metric">
+<em class="property">class </em><code class="descclassname">registry.dynamic_policies.metrics.abstract_metric.</code><code class="descname">Metric</code><a class="headerlink" href="#registry.dynamic_policies.metrics.abstract_metric.Metric" title="Permalink to this definition">¶</a></dt>
+<dd><p>Metric: This is an abstract class. This class is the responsible to consume
+messages from rabbitMQ and send the data to each observer subscribed to it.
+This class also treats each tenant as a topic, so it is able to distinguish
+for each observer in that tenant is subscribed. In this way, the metric
+actor only sends the necessary information to each observer.</p>
+<dl class="method">
+<dt id="registry.dynamic_policies.metrics.abstract_metric.Metric.attach">
+<code class="descname">attach</code><span class="sig-paren">(</span><em>observer</em><span class="sig-paren">)</span><a class="headerlink" href="#registry.dynamic_policies.metrics.abstract_metric.Metric.attach" title="Permalink to this definition">¶</a></dt>
+<dd><p>Asyncronous method. This method allows to be called remotelly. It is
+called from observers in order to subscribe in this workload metric.
+This observer will be saved in a dictionary type structure where the
+key will be the tenant assigned in the observer, and the value will be
+the PyActive proxy to connect to the observer.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>observer</strong> (<strong>any</strong> PyActive Proxy type) &#8211; The PyActive proxy of the oberver rule that calls this method.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="registry.dynamic_policies.metrics.abstract_metric.Metric.detach">
+<code class="descname">detach</code><span class="sig-paren">(</span><em>observer</em><span class="sig-paren">)</span><a class="headerlink" href="#registry.dynamic_policies.metrics.abstract_metric.Metric.detach" title="Permalink to this definition">¶</a></dt>
+<dd><p>Asyncronous method. This method allows to be called remotelly.
+It is called from observers in order to unsubscribe from this workload
+metric.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>observer</strong> (<strong>any</strong> PyActive Proxy type) &#8211; The PyActive proxy of the oberver rule that calls this method.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="registry.dynamic_policies.metrics.abstract_metric.Metric.init_consum">
+<code class="descname">init_consum</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#registry.dynamic_policies.metrics.abstract_metric.Metric.init_consum" title="Permalink to this definition">¶</a></dt>
+<dd><p>Asynchronous method. This method allows to be called remotelly. This
+method registries the workload metric in the redis database. Also
+create a new consumer actor in order to consume from a specific
+rabbitmq queue.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Raises:</th><td class="field-body"><strong>Exception</strong> &#8211; Raise an exception when a problem to create the
+consumer appear.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="registry.dynamic_policies.metrics.abstract_metric.Metric.start_consuming">
+<code class="descname">start_consuming</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#registry.dynamic_policies.metrics.abstract_metric.Metric.start_consuming" title="Permalink to this definition">¶</a></dt>
+<dd><p>Start the consumer.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="registry.dynamic_policies.metrics.abstract_metric.Metric.stop_actor">
+<code class="descname">stop_actor</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#registry.dynamic_policies.metrics.abstract_metric.Metric.stop_actor" title="Permalink to this definition">¶</a></dt>
+<dd><p>Asynchronous method. This method allows to be called remotelly.
+This method ends the workload execution and kills the actor.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="registry.dynamic_policies.metrics.abstract_metric.Metric.stop_consuming">
+<code class="descname">stop_consuming</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#registry.dynamic_policies.metrics.abstract_metric.Metric.stop_consuming" title="Permalink to this definition">¶</a></dt>
+<dd><p>Stop the consumer.</p>
+</dd></dl>
+
+</dd></dl>
+
+<span class="target" id="module-registry.dynamic_policies.metrics.bw_info"></span><span class="target" id="module-registry.dynamic_policies.metrics.swift_metric"></span><span class="target" id="module-registry.dynamic_policies.metrics.bw_info_ssync"></span></div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="views.html"
+                        title="previous chapter">Registry Views</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="rules.html"
+                        title="next chapter">Rules</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/registry/metrics.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="rules.html" title="Rules"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="views.html" title="Registry Views"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">Crystal Controller 1.0.0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &copy; Copyright 2015-2016, Edgar Zamora-Gómez, Raúl Gracia.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.4.4.
+    </div>
+  </body>
+</html>

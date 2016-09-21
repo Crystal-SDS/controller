@@ -95,7 +95,12 @@ def load_policies():
 @csrf_exempt
 def add_metric(request):
     """
-    Add a metric workload in the registry (redis)
+    Get all registered workload metrics (GET) or add a new metric workload in the registry (POST).
+    
+    :param request: The http request.
+    :type request: HttpRequest
+    :return: A JSON list with all registered metrics (GET) or a success/error message depending on the result of the function.
+    :rtype: JSONResponse
     """
     # Validate request: only a user with admin role can access to this method
     token = is_valid_request(request)
