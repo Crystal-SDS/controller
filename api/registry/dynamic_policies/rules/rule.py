@@ -54,8 +54,8 @@ class Rule(object):
         self.rule_parsed = rule_parsed
         self.target = target
         self.conditions = rule_parsed.condition_list.asList()
-        self.observers_values = {}
-        self.observers_proxies = {}
+        self.observers_values = dict()
+        self.observers_proxies = dict()
         self.action_list = action
         self.token = None
 
@@ -80,9 +80,9 @@ class Rule(object):
         all the workload metrics subscribed, and kills the actor of the rule.
         """
         for observer in self.observers_proxies.values():
-            observer.detach(self.proxy)
+            observer.detach(self.proxy, self.get_target())
         self._atom.stop()
-        print ' - Actor rule "'+self.id+'" stopped'
+        print ' - Rule, Actor "'+self.id+'" stopped'
 
     def start_rule(self):
         """
@@ -91,7 +91,7 @@ class Rule(object):
         **check_metrics()** which subscribes the rule to all the workload
         metrics necessaries.
         """
-        print ' - Start rule "'+self.id+'"'
+        print ' - Rule, Start "'+self.id+'"'
         self.check_metrics(self.conditions)
 
     def _add_metric(self, workload_name):
@@ -105,9 +105,9 @@ class Rule(object):
         """
         if workload_name not in self.observers_values.keys():
             # Trying the new PyActive version. New lookup function.
-            print " - Workload name:", workload_name
+            print " - Rule, Workload name:", workload_name
             observer = self.host.lookup(workload_name)
-            print ' - Ovserver: ', observer.get_id(), observer
+            print ' - Rule, Ovserver: ', observer.get_id(), observer
             observer.attach(self.proxy)
             self.observers_proxies[workload_name] = observer
             self.observers_values[workload_name] = None
@@ -121,7 +121,7 @@ class Rule(object):
         :param condition_list: The list of all the conditions.
         :type condition_list: **any** List type
         """
-        print ' - Condition: ', condition_list
+        print ' - Rule, Condition: ', condition_list
         if not isinstance(condition_list[0], list):
             self._add_metric(condition_list[0].lower())
         else:

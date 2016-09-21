@@ -9,7 +9,7 @@ from copy import deepcopy
 class SwiftMetric(Metric):
     _sync = {}
     _async = ['get_value', 'attach', 'detach', 'notify', 'start_consuming', 'stop_consuming', 'init_consum', 'stop_actor']
-    _ref = []
+    _ref = ['attach', 'detach']
     _parallel = []
 
     def __init__(self, exchange, metric_id, routing_key):
