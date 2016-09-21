@@ -1,0 +1,256 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Registry Views &mdash; Crystal Controller 1.0.0 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '1.0.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="top" title="Crystal Controller 1.0.0 documentation" href="../index.html" />
+    <link rel="next" title="Swift Views" href="../swift/views.html" />
+    <link rel="prev" title="Filters Views" href="../filters/views.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="../swift/views.html" title="Swift Views"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="../filters/views.html" title="Filters Views"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">Crystal Controller 1.0.0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="module-registry.views">
+<span id="registry-views"></span><h1>Registry Views<a class="headerlink" href="#module-registry.views" title="Permalink to this headline">¶</a></h1>
+<dl class="class">
+<dt id="registry.views.MetricModuleData">
+<em class="property">class </em><code class="descclassname">registry.views.</code><code class="descname">MetricModuleData</code><span class="sig-paren">(</span><em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#registry.views.MetricModuleData" title="Permalink to this definition">¶</a></dt>
+<dd><p>Upload or download a metric module data.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="registry.views.add_dynamic_filter">
+<code class="descclassname">registry.views.</code><code class="descname">add_dynamic_filter</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#registry.views.add_dynamic_filter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add a filter with its default parameters in the registry (redis). 
+List all the dynamic filters registered.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="registry.views.add_metric">
+<code class="descclassname">registry.views.</code><code class="descname">add_metric</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#registry.views.add_metric" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get all registered workload metrics (GET) or add a new metric workload in the registry (POST).</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>request</strong> (<em>HttpRequest</em>) &#8211; The http request.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">A JSON list with all registered metrics (GET) or a success/error message depending on the result of the function.</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body">JSONResponse</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="registry.views.add_tenants_group">
+<code class="descclassname">registry.views.</code><code class="descname">add_tenants_group</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#registry.views.add_tenants_group" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add a tenant group or list all the tenants groups saved in the registry.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="registry.views.dynamic_filter_detail">
+<code class="descclassname">registry.views.</code><code class="descname">dynamic_filter_detail</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#registry.views.dynamic_filter_detail" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get, update or delete a dynamic filter from the registry.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="registry.views.dynamic_policy_detail">
+<code class="descclassname">registry.views.</code><code class="descname">dynamic_policy_detail</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#registry.views.dynamic_policy_detail" title="Permalink to this definition">¶</a></dt>
+<dd><p>Retrieve, update or delete SLA.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="registry.views.gtenants_tenant_detail">
+<code class="descclassname">registry.views.</code><code class="descname">gtenants_tenant_detail</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#registry.views.gtenants_tenant_detail" title="Permalink to this definition">¶</a></dt>
+<dd><p>Delete a member from a tenants group.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="registry.views.list_storage_node">
+<code class="descclassname">registry.views.</code><code class="descname">list_storage_node</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#registry.views.list_storage_node" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add a storage node or list all the storage nodes saved in the registry.
+:param request:
+:return: JSONResponse</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="registry.views.metric_detail">
+<code class="descclassname">registry.views.</code><code class="descname">metric_detail</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#registry.views.metric_detail" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get, update or delete a metric workload from the registry.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="registry.views.metric_module_detail">
+<code class="descclassname">registry.views.</code><code class="descname">metric_module_detail</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#registry.views.metric_module_detail" title="Permalink to this definition">¶</a></dt>
+<dd><p>Retrieve, update or delete a metric module.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="registry.views.metric_module_list">
+<code class="descclassname">registry.views.</code><code class="descname">metric_module_list</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#registry.views.metric_module_list" title="Permalink to this definition">¶</a></dt>
+<dd><p>List all metric modules</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="registry.views.node_detail">
+<code class="descclassname">registry.views.</code><code class="descname">node_detail</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#registry.views.node_detail" title="Permalink to this definition">¶</a></dt>
+<dd><p>GET: Retrieve node details. PUT: Update node.
+:param request:
+:param node_id:
+:return:</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="registry.views.node_list">
+<code class="descclassname">registry.views.</code><code class="descname">node_list</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#registry.views.node_list" title="Permalink to this definition">¶</a></dt>
+<dd><p>GET: List all nodes ordered by name</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="registry.views.object_type_detail">
+<code class="descclassname">registry.views.</code><code class="descname">object_type_detail</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#registry.views.object_type_detail" title="Permalink to this definition">¶</a></dt>
+<dd><p>GET: List extensions allowed about an object type word registered.
+PUT: Update the object type word registered.
+DELETE: Delete the object type word registered.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="registry.views.object_type_items_detail">
+<code class="descclassname">registry.views.</code><code class="descname">object_type_items_detail</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#registry.views.object_type_items_detail" title="Permalink to this definition">¶</a></dt>
+<dd><p>Delete an extension from an object type definition.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="registry.views.object_type_list">
+<code class="descclassname">registry.views.</code><code class="descname">object_type_list</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#registry.views.object_type_list" title="Permalink to this definition">¶</a></dt>
+<dd><p>GET: List all object types.
+POST: Bind a new object type.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="registry.views.policy_list">
+<code class="descclassname">registry.views.</code><code class="descname">policy_list</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#registry.views.policy_list" title="Permalink to this definition">¶</a></dt>
+<dd><p>List all policies (sorted by execution_order). Deploy new policies.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="registry.views.static_policy_detail">
+<code class="descclassname">registry.views.</code><code class="descname">static_policy_detail</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#registry.views.static_policy_detail" title="Permalink to this definition">¶</a></dt>
+<dd><p>Retrieve, update or delete SLA.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="registry.views.storage_node_detail">
+<code class="descclassname">registry.views.</code><code class="descname">storage_node_detail</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#registry.views.storage_node_detail" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get, update or delete a storage node from the registry.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="registry.views.tenants_group_detail">
+<code class="descclassname">registry.views.</code><code class="descname">tenants_group_detail</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#registry.views.tenants_group_detail" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get, update or delete a tenants group from the registry.</p>
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="../filters/views.html"
+                        title="previous chapter">Filters Views</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="../swift/views.html"
+                        title="next chapter">Swift Views</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/registry/views.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="../swift/views.html" title="Swift Views"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="../filters/views.html" title="Filters Views"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">Crystal Controller 1.0.0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &copy; Copyright 2015-2016, Edgar Zamora-Gómez, Raúl Gracia.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.4.4.
+    </div>
+  </body>
+</html>

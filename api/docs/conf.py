@@ -15,12 +15,21 @@
 import sys
 import os
 # import shlex
+from mock import Mock as MagicMock
+
+on_rtd = os.environ.get('READTHEDOCS') == 'True'
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #sys.path.insert(0, os.path.abspath('.'))
 sys.path.insert(0, os.path.abspath('..'))
+
+# dist_packages_path = os.path.join(os.sep, 'usr', 'lib', 'python2.7', 'dist-packages')
+# sys.path.insert(0, dist_packages_path)
+# local_dist_packages_path = os.path.join(os.sep, 'usr', 'local', 'lib', 'python2.7', 'dist-packages')
+# sys.path.insert(0, local_dist_packages_path)
+
 from django.conf import settings
 settings.configure()
 
@@ -113,7 +122,7 @@ todo_include_todos = False
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = 'classic'
+html_theme = 'default'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
@@ -287,3 +296,14 @@ texinfo_documents = [
 
 # If true, do not generate a @detailmenu in the "Top" node's menu.
 #texinfo_no_detailmenu = False
+
+# -- Mocks
+
+class Mock(MagicMock):
+    @classmethod
+    def __getattr__(cls, name):
+            return Mock()
+
+if on_rtd:
+    MOCK_MODULES = ['pyactive.controller', 'pyactive.controller']
+    sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)

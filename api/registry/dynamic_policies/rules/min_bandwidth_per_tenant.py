@@ -1,8 +1,3 @@
-"""
-Created on Apr 18, 2016
-
-@author: raul
-"""
 from base_bw_rule import AbstractEnforcementAlgorithm
 
 
