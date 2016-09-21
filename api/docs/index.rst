@@ -11,7 +11,14 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
-   storlet/views
+   bw/views
+   filters/views
+   registry/views
+   swift/views
+   registry/metrics
+   registry/rules
+   registry/consumer
+
 
 Indices and tables
 ==================
