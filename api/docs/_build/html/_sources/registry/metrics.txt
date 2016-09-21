@@ -1,5 +1,5 @@
 Metrics
-===============
+=======
 .. automodule:: registry.dynamic_policies.metrics.__init__
     :members:
 .. automodule:: registry.dynamic_policies.metrics.abstract_metric
