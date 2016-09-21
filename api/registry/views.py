@@ -34,7 +34,7 @@ def create_local_host():
     try:
         start_controller("pyactive_thread")
         host = init_host(tcpconf)
-        print("Controller pyactive host created")
+        print("Controller PyActive host created")
     except:
         pass
 
@@ -280,7 +280,7 @@ def metric_module_list(request):
 
 def start_metric(metric_id, actor_id):
     create_local_host()
-    print "- Starting workload metric actor " + str(metric_id)
+    print "- Metric, Starting workload metric actor " + str(metric_id)
     try:
         if metric_id not in metrics:
             metrics[metric_id] = host.spawn_id(actor_id, settings.METRIC_CLASS, settings.METRIC_MAIN, 
@@ -292,7 +292,7 @@ def start_metric(metric_id, actor_id):
 
 def stop_metric(metric_id):
     if metric_id in metrics:
-        print "- Stopping workload metric actor " + str(metric_id)
+        print "- Metric, Stopping workload metric actor " + str(metric_id)
         metrics[metric_id].stop_actor()
         del metrics[metric_id]
 

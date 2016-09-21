@@ -43,7 +43,7 @@ class Metric(object):
         :type observer: **any** PyActive Proxy type
         """
         # TODO: Add the possibility to subscribe to container or object
-        print ' - Metric, Attaching observer: ', observer
+        print '- Metric, Attaching observer: ', observer
         tenant = observer.get_target()
 
         if tenant not in self._observers.keys():
@@ -60,7 +60,7 @@ class Metric(object):
         :param observer: The PyActive proxy of the oberver rule that calls this method.
         :type observer: **any** PyActive Proxy type
         """
-        print ' - Metric, Detaching observer: ', observer
+        print '- Metric, Detaching observer: ', observer
         try:
             self._observers[target].remove(observer)
         except KeyError:
@@ -77,7 +77,6 @@ class Metric(object):
                            consumer appear.
         """
         try:
-            print '- Starting consumer'
             self.redis.hmset("metric:"+self.name, {"network_location": self._atom.aref.replace("atom:", "tcp:", 1), "type": "integer"})
 
             self.consumer = self.host.spawn_id(self.id + "_consumer",
