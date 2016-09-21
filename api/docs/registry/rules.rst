@@ -1,5 +1,5 @@
 Rules
-======
+=====
 .. automodule:: registry.dynamic_policies.rules.__init__
     :members:
 .. automodule:: registry.dynamic_policies.rules.rule

@@ -15,6 +15,9 @@
 import sys
 import os
 # import shlex
+from mock import Mock as MagicMock
+
+on_rtd = os.environ.get('READTHEDOCS') == 'True'
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
@@ -119,7 +122,7 @@ todo_include_todos = False
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = 'classic'
+html_theme = 'default'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
@@ -293,3 +296,14 @@ texinfo_documents = [
 
 # If true, do not generate a @detailmenu in the "Top" node's menu.
 #texinfo_no_detailmenu = False
+
+# -- Mocks
+
+class Mock(MagicMock):
+    @classmethod
+    def __getattr__(cls, name):
+            return Mock()
+
+if on_rtd:
+    MOCK_MODULES = ['pyactive.controller.init_host', 'pyactive.controller.start_controller']
+    sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
