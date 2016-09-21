@@ -96,7 +96,7 @@ def load_policies():
 def add_metric(request):
     """
     Get all registered workload metrics (GET) or add a new metric workload in the registry (POST).
-    
+
     :param request: The http request.
     :type request: HttpRequest
     :return: A JSON list with all registered metrics (GET) or a success/error message depending on the result of the function.
