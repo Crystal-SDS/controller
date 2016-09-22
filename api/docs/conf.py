@@ -305,5 +305,5 @@ class Mock(MagicMock):
             return Mock()
 
 if on_rtd:
-    MOCK_MODULES = ['pyactive.controller', 'pyactive.controller']
+    MOCK_MODULES = ['pyactive', 'pyactive.controller']
     sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
