@@ -28,6 +28,8 @@ class Rule(object):
 
         :param rule_parsed: The rule parsed by the dsl_parser.
         :type rule_parsed: **any** PyParsing type
+        :param action: The action assigned to this rule.
+        :type action: **any** PyParsing type
         :param target: The target assigned to this rule.
         :type target: **any** String type
         :param host: The proxy host provided by the PyActive Middleware.
@@ -87,7 +89,7 @@ class Rule(object):
     def start_rule(self):
         """
         Method called afeter init to start the rule. Basically this method
-        allows to be called remotelly and calls the internal method
+        allows to be called remotely and calls the internal method
         **check_metrics()** which subscribes the rule to all the workload
         metrics necessaries.
         """
@@ -177,7 +179,7 @@ class Rule(object):
 
     def get_target(self):
         """
-        Retrun the target assigned to this rule.
+        Return the target assigned to this rule.
 
         :return: Return the target id assigned to this rule
         :rtype: String type.
