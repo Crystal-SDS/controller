@@ -109,7 +109,7 @@ class Rule(object):
             # Trying the new PyActive version. New lookup function.
             print " - Rule, Workload name:", workload_name
             observer = self.host.lookup(workload_name)
-            print ' - Rule, Ovserver: ', observer.get_id(), observer
+            print ' - Rule, Observer: ', observer.get_id(), observer
             observer.attach(self.proxy)
             self.observers_proxies[workload_name] = observer
             self.observers_values[workload_name] = None

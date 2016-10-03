@@ -1,3 +1,4 @@
+import json
 import os
 import mock
 import redis
@@ -8,6 +9,8 @@ from django.test import TestCase, override_settings
 from .dsl_parser import parse
 from registry.dynamic_policies.rules.rule import Rule
 from registry.dynamic_policies.rules.rule_transient import TransientRule
+from registry.dynamic_policies.metrics.bw_info import BwInfo
+from registry.dynamic_policies.metrics.swift_metric import SwiftMetric
 
 from httmock import urlmatch, HTTMock
 
@@ -31,6 +34,11 @@ class DynamicPoliciesTestCase(TestCase):
 
     def tearDown(self):
         self.r.flushdb()
+
+    #
+    # rules/rule
+    #
+
 
     def test_get_target_ok(self):
         self.setup_dsl_parser_data()
@@ -118,7 +126,7 @@ class DynamicPoliciesTestCase(TestCase):
         self.assertTrue(mock_stop_actor.called)
 
     #
-    # rule_transient
+    # rules/rule_transient
     #
 
     @mock.patch('registry.dynamic_policies.rules.rule_transient.TransientRule.do_action')
@@ -155,6 +163,22 @@ class DynamicPoliciesTestCase(TestCase):
         self.assertFalse(mock_requests_put.called)
         self.assertTrue(mock_requests_delete.called)
 
+    #
+    # metrics/bw_info
+    #
+
+    @mock.patch('registry.dynamic_policies.metrics.swift_metric.Thread.start')
+    def test_metrics_bw_info(self, mock_thread_start):
+        bw_info = BwInfo('exchange', 'queue', 'routing_key', 'method')
+        self.assertTrue(mock_thread_start.called)
+
+    @mock.patch('registry.dynamic_policies.metrics.swift_metric.SwiftMetric._send_data_to_logstash')
+    def test_metrics_swift_metric(self, mock_send_data_to_logstash):
+        swift_metric = SwiftMetric('exchange', 'metric_id', 'routing_key')
+        data = {"controller": {"@timestamp": 123456789, "AUTH_bd34c4073b65426894545b36f0d8dcce": 3}}
+        body = json.dumps(data)
+        swift_metric.notify(body)
+        self.assertTrue(mock_send_data_to_logstash.called)
 
     #
     # Aux methods
