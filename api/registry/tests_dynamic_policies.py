@@ -61,7 +61,8 @@ class DynamicPoliciesTestCase(TestCase):
 
     @mock.patch('registry.dynamic_policies.rules.rule.redis.StrictRedis.hgetall')
     @mock.patch('registry.dynamic_policies.rules.rule.redis.StrictRedis.hset')
-    def test_action_set_is_triggered_deploy_200(self, mock_redis_hset, mock_redis_hgetall):
+    @mock.patch('registry.dynamic_policies.rules.rule.Rule._admin_login')
+    def test_action_set_is_triggered_deploy_200(self, mock_admin_login, mock_redis_hset, mock_redis_hgetall):
         mock_redis_hgetall.return_value = {'activation_url': 'http://example.com/filters',
                                            'identifier': '1',
                                            'valid_parameters': '{"cparam1": "integer", "cparam2": "integer", "cparam3": "integer"}'}
@@ -70,14 +71,17 @@ class DynamicPoliciesTestCase(TestCase):
         target = '4f0279da74ef4584a29dc72c835fe2c9'
         host = None
         rule = Rule(parsed_rule, parsed_rule.action_list[0], target, host)
-        rule.id = "10"
+        rule.id = '10'
         with HTTMock(example_mock_200):
             rule.update('metric1', 6)
+        self.assertTrue(mock_admin_login.called)
         self.assertTrue(mock_redis_hset.called)
+        mock_redis_hset.assert_called_with('10', 'alive', False)
 
     @mock.patch('registry.dynamic_policies.rules.rule.redis.StrictRedis.hgetall')
     @mock.patch('registry.dynamic_policies.rules.rule.redis.StrictRedis.hset')
-    def test_action_set_is_triggered_deploy_400(self, mock_redis_hset, mock_redis_hgetall):
+    @mock.patch('registry.dynamic_policies.rules.rule.Rule._admin_login')
+    def test_action_set_is_triggered_deploy_400(self, mock_admin_login, mock_redis_hset, mock_redis_hgetall):
         mock_redis_hgetall.return_value = {'activation_url': 'http://example.com/filters',
                                            'identifier': '1',
                                            'valid_parameters': '{"cparam1": "integer", "cparam2": "integer", "cparam3": "integer"}'}
@@ -86,9 +90,10 @@ class DynamicPoliciesTestCase(TestCase):
         target = '4f0279da74ef4584a29dc72c835fe2c9'
         host = None
         rule = Rule(parsed_rule, parsed_rule.action_list[0], target, host)
-        rule.id = "10"
+        rule.id = '10'
         with HTTMock(example_mock_400):
             rule.update('metric1', 6)
+        self.assertTrue(mock_admin_login.called)
         self.assertFalse(mock_redis_hset.called)
 
 
