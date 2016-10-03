@@ -7,6 +7,7 @@ from django.test import TestCase, override_settings
 
 from .dsl_parser import parse
 from registry.dynamic_policies.rules.rule import Rule
+from registry.dynamic_policies.rules.rule_transient import TransientRule
 
 from httmock import urlmatch, HTTMock
 
@@ -96,6 +97,63 @@ class DynamicPoliciesTestCase(TestCase):
         self.assertTrue(mock_admin_login.called)
         self.assertFalse(mock_redis_hset.called)
 
+    @mock.patch('registry.dynamic_policies.rules.rule.redis.StrictRedis.hgetall')
+    @mock.patch('registry.dynamic_policies.rules.rule.Rule._admin_login')
+    @mock.patch('registry.dynamic_policies.rules.rule.Rule.stop_actor')
+    def test_action_delete_is_triggered_undeploy_200(self, mock_stop_actor, mock_admin_login, mock_redis_hgetall):
+        mock_redis_hgetall.return_value = {'activation_url': 'http://example.com/filters',
+                                           'identifier': '1',
+                                           'valid_parameters': '{"cparam1": "integer", "cparam2": "integer", "cparam3": "integer"}'}
+        self.setup_dsl_parser_data()
+        has_condition_list, parsed_rule = parse('FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 WHEN metric1 > 5 DO SET compression')
+        target = '4f0279da74ef4584a29dc72c835fe2c9'
+        host = None
+        action = parsed_rule.action_list[0]
+        action.action = 'DELETE'
+        rule = Rule(parsed_rule, action, target, host)
+        rule.id = '10'
+        with HTTMock(example_mock_200):
+            rule.update('metric1', 6)
+        self.assertTrue(mock_admin_login.called)
+        self.assertTrue(mock_stop_actor.called)
+
+    #
+    # rule_transient
+    #
+
+    @mock.patch('registry.dynamic_policies.rules.rule_transient.TransientRule.do_action')
+    def test_transient_action_is_triggered(self, mock_do_action):
+        self.setup_dsl_parser_data()
+        has_condition_list, parsed_rule = parse('FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 WHEN metric1 > 5 DO SET compression TRANSIENT')
+        target = '4f0279da74ef4584a29dc72c835fe2c9'
+        host = None
+        rule = TransientRule(parsed_rule, parsed_rule.action_list[0], target, host)
+        rule.update('metric1', 6)
+        self.assertTrue(mock_do_action.called)
+
+    @mock.patch('registry.dynamic_policies.rules.rule.redis.StrictRedis.hgetall')
+    @mock.patch('registry.dynamic_policies.rules.rule_transient.TransientRule._admin_login')
+    @mock.patch('registry.dynamic_policies.rules.rule_transient.requests.put')
+    @mock.patch('registry.dynamic_policies.rules.rule_transient.requests.delete')
+    def test_transient_action_set_is_triggered_200(self, mock_requests_delete, mock_requests_put, mock_admin_login, mock_redis_hgetall):
+        mock_redis_hgetall.return_value = {'activation_url': 'http://example.com/filters',
+                                           'identifier': '1',
+                                           'valid_parameters': '{"cparam1": "integer", "cparam2": "integer", "cparam3": "integer"}'}
+        self.setup_dsl_parser_data()
+        has_condition_list, parsed_rule = parse('FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 WHEN metric1 > 5 DO SET compression TRANSIENT')
+        target = '4f0279da74ef4584a29dc72c835fe2c9'
+        host = None
+        rule = TransientRule(parsed_rule, parsed_rule.action_list[0], target, host)
+
+        rule.update('metric1', 6)
+        self.assertTrue(mock_requests_put.called)
+        self.assertFalse(mock_requests_delete.called)
+        mock_requests_put.reset_mock()
+        mock_requests_delete.reset_mock()
+        rule.static_policy_id = 'FAKE_ID'
+        rule.update('metric1', 4)
+        self.assertFalse(mock_requests_put.called)
+        self.assertTrue(mock_requests_delete.called)
 
 
     #
