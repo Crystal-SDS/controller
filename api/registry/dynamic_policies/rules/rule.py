@@ -201,7 +201,6 @@ class Rule(object):
             # TODO Review if this tenant has already deployed this filter. Not deploy the same filter more than one time.
 
             url = dynamic_filter["activation_url"]+"/"+self.target+"/deploy/"+str(dynamic_filter["identifier"])
-            print url
 
             data = dict()
 
@@ -218,8 +217,6 @@ class Rule(object):
             data['params'] = self.action_list.params
 
             response = requests.put(url, json.dumps(data), headers=headers)
-
-            print response.status_code
 
             if 200 <= response.status_code < 300:
                 print 'Policy ' + self.id + ' applied'
