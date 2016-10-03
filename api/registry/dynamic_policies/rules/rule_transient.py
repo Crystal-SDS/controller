@@ -93,11 +93,11 @@ class TransientRule(Rule):
 
             response = requests.put(url, json.dumps(data), headers=headers)
 
-            if 200 > response.status_code >= 300:
-                print 'Error setting policy'
-            else:
+            if 200 <= response.status_code < 300:
                 print "Static policy applied with ID: " + response.content
                 self.static_policy_id = response.content
+            else:
+                print 'Error setting policy'
 
         elif action == "DELETE":
             print "Deleting static policy "+self.static_policy_id
@@ -105,9 +105,12 @@ class TransientRule(Rule):
             url = dynamic_filter["activation_url"].rsplit("/",1)[0]+"/registry/static_policy/"+self.target+":"+str(self.static_policy_id)
             response = requests.delete(url, headers=headers)
 
-            if 200 > response.status_code >= 300:
-                print 'Error Deleting policy'
+
+            if 200 <= response.status_code < 300:
+                print "Policy " + str(self.static_policy_id) + " successfully deleted"
             else:
-                print "Policy "+str(self.static_policy_id)+" successfully deleted"
+                print 'Error Deleting policy'
+
+
 
         return 'Not action supported'

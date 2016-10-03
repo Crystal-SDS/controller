@@ -201,6 +201,7 @@ class Rule(object):
             # TODO Review if this tenant has already deployed this filter. Not deploy the same filter more than one time.
 
             url = dynamic_filter["activation_url"]+"/"+self.target+"/deploy/"+str(dynamic_filter["identifier"])
+            print url
 
             data = dict()
 
@@ -208,7 +209,7 @@ class Rule(object):
                 data['object_type'] = self.rule_parsed.object_list.object_type.object_value
             else:
                 data['object_type'] = ''
- 
+
             if hasattr(self.rule_parsed.object_list, "object_size"):
                 data['object_size'] = self.rule_parsed.object_list.object_size.object_value
             else:
@@ -218,9 +219,9 @@ class Rule(object):
 
             response = requests.put(url, json.dumps(data), headers=headers)
 
-            if 200 > response.status_code >= 300:
-                print 'Error setting policy'
-            else:
+            print response.status_code
+
+            if 200 <= response.status_code < 300:
                 print 'Policy ' + self.id + ' applied'
                 self.redis.hset(self.id, 'alive', False)
                 try:
@@ -228,6 +229,8 @@ class Rule(object):
                 except:
                     pass
                 return
+            else:
+                print 'Error setting policy'
 
         elif self.action_list.action == "DELETE":
             print "--> DELETE <--"
@@ -235,14 +238,14 @@ class Rule(object):
             url = dynamic_filter["activation_url"]+"/"+self.target+"/undeploy/"+str(dynamic_filter["identifier"])
             response = requests.put(url, headers=headers)
 
-            if 200 > response.status_code >= 300:
-                print 'ERROR RESPONSE'
-            else:
+            if 200 <= response.status_code < 300:
                 print response.text, response.status_code
                 try:
                     self.stop_actor()
                 except:
                     pass
                 return response.text
+            else:
+                print 'ERROR RESPONSE'
 
         return 'Not action supported'
