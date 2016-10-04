@@ -6,7 +6,6 @@ import redis
 
 from django.test import TestCase, override_settings
 from django.conf import settings
-from django.http import HttpResponse
 from pyparsing import ParseException
 from rest_framework import status
 from rest_framework.test import APIRequestFactory
@@ -15,7 +14,7 @@ from .views import policy_list
 from filters.views import storlet_list, filter_deploy, StorletData
 from .views import object_type_list, object_type_detail, add_tenants_group, tenants_group_detail, gtenants_tenant_detail, node_list, node_detail, \
     add_metric, metric_detail, metric_module_list, metric_module_detail, MetricModuleData, list_storage_node, storage_node_detail, add_dynamic_filter, \
-    dynamic_filter_detail, load_metrics, load_policies
+    dynamic_filter_detail, load_metrics, load_policies, static_policy_detail, dynamic_policy_detail
 from .dsl_parser import parse
 
 
@@ -850,7 +849,7 @@ class RegistryTestCase(TestCase):
     # Parse tests
     #
 
-    # TODO To test dsl_parser correctly, we need to have metrics and filters in Redis.
+    # To test dsl_parser correctly, we need to have metrics and filters in Redis.
 
     def test_parse_target_tenant_ok(self, mock_is_valid_request):
         self.setup_dsl_parser_data()
@@ -951,6 +950,10 @@ class RegistryTestCase(TestCase):
 
     # TODO Add tests for conditional rules
 
+    #
+    # load_metrics() / load_policies()
+    #
+
     @mock.patch('registry.views.start_metric')
     def test_load_metrics(self, mock_start_metric, mock_is_valid_request):
         load_metrics()
@@ -978,6 +981,56 @@ class RegistryTestCase(TestCase):
                      {'alive': 'True', 'policy_description': 'FOR TENANT:0123456789abcdef DO SET compression TRANSIENT'})
         load_policies()
         self.assertTrue(mock_host.spawn_id.called)
+
+    #
+    # static_policy_detail()
+    #
+
+    @mock.patch('registry.views.get_project_list')
+    def test_registry_static_policy_detail_ok(self, mock_get_project_list, mock_is_valid_request):
+        mock_is_valid_request.return_value = 'fake_token'
+        mock_get_project_list.return_value = {'0123456789abcdef': 'tenantA', '2': 'tenantB'}
+
+        # Create an instance of a GET request.
+        request = self.factory.get('/registry/static_policy/0123456789abcdef:1')
+        request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
+        response = static_policy_detail(request, '0123456789abcdef:1')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_data = json.loads(response.content)
+        self.assertEqual(json_data["target_name"], 'tenantA')
+
+    @mock.patch('registry.views.get_project_list')
+    def test_registry_static_policy_detail_delete(self, mock_get_project_list, mock_is_valid_request):
+        mock_is_valid_request.return_value = 'fake_token'
+        mock_get_project_list.return_value = {'0123456789abcdef': 'tenantA', '2': 'tenantB'}
+
+        # Create an instance of a DELETE request.
+        request = self.factory.delete('/registry/static_policy/0123456789abcdef:1')
+        request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
+        response = static_policy_detail(request, '0123456789abcdef:1')
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+        # Check there is no policy
+        request = self.factory.get('/registry/static_policy')
+        request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
+        response = policy_list(request)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_data = json.loads(response.content)
+        self.assertEqual(len(json_data), 0)
+
+    #
+    # dynamic_policy_detail()
+    #
+
+    def test_registry_dynamic_policy_detail_with_method_not_allowed(self, mock_is_valid_request):
+        mock_is_valid_request.return_value = 'fake_token'
+        request = self.factory.get('/registry/dynamic_policy/123')
+        response = dynamic_policy_detail(request, '123')
+        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+
+
+
 
     #
     # Aux methods

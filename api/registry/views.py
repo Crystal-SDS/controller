@@ -892,7 +892,7 @@ def policy_list(request):
 @csrf_exempt
 def static_policy_detail(request, policy_id):
     """
-    Retrieve, update or delete SLA.
+    Retrieve, update or delete a static policy.
     """
     # Validate request: only a user with admin role can access to this method
     token = is_valid_request(request)
@@ -935,7 +935,7 @@ def static_policy_detail(request, policy_id):
 @csrf_exempt
 def dynamic_policy_detail(request, policy_id):
     """
-    Retrieve, update or delete SLA.
+    Delete a dynamic policy.
     """
     # Validate request: only a user with admin role can access to this method
     token = is_valid_request(request)
