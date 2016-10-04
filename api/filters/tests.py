@@ -8,7 +8,7 @@ from django.test import TestCase, override_settings
 from rest_framework import status
 from rest_framework.test import APIRequestFactory
 
-from .views import dependency_list, dependency_detail, storlet_list, storlet_detail, storlet_list_deployed, filter_deploy, StorletData
+from .views import dependency_list, dependency_detail, storlet_list, storlet_detail, storlet_list_deployed, filter_deploy, unset_filter, StorletData
 
 
 # Tests use database=10 instead of 0.
@@ -399,6 +399,18 @@ class StorletTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         dependencies = json.loads(response.content)
         self.assertEqual(len(dependencies), 0)
+
+    @mock.patch('filters.views.swift_client.delete_object')
+    def test_unset_filter_ok(self, mock_delete_object, mock_is_valid_request):
+        data20 = {'filter_name': 'XXXXX'}
+        data21 = {'filter_name': 'test-1.0.jar'}
+        self.r.hmset('pipeline:AUTH_0123456789abcdef', {'20': json.dumps(data20), '21': json.dumps(data21)})
+        unset_filter(self.r, '0123456789abcdef', {'filter_type':'storlet', 'filter_name': 'test-1.0.jar'}, 'fake_token')
+        mock_delete_object.assert_called_with(settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/AUTH_0123456789abcdef",
+                                           'fake_token', "storlet", "test-1.0.jar", mock.ANY, mock.ANY, mock.ANY,
+                                           mock.ANY, mock.ANY)
+        self.assertFalse(self.r.hexists("pipeline:AUTH_0123456789abcdef", "21"))  # 21 was deleted
+        self.assertTrue(self.r.hexists("pipeline:AUTH_0123456789abcdef", "20"))  # 20 was not deleted
 
     #
     # Aux methods

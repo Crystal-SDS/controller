@@ -78,6 +78,77 @@ class RegistryTestCase(TestCase):
         json_data = json.loads(response.content)
         self.assertEqual(len(json_data), 0)  # is empty
 
+    @mock.patch('registry.views.do_action')
+    def test_registry_static_policy_create_ok(self, mock_do_action, mock_is_valid_request):
+        mock_is_valid_request.return_value = 'fake_token'
+        self.setup_dsl_parser_data()
+
+        # Create an instance of a POST request.
+        data = "FOR TENANT:1234567890abcdef DO SET compression"
+        request = self.factory.post('/registry/static_policy', data, content_type='text/plain')
+        request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
+        response = policy_list(request)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(mock_do_action.called)
+
+    @mock.patch('registry.views.set_filter')
+    def test_registry_static_policy_create_set_filter_ok(self, mock_set_filter, mock_is_valid_request):
+        mock_is_valid_request.return_value = 'fake_token'
+        self.setup_dsl_parser_data()
+
+        # Create an instance of a POST request.
+        data = "FOR TENANT:1234567890abcdef DO SET compression"
+        request = self.factory.post('/registry/static_policy', data, content_type='text/plain')
+        request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
+        response = policy_list(request)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(mock_set_filter.called)
+
+    @mock.patch('registry.views.deploy_policy')
+    def test_registry_dynamic_policy_create_ok(self, mock_deploy_policy, mock_is_valid_request):
+        mock_is_valid_request.return_value = 'fake_token'
+        self.setup_dsl_parser_data()
+
+        # Create an instance of a POST request.
+        data = "FOR TENANT:1234567890abcdef WHEN metric1 > 5 DO SET compression"
+        request = self.factory.post('/registry/dynamic_policy', data, content_type='text/plain')
+        request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
+        response = policy_list(request)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(mock_deploy_policy.called)
+
+    @mock.patch('registry.views.host')
+    @mock.patch('registry.views.create_local_host')
+    def test_registry_dynamic_policy_create_spawn_id_ok(self, mock_create_local_host, mock_host, mock_is_valid_request):
+        mock_is_valid_request.return_value = 'fake_token'
+        self.setup_dsl_parser_data()
+
+        # Create an instance of a POST request.
+        data = "FOR TENANT:1234567890abcdef WHEN metric1 > 5 DO SET compression"
+        request = self.factory.post('/registry/dynamic_policy', data, content_type='text/plain')
+        request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
+        response = policy_list(request)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(mock_create_local_host.called)
+        self.assertTrue(mock_host.spawn_id.called)
+        self.assertTrue(self.r.exists('policy:2'))
+        policy_data = self.r.hgetall('policy:2')
+        self.assertEqual(policy_data['policy'], 'FOR TENANT:1234567890abcdef DO SET compression')
+        self.assertEqual(policy_data['condition'], 'metric1 > 5')
+
+    # def test_registry_static_policy_create_with_inexistent_filter(self, mock_is_valid_request):
+    #     mock_is_valid_request.return_value = 'fake_token'
+    #     self.setup_dsl_parser_data()
+    #     self.r.delete("filter:1") # delete filter to cause an exception
+    #
+    #     # Create an instance of a POST request.
+    #     data = "FOR TENANT:1234567890abcdef DO SET compression"
+    #     request = self.factory.post('/registry/static_policy', data, content_type='text/plain')
+    #     request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
+    #     response = policy_list(request)
+    #     self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+
     #
     # Metric tests
     #
@@ -1090,8 +1161,8 @@ class RegistryTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
     def setup_dsl_parser_data(self):
-        self.r.hmset('dsl_filter:compression', {'valid_parameters': '{"cparam1": "integer", "cparam2": "integer", "cparam3": "integer"}'})
-        self.r.hmset('dsl_filter:encryption', {'valid_parameters': '{"eparam1": "integer", "eparam2": "bool", "eparam3": "string"}'})
+        self.r.hmset('dsl_filter:compression', {'identifier': '1', 'valid_parameters': '{"cparam1": "integer", "cparam2": "integer", "cparam3": "integer"}'})
+        self.r.hmset('dsl_filter:encryption', {'identifier': '2', 'valid_parameters': '{"eparam1": "integer", "eparam2": "bool", "eparam3": "string"}'})
         self.r.hmset('metric:metric1', {'network_location': '?', 'type': 'integer'})
         self.r.hmset('metric:metric2', {'network_location': '?', 'type': 'integer'})
 

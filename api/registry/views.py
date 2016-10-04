@@ -882,7 +882,7 @@ def policy_list(request):
                 # print("The rule: " + rule_string + " cannot be parsed")
                 # print("Exception message", e)
                 return JSONResponse('Please, review the rule, register the dsl filter and start the workload '
-                                    'metric before create a new policy', status=status.HTTP_401_UNAUTHORIZED)
+                                    'metric before creating a new policy', status=status.HTTP_401_UNAUTHORIZED)
 
         return JSONResponse('Policies added successfully!', status=status.HTTP_201_CREATED)
 
