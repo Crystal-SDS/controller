@@ -38,7 +38,7 @@ class MinTenantSLOGlobalSpareBWShare(AbstractEnforcementAlgorithm):
 
         non_qos_computed_assignments = self.min_slo_assignments(monitoring_info, disk_usage, spare_bw_enforcements)
                 
-        # 3ND STAGE: Sum the assignments of SLO and spare BW
+        # 3RD STAGE: Sum the assignments of SLO and spare BW
         for tenant in non_qos_computed_assignments:
             if tenant not in qos_computed_assignments:
                 qos_computed_assignments[tenant] = dict() 
