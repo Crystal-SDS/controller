@@ -15,7 +15,7 @@ from .views import policy_list
 from filters.views import storlet_list, filter_deploy, StorletData
 from .views import object_type_list, object_type_detail, add_tenants_group, tenants_group_detail, gtenants_tenant_detail, node_list, node_detail, \
     add_metric, metric_detail, metric_module_list, metric_module_detail, MetricModuleData, list_storage_node, storage_node_detail, add_dynamic_filter, \
-    dynamic_filter_detail
+    dynamic_filter_detail, load_metrics, load_policies
 from .dsl_parser import parse
 
 
@@ -951,6 +951,34 @@ class RegistryTestCase(TestCase):
 
     # TODO Add tests for conditional rules
 
+    @mock.patch('registry.views.start_metric')
+    def test_load_metrics(self, mock_start_metric, mock_is_valid_request):
+        load_metrics()
+        mock_start_metric.assert_called_with(1,'m1')
+
+    @mock.patch('registry.views.host')
+    def test_load_policies_not_alive(self, mock_host, mock_is_valid_request):
+        self.r.hmset('policy:20',
+                     {'alive': 'False', 'policy_description': 'FOR TENANT:0123456789abcdef DO SET compression'})
+        load_policies()
+        self.assertEqual(len(mock_host.method_calls), 0)
+
+    @mock.patch('registry.views.host')
+    def test_load_policies_alive(self, mock_host, mock_is_valid_request):
+        self.setup_dsl_parser_data()
+        self.r.hmset('policy:21',
+                     {'alive': 'True', 'policy_description': 'FOR TENANT:0123456789abcdef DO SET compression'})
+        load_policies()
+        self.assertTrue(mock_host.spawn_id.called)
+
+    @mock.patch('registry.views.host')
+    def test_load_policies_alive_transient(self, mock_host, mock_is_valid_request):
+        self.setup_dsl_parser_data()
+        self.r.hmset('policy:21',
+                     {'alive': 'True', 'policy_description': 'FOR TENANT:0123456789abcdef DO SET compression TRANSIENT'})
+        load_policies()
+        self.assertTrue(mock_host.spawn_id.called)
+
     #
     # Aux methods
     #
@@ -978,11 +1006,9 @@ class RegistryTestCase(TestCase):
                                        query_string=None, response_dict=None):
         response_dict['status'] = status.HTTP_201_CREATED
 
-    # @mock.patch('filters.views.get_crystal_token')
     @mock.patch('filters.views.is_valid_request')
     @mock.patch('registry.views.get_project_list')
     @mock.patch('filters.views.swift_client.put_object', side_effect=mock_put_object_status_created)
-    # @mock.patch('registry.views.requests.get')
     def deploy_storlet(self, mock_put_object, mock_get_project_list, mock_is_valid_request):
         mock_get_project_list.return_value = {'0123456789abcdef': 'tenantA', '2': 'tenantB'}
         mock_is_valid_request.return_value = 'fake_token'
