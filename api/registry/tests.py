@@ -1007,9 +1007,19 @@ class RegistryTestCase(TestCase):
         self.assertEqual(action_info.action, 'SET')
         self.assertEqual(action_info.filter, 'compression')
         self.assertEqual(action_info.execution_server, '')
-        self.assertEqual(len(action_info.params), 6) # ???
+        self.assertEqual(len(action_info.params), 6)  # ???
 
-    # TODO Add tests with wrong number of parameters, non existent parameters, wrong type parameters, ...
+    def test_parse_group_ok(self, mock_is_valid_request):
+        self.setup_dsl_parser_data()
+        has_condition_list, rule_parsed = parse('FOR G:1 DO SET compression')
+        self.assertFalse(has_condition_list)
+        self.assertIsNotNone(rule_parsed)
+        targets = rule_parsed.target
+        action_list = rule_parsed.action_list
+        self.assertEqual(len(targets), 2)
+        self.assertEqual(len(action_list), 1)
+        self.assertEqual(targets[0], '1234567890abcdef')
+        self.assertEqual(targets[1], 'abcdef1234567890')
 
     def test_parse_rule_not_starting_with_for(self, mock_is_valid_request):
         self.setup_dsl_parser_data()
@@ -1021,6 +1031,7 @@ class RegistryTestCase(TestCase):
         with self.assertRaises(ParseException):
             parse('FOR xxxxxxx DO SET compression')
 
+    # TODO Add tests with wrong number of parameters, non existent parameters, wrong type parameters, ...
     # TODO Add tests for conditional rules
 
     #
@@ -1167,6 +1178,8 @@ class RegistryTestCase(TestCase):
         self.r.hmset('dsl_filter:encryption', {'identifier': '2', 'valid_parameters': '{"eparam1": "integer", "eparam2": "bool", "eparam3": "string"}'})
         self.r.hmset('metric:metric1', {'network_location': '?', 'type': 'integer'})
         self.r.hmset('metric:metric2', {'network_location': '?', 'type': 'integer'})
+        self.r.rpush('G:1', '1234567890abcdef')
+        self.r.rpush('G:2', 'abcdef1234567890')
 
     @mock.patch('registry.views.is_valid_request')
     def create_tenant_group_1(self, mock_is_valid_request):

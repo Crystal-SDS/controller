@@ -176,13 +176,21 @@ class DynamicPoliciesTestCase(TestCase):
         bw_info.notify(body)
         self.assertEquals(bw_info.count["123456789abcedef"]["10.0.0.1"]["1"]["sda1"], "12")
 
-    @mock.patch('registry.dynamic_policies.metrics.swift_metric.SwiftMetric._send_data_to_logstash')
-    def test_metrics_swift_metric(self, mock_send_data_to_logstash):
+    @mock.patch('registry.dynamic_policies.metrics.swift_metric.Thread')
+    def test_metrics_swift_metric(self, mock_thread):
         swift_metric = SwiftMetric('exchange', 'metric_id', 'routing_key')
         data = {"controller": {"@timestamp": 123456789, "AUTH_bd34c4073b65426894545b36f0d8dcce": 3}}
         body = json.dumps(data)
         swift_metric.notify(body)
-        # self.assertTrue(mock_send_data_to_logstash.called) # called intermitently?!
+        self.assertTrue(mock_thread.called)
+
+    @mock.patch('registry.dynamic_policies.metrics.swift_metric.socket.socket')
+    def test_metrics_swift_metric_send_data_to_logstash(self, mock_socket):
+        swift_metric = SwiftMetric('exchange', 'metric_id', 'routing_key')
+        data = {"controller": {"@timestamp": 123456789, "AUTH_bd34c4073b65426894545b36f0d8dcce": 3}}
+        swift_metric._send_data_to_logstash(data)
+        self.assertTrue(mock_socket.called)
+        self.assertTrue(mock_socket.return_value.sendto.called)
 
     #
     # Aux methods
