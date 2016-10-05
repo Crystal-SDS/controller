@@ -10,6 +10,7 @@ from .dsl_parser import parse
 from registry.dynamic_policies.rules.rule import Rule
 from registry.dynamic_policies.rules.rule_transient import TransientRule
 from registry.dynamic_policies.metrics.bw_info import BwInfo
+from registry.dynamic_policies.metrics.bw_info_ssync import BwInfoSSYNC
 from registry.dynamic_policies.metrics.swift_metric import SwiftMetric
 
 from httmock import urlmatch, HTTMock
@@ -167,7 +168,7 @@ class DynamicPoliciesTestCase(TestCase):
     # metrics/bw_info
     #
 
-    @mock.patch('registry.dynamic_policies.metrics.swift_metric.Thread.start')
+    @mock.patch('registry.dynamic_policies.metrics.bw_info.Thread.start')
     def test_metrics_bw_info(self, mock_thread_start):
         bw_info = BwInfo('exchange', 'queue', 'routing_key', 'method')
         self.assertTrue(mock_thread_start.called)
@@ -176,6 +177,23 @@ class DynamicPoliciesTestCase(TestCase):
         bw_info.notify(body)
         self.assertEquals(bw_info.count["123456789abcedef"]["10.0.0.1"]["1"]["sda1"], "12")
 
+    #
+    # metrics/bw_info_ssync
+    #
+
+    @mock.patch('registry.dynamic_policies.metrics.bw_info.Thread.start')
+    def test_metrics_bw_info_ssync(self, mock_thread_start):
+        bw_info_ssync = BwInfoSSYNC('exchange', 'queue', 'routing_key', 'method')
+        self.assertTrue(mock_thread_start.called)
+        data = {"10.0.0.1": '4'}  # ?
+        body = json.dumps(data)
+        bw_info_ssync.notify(body)
+        self.assertEquals(bw_info_ssync.count["10.0.0.1"], "4")
+
+    #
+    # metrics/swift_metric
+    #
+
     @mock.patch('registry.dynamic_policies.metrics.swift_metric.Thread')
     def test_metrics_swift_metric(self, mock_thread):
         swift_metric = SwiftMetric('exchange', 'metric_id', 'routing_key')
@@ -183,6 +201,7 @@ class DynamicPoliciesTestCase(TestCase):
         body = json.dumps(data)
         swift_metric.notify(body)
         self.assertTrue(mock_thread.called)
+        self.assertIsNone(swift_metric.get_value())
 
     @mock.patch('registry.dynamic_policies.metrics.swift_metric.socket.socket')
     def test_metrics_swift_metric_send_data_to_logstash(self, mock_socket):

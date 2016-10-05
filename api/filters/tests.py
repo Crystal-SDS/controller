@@ -126,15 +126,9 @@ class StorletTestCase(TestCase):
         response = storlet_list(request)
         storlets = json.loads(response.content)
         self.assertEqual(len(storlets), 2)
-
-        if storlets[0]['id'] == "1":
-            storlet1 = storlets[0]
-            storlet2 = storlets[1]
-        else:
-            storlet1 = storlets[1]
-            storlet2 = storlets[0]
-        self.assertEqual(storlet1['main'], 'com.example.FakeMain')
-        self.assertEqual(storlet2['main'], 'com.example.SecondMain')
+        sorted_list = sorted(storlets, key=lambda st: st['id'])
+        self.assertEqual(sorted_list[0]['main'], 'com.example.FakeMain')
+        self.assertEqual(sorted_list[1]['main'], 'com.example.SecondMain')
 
     def test_create_storlets_are_sorted_by_id(self, mock_is_valid_request):
         """
