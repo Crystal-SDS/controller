@@ -1001,8 +1001,8 @@ def do_action(request, r, rule_parsed):
                     if rule_parsed.object_list.object_size:
                         policy_data["object_size"] = [rule_parsed.object_list.object_size.operand,
                                                       rule_parsed.object_list.object_size.object_value]
-                if action_info.execution_server:
-                    policy_data["execution_server"] = action_info.execution_server
+                if action_info.server_execution:
+                    policy_data["execution_server"] = action_info.server_execution
                 if action_info.params:
                     policy_data["params"] = action_info.params
 

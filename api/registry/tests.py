@@ -97,12 +97,14 @@ class RegistryTestCase(TestCase):
         self.setup_dsl_parser_data()
 
         # Create an instance of a POST request.
-        data = "FOR TENANT:1234567890abcdef DO SET compression"
+        data = "FOR TENANT:1234567890abcdef DO SET compression WITH bw=2 ON PROXY TO OBJECT_TYPE=DOCS"
         request = self.factory.post('/registry/static_policy', data, content_type='text/plain')
         request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
         response = policy_list(request)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertTrue(mock_set_filter.called)
+        expected_policy_data = {'object_size': '', 'execution_order': 2, 'object_type': 'DOCS', 'params': mock.ANY, 'policy_id': 2, 'execution_server': 'PROXY'}
+        mock_set_filter.assert_called_with(mock.ANY, '1234567890abcdef', mock.ANY, expected_policy_data, 'fake_token')
 
     @mock.patch('registry.views.deploy_policy')
     def test_registry_dynamic_policy_create_ok(self, mock_deploy_policy, mock_is_valid_request):

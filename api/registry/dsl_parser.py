@@ -76,8 +76,8 @@ def parse(input_string):
     # TRANSIENT
     transient = Literal("TRANSIENT")
     action = Group(action("action") + oneOf(sfilter)("filter") +
-                   Optional(with_params + params_list("params") +
-                            Optional(Suppress("ON")+server_execution("server_execution"))) +
+                   Optional(with_params + params_list("params")) +
+                   Optional(Suppress("ON")+server_execution("server_execution")) +
                    Optional(transient("transient")))
 
     action_list = Group(delimitedList(action))
