@@ -12,6 +12,7 @@ from registry.dynamic_policies.rules.rule_transient import TransientRule
 from registry.dynamic_policies.metrics.bw_info import BwInfo
 from registry.dynamic_policies.metrics.bw_info_ssync import BwInfoSSYNC
 from registry.dynamic_policies.metrics.swift_metric import SwiftMetric
+from registry.dynamic_policies.rules.min_bandwidth_per_tenant import SimpleMinBandwidthPerTenant
 
 from httmock import urlmatch, HTTMock
 
@@ -182,13 +183,13 @@ class DynamicPoliciesTestCase(TestCase):
         bw_info = BwInfo('exchange', 'queue', 'routing_key', 'method')
         self.assertTrue(mock_thread_start.called)
         data = {"123456789abcedef": {"10.0.0.1": {"1": {"sda1": 1.3}}}}
-        bw_info._write_experimental_results(data)
-        bw_info._write_experimental_results(data)
-        bw_info._write_experimental_results(data)
-        bw_info._write_experimental_results(data)
-        bw_info._write_experimental_results(data)
+        bw_info._write_experimental_results(data)  # noqa
+        bw_info._write_experimental_results(data)  # noqa
+        bw_info._write_experimental_results(data)  # noqa
+        bw_info._write_experimental_results(data)  # noqa
+        bw_info._write_experimental_results(data)  # noqa
         self.assertEqual(len(bw_info.last_bw_info), 5)
-        bw_info._write_experimental_results(data)
+        bw_info._write_experimental_results(data)  # noqa
         self.assertEqual(len(bw_info.last_bw_info), 1)
 
     #
@@ -214,13 +215,13 @@ class DynamicPoliciesTestCase(TestCase):
         res4 = {'controller:2': {'source:1': {'dev1': 2, 'dev2': 6}, 'source:2': {'dev1': 5, 'dev2': 4}}, 'stnode1:1': {'src:3': {'dev4': 10}}}
         res5 = {'controller:2': {'source:1': {'dev1': 2, 'dev2': 5}, 'source:2': {'dev1': 6, 'dev2': 4}}, 'stnode1:1': {'src:3': {'dev4': 10}}}
         res6 = {'controller:2': {'source:1': {'dev1': 2, 'dev2': 6}, 'source:2': {'dev1': 8, 'dev2': 4}}, 'stnode1:1': {'src:3': {'dev4': 10}}}
-        bw_info_ssync._write_experimental_results(res1)
-        bw_info_ssync._write_experimental_results(res2)
-        bw_info_ssync._write_experimental_results(res3)
-        bw_info_ssync._write_experimental_results(res4)
-        bw_info_ssync._write_experimental_results(res5)
+        bw_info_ssync._write_experimental_results(res1)  # noqa
+        bw_info_ssync._write_experimental_results(res2)  # noqa
+        bw_info_ssync._write_experimental_results(res3)  # noqa
+        bw_info_ssync._write_experimental_results(res4)  # noqa
+        bw_info_ssync._write_experimental_results(res5)  # noqa
         self.assertEqual(len(bw_info_ssync.last_bw_info), 5)
-        bw_info_ssync._write_experimental_results(res6)
+        bw_info_ssync._write_experimental_results(res6)  # noqa
         self.assertEqual(len(bw_info_ssync.last_bw_info),1)
 
     #
@@ -243,6 +244,18 @@ class DynamicPoliciesTestCase(TestCase):
         swift_metric._send_data_to_logstash(data)
         self.assertTrue(mock_socket.called)
         self.assertTrue(mock_socket.return_value.sendto.called)
+
+    #
+    # rules/min_bandwidth_per_tenant
+    #
+
+    @mock.patch('registry.dynamic_policies.rules.base_bw_rule.pika')
+    def test_simple_min_bandwidth_per_tenant(self, mock_pika):
+        smin = SimpleMinBandwidthPerTenant('the_name', 'the_method')
+        self.assertTrue(mock_pika.PlainCredentials.called)
+        info = {'1234567890abcdef': {'192.168.2.21': {'1': {u'sdb1': 655350.0}}}}
+        computed = smin.compute_algorithm(info)
+        self.assertEqual(computed, {'1234567890abcdef': {'192.168.2.21-1-sdb1': 115.0}})
 
     #
     # Aux methods
