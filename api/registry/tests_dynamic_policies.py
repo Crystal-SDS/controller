@@ -177,6 +177,20 @@ class DynamicPoliciesTestCase(TestCase):
         bw_info.notify(body)
         self.assertEquals(bw_info.count["123456789abcedef"]["10.0.0.1"]["1"]["sda1"], "12")
 
+    @mock.patch('registry.dynamic_policies.metrics.bw_info.Thread.start')
+    def test_metrics_bw_info_write_experimental_results(self, mock_thread_start):
+        bw_info = BwInfo('exchange', 'queue', 'routing_key', 'method')
+        self.assertTrue(mock_thread_start.called)
+        data = {"123456789abcedef": {"10.0.0.1": {"1": {"sda1": 1.3}}}}
+        bw_info._write_experimental_results(data)
+        bw_info._write_experimental_results(data)
+        bw_info._write_experimental_results(data)
+        bw_info._write_experimental_results(data)
+        bw_info._write_experimental_results(data)
+        self.assertEqual(len(bw_info.last_bw_info), 5)
+        bw_info._write_experimental_results(data)
+        self.assertEqual(len(bw_info.last_bw_info), 1)
+
     #
     # metrics/bw_info_ssync
     #
@@ -189,6 +203,25 @@ class DynamicPoliciesTestCase(TestCase):
         body = json.dumps(data)
         bw_info_ssync.notify(body)
         self.assertEquals(bw_info_ssync.count["10.0.0.1"], "4")
+
+    @mock.patch('registry.dynamic_policies.metrics.bw_info.Thread.start')
+    def test_metrics_bw_info_ssync_write_experimental_results(self, mock_thread_start):
+        bw_info_ssync = BwInfoSSYNC('exchange', 'queue', 'routing_key', 'method')
+        self.assertTrue(mock_thread_start.called)
+        res1 = {'controller:2': {'source:1': {'dev1': 2, 'dev2': 4}, 'source:2': {'dev1': 2, 'dev2': 4}}, 'stnode1:1': {'src:3': {'dev4': 10}}}
+        res2 = {'controller:2': {'source:1': {'dev1': 2, 'dev2': 6}, 'source:2': {'dev1': 3, 'dev2': 4}}, 'stnode1:1': {'src:3': {'dev4': 10}}}
+        res3 = {'controller:2': {'source:1': {'dev1': 2, 'dev2': 4}, 'source:2': {'dev1': 4, 'dev2': 4}}, 'stnode1:1': {'src:3': {'dev4': 10}}}
+        res4 = {'controller:2': {'source:1': {'dev1': 2, 'dev2': 6}, 'source:2': {'dev1': 5, 'dev2': 4}}, 'stnode1:1': {'src:3': {'dev4': 10}}}
+        res5 = {'controller:2': {'source:1': {'dev1': 2, 'dev2': 5}, 'source:2': {'dev1': 6, 'dev2': 4}}, 'stnode1:1': {'src:3': {'dev4': 10}}}
+        res6 = {'controller:2': {'source:1': {'dev1': 2, 'dev2': 6}, 'source:2': {'dev1': 8, 'dev2': 4}}, 'stnode1:1': {'src:3': {'dev4': 10}}}
+        bw_info_ssync._write_experimental_results(res1)
+        bw_info_ssync._write_experimental_results(res2)
+        bw_info_ssync._write_experimental_results(res3)
+        bw_info_ssync._write_experimental_results(res4)
+        bw_info_ssync._write_experimental_results(res5)
+        self.assertEqual(len(bw_info_ssync.last_bw_info), 5)
+        bw_info_ssync._write_experimental_results(res6)
+        self.assertEqual(len(bw_info_ssync.last_bw_info),1)
 
     #
     # metrics/swift_metric

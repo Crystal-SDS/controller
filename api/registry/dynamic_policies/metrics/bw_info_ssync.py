@@ -35,8 +35,8 @@ class BwInfoSSYNC(BwInfo):
                               str("{:,}".format(int(value)) + " bytes")
                         total_sum += int(value)
 
-            self.output.write(str(int(total_sum))+"\n")
-            self.output.flush()
+            #self.output.write(str(int(total_sum))+"\n")
+            #self.output.flush()
 
             self.last_bw_info = list()
               
