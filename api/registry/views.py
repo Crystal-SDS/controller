@@ -34,7 +34,7 @@ def create_local_host():
     try:
         start_controller("pyactive_thread")
         host = init_host(tcpconf)
-        print("Controller pyactive host created")
+        print("Controller PyActive host created")
     except:
         pass
 
@@ -280,7 +280,7 @@ def metric_module_list(request):
 
 def start_metric(metric_id, actor_id):
     create_local_host()
-    print "- Starting workload metric actor " + str(metric_id)
+    print "- Metric, Starting workload metric actor " + str(metric_id)
     try:
         if metric_id not in metrics:
             metrics[metric_id] = host.spawn_id(actor_id, settings.METRIC_CLASS, settings.METRIC_MAIN, 
@@ -292,7 +292,7 @@ def start_metric(metric_id, actor_id):
 
 def stop_metric(metric_id):
     if metric_id in metrics:
-        print "- Stopping workload metric actor " + str(metric_id)
+        print "- Metric, Stopping workload metric actor " + str(metric_id)
         metrics[metric_id].stop_actor()
         del metrics[metric_id]
 
@@ -882,7 +882,7 @@ def policy_list(request):
                 # print("The rule: " + rule_string + " cannot be parsed")
                 # print("Exception message", e)
                 return JSONResponse('Please, review the rule, register the dsl filter and start the workload '
-                                    'metric before create a new policy', status=status.HTTP_401_UNAUTHORIZED)
+                                    'metric before creating a new policy', status=status.HTTP_401_UNAUTHORIZED)
 
         return JSONResponse('Policies added successfully!', status=status.HTTP_201_CREATED)
 
@@ -892,7 +892,7 @@ def policy_list(request):
 @csrf_exempt
 def static_policy_detail(request, policy_id):
     """
-    Retrieve, update or delete SLA.
+    Retrieve, update or delete a static policy.
     """
     # Validate request: only a user with admin role can access to this method
     token = is_valid_request(request)
@@ -935,7 +935,7 @@ def static_policy_detail(request, policy_id):
 @csrf_exempt
 def dynamic_policy_detail(request, policy_id):
     """
-    Retrieve, update or delete SLA.
+    Delete a dynamic policy.
     """
     # Validate request: only a user with admin role can access to this method
     token = is_valid_request(request)
@@ -1001,8 +1001,8 @@ def do_action(request, r, rule_parsed):
                     if rule_parsed.object_list.object_size:
                         policy_data["object_size"] = [rule_parsed.object_list.object_size.operand,
                                                       rule_parsed.object_list.object_size.object_value]
-                if action_info.execution_server:
-                    policy_data["execution_server"] = action_info.execution_server
+                if action_info.server_execution:
+                    policy_data["execution_server"] = action_info.server_execution
                 if action_info.params:
                     policy_data["params"] = action_info.params
 

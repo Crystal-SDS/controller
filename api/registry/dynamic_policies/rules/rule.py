@@ -28,6 +28,8 @@ class Rule(object):
 
         :param rule_parsed: The rule parsed by the dsl_parser.
         :type rule_parsed: **any** PyParsing type
+        :param action: The action assigned to this rule.
+        :type action: **any** PyParsing type
         :param target: The target assigned to this rule.
         :type target: **any** String type
         :param host: The proxy host provided by the PyActive Middleware.
@@ -54,8 +56,8 @@ class Rule(object):
         self.rule_parsed = rule_parsed
         self.target = target
         self.conditions = rule_parsed.condition_list.asList()
-        self.observers_values = {}
-        self.observers_proxies = {}
+        self.observers_values = dict()
+        self.observers_proxies = dict()
         self.action_list = action
         self.token = None
 
@@ -80,18 +82,18 @@ class Rule(object):
         all the workload metrics subscribed, and kills the actor of the rule.
         """
         for observer in self.observers_proxies.values():
-            observer.detach(self.proxy)
+            observer.detach(self.proxy, self.get_target())
         self._atom.stop()
-        print ' - Actor rule "'+self.id+'" stopped'
+        print ' - Rule, Actor "'+self.id+'" stopped'
 
     def start_rule(self):
         """
         Method called afeter init to start the rule. Basically this method
-        allows to be called remotelly and calls the internal method
+        allows to be called remotely and calls the internal method
         **check_metrics()** which subscribes the rule to all the workload
         metrics necessaries.
         """
-        print ' - Start rule "'+self.id+'"'
+        print ' - Rule, Start "'+self.id+'"'
         self.check_metrics(self.conditions)
 
     def _add_metric(self, workload_name):
@@ -105,9 +107,9 @@ class Rule(object):
         """
         if workload_name not in self.observers_values.keys():
             # Trying the new PyActive version. New lookup function.
-            print " - Workload name:", workload_name
+            print " - Rule, Workload name:", workload_name
             observer = self.host.lookup(workload_name)
-            print ' - Ovserver: ', observer.get_id(), observer
+            print ' - Rule, Observer: ', observer.get_id(), observer
             observer.attach(self.proxy)
             self.observers_proxies[workload_name] = observer
             self.observers_values[workload_name] = None
@@ -121,7 +123,7 @@ class Rule(object):
         :param condition_list: The list of all the conditions.
         :type condition_list: **any** List type
         """
-        print ' - Condition: ', condition_list
+        print ' - Rule, Condition: ', condition_list
         if not isinstance(condition_list[0], list):
             self._add_metric(condition_list[0].lower())
         else:
@@ -177,7 +179,7 @@ class Rule(object):
 
     def get_target(self):
         """
-        Retrun the target assigned to this rule.
+        Return the target assigned to this rule.
 
         :return: Return the target id assigned to this rule
         :rtype: String type.
@@ -206,7 +208,7 @@ class Rule(object):
                 data['object_type'] = self.rule_parsed.object_list.object_type.object_value
             else:
                 data['object_type'] = ''
- 
+
             if hasattr(self.rule_parsed.object_list, "object_size"):
                 data['object_size'] = self.rule_parsed.object_list.object_size.object_value
             else:
@@ -216,9 +218,7 @@ class Rule(object):
 
             response = requests.put(url, json.dumps(data), headers=headers)
 
-            if 200 > response.status_code >= 300:
-                print 'Error setting policy'
-            else:
+            if 200 <= response.status_code < 300:
                 print 'Policy ' + self.id + ' applied'
                 self.redis.hset(self.id, 'alive', False)
                 try:
@@ -226,6 +226,8 @@ class Rule(object):
                 except:
                     pass
                 return
+            else:
+                print 'Error setting policy'
 
         elif self.action_list.action == "DELETE":
             print "--> DELETE <--"
@@ -233,14 +235,14 @@ class Rule(object):
             url = dynamic_filter["activation_url"]+"/"+self.target+"/undeploy/"+str(dynamic_filter["identifier"])
             response = requests.put(url, headers=headers)
 
-            if 200 > response.status_code >= 300:
-                print 'ERROR RESPONSE'
-            else:
+            if 200 <= response.status_code < 300:
                 print response.text, response.status_code
                 try:
                     self.stop_actor()
                 except:
                     pass
                 return response.text
+            else:
+                print 'ERROR RESPONSE'
 
         return 'Not action supported'

@@ -44,7 +44,7 @@ def get_keystone_admin_auth():
 def is_valid_request(request):    
     token = request.META['HTTP_X_AUTH_TOKEN']
     is_admin = False
-    now = datetime.now()
+    now = datetime.utcnow()
 
     if token not in valid_tokens:
         keystone = get_keystone_admin_auth()
@@ -53,7 +53,7 @@ def is_valid_request(request):
             token_data = keystone.tokens.validate(token)
         except:
             return False
-          
+
         token_expiration = datetime.strptime(token_data.expires, 
                                              '%Y-%m-%dT%H:%M:%SZ')
 
@@ -70,6 +70,8 @@ def is_valid_request(request):
         token_expiration = valid_tokens[token]
         if token_expiration > now:
             return token
+        else:
+            valid_tokens.pop(token, None)
 
     return False
 

@@ -19,11 +19,10 @@ class Consumer(object):
         self.obj = obj
         self.queue = queue
 
-        print '- Exchange:', exchange
-        # result = channel.queue_declare(exclusive=True)
+        print '- Metric, Exchange:', exchange
+        print '- Metric, Routing_key: ', routing_key
+
         self._channel.queue_declare(queue=queue)
-        # queue_name = result.method.queue
-        print '- Routing_key: ', routing_key
 
         if routing_key:
             self._channel.queue_bind(exchange=exchange,
@@ -39,12 +38,12 @@ class Consumer(object):
         self.obj.notify(body)
 
     def start_consuming(self):
-        print '- Start to consume from rabbitmq'
+        print '- Metric, Start to consume from rabbitmq'
         self.thread = Thread(target=self._channel.start_consuming)
         self.thread.start()
 
     def stop_consuming(self):
-        print '- Stopping to consume from rabbitmq'
+        print '- Metric, Stopping to consume from rabbitmq'
         self._atom.stop()
         self._channel.stop_consuming()
         self._channel.close()

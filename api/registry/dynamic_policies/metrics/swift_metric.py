@@ -9,7 +9,7 @@ from copy import deepcopy
 class SwiftMetric(Metric):
     _sync = {}
     _async = ['get_value', 'attach', 'detach', 'notify', 'start_consuming', 'stop_consuming', 'init_consum', 'stop_actor']
-    _ref = []
+    _ref = ['attach', 'detach']
     _parallel = []
 
     def __init__(self, exchange, metric_id, routing_key):
@@ -19,7 +19,7 @@ class SwiftMetric(Metric):
         self.routing_key = routing_key
         self.name = metric_id
         self.exchange = exchange
-        self.logstah_server = (self.logstash_host, self.logstash_port)
+        self.logstash_server = (self.logstash_host, self.logstash_port)
         self.last_metrics = dict()
         self.th = None
 
@@ -68,12 +68,12 @@ class SwiftMetric(Metric):
                         date = datetime.datetime.now() - datetime.timedelta(seconds=1)
                         monitoring_data['@timestamp'] = str(date.isoformat())
                         message = json.dumps(monitoring_data)+'\n'
-                        sock.sendto(message, self.logstah_server)
+                        sock.sendto(message, self.logstash_server)
                         monitoring_data['@timestamp'] = current_time
 
                     monitoring_data['value'] = value
                     message = json.dumps(monitoring_data)+'\n'
-                    sock.sendto(message, self.logstah_server)
+                    sock.sendto(message, self.logstash_server)
                     self.last_metrics[tenant] = monitoring_data
                 monitoring_data = dict()
         except socket.error:

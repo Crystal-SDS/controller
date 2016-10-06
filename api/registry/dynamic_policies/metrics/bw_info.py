@@ -40,7 +40,7 @@ class BwInfo(Metric):
 
     def attach(self, observer, bw_obs):
         """
-        Asyncronous method. This method allows to be called remotely. It is called from
+        Asynchronous method. This method allows to be called remotely. It is called from
         observers in order to subscribe in this workload metric. This observer will be
         saved in a dictionary type structure where the key will be the tenant assigned in the observer,
         and the value will be the PyActive proxy to connect to the observer.

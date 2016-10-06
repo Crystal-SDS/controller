@@ -1,3 +1,4 @@
+import os
 import redis
 import pika
 import logging
@@ -22,8 +23,9 @@ class AbstractEnforcementAlgorithm(object):
     def __init__(self, name, method):
         """
         """
-        settings = ConfigParser.ConfigParser() 
-        settings.read("registry/policies/dynamic_policies.config")
+        settings = ConfigParser.ConfigParser()
+        config_file = (os.path.join(os.getcwd(), 'registry', 'dynamic_policies', 'settings.conf'))
+        settings.read(config_file)
 
         logging.info('Rule init: OK')
         self.rmq_user = settings.get('rabbitmq', 'username')

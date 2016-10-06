@@ -6,7 +6,6 @@ import redis
 
 from django.test import TestCase, override_settings
 from django.conf import settings
-from django.http import HttpResponse
 from pyparsing import ParseException
 from rest_framework import status
 from rest_framework.test import APIRequestFactory
@@ -15,7 +14,7 @@ from .views import policy_list
 from filters.views import storlet_list, filter_deploy, StorletData
 from .views import object_type_list, object_type_detail, add_tenants_group, tenants_group_detail, gtenants_tenant_detail, node_list, node_detail, \
     add_metric, metric_detail, metric_module_list, metric_module_detail, MetricModuleData, list_storage_node, storage_node_detail, add_dynamic_filter, \
-    dynamic_filter_detail
+    dynamic_filter_detail, load_metrics, load_policies, static_policy_detail, dynamic_policy_detail
 from .dsl_parser import parse
 
 
@@ -78,6 +77,79 @@ class RegistryTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         json_data = json.loads(response.content)
         self.assertEqual(len(json_data), 0)  # is empty
+
+    @mock.patch('registry.views.do_action')
+    def test_registry_static_policy_create_ok(self, mock_do_action, mock_is_valid_request):
+        mock_is_valid_request.return_value = 'fake_token'
+        self.setup_dsl_parser_data()
+
+        # Create an instance of a POST request.
+        data = "FOR TENANT:1234567890abcdef DO SET compression"
+        request = self.factory.post('/registry/static_policy', data, content_type='text/plain')
+        request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
+        response = policy_list(request)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(mock_do_action.called)
+
+    @mock.patch('registry.views.set_filter')
+    def test_registry_static_policy_create_set_filter_ok(self, mock_set_filter, mock_is_valid_request):
+        mock_is_valid_request.return_value = 'fake_token'
+        self.setup_dsl_parser_data()
+
+        # Create an instance of a POST request.
+        data = "FOR TENANT:1234567890abcdef DO SET compression WITH bw=2 ON PROXY TO OBJECT_TYPE=DOCS"
+        request = self.factory.post('/registry/static_policy', data, content_type='text/plain')
+        request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
+        response = policy_list(request)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(mock_set_filter.called)
+        expected_policy_data = {'object_size': '', 'execution_order': 2, 'object_type': 'DOCS', 'params': mock.ANY, 'policy_id': 2, 'execution_server': 'PROXY'}
+        mock_set_filter.assert_called_with(mock.ANY, '1234567890abcdef', mock.ANY, expected_policy_data, 'fake_token')
+
+    @mock.patch('registry.views.deploy_policy')
+    def test_registry_dynamic_policy_create_ok(self, mock_deploy_policy, mock_is_valid_request):
+        mock_is_valid_request.return_value = 'fake_token'
+        self.setup_dsl_parser_data()
+
+        # Create an instance of a POST request.
+        data = "FOR TENANT:1234567890abcdef WHEN metric1 > 5 DO SET compression"
+        request = self.factory.post('/registry/dynamic_policy', data, content_type='text/plain')
+        request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
+        response = policy_list(request)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(mock_deploy_policy.called)
+
+    @mock.patch('registry.views.host')
+    @mock.patch('registry.views.create_local_host')
+    def test_registry_dynamic_policy_create_spawn_id_ok(self, mock_create_local_host, mock_host, mock_is_valid_request):
+        mock_is_valid_request.return_value = 'fake_token'
+        self.setup_dsl_parser_data()
+
+        # Create an instance of a POST request.
+        data = "FOR TENANT:1234567890abcdef WHEN metric1 > 5 DO SET compression"
+        request = self.factory.post('/registry/dynamic_policy', data, content_type='text/plain')
+        request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
+        response = policy_list(request)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(mock_create_local_host.called)
+        self.assertTrue(mock_host.spawn_id.called)
+        self.assertTrue(self.r.exists('policy:2'))
+        policy_data = self.r.hgetall('policy:2')
+        self.assertEqual(policy_data['policy'], 'FOR TENANT:1234567890abcdef DO SET compression')
+        self.assertEqual(policy_data['condition'], 'metric1 > 5')
+
+    # def test_registry_static_policy_create_with_inexistent_filter(self, mock_is_valid_request):
+    #     mock_is_valid_request.return_value = 'fake_token'
+    #     self.setup_dsl_parser_data()
+    #     self.r.delete("filter:1") # delete filter to cause an exception
+    #
+    #     # Create an instance of a POST request.
+    #     data = "FOR TENANT:1234567890abcdef DO SET compression"
+    #     request = self.factory.post('/registry/static_policy', data, content_type='text/plain')
+    #     request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
+    #     response = policy_list(request)
+    #     self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
 
     #
     # Metric tests
@@ -850,7 +922,7 @@ class RegistryTestCase(TestCase):
     # Parse tests
     #
 
-    # TODO To test dsl_parser correctly, we need to have metrics and filters in Redis.
+    # To test dsl_parser correctly, we need to have metrics and filters in Redis.
 
     def test_parse_target_tenant_ok(self, mock_is_valid_request):
         self.setup_dsl_parser_data()
@@ -935,9 +1007,19 @@ class RegistryTestCase(TestCase):
         self.assertEqual(action_info.action, 'SET')
         self.assertEqual(action_info.filter, 'compression')
         self.assertEqual(action_info.execution_server, '')
-        self.assertEqual(len(action_info.params), 6) # ???
+        self.assertEqual(len(action_info.params), 6)  # ???
 
-    # TODO Add tests with wrong number of parameters, non existent parameters, wrong type parameters, ...
+    def test_parse_group_ok(self, mock_is_valid_request):
+        self.setup_dsl_parser_data()
+        has_condition_list, rule_parsed = parse('FOR G:1 DO SET compression')
+        self.assertFalse(has_condition_list)
+        self.assertIsNotNone(rule_parsed)
+        targets = rule_parsed.target
+        action_list = rule_parsed.action_list
+        self.assertEqual(len(targets), 2)
+        self.assertEqual(len(action_list), 1)
+        self.assertEqual(targets[0], '1234567890abcdef')
+        self.assertEqual(targets[1], 'abcdef1234567890')
 
     def test_parse_rule_not_starting_with_for(self, mock_is_valid_request):
         self.setup_dsl_parser_data()
@@ -949,7 +1031,90 @@ class RegistryTestCase(TestCase):
         with self.assertRaises(ParseException):
             parse('FOR xxxxxxx DO SET compression')
 
+    # TODO Add tests with wrong number of parameters, non existent parameters, wrong type parameters, ...
     # TODO Add tests for conditional rules
+
+    #
+    # load_metrics() / load_policies()
+    #
+
+    @mock.patch('registry.views.start_metric')
+    def test_load_metrics(self, mock_start_metric, mock_is_valid_request):
+        load_metrics()
+        mock_start_metric.assert_called_with(1,'m1')
+
+    @mock.patch('registry.views.host')
+    def test_load_policies_not_alive(self, mock_host, mock_is_valid_request):
+        self.r.hmset('policy:20',
+                     {'alive': 'False', 'policy_description': 'FOR TENANT:0123456789abcdef DO SET compression'})
+        load_policies()
+        self.assertEqual(len(mock_host.method_calls), 0)
+
+    @mock.patch('registry.views.host')
+    def test_load_policies_alive(self, mock_host, mock_is_valid_request):
+        self.setup_dsl_parser_data()
+        self.r.hmset('policy:21',
+                     {'alive': 'True', 'policy_description': 'FOR TENANT:0123456789abcdef DO SET compression'})
+        load_policies()
+        self.assertTrue(mock_host.spawn_id.called)
+
+    @mock.patch('registry.views.host')
+    def test_load_policies_alive_transient(self, mock_host, mock_is_valid_request):
+        self.setup_dsl_parser_data()
+        self.r.hmset('policy:21',
+                     {'alive': 'True', 'policy_description': 'FOR TENANT:0123456789abcdef DO SET compression TRANSIENT'})
+        load_policies()
+        self.assertTrue(mock_host.spawn_id.called)
+
+    #
+    # static_policy_detail()
+    #
+
+    @mock.patch('registry.views.get_project_list')
+    def test_registry_static_policy_detail_ok(self, mock_get_project_list, mock_is_valid_request):
+        mock_is_valid_request.return_value = 'fake_token'
+        mock_get_project_list.return_value = {'0123456789abcdef': 'tenantA', '2': 'tenantB'}
+
+        # Create an instance of a GET request.
+        request = self.factory.get('/registry/static_policy/0123456789abcdef:1')
+        request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
+        response = static_policy_detail(request, '0123456789abcdef:1')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_data = json.loads(response.content)
+        self.assertEqual(json_data["target_name"], 'tenantA')
+
+    @mock.patch('registry.views.get_project_list')
+    def test_registry_static_policy_detail_delete(self, mock_get_project_list, mock_is_valid_request):
+        mock_is_valid_request.return_value = 'fake_token'
+        mock_get_project_list.return_value = {'0123456789abcdef': 'tenantA', '2': 'tenantB'}
+
+        # Create an instance of a DELETE request.
+        request = self.factory.delete('/registry/static_policy/0123456789abcdef:1')
+        request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
+        response = static_policy_detail(request, '0123456789abcdef:1')
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+        # Check there is no policy
+        request = self.factory.get('/registry/static_policy')
+        request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
+        response = policy_list(request)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_data = json.loads(response.content)
+        self.assertEqual(len(json_data), 0)
+
+    #
+    # dynamic_policy_detail()
+    #
+
+    def test_registry_dynamic_policy_detail_with_method_not_allowed(self, mock_is_valid_request):
+        mock_is_valid_request.return_value = 'fake_token'
+        request = self.factory.get('/registry/dynamic_policy/123')
+        response = dynamic_policy_detail(request, '123')
+        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+
+
+
 
     #
     # Aux methods
@@ -978,11 +1143,9 @@ class RegistryTestCase(TestCase):
                                        query_string=None, response_dict=None):
         response_dict['status'] = status.HTTP_201_CREATED
 
-    # @mock.patch('filters.views.get_crystal_token')
     @mock.patch('filters.views.is_valid_request')
     @mock.patch('registry.views.get_project_list')
     @mock.patch('filters.views.swift_client.put_object', side_effect=mock_put_object_status_created)
-    # @mock.patch('registry.views.requests.get')
     def deploy_storlet(self, mock_put_object, mock_get_project_list, mock_is_valid_request):
         mock_get_project_list.return_value = {'0123456789abcdef': 'tenantA', '2': 'tenantB'}
         mock_is_valid_request.return_value = 'fake_token'
@@ -1011,10 +1174,12 @@ class RegistryTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
     def setup_dsl_parser_data(self):
-        self.r.hmset('dsl_filter:compression', {'valid_parameters': '{"cparam1": "integer", "cparam2": "integer", "cparam3": "integer"}'})
-        self.r.hmset('dsl_filter:encryption', {'valid_parameters': '{"eparam1": "integer", "eparam2": "bool", "eparam3": "string"}'})
+        self.r.hmset('dsl_filter:compression', {'identifier': '1', 'valid_parameters': '{"cparam1": "integer", "cparam2": "integer", "cparam3": "integer"}'})
+        self.r.hmset('dsl_filter:encryption', {'identifier': '2', 'valid_parameters': '{"eparam1": "integer", "eparam2": "bool", "eparam3": "string"}'})
         self.r.hmset('metric:metric1', {'network_location': '?', 'type': 'integer'})
         self.r.hmset('metric:metric2', {'network_location': '?', 'type': 'integer'})
+        self.r.rpush('G:1', '1234567890abcdef')
+        self.r.rpush('G:2', 'abcdef1234567890')
 
     @mock.patch('registry.views.is_valid_request')
     def create_tenant_group_1(self, mock_is_valid_request):
