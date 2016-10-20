@@ -1,59 +1,68 @@
-SDS Controller API Specification - BW Differentiation
-=====================================================
+Crystal Controller API Specification - BW Differentiation
+=========================================================
 **Table of Contents**
 
-- [Error handling](#error-handling)
-- [Authentication](#authentication)
-- [BW info](#bw-info)
-  - [Get BW info about all accounts](#get-bw-info-about-all-accounts)
-  - [Get BW info about an account](#get-bw-info-about-an-account)
-- [Clear BW](#clear-bw)
-  - [Clear all the BW assignations for all accounts and policies](#clear-all-the-bw-assignations-for-all-accounts-and-policies)
-  - [Clear all the BW assignations entries for the selected account](#clears-all-the-bw-assignations-entries-for-the-selected-account)
-  - [Clear all the BW assignations entries for the selected account and policy](#clears-all-the-bw-assignations-entries-for-the-selected-account-and-policy)
-- [Update BW](#update-bw)
-  - [Assign the specified bw to all the policies of the selected account](#assigns-the-specified-bw-to-all-the-policies-of-the-selected-account)
-  - [Assign the specified bw to the selected account and policy](#assign-the-specified-bw-to-the-selected-account-and-policy)
+- [SLA info](#sla-info)
+  - [Get SLA info about all projects](#get-sla-info-about-all-projects)
+  - [Get SLA info about a project and a policy](#get-sla-info-about-a-project-and-a-policy)
+  - [Create a SLA for the selected project and policy](#create-a-sla-for-the-selected-project-and-policy)
+  - [Edit a SLA for the selected project and policy](#edit-a-sla-for-the-selected-project-and-policy)
+  - [Delete a SLA for the selected project and policy](#delete-a-sla-for-the-selected-project-and-policy)
 
-#Error handling
+# SLA info
 
-Errors are returned using standard HTTP error code syntax. Any additional info is included in the body of the return call, JSON-formatted. Error codes not listed here are in the REST API methods listed below.
+## Get SLA info about all projects
 
-Standard API errors
-
-CODE |  DESCRIPTION
---- | ---
-**400** | Bad input parameter. Error message should indicate which one and why.
-**401** | Authorization required. The presented credentials, if any, were not sufficient to access the folder resource. Returned if an application attempts to use an access token after it has expired.
-**403** | Forbidden. The requester does not have permission to access the specified resource.
-**404** | File or folder not found at the specified path.
-**405** | Request method not expected (generally should be GET or POST).
-**5xx** | Server error
-
-#Authentication
-
-After successfully receiving the credentials from keystone, it is necessary that all the calls of the API will be authenticated. To authenticate the calls, it needs to add the header explained in the next table:
-
-OAuth PARAMETER |  DESCRIPTION
---- | ---
-**X-Auth-Token** | Admin token obtained after a successful authentication in keystone.
-
-# BW info
-
-## Get BW info about all accounts
-
-An application can return all the bw information about all accounts by issuing an HTTP GET request.
+An application can return all the SLA information about all projects by issuing an HTTP GET request.
 
 ### Request
 #### URL structure
-The URL that represents the bw information about all accounts. The URL is **/bw/**
+The URL that represents the SLA information about all projects. The URL is **/bw/slas/**
 
 #### Method
 GET
 
 #### HTTP Request Example
 ```
-GET /bw/
+GET /bw/slas/
+```
+
+### Response
+
+#### Response example
+
+```json
+
+HTTP/1.1 200 OK
+
+[
+{"policy_id": '2',
+"project_id": '0123456789abcdef',
+"bandwidth": '2000',
+"project_name": 'tenantA',
+"policy_name": 's0y1'},
+{"policy_id": '3',
+"project_id": 'abcdef0123456789',
+"bandwidth": '3000',
+"project_name": 'tenantB',
+"policy_name": 's3y4'},
+]
+```
+
+## Get SLA info about a project and a policy
+
+An application can return all the SLA information about a project and a policy by issuing an HTTP GET request.
+
+### Request
+#### URL structure
+The URL that represents the SLA information about a project and a policy. The URL is **/bw/sla/{project_id}:{policy_id}**
+
+#### Method
+GET
+
+#### HTTP Request Example
+```
+GET /bw/sla/0123456789abcdef:2
 ```
 
 ### Response
@@ -65,75 +74,88 @@ GET /bw/
 HTTP/1.1 200 OK
 
 {
-"127.0.0.1:6010": {
-"AUTH_test": {
-"gold": 20,
-"silver": 10
-},
-"AUTH_test2": {
-"silver": 25
-}
-},
-"127.0.0.1:6020": {
-"AUTH_test": {
-"gold": 20,
-"silver": 10
-},
-"AUTH_test2": {
-"silver": 25
-}
-}
+"policy_id": '2',
+"project_id": '0123456789abcdef',
+"bandwidth": '2000',
+"project_name": 'tenantA',
+"policy_name": 's0y1'
 }
 ```
 
-## Get BW info about an account
+## Create a SLA for the selected project and policy
 
-An application can return all the bw information about an account by issuing an HTTP GET request.
+An application can create a SLA for the selected project and policy by issuing an HTTP POST request.
 
 ### Request
 #### URL structure
-The URL that represents the bw information about an account. The URL is **/bw/:account_id**
+The URL to create a SLA for the selected project and policy is **/bw/slas** with a body containing a JSON object.
 
 #### Method
-GET
+POST
 
 #### HTTP Request Example
 ```
-GET /bw/AUTH_01234567890123456789
-```
-
-### Response
-
-#### Response example
-
-```json
-
-HTTP/1.1 200 OK
-
+PUT /bw/slas/
 {
-"AUTH_01234567890123456789": {
-"gold": 20,
-"silver": 10
+"project_id": "0123456789abcdef", 
+"policy_id": "4", 
+"bandwidth": "4000"
 }
+```
+
+### Response
+
+#### Response example
+
+```json
+
+HTTP/1.1 201 CREATED
+
+```
+
+## Edit a SLA for the selected project and policy
+
+An application can modify the assigned bandwidth of a project and a policy by issuing an HTTP PUT request.
+
+### Request
+#### URL structure
+The URL that represents the SLA information about a project and a policy. The URL is **/bw/sla/{project_id}:{policy_id}** with a body containing a JSON object.
+
+#### Method
+PUT
+
+#### HTTP Request Example
+```
+PUT /bw/sla/0123456789abcdef:2
+{
+"bandwidth": "1000"
 }
 ```
 
-# Clear BW
+### Response
 
-## Clear all the BW assignations for all accounts and policies
+#### Response example
 
-An application can clear all the BW assignations for all accounts and policies by issuing an HTTP GET request.
+```json
+
+HTTP/1.1 201 CREATED
+```
+
+
+## Delete a SLA for the selected project and policy
+
+An application can delete the SLA information about a project and a policy by issuing an HTTP DELETE request.
 
 ### Request
 #### URL structure
-The URL to clear all the BW assignations for all accounts and policies. The URL is **/bw/clear/**
+The URL that represents the SLA information about a project and a policy. The URL is **/bw/sla/{project_id}:{policy_id}**
 
 #### Method
-PUT
+DELETE
 
 #### HTTP Request Example
 ```
-PUT /bw/clear/
+DELETE /bw/sla/0123456789abcdef:2
 ```
 
 ### Response
@@ -142,112 +164,6 @@ PUT /bw/clear/
 
 ```json
 
-HTTP/1.1 200 OK
-
+HTTP/1.1 204 NO CONTENT
 ```
 
-## Clear all the BW assignations entries for the selected account
-
-An application can clear all the BW assignations entries for the selected account by issuing an HTTP GET request.
-
-### Request
-#### URL structure
-The URL to clear all the BW assignations entries for the selected account. The URL is **/bw/clear/:account_id**
-
-#### Method
-PUT
-
-#### HTTP Request Example
-```
-PUT /bw/clear/AUTH_01234567890123456789
-```
-
-### Response
-
-#### Response example
-
-```json
-
-HTTP/1.1 200 OK
-
-```
-
-## Clear all the BW assignations entries for the selected account and policy
-
-An application can clear all the BW aassignations entries for the selected account and policy by issuing an HTTP GET request.
-
-### Request
-#### URL structure
-The URL to clear all the BW assignations entries for the selected account and policy. The URL is **/bw/clear/account_id/policy_id**
-
-#### Method
-PUT
-
-#### HTTP Request Example
-```
-PUT /bw/clear/AUTH_01234567890123456789/silver
-```
-
-### Response
-
-#### Response example
-
-```json
-
-HTTP/1.1 200 OK
-
-```
-
-# Update BW
-
-## Assign the specified bw to all the policies of the selected account
-
-An application can assign the specified bw to all the policies of the selected account by issuing an HTTP PUT request.
-
-### Request
-#### URL structure
-The URL to assign the specified bw to all the policies of the selected account. The URL is **/bw/account_id/bw_value**
-
-#### Method
-PUT
-
-#### HTTP Request Example
-```
-PUT /bw/AUTH_01234567890123456789/10
-```
-
-### Response
-
-#### Response example
-
-```json
-
-HTTP/1.1 200 OK
-
-```
-
-## Assign the specified bw to the selected account and policy
-
-An application can assign the specified bw to the selected account and policy by issuing an HTTP PUT request.
-
-### Request
-#### URL structure
-The URL to assign the specified bw to the selected account and policy. The URL is **/bw/account_id/policy_id/bw_value**
-
-#### Method
-PUT
-
-#### HTTP Request Example
-```
-PUT /bw/AUTH_01234567890123456789/silver/10
-```
-
-### Response
-
-#### Response example
-
-```json
-
-HTTP/1.1 200 OK
-
-```
