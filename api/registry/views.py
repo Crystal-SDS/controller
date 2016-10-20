@@ -1,26 +1,26 @@
+import json
+import mimetypes
+import os
+import re
+from operator import itemgetter
+
 from django.conf import settings
 from django.core.servers.basehttp import FileWrapper
 from django.http import HttpResponse
 from django.http import StreamingHttpResponse
 from django.views.decorators.csrf import csrf_exempt
+from pyactive.controller import init_host, start_controller
+from redis.exceptions import RedisError, DataError
 from rest_framework import status
 from rest_framework.exceptions import ParseError
 from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
 from rest_framework.views import APIView
-from operator import itemgetter
-from pyactive.controller import init_host, start_controller
-from redis.exceptions import RedisError, DataError
 
-from api.exceptions import SwiftClientError, StorletNotFoundException, FileSynchronizationException
-from api.common_utils import is_valid_request, rsync_dir_with_nodes, to_json_bools, remove_extra_whitespaces, JSONResponse, get_redis_connection, get_project_list
-from filters.views import set_filter, unset_filter
-from filters.views import save_file, make_sure_path_exists
 import dsl_parser
-
-import json
-import mimetypes
-import os
-import re
+from api.common_utils import is_valid_request, rsync_dir_with_nodes, to_json_bools, remove_extra_whitespaces, JSONResponse, get_redis_connection, get_project_list
+from api.exceptions import SwiftClientError, StorletNotFoundException, FileSynchronizationException
+from filters.views import save_file, make_sure_path_exists
+from filters.views import set_filter, unset_filter
 
 host = None
 remote_host = None
@@ -78,12 +78,12 @@ def load_policies():
             for action_info in rule_parsed.action_list:
                 if action_info.transient:
                     print 'Transient rule:', policy_data['policy_description']
-                    rules[policy] = host.spawn_id(str(policy), settings.RULE_TRANSIENT_CLASS, settings.RULE_TRANSIENT_MAIN, 
+                    rules[policy] = host.spawn_id(str(policy), settings.RULE_TRANSIENT_CLASS, settings.RULE_TRANSIENT_MAIN,
                                                   [rule_parsed, action_info, target, host])
                     rules[policy].start_rule()
                 else:
                     print 'Rule:', policy_data['policy_description']
-                    rules[policy] = host.spawn_id(str(policy), settings.RULE_CLASS, settings.RULE_MAIN, 
+                    rules[policy] = host.spawn_id(str(policy), settings.RULE_CLASS, settings.RULE_MAIN,
                                                   [rule_parsed, action_info, target, host])
                     rules[policy].start_rule()
 
@@ -283,7 +283,7 @@ def start_metric(metric_id, actor_id):
     print "- Metric, Starting workload metric actor " + str(metric_id)
     try:
         if metric_id not in metrics:
-            metrics[metric_id] = host.spawn_id(actor_id, settings.METRIC_CLASS, settings.METRIC_MAIN, 
+            metrics[metric_id] = host.spawn_id(actor_id, settings.METRIC_CLASS, settings.METRIC_MAIN,
                                                ["amq.topic", actor_id, "metrics." + actor_id])
             metrics[metric_id].init_consum()
     except Exception as e:
@@ -351,7 +351,7 @@ def metric_module_detail(request, metric_module_id):
 
             r.delete("workload_metric:" + str(metric_id))
             keys = len(r.keys("workload_metric:*"))
-            r.set('workload_metrics:id',keys)
+            r.set('workload_metrics:id', keys)
 
             return JSONResponse('Workload metric has been deleted', status=status.HTTP_204_NO_CONTENT)
         except DataError:
@@ -814,7 +814,7 @@ def policy_list(request):
     token = is_valid_request(request)
     if not token:
         return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
- 
+
     try:
         r = get_redis_connection()
     except RedisError:
@@ -867,7 +867,7 @@ def policy_list(request):
 
                 if condition_list:
                     # Dynamic Rule
-                    #print('Rule parsed:', rule_parsed)
+                    # print('Rule parsed:', rule_parsed)
                     deploy_policy(r, rule_string, rule_parsed)
                 else:
                     # Static Rule
@@ -959,7 +959,7 @@ def dynamic_policy_detail(request, policy_id):
         r.delete('policy:' + policy_id)
         policies_ids = r.keys('policy:*')
         if len(policies_ids) == 0:
-            r.set('policies:id',0)
+            r.set('policies:id', 0)
         return JSONResponse('Policy has been deleted', status=204)
 
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
@@ -1028,22 +1028,22 @@ def deploy_policy(r, rule_string, parsed_rule):
             rule_id = 'policy:' + str(policy_id)
 
             if action_info.transient:
-                #print 'Transient rule:', parsed_rule
+                # print 'Transient rule:', parsed_rule
                 rules[policy_id] = host.spawn_id(rule_id, settings.RULE_TRANSIENT_CLASS, settings.RULE_TRANSIENT_MAIN,
-                                                [rules_to_parse[key], action_info, key, host])
+                                                 [rules_to_parse[key], action_info, key, host])
                 location = os.path.join(settings.RULE_TRANSIENT_CLASS, settings.RULE_TRANSIENT_MAIN)
                 is_transient = True
             else:
-                #print 'Rule:', parsed_rule
+                # print 'Rule:', parsed_rule
                 rules[policy_id] = host.spawn_id(rule_id, settings.RULE_CLASS, settings.RULE_MAIN,
-                                                [rules_to_parse[key], action_info, key, host])
+                                                 [rules_to_parse[key], action_info, key, host])
                 location = os.path.join(settings.RULE_CLASS, settings.RULE_MAIN)
                 is_transient = False
 
             rules[policy_id].start_rule()
 
             # FIXME Should we recreate a static rule for each target and action??
-            condition_re = re.compile(r'.* (WHEN .*) DO .*', re.M|re.I)
+            condition_re = re.compile(r'.* (WHEN .*) DO .*', re.M | re.I)
             condition_str = condition_re.match(rule_string).group(1)
 
             tmp_rule_string = rule_string.replace(condition_str, '').replace('TRANSIENT', '')
@@ -1051,10 +1051,34 @@ def deploy_policy(r, rule_string, parsed_rule):
 
             # Add policy into redis
             policy_location = os.path.join(settings.PYACTIVE_URL, location, str(rule_id))
-            r.hmset('policy:' + str(policy_id), {"id": policy_id, 
+            r.hmset('policy:' + str(policy_id), {"id": policy_id,
                                                  "policy": static_policy_rule_string,
                                                  "policy_description": rule_string,
                                                  "condition": condition_str.replace('WHEN ', ''),
                                                  "transient": is_transient,
                                                  "policy_location": policy_location,
                                                  "alive": True})
+
+
+@csrf_exempt
+def node_restart(request, node_id):
+    # Validate request: only a user with admin role can access to this method
+    token = is_valid_request(request)
+    if not token:
+        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
+
+    try:
+        r = get_redis_connection()
+    except RedisError:
+        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    if request.method == 'PUT':
+        node = r.hgetall('node:' + str(node_id))
+        data = {'node_ip': node['ip'], 'ssh_username': node['ssh_username'], 'ssh_password': node['ssh_password']}
+        restart_command = 'sshpass -p {ssh_password} ssh {ssh_username}@{node_ip} sudo swift-init all restart'.format(**data)
+        # print "System: %s" % rsync_command
+        ret = os.system(restart_command)
+        if ret != 0:
+            raise FileSynchronizationException("An error occurred restarting Swift nodes")
+
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
