@@ -1,46 +1,61 @@
-SDS Controller API Specification - Swift
-===========================================
+Crystal Controller API Specification - Swift
+============================================
 **Table of Contents**
 
-- [Error handling](#error-handling)
-- [Authentication](#authentication)
-- [Swift](#storlets)
-  - [Tenants](#tenants)
-
-#Error handling
-
-Errors are returned using standard HTTP error code syntax. Any additional info is included in the body of the return call, JSON-formatted. Error codes not listed here are in the REST API methods listed below.
-
-Standard API errors
-
-CODE |  DESCRIPTION
---- | ---
-**400** | Bad input parameter. Error message should indicate which one and why.
-**401** | Authorization required. The presented credentials, if any, were not sufficient to access the folder resource. Returned if an application attempts to use an access token after it has expired.
-**403** | Forbidden. The requester does not have permission to access the specified resource.
-**404** | File or folder not found at the specified path.
-**405** | Request method not expected (generally should be GET or POST).
-**5xx** | Server error
-
-#Authentication
-
-After successfully receiving the credentials from keystone, it is necessary that all the calls of the API will be authenticated. To authenticate the calls, it needs to add the header explained in the next table:
-
-OAuth PARAMETER |  DESCRIPTION
---- | ---
-**X-Auth-Token** | Admin token obtained after a successful authentication in keystone.
+- [Enable SDS for a project](#enable-sds-for-a-project)
+- [Get a storage policies list](#get-a-storage-policies-list)
+- [Locality](#locality)
 
 #Swift
 
-## List tenants
+## Enable SDS for a project
 
-An application can ask for tenant list by issuing an HTTP GET request.
+An application can enable Crystal-SDS for a particular project by issuing an HTTP POST request.
 
 ### Request
 
 #### URL structure
-The URL that represents the tenant list resource is
-**/swift/tenants.**
+The URL that represents the tenant resource is
+**/swift/tenants**
+
+#### Method
+POST
+
+#### Request Query arguments
+JSON input that contains a dictionary with the following keys:
+
+FIELD |  DESCRIPTION
+--- | ---
+**tenant_name** | The project name
+
+#### HTTP Request Example
+
+```
+POST /swift/tenants
+
+{
+"tenant_name" : "tenantA"
+}
+```
+
+### Response
+
+#### Response example
+
+```
+201 CREATED
+```
+
+
+## Get a storage policies list
+
+An application can retrieve a storage policies list by issuing a HTTP GET request.
+
+### Request
+
+#### URL structure
+The URL that represents the storage policies resource is
+**/swift/storage_policies**
 
 #### Method
 GET
@@ -48,43 +63,26 @@ GET
 #### HTTP Request Example
 
 ```
-Content-Type: application/json
-Content-Length: nnn
-X-Auth-Token: sdsa23123dsae14342q
-GET /swift/tenants
+GET /swift/storage_policies
 ```
 
 ### Response
 
 #### Response example
 
-```json
-
-Response <200>
-{
-  "tenants_links": [],
-  "tenants": [
-    {
-      "description": "Service Tenant",
-      "enabled": true,
-      "id": "4f0279da74ef4584a29dc72c835fe2c9",
-      "name": "service"
-    },
-    {
-      "description": "The storlets management tenant",
-      "enabled": true,
-      "id": "c357bdff772b4c31883e51fe93c93ac6",
-      "name": "storlet_management"
-    },
-    {
-      "description": "Admin Tenant",
-      "enabled": true,
-      "id": "f29b760ad46447db99ea11f7afc0ed9f",
-      "name": "admin"
-    }
-  ]
-}
 ```
+200 OK
+
+[
+{"default":"no","name":"s5y6","policy_type":"replication","id":"4"},
+{"default":"yes","name":"allnodes","policy_type":"replication","id":"0"},
+{"default":"no","name":"s0y1","policy_type":"replication","id":"2"},
+{"default":"no","name":"storage4","policy_type":"replication","id":"1"},
+{"default":"no","name":"s3y4","policy_type":"replication","id":"3"}
+]
+
+```
+
 ## Locality
 
 An application can ask for the location of specific account/container/object by issuing an HTTP GET request.
@@ -93,9 +91,8 @@ An application can ask for the location of specific account/container/object by 
 
 #### URL structure
 The URL that represents the locality resource is
-**/swift/locality/:account/:container/:swift_object.**
-**Note:** Minimum it's mandatory enter the account. However the container and swift_object
-is optional.
+**/swift/locality/:project/:container/:swift_object**
+**Note:** It's mandatory to enter the project parameter. Container and swift_object are optional.
 
 #### Method
 GET
@@ -104,7 +101,7 @@ GET
 
 ```
 Content-Type: application/json
-Content-Length: 180
+
 GET /swift/locality/AUTH_151542dfdsa541asd455fasf1/test1/file.txt
 ```
 
@@ -114,7 +111,7 @@ GET /swift/locality/AUTH_151542dfdsa541asd455fasf1/test1/file.txt
 
 ```json
 
-Response <200>
+200 OK
 {
   "headers": {
     "X-Backend-Storage-Policy-Index": "0"
