@@ -2,27 +2,50 @@ Crystal Controller API Specification - Registry
 ===============================================
 **Table of Contents**
 
-- [Metrics Workload](#metrics-workload)
+- [Workload metrics](#metrics-workload)
   - [Add a workload metric](#add-a-workload-metric)
   - [Get all workload metrics](#get-all-workload-metrics)
   - [Update a workload metric](#update-a-workload-metric)
   - [Get metric metadata](get-metric-metadata)
   - [Delete a workload metric](#delete-a-workload-metric)
-- [Filters](#metrics-workload)
+- [Filters](#filters)
   - [Add a filter](#add-a-filter)
   - [Get all filters](#get-all-filters)
   - [Update a filter](#update-a-filter)
   - [Get filter metadata](#get-filter-metadata)
   - [Delete a filter](#delete-a-filter)
-- [Tenants group](#tenants-group)
-  - [Add a tenants group](#add-a-tenants-group)
-  - [Get all tenants groups](#get-all-tenants-groups)
-  - [Get tenants of a group](#get-tenants-of-a-group)
-  - [Add a member to a tenants group](#add-a-member-to-a-tenants-group)
-  - [Delete a tenants group](#delete-a-tenants-group)
-  - [Delete a member of a tenants group](#delete-a-member-of-a-tenants-group)
+- [Projects group](#projects-group)
+  - [Add a projects group](#add-a-projects-group)
+  - [Get all projects groups](#get-all-projects-groups)
+  - [Get projects of a group](#get-projects-of-a-group)
+  - [Update members of a projects group](#update-members-of-a-projects-group)
+  - [Delete a projects group](#delete-a-projects-group)
+  - [Delete a member of a projects group](#delete-a-member-of-a-projects-group)
+- [Object type](#object-type)
+  - [Create an object type](#create-an-object-type)
+  - [Get all object types](#get-all-object-types)
+  - [Get extensions of an object type](#get-extensions-of-an-object-type)
+  - [Update extensions of an object type](#update-extensions-of-an-object-type)
+  - [Delete an object type](#delete-an-object-type)
+- [Metric modules](#metric-modules)
+  - [Upload a metric module](#upload-a-metric-module)
+  - [Download a metric module](#download-a-metric-module)
+  - [Get all metrics modules](#get-all-metrics-modules)
+  - [Get a metric module](#get-a-metric-module)
+  - [Update a metric module](#update-a-metric-module)
+  - [Delete a metric module](#delete-a-metric-module)
+- [DSL Policies](#dsl-policies)
+  - [List all static policies](#list-all-static-policies)
+  - [Add a static policy](#add-a-static-policy)
+  - [Get a static policy](#get-a-static-policy)
+  - [Update a static policy](#update-a-static-policy)
+  - [Delete a static policy](#delete-a-static-policy)
+  - [List all dynamic policies](#list-all-dynamic-policies)
+  - [Add a dynamic policy](#add-a-dynamic-policy)
+  - [Delete a dynamic policy](#delete-a-dynamic-policy)
+  
 
-#Metrics Workload
+# Workload metrics
 
 ## Add a workload metric
 
@@ -31,7 +54,7 @@ An application can registry a metric workload by issuing an HTTP POST request. T
 ### Request
 
 #### URL structure
-The URL is **/registry/metrics.**
+The URL is **/registry/metrics**
 
 #### Method
 POST
@@ -43,12 +66,18 @@ FIELD |  DESCRIPTION
 --- | ---
 **name** | The name is the keyword to be used in condition clauses of storage policy definitions. Workload metric names should be unique and self-descriptive to ease the design of storage policies.
 **network_location** | This requires the metadata information of a workload metric to provide the network location to reach the process and obtain the computed metric.
-**metric_type** | Workload metric’s metadata should define the type of metric produces, such a integer or a boolean, to enable the DSL syntax checker to infer if values in condition clauses belong to the appropriate type.
+**type** | Workload metric’s metadata should define the type of metric produces, such as integer or a boolean, to enable the DSL syntax checker to infer if values in condition clauses belong to the appropriate type.
 
 #### HTTP Request Example
 
 ```
 POST /registry/metrics
+
+{
+"name": "put_active_requests",
+"network_location": "tcp://127.0.0.1:6899/registry.policies.metrics.swift_metric/SwiftMetric/put_active_requests",
+"type": "integer"
+}
 ```
 
 ### Response
@@ -87,13 +116,13 @@ GET /registry/metrics
 
 Response <201>
 [{
-"name":"througput",
-"network_location":"10.30.102.102",
-"type":"bool",
+"name": "put_active_requests",
+"network_location": "tcp://127.0.0.1:6899/registry.policies.metrics.swift_metric/SwiftMetric/put_active_requests",
+"type": "integer"
 },{
-"name":"slowdown",
-"network_location":"10.30.102.102",
-"type":"bool",
+"name": "get_active_requests",
+"network_location": "tcp://127.0.0.1:6899/registry.policies.metrics.swift_metric/SwiftMetric/get_active_requests",
+"type": "integer"
 }]
 ```
 
@@ -104,7 +133,7 @@ An application can update the metadata of a workload metric by issuing an HTTP P
 ### Request
 
 #### URL structure
-The URL is **/registry/metrics/:metric_name**
+The URL is **/registry/metrics/{metric_name}**
 
 #### Method
 PUT
@@ -112,9 +141,9 @@ PUT
 #### HTTP Request Example
 
 ```json
-PUT /registry/metrics/througput
+PUT /registry/metrics/put_active_requests
 {
-  "network_location":"10.30.103.103"
+  "network_location": "tcp://192.168.1.5:6899/registry.policies.metrics.swift_metric/SwiftMetric/put_active_requests"
 }
 ```
 
@@ -122,14 +151,8 @@ PUT /registry/metrics/througput
 
 #### Response example
 
-```json
-
-Response <201>
-{
-"name":"througput",
-"network_location":"10.30.102.102",
-"type":"bool",
-}
+```
+HTTP/1.1 201 CREATED
 ```
 
 ## Get metric metadata
@@ -139,7 +162,7 @@ An application can ask for a workload metric metadata by issuing an HTTP GET req
 ### Request
 
 #### URL structure
-The URL is **/registry/metrics/:metric_name**
+The URL is **/registry/metrics/{metric_name}**
 
 #### Method
 GET
@@ -147,7 +170,7 @@ GET
 #### HTTP Request Example
 
 ```
-GET /registry/metrics/througput
+GET /registry/metrics/put_active_requests
 ```
 ### Response
 
@@ -156,24 +179,22 @@ GET /registry/metrics/througput
 ```json
 
 HTTP/1.1 200 OK
-Content-Type: application/json; charset=UTF-8
-Content-Length: 248
 
 {
-"name":"througput",
-"network_location":"10.30.102.102",
-"type":"bool",
+"name": "put_active_requests",
+"network_location": "tcp://127.0.0.1:6899/registry.policies.metrics.swift_metric/SwiftMetric/put_active_requests",
+"type": "integer"
 }
 ```
 
 ## Delete a workload metric
 
-An application can delete a workload metric by issuing an HTTP GET request.
+An application can delete a workload metric by issuing an HTTP DELETE request.
 
 ### Request
 
 #### URL structure
-The URL is **/registry/metrics/:metric_name**
+The URL is **/registry/metrics/{metric_name}**
 
 #### Method
 DELETE
@@ -181,7 +202,7 @@ DELETE
 #### HTTP Request Example
 
 ```
-DELETE /registry/metrics/througput
+DELETE /registry/metrics/put_active_requests
 
 ```
 
@@ -191,22 +212,30 @@ DELETE /registry/metrics/througput
 
 ```json
 
-HTTP/1.1 204 OK
-Content-Type: application/json; charset=UTF-8
-Content-Length: 248
+HTTP/1.1 204 NO CONTENT
 
 ```
+
+
+
+
+
+
+
+
+
+
 
 #Filters
 
 ## Add a filter
 
-An application can registry a filter by issuing an HTTP POST request. The application needs to provide the filter metadata like json format.
+An application can registry a filter by issuing an HTTP POST request. The application needs to provide the filter metadata in json format.
 
 ### Request
 
 #### URL structure
-The URL is **/registry/filters.**
+The URL is **/registry/filters**
 
 #### Method
 POST
@@ -225,6 +254,13 @@ FIELD |  DESCRIPTION
 
 ```
 POST /registry/filters
+
+{
+"name":"compression",
+"identifier":2,
+"activation_url":"http://sds_controller/filters/1",
+"valid_parameters":{"param1":"bool", "param2":"integer"}
+}
 ```
 
 ### Response
@@ -232,14 +268,7 @@ POST /registry/filters
 #### Response example
 
 ```json
-POST /registry/filters
-Response <201>
-{
-"name":"compress",
-"identifier":2,
-"activation_url":"http://sds_controller/filters/1",
-"valid_parameters":{"param1":"bool", "param2":"integer"}
-}
+HTTP/1.1 201 CREATED
 ```
 
 ## Get all filters
@@ -266,15 +295,15 @@ GET /registry/filters
 #### Response example
 
 ```json
+HTTP/1.1 200 OK
 
-Response <201>
 [{
-  "name":"compress",
+  "name":"compression",
   "identifier":2,
   "activation_url":"http://sds_controller/filters/1",
   "valid_parameters":{"param1":"bool", "param2":"integer"}
 },{
-  "name":"compress_gzip",
+  "name":"compression_gzip",
   "identifier":2,
   "activation_url":"http://sds_controller/filters/1",
   "valid_parameters":{"param1":"bool", "param2":"integer"}
@@ -288,7 +317,7 @@ An application can update the metadata of a filter by issuing an HTTP PUT reques
 ### Request
 
 #### URL structure
-The URL is **/registry/filters/:filter_name**
+The URL is **/registry/filters/{filter_name}**
 
 #### Method
 PUT
@@ -296,7 +325,8 @@ PUT
 #### HTTP Request Example
 
 ```json
-PUT /registry/filters/compress
+PUT /registry/filters/compression
+
 {
 "activation_url":"http://sds_controller/filters/2"
 }
@@ -308,13 +338,7 @@ PUT /registry/filters/compress
 
 ```json
 
-Response <201>
-{
-  "name":"compress",
-  "identifier":2,
-  "activation_url":"http://sds_controller/filters/2",
-  "valid_parameters":{"param1":"bool", "param2":"integer"}
-}
+HTTP/1.1 201 CREATED
 ```
 
 ## Get filter metadata
@@ -324,7 +348,7 @@ An application can ask for a filter metadata by issuing an HTTP GET request.
 ### Request
 
 #### URL structure
-The URL is **/registry/filters/:filter_name**
+The URL is **/registry/filters/{filter_name}**
 
 #### Method
 GET
@@ -332,7 +356,7 @@ GET
 #### HTTP Request Example
 
 ```
-GET /registry/filters/compress
+GET /registry/filters/compression
 ```
 ### Response
 
@@ -341,11 +365,9 @@ GET /registry/filters/compress
 ```json
 
 HTTP/1.1 200 OK
-Content-Type: application/json; charset=UTF-8
-Content-Length: 248
 
 {
-  "name":"compress",
+  "name":"compression",
   "identifier":2,
   "activation_url":"http://sds_controller/filters/2",
   "valid_parameters":{"param1":"bool", "param2":"integer"}
@@ -354,12 +376,12 @@ Content-Length: 248
 
 ## Delete a filter
 
-An application can delete a filter by issuing an HTTP GET request.
+An application can delete a filter by issuing an HTTP DELETE request.
 
 ### Request
 
 #### URL structure
-The URL is **/registry/filters/:filter_name**
+The URL is **/registry/filters/{filter_name}**
 
 #### Method
 DELETE
@@ -377,44 +399,40 @@ DELETE /registry/filters/compress
 
 ```json
 
-
-HTTP/1.1 204 OK
-Content-Type: application/json; charset=UTF-8
-Content-Length: 248
+HTTP/1.1 204 NO CONTENT
 
 ```
 
 
 
 
-#Tenants group
+#Projects group
 
-## Add a tenants group
+## Add a projects group
 
-An application can registry a tenants group by issuing an HTTP POST request. The application needs to provide the filter metadata like json format.
+An application can registry a projects group by issuing an HTTP POST request. The application needs to provide the project identifiers in a json array.
 
 ### Request
 
 #### URL structure
-The URL is **/registry/filters.**
+The URL is **/registry/gtenants**
 
 #### Method
 POST
 
 #### Request Query arguments
-JSON input that contains a dictionary with the following keys:
-
-FIELD |  DESCRIPTION
---- | ---
-**name** | Filter names should be unique and self-descriptive to ease the design of storage policies.
-**identifier** | The identifier field is only required by out filter framework for object storage based on Storlets **(Optional)**
-**activation_url** | Different filter types may have distinct calls from the SDS Controller API viewpoint, we need to provide the base URL to be used to trigger the filter activation.
-**valid_parameters** | Dictionary where the keys are the parameters accepted by the filter, and the values are the type (i.e. boolean, integer) of each parameter.
+JSON input that contains an array of project identifiers.
 
 #### HTTP Request Example
 
 ```
-POST /registry/filters
+POST /registry/gtenants
+
+[
+"111456789abcdef",
+"222456789abcdef",
+"333456789abcdef",
+]
 ```
 
 ### Response
@@ -422,19 +440,12 @@ POST /registry/filters
 #### Response example
 
 ```json
-POST /registry/filters
-Response <201>
-{
-"name":"compress",
-"identifier":2,
-"activation_url":"http://sds_controller/filters/1",
-"valid_parameters":{"param1":"bool", "param2":"integer"}
-}
+HTTP/1.1 201 CREATED
 ```
 
-## Get all tenants group
+## Get all projects groups
 
-An application can get all tenant groups registered by issuing an HTTP GET request.
+An application can get all projects groups registered by issuing an HTTP GET request.
 
 ### Request
 
@@ -457,29 +468,29 @@ GET /registry/gtenants
 
 ```json
 
-Response <201>
+HTTP/1.1 200 OK
 {
-  "G:2": [
-    "4",
-    "5",
-    "6"
+  "2": [
+    "000456789abcdef",
+    "888456789abcdef",
+    "999456789abcdef"
   ],
-  "G:1": [
-    "1",
-    "2",
-    "3"
+  "3": [
+    "111456789abcdef",
+    "222456789abcdef",
+    "333456789abcdef"
   ]
 }
 ```
 
-## Get tenants of a group
+## Get projects of a group
 
 An application can get all tenants of a group registered by issuing an HTTP GET request.
 
 ### Request
 
 #### URL structure
-The URL is **/registry/gtenants/:gtenant_id**
+The URL is **/registry/gtenants/{gtenant_id}**
 
 
 #### Method
@@ -488,7 +499,7 @@ GET
 #### HTTP Request Example
 
 ```
-GET /registry/gtenants/1
+GET /registry/gtenants/3
 
 ```
 ### Response
@@ -499,20 +510,20 @@ GET /registry/gtenants/1
 
 Response <201>
 [
-  "4",
-  "5",
-  "6"
+    "111456789abcdef",
+    "222456789abcdef",
+    "333456789abcdef"
 ]
 ```
 
-## Add a member to a tenants group
+## Update members of a projects group
 
-An application can add members to a group by issuing an HTTP PUT request.
+An application can modify the members of a group by issuing an HTTP PUT request.
 
 ### Request
 
 #### URL structure
-The URL is **/registry/gtenants/:gtenant_id**
+The URL is **/registry/gtenants/{gtenant_id}**
 
 #### Method
 PUT
@@ -522,7 +533,10 @@ PUT
 ```json
 PUT /registry/gtenants/2
 
-["8", "9"]
+[
+"111456789abcdef",
+"222456789abcdef"
+]
 
 ```
 
@@ -532,19 +546,18 @@ PUT /registry/gtenants/2
 
 ```json
 
-Response <201>
+HTTP/1.1 201 CREATED
 
-The members of the tenants group with id: 2 has been updated
 ```
 
-## Delete a tenants group
+## Delete a projects group
 
-An application can delete a tenants group by issuing an HTTP DELETE request.
+An application can delete a projects group by issuing an HTTP DELETE request.
 
 ### Request
 
 #### URL structure
-The URL is **/registry/gtenants/:gtenant_id**
+The URL is **/registry/gtenants/{gtenant_id}**
 
 #### Method
 DELETE
@@ -566,14 +579,14 @@ HTTP/1.1 204 NO CONTENT
 
 ```
 
-## Delete a member of a tenants group
+## Delete a member of a projects group
 
-An application can delete a member of a tenants group by issuing an HTTP DELETE request.
+An application can delete a member of a projects group by issuing an HTTP DELETE request.
 
 ### Request
 
 #### URL structure
-The URL is **/registry/gtenants/:gtenant_id/tenants/:tenant_id**
+The URL is **/registry/gtenants/{gtenant_id}/tenants/{project_id}**
 
 #### Method
 DELETE
@@ -581,7 +594,7 @@ DELETE
 #### HTTP Request Example
 
 ```
-DELETE /registry/gtenants/2/tenants/2
+DELETE /registry/gtenants/2/tenants/111456789abcdef
 
 ```
 
@@ -593,4 +606,696 @@ DELETE /registry/gtenants/2/tenants/2
 
 HTTP/1.1 204 NO CONTENT
 
+```
+
+# Object type
+
+## Create an object type
+
+An application can registry an object type by issuing an HTTP POST request. The application needs to provide the json dictionary with the name of the object type and the file extensions.
+
+### Request
+
+#### URL structure
+The URL is **/registry/object_type**
+
+#### Method
+POST
+
+#### Request Query arguments
+JSON input that contains a dictionary with the following keys:
+
+FIELD |  DESCRIPTION
+--- | ---
+**name** | The name of the object type.
+**types_list** | An array of file extensions.
+
+#### HTTP Request Example
+
+```
+POST /registry/object_type
+
+{
+"name": "DOCS",
+"types_list": ["doc","docx","xls","txt"]
+}
+```
+
+### Response
+
+#### Response example
+
+```json
+HTTP/1.1 201 CREATED
+```
+
+## Get all object types
+
+An application can obtain all registered object types by issuing an HTTP GET request.
+
+### Request
+
+#### URL structure
+The URL is **/registry/object_type**
+
+#### Method
+GET
+
+#### HTTP Request Example
+
+```
+GET /registry/object_type
+
+```
+
+### Response
+
+#### Response example
+
+```json
+HTTP/1.1 200 OK
+
+[
+{
+"name": "DOCS",
+"types_list": ["doc","docx","xls","txt"]
+},
+{
+"name": "PICS",
+"types_list": ["jpg","jpeg","png","gif"]
+}
+]
+
+```
+
+## Get extensions of an object type
+
+An application can obtain the extensions list of a particular object type by issuing an HTTP GET request.
+
+### Request
+
+#### URL structure
+The URL is **/registry/object_type/{object_type_name}**
+
+#### Method
+GET
+
+#### HTTP Request Example
+
+```
+GET /registry/object_type/PICS
+
+```
+
+### Response
+
+#### Response example
+
+```json
+HTTP/1.1 200 OK
+
+{
+"name": "PICS",
+"types_list": ["jpg","jpeg","png","gif"]
+}
+
+```
+
+
+## Update extensions of an object type
+
+An application can update an object type by issuing an HTTP PUT request.
+
+### Request
+
+#### URL structure
+The URL is **/registry/object_type/{object_type_name}**
+
+#### Method
+PUT
+
+#### Request Query arguments
+JSON input that contains an array of file extensions.
+
+#### HTTP Request Example
+
+```
+PUT /registry/object_type/PICS
+
+["jpg","jpeg","png","gif","bmp"]
+```
+
+### Response
+
+#### Response example
+
+```json
+HTTP/1.1 201 CREATED
+```
+
+## Delete an object type
+
+An application can delete an object type by issuing an HTTP DELETE request.
+
+### Request
+
+#### URL structure
+The URL is **/registry/object_type/{object_type_name}**
+
+#### Method
+DELETE
+
+#### HTTP Request Example
+
+```
+DELETE /registry/object_type/PICS
+
+["jpg","jpeg","png","gif","bmp"]
+```
+
+### Response
+
+#### Response example
+
+```json
+HTTP/1.1 200 OK
+```
+
+# Metric modules
+
+## Upload a metric module
+
+An application can upload a metric module by issuing an HTTP POST request. The application needs to provide the metric module data like a QueryDict with a key 'file' containing the upload file and a key 'metadata' containing a JSON object with metric module metadata.
+**media_type:** `multipart/form-data`
+
+### Request
+
+#### URL structure
+The URL that represents the metric module data resource. The URL is
+**/registry/metric_module/data**
+
+#### Method
+POST
+
+#### Request Headers
+
+The request header includes the following information:
+
+FIELD |  DESCRIPTION
+--- | ---
+**X-Auth-Token** | Token to authenticate to OpenStack Swift as an **Admin**
+**enctype** | The content type and character encoding of the response. The content type must be **multipart/form-data**.
+
+The **metadata** parameter is a JSON object with the following fields:
+
+FIELD |  DESCRIPTION
+--- | ---
+**class_name** | The main class of the metric module to be created.
+**in_flow** | Boolean indicating whether the metric applies to input flow.
+**out_flow** | Boolean indicating whether the metric applies to output flow. 
+**execution_server** | 'object' or 'proxy' depending on the server the metric should run on.
+**enabled** | Boolean indicating whether the metric module should be enabled or not.
+
+
+#### HTTP Request Example
+
+```
+POST /registry/metric_module/data
+
+"media_type":"multipart/form-data"
+file=<file get_active_requests.py>
+metadata={
+"class_name": "GetActiveRequests",
+"in_flow": True,
+"out_flow": False,
+"execution_server": "proxy",
+"enabled": True
+}
+
+```
+
+### Response
+
+#### Response example
+
+```json
+HTTP/1.1 201 CREATED
+
+{
+"id": 1,
+"metric_name": "get_active_requests",
+"class_name": "GetActiveRequests",
+"in_flow": True,
+"out_flow": False,
+"execution_server": "proxy",
+"enabled": True
+}
+```
+
+
+## Get all metrics modules
+
+An application can get all metric modules by issuing an HTTP GET request.
+
+### Request
+
+#### URL structure
+The URL that represents the metric module data resource. The URL is **/registry/metric_module**
+
+#### Method
+GET
+
+#### HTTP Request Example
+
+```
+GET /registry/metric_module
+
+```
+
+### Response
+
+#### Response example
+
+```json
+HTTP/1.1 200 OK
+
+[
+{
+"id": 1,
+"metric_name": "get_active_requests",
+"class_name": "GetActiveRequests",
+"in_flow": True,
+"out_flow": False,
+"execution_server": "proxy",
+"enabled": True
+},
+{
+"id": 2,
+"metric_name": "get_bw",
+"class_name": "GetBw",
+"in_flow": True,
+"out_flow": False,
+"execution_server": "proxy",
+"enabled": True
+}
+]
+```
+
+## Get a metric module
+
+An application can get a metric module info by issuing an HTTP GET request.
+
+### Request
+
+#### URL structure
+The URL that represents the metric module data resource. The URL is **/registry/metric_module/{metric_module_id}**
+
+#### Method
+GET
+
+#### HTTP Request Example
+
+```
+GET /registry/metric_module/1
+
+```
+
+### Response
+
+#### Response example
+
+```json
+HTTP/1.1 200 OK
+
+{
+"id": 1,
+"metric_name": "get_active_requests",
+"class_name": "GetActiveRequests",
+"in_flow": True,
+"out_flow": False,
+"execution_server": "proxy",
+"enabled": True
+}
+
+```
+
+## Update a metric module
+
+An application can update a metric module metadata by issuing an HTTP PUT request.
+
+### Request
+
+#### URL structure
+The URL that represents the metric module data resource. The URL is **/registry/metric_module/{metric_module_id}**
+
+#### Method
+PUT
+
+#### HTTP Request Example
+
+```
+PUT /registry/metric_module/1
+
+{
+"class_name": "GetActiveRequests",
+"in_flow": True,
+"out_flow": False,
+"execution_server": "proxy",
+"enabled": False
+}
+
+```
+
+### Response
+
+#### Response example
+
+```json
+HTTP/1.1 200 OK
+
+```
+
+## Delete a metric module
+
+An application can delete a metric module metadata by issuing an HTTP DELETE request.
+
+### Request
+
+#### URL structure
+The URL that represents the metric module data resource. The URL is **/registry/metric_module/{metric_module_id}**
+
+#### Method
+DELETE
+
+#### HTTP Request Example
+
+```
+DELETE /registry/metric_module/1
+
+```
+
+### Response
+
+#### Response example
+
+```json
+HTTP/1.1 204 NO CONTENT
+
+```
+
+# DSL Policies
+
+## List all static policies
+
+An application can get all static policies sorted by execution order by issuing an HTTP GET request.
+
+### Request
+
+#### URL structure
+The URL that represents the static policy resource. The URL is **/registry/static_policy**
+
+#### Method
+GET
+
+#### HTTP Request Example
+
+```
+GET /registry/static_policy
+
+```
+
+### Response
+
+#### Response example
+
+```json
+HTTP/1.1 200 OK
+
+[
+{
+"id": "1",
+"target_id": "1234567890abcdef",
+"target_name": "tenantA",
+"filter_name": "compression-1.0.jar",
+"object_type": "",
+"object_size": "",
+"execution_server": "proxy",
+"execution_server_reverse": "proxy",
+"execution_order": "1",
+"params": ""
+},
+{
+"id": "2",
+"target_id": "1234567890abcdef",
+"target_name": "tenantA",
+"filter_name": "encryption-1.0.jar",
+"object_type": "",
+"object_size": "",
+"execution_server": "proxy",
+"execution_server_reverse": "proxy",
+"execution_order": "2",
+"params": ""
+},
+]
+```
+
+## Add a static policy
+
+An application can add a new static policy by issuing an HTTP POST request.
+
+### Request
+
+#### URL structure
+The URL that represents the static policy resource. The URL is **/registry/static_policy**
+
+#### Method
+POST /registry/static_policy
+
+#### Request Body
+
+The request body is a text/plain input with one or various DSL rules separated by newlines. Refer to [Crystal DSL Grammar](/doc/api_dsl.md) for a detailed explanation of Crystal DSL.
+
+#### HTTP Request Example
+
+```
+Content-Type: text/plain
+
+POST /registry/static_policy
+FOR TENANT:1234567890abcdef DO SET compression
+
+```
+
+### Response
+
+#### Response example
+
+```json
+HTTP/1.1 201 CREATED
+
+```
+
+## Get a static policy
+
+An application can get all static policies sorted by execution order by issuing an HTTP GET request.
+
+### Request
+
+#### URL structure
+The URL that represents the static policy resource. The URL is **/registry/static_policy/{project_id}:{policy_id}**
+
+#### Method
+GET
+
+#### HTTP Request Example
+
+```
+GET /registry/static_policy/1234567890abcdef:1
+
+```
+
+### Response
+
+#### Response example
+
+```json
+HTTP/1.1 200 OK
+
+{
+"id": "1",
+"target_id": "1234567890abcdef",
+"target_name": "tenantA",
+"filter_name": "compression-1.0.jar",
+"object_type": "",
+"object_size": "",
+"execution_server": "proxy",
+"execution_server_reverse": "proxy",
+"execution_order": "1",
+"params": ""
+}
+
+```
+
+## Update a static policy
+
+An application can update the static policy metadata by issuing an HTTP PUT request.
+
+### Request
+
+#### URL structure
+The URL that represents the static policy resource. The URL is **/registry/static_policy/{project_id}:{policy_id}**
+
+#### Method
+PUT
+
+#### HTTP Request Example
+
+In the following example, a put request is issued to change the execution server of the policy to object server:
+
+```
+PUT /registry/static_policy/1234567890abcdef:1
+
+{
+"execution_server": "object",
+"execution_server_reverse": "object"
+}
+
+```
+
+### Response
+
+#### Response example
+
+```json
+HTTP/1.1 201 CREATED
+```
+
+## Delete a static policy
+
+An application can delete a static policy by issuing an HTTP DELETE request.
+
+### Request
+
+#### URL structure
+The URL that represents the static policy resource. The URL is **/registry/static_policy/{project_id}:{policy_id}**
+
+#### Method
+DELETE
+
+#### HTTP Request Example
+
+```
+DELETE /registry/static_policy/1234567890abcdef:1
+
+```
+
+### Response
+
+#### Response example
+
+```json
+HTTP/1.1 204 NO CONTENT
+```
+
+
+## List all dynamic policies
+
+An application can get all dynamic policies by issuing an HTTP GET request.
+
+### Request
+
+#### URL structure
+The URL that represents the dynamic policy resource. The URL is **/registry/dynamic_policy**
+
+#### Method
+GET
+
+#### HTTP Request Example
+
+```
+GET /registry/dynamic_policy
+
+```
+
+### Response
+
+#### Response example
+
+```json
+HTTP/1.1 200 OK
+
+[
+{
+"id": "3",
+"policy": "FOR TENANT:d70b71fc4c02466bb97544bd2c7c0932 DO SET compression",
+"condition": "put_ops<3",
+"transient": True,
+"policy_location": "tcp://127.0.0.1:6899/registry.policies.rules.rule_transient/TransientRule/policy:3",
+"alive": True
+},
+{
+...
+}
+]
+```
+
+## Add a dynamic policy
+
+An application can add a new dynamic policy by issuing an HTTP POST request.
+
+### Request
+
+#### URL structure
+The URL that represents the dynamic policy resource. The URL is **/registry/dynamic_policy**
+
+#### Method
+POST /registry/dynamic_policy
+
+#### Request Body
+
+The request body is a text/plain input with one or various DSL rules separated by newlines. Refer to [Crystal DSL Grammar](/doc/api_dsl.md) for a detailed explanation of Crystal DSL.
+
+#### HTTP Request Example
+
+```
+Content-Type: text/plain
+
+POST /registry/dynamic_policy
+FOR TENANT:1234567890abcdef WHEN put_ops < 3  DO SET compression
+
+```
+
+### Response
+
+#### Response example
+
+```json
+HTTP/1.1 201 CREATED
+
+```
+
+## Delete a dynamic policy
+
+An application can delete a dynamic policy by issuing an HTTP DELETE request.
+
+### Request
+
+#### URL structure
+The URL that represents the dynamic policy resource. The URL is **/registry/static_policy/{policy_id}**
+
+#### Method
+DELETE
+
+#### HTTP Request Example
+
+```
+DELETE /registry/dynamic_policy/3
+
+```
+
+### Response
+
+#### Response example
+
+```json
+HTTP/1.1 204 NO CONTENT
 ```

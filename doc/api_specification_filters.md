@@ -10,6 +10,7 @@ Crystal Controller API Specification - Filters
   - [Get Filter metadata](#get-filter-metadata)
   - [Update Filter metadata](#update-filter-metadata)
   - [Deploy a Filter](#deploy-a-filter)
+  - [Undeploy a Filter](#undeploy-a-filter)
 - [Dependencies](#dependencies)
   - [Create a Dependency](#create-a-dependency)
   - [Upload a Dependency Data](#upload-a-dependency-data)
@@ -159,7 +160,7 @@ An application can upload a filter data by issuing an HTTP PUT request. The appl
 
 #### URL structure
 The URL that represents the filter data resource. The URL is
-**/filters/:filter_id/data**.
+**/filters/{filter_id}/data**.
 
 #### Method
 PUT
@@ -190,7 +191,7 @@ An application can delete a filter by issuing an HTTP DELETE request. This call 
 
 #### URL structure
 The URL that represents the filter data resource. The URL is
-**/filters/:filter_id**
+**/filters/{filter_id}**
 
 #### Method
 DELETE
@@ -209,7 +210,7 @@ An application can ask for the filter metadata by issuing an HTTP GET request.
 
 #### URL structure
 The URL that represents the filter data resource. The URL is
-**/filters/:filter_id**
+**/filters/{filter_id}**
 
 #### Method
 GET
@@ -254,7 +255,7 @@ An application can update the filter metadata by issuing an HTTP PUT request.
 
 #### URL structure
 The URL that represents the filter data resource. The URL is
- **/filters/:filter_id**
+ **/filters/{filter_id}**
 
 #### Method
 PUT
@@ -318,10 +319,10 @@ An application can deploy a filter to Swift by issuing an HTTP PUT request. This
 
 #### URL structure
 The URL that represents the deployment of a filter to a project. The URL is
-**/filters/:project/deploy/:filter_id/**
+**/filters/{project}/deploy/{filter_id}/**
 
 Similarly, to deploy a filter to a project and a container, the URL is
-**/filters/:project/:container/deploy/:filter_id/**
+**/filters/{project}/{container}/deploy/{filter_id}/**
 
 #### Method
 PUT
@@ -362,6 +363,27 @@ HTTP/1.1 201 Created
 1
 ```
 
+## Undeploy a Filter
+
+An application can undeploy the filter from a Swift project by issuing an HTTP PUT request.
+
+### Request
+
+#### URL structure
+The URL that represents the filter data resource. The URL is
+**/filters/{project}/undeploy/{filter_id}/**
+
+#### Method
+PUT
+
+#### HTTP Request Example
+
+```json
+Content-Type: application/json
+PUT /filters/4f0279da74ef4584a29dc72c835fe2c9/undeploy/3
+
+```
+
 # Dependencies
 ## Create a Dependency
 
@@ -370,7 +392,7 @@ An application can create a Dependency by issuing an HTTP POST request. The appl
 ### Request
 
 #### URL structure
-The URL that represents the filter data resource. The URL is
+The URL that represents the filter dependencies resource. The URL is
 **/filters/dependencies.**
 #### Method
 POST
@@ -424,8 +446,8 @@ An application can upload a Dependency data by issuing an HTTP PUT request. The 
 ### Request
 
 #### URL structure
-The URL that represents the filter data resource. The URL is
-**/filters/dependencies/:dependency_id/data.**
+The URL that represents a filter dependency resource. The URL is
+**/filters/dependencies/{dependency_id}/data**
 
 #### Method
 PUT
@@ -457,8 +479,8 @@ An application can delete a Dependency by issuing an HTTP DELETE request. This c
 
 #### URL structure
 
-The URL that represents the filter data resource. The URL is
-**/filters/dependencies/:filter_id.**
+The URL that represents a filter dependency resource. The URL is
+**/filters/dependencies/{dependency_id}**
 
 #### Method
 DELETE
@@ -478,8 +500,8 @@ An application can ask for the Dependency metadata by issuing an HTTP GET reques
 
 #### URL structure
 
-The URL that represents the filter data resource. The URL is
-**/filters/dependencies/:filter_id**
+The URL that represents a filter dependency resource. The URL is
+**/filters/dependencies/{dependency_id}**
 
 #### Method
 GET
@@ -516,8 +538,8 @@ An application can list the Dependencies by issuing an HTTP GET request.
 
 #### URL structure
 
-The URL that represents the filter data resource. The URL is
-**/sotrlets/dependencies**
+The URL that represents filter dependencies resource. The URL is
+**/filters/dependencies**
 
 #### Method
 GET
@@ -567,9 +589,8 @@ An application can update the Dependency metadata by issuing an HTTP PUT request
 
 #### URL structure
 
-The URL that represents the dependency data resource. The URL is
-**/filters/dependencies/:dependency_id**
-
+The URL that represents a filter dependency resource. The URL is
+**/filters/dependencies/{dependency_id}**
 
 #### Method
 PUT
@@ -615,8 +636,8 @@ An application can deploy a Dependency to an account to Swift by issuing an HTTP
 ### Request
 
 #### URL structure
-The URL that represents the dependency data resource. The URL is
-**/filters/dependencies/:account/deploy/:dependency_id/**
+The URL that represents the a filter dependency resource. The URL is
+**/filters/dependencies/{project}/deploy/{dependency_id}/**
 
 #### Method
 PUT
@@ -624,7 +645,6 @@ PUT
 #### HTTP Request Example
 
 ```
-Content-Type: application/json
 PUT /filters/dependencies/4f0279da74ef4584a29dc72c835fe2c9/deploy/3
 
 ```
@@ -636,8 +656,8 @@ An application can undeploy the Dependency of an account from Swift by issuing a
 ### Request
 
 #### URL structure
-The URL that represents the dependency data resource. The URL is
-**/filters/dependencies/:account/undeploy/:dependency_id/**
+The URL that represents the filter dependency data resource. The URL is
+**/filters/dependencies/{project}/undeploy/{dependency_id}/**
 
 #### Method
 PUT
@@ -645,8 +665,7 @@ PUT
 #### HTTP Request Example
 
 ```json
-Content-Type: application/json
-POST /filters/dependencies/4f0279da74ef4584a29dc72c835fe2c9/undeploy/3
+PUT /filters/dependencies/4f0279da74ef4584a29dc72c835fe2c9/undeploy/3
 
 ```
 
@@ -657,8 +676,8 @@ An application can list all the deployed Dependencies of an account to Swift by 
 ### Request
 
 #### URL structure
-The URL that represents the filter data resource. The URL is
-**/filters/dependencies/:account/deploy/**
+The URL that represents the filter dependencies data resource. The URL is
+**/filters/dependencies/{project}/deploy/**
 
 #### Method
 GET
@@ -666,8 +685,7 @@ GET
 #### HTTP Request Example
 
 ```json
-Content-Length: 294
-Content-Type: application/json
+
 GET /filters/dependencies/123/deploy/
 
 ```
