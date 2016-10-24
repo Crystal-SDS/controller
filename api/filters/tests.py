@@ -42,6 +42,7 @@ class StorletTestCase(TestCase):
         self.assertNotEqual(response.content, "[]")
         storlets = json.loads(response.content)
         self.assertEqual(storlets[0]['main'], "com.example.FakeMain")
+        self.assertEqual(storlets[0]['id'], "1")
 
     def test_delete_storlet_ok(self, mock_is_valid_request):
         """
@@ -249,6 +250,7 @@ class StorletTestCase(TestCase):
         request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
         response = filter_deploy(request, "1", "0123456789abcdef")
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.content, '1')
         mock_put_object.assert_called_with(settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/AUTH_0123456789abcdef",
                                            'fake_token', "storlet", "test-1.0.jar", mock.ANY, mock.ANY, mock.ANY,
                                            mock.ANY, mock.ANY, mock.ANY, mock.ANY, mock.ANY, mock.ANY, mock.ANY)
@@ -275,6 +277,7 @@ class StorletTestCase(TestCase):
         request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
         response = filter_deploy(request, "1", "0123456789abcdef", "container1")
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.content, '1')
         mock_put_object.assert_called_with(settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/AUTH_0123456789abcdef",
                                            'fake_token', "storlet", "test-1.0.jar", mock.ANY, mock.ANY, mock.ANY,
                                            mock.ANY, mock.ANY, mock.ANY, mock.ANY, mock.ANY, mock.ANY, mock.ANY)

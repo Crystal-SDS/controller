@@ -78,6 +78,9 @@ package {
     "python-swiftclient":
         ensure => "installed",
         provider => pip;
+    "python-keystoneclient":
+        ensure => "installed",
+        provider => pip;
     "redis":
         ensure => "installed",
         provider => pip;

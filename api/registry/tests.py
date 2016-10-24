@@ -150,7 +150,6 @@ class RegistryTestCase(TestCase):
     #     response = policy_list(request)
     #     self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
-
     #
     # Metric tests
     #
@@ -486,13 +485,13 @@ class RegistryTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         metric_data = json.loads(response.content)
         self.assertEqual(metric_data['name'], 'storagenode1')
-        self.assertEqual(metric_data['location'], 'location1')
-        self.assertEqual(metric_data['type'], 'type1')
+        self.assertEqual(metric_data['location'], 'r1z1-192.168.1.5:6000/sdb1')
+        self.assertEqual(metric_data['type'], 'hdd')
 
     def test_update_storage_node_ok(self, mock_is_valid_request):
         mock_is_valid_request.return_value = 'fake_token'
         snode_id = 1
-        data = {'name': 'storagenode1updated', 'location': 'location1updated', 'type': 'type1updated'}
+        data = {'name': 'storagenode1updated', 'location': 'r1z1-192.168.1.6:6000/sdb1', 'type': 'hddupdated'}
         request = self.factory.put('/registry/snode/' + str(snode_id), data, format='json')
         response = storage_node_detail(request, str(snode_id))
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
@@ -503,8 +502,8 @@ class RegistryTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         metric_data = json.loads(response.content)
         self.assertEqual(metric_data['name'], 'storagenode1updated')
-        self.assertEqual(metric_data['location'], 'location1updated')
-        self.assertEqual(metric_data['type'], 'type1updated')
+        self.assertEqual(metric_data['location'], 'r1z1-192.168.1.6:6000/sdb1')
+        self.assertEqual(metric_data['type'], 'hddupdated')
 
     def test_delete_storage_node_ok(self, mock_is_valid_request):
         mock_is_valid_request.return_value = 'fake_token'
@@ -1084,6 +1083,27 @@ class RegistryTestCase(TestCase):
         self.assertEqual(json_data["target_name"], 'tenantA')
 
     @mock.patch('registry.views.get_project_list')
+    def test_registry_static_policy_update(self, mock_get_project_list, mock_is_valid_request):
+        mock_is_valid_request.return_value = 'fake_token'
+        mock_get_project_list.return_value = {'0123456789abcdef': 'tenantA', '2': 'tenantB'}
+
+        # Create an instance of a PUT request.
+        data = {"execution_server": "object", "execution_server_reverse": "object"}
+        request = self.factory.put('/registry/static_policy/0123456789abcdef:1', data, format='json')
+        request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
+        response = static_policy_detail(request, '0123456789abcdef:1')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        # Create an instance of a GET request.
+        request = self.factory.get('/registry/static_policy/0123456789abcdef:1')
+        request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
+        response = static_policy_detail(request, '0123456789abcdef:1')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_data = json.loads(response.content)
+        self.assertEqual(json_data["execution_server"], 'object')
+        self.assertEqual(json_data["execution_server_reverse"], 'object')
+
+    @mock.patch('registry.views.get_project_list')
     def test_registry_static_policy_detail_delete(self, mock_get_project_list, mock_is_valid_request):
         mock_is_valid_request.return_value = 'fake_token'
         mock_get_project_list.return_value = {'0123456789abcdef': 'tenantA', '2': 'tenantB'}
@@ -1174,8 +1194,10 @@ class RegistryTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
     def setup_dsl_parser_data(self):
-        self.r.hmset('dsl_filter:compression', {'identifier': '1', 'valid_parameters': '{"cparam1": "integer", "cparam2": "integer", "cparam3": "integer"}'})
-        self.r.hmset('dsl_filter:encryption', {'identifier': '2', 'valid_parameters': '{"eparam1": "integer", "eparam2": "bool", "eparam3": "string"}'})
+        self.r.hmset('dsl_filter:compression', {'identifier': '1', 'valid_parameters': '{"cparam1": "integer", "cparam2": "integer", "cparam3": "integer"}',
+                                                'activation_url': 'http://10.30.1.6:9000/filters'})
+        self.r.hmset('dsl_filter:encryption', {'identifier': '2', 'valid_parameters': '{"eparam1": "integer", "eparam2": "bool", "eparam3": "string"}',
+                                               'activation_url': 'http://10.30.1.6:9000/filters'})
         self.r.hmset('metric:metric1', {'network_location': '?', 'type': 'integer'})
         self.r.hmset('metric:metric2', {'network_location': '?', 'type': 'integer'})
         self.r.rpush('G:1', '1234567890abcdef')
@@ -1202,7 +1224,7 @@ class RegistryTestCase(TestCase):
 
     def create_storage_nodes(self):
         self.r.incr("storage_nodes:id")  # setting autoincrement to 1
-        self.r.hmset('SN:1', {'name': 'storagenode1', 'location': 'location1', 'type': 'type1'})
+        self.r.hmset('SN:1', {'name': 'storagenode1', 'location': 'r1z1-192.168.1.5:6000/sdb1', 'type': 'hdd'})
 
     def create_metric_modules(self):
         self.r.incr("workload_metrics:id")  # setting autoincrement to 1

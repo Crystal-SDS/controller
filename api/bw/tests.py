@@ -111,7 +111,7 @@ class BwTestCase(TestCase):
         mock_get_project_list.return_value = {'0123456789abcdef': 'tenantA', 'abcdef0123456789': 'tenantB'}
 
         project_policy_key = '0123456789abcdef:2'
-        request = self.factory.get('/bw/slas/' + project_policy_key)
+        request = self.factory.get('/bw/sla/' + project_policy_key)
         response = bw_detail(request, project_policy_key)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         json_data = json.loads(response.content)
@@ -127,13 +127,13 @@ class BwTestCase(TestCase):
 
         project_policy_key = '0123456789abcdef:2'
         sla_data = {'bandwidth': '10000'}
-        request = self.factory.put('/bw/slas/' + project_policy_key, sla_data, format='json')
+        request = self.factory.put('/bw/sla/' + project_policy_key, sla_data, format='json')
         response = bw_detail(request, project_policy_key)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         # Verify the SLA was updated
         mock_get_project_list.return_value = {'0123456789abcdef': 'tenantA', 'abcdef0123456789': 'tenantB'}
-        request = self.factory.get('/bw/slas/' + project_policy_key)
+        request = self.factory.get('/bw/sla/' + project_policy_key)
         response = bw_detail(request, project_policy_key)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         json_data = json.loads(response.content)
@@ -145,7 +145,7 @@ class BwTestCase(TestCase):
 
         mock_is_valid_request.return_value = 'fake_token'
         project_policy_key = '0123456789abcdef:2'
-        request = self.factory.delete('/bw/slas/' + project_policy_key)
+        request = self.factory.delete('/bw/sla/' + project_policy_key)
         response = bw_detail(request, project_policy_key)
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 

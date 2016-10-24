@@ -88,7 +88,7 @@ def storage_policies(request):
                 return JSONResponse('Error creating the Storage Policy: ' + e, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         return JSONResponse('Account created successfully', status=status.HTTP_201_CREATED)
-    return JSONResponse('Only HTTP POST /spolicies/ requests allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
+    return JSONResponse('Only HTTP POST requests allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
 @csrf_exempt

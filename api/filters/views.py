@@ -318,7 +318,7 @@ def storlet_list_deployed(request, account):
 @csrf_exempt
 def filter_undeploy(request, filter_id, account, container=None, swift_object=None):
     """
-    Undeploy a storlet from a specific swift account.
+    Undeploy a filter from a specific swift account.
     """
     # Validate request: only admin user can access to this method
     token = is_valid_request(request)

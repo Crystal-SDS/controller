@@ -14,9 +14,9 @@ urlpatterns = [
     url(r'^/(?P<account>\w+)/(?P<container>[-\w]+)/(?P<swift_object>[-\w]+)/deploy/(?P<filter_id>[0-9]+)/?$', views.filter_deploy),
 
     # Undeploy to tenant container or object
-    # url(r'^/(?P<account>\w+)/undeploy/(?P<filter_id>[0-9]+)/?$', views.filter_undeploy),
-    # url(r'^/(?P<account>\w+)/(?P<container>[-\w]+)/undeploy/(?P<filter_id>[0-9]+)/?$', views.filter_undeploy),
-    # url(r'^/(?P<account>\w+)/(?P<container>[-\w]+)/(?P<swift_object>[-\w]+)/undeploy/(?P<filter_id>[0-9]+)/?$', views.filter_undeploy),
+    url(r'^/(?P<account>\w+)/undeploy/(?P<filter_id>[0-9]+)/?$', views.filter_undeploy),
+    url(r'^/(?P<account>\w+)/(?P<container>[-\w]+)/undeploy/(?P<filter_id>[0-9]+)/?$', views.filter_undeploy),
+    url(r'^/(?P<account>\w+)/(?P<container>[-\w]+)/(?P<swift_object>[-\w]+)/undeploy/(?P<filter_id>[0-9]+)/?$', views.filter_undeploy),
 
     url(r'^/dependencies/?$', views.dependency_list),
     url(r'^/dependencies/(?P<dependency_id>\w+)/?$', views.dependency_detail),
