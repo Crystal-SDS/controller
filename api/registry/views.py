@@ -199,7 +199,7 @@ def add_dynamic_filter(request):
         if not name:
             return JSONResponse('Filter must have a name', status=400)
         r.hmset('dsl_filter:' + str(name), data)
-        return JSONResponse('Filter has been added in the registy', status=201)
+        return JSONResponse('Filter has been added to the registy', status=201)
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
 
 
