@@ -3,13 +3,13 @@
 [Crystal](http://crystal-sds.org/) is a transparent, dynamic and open Software-Defined Storage (SDS) system for [OpenStack Swift](http://swift.openstack.org).
 It is structured in several sub-projects:
 
-* [Controller](https://github.com/Crystal-SDS/controller): the Crystal control plane that offers dynamic meta-programming facilities over the data plane.
+* **Controller**: the Crystal control plane that offers dynamic meta-programming facilities over the data plane.
 
-* [Introspection middleware](https://github.com/Crystal-SDS/introspection-middleware): the inspection triggers (data plane), that enable controllers to dynamically respond to workload changes in real time.
+* **[Introspection middleware](https://github.com/Crystal-SDS/introspection-middleware)**: the inspection triggers (data plane), that enable controllers to dynamically respond to workload changes in real time.
 
-* [Filter middleware](https://github.com/Crystal-SDS/filter-middleware): the storage filters (data plane), that intercept object flows and run computations or perform transformations on them.
+* **[Filter middleware](https://github.com/Crystal-SDS/filter-middleware)**: the storage filters (data plane), that intercept object flows and run computations or perform transformations on them.
 
-* [Dashboard](https://github.com/iostackproject/SDS-dashboard/tree/urv_dev): A user-friendly dashboard to manage policies, filters and workload metrics.
+* **[Dashboard](https://github.com/iostackproject/SDS-dashboard/tree/urv_dev)**: A user-friendly dashboard to manage policies, filters and workload metrics.
 
 ![alt text](http://crystal-sds.org/wp-content/uploads/2016/05/architecture9-768x575.png "Crystal Architecture")
 
