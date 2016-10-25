@@ -9,7 +9,7 @@ Crystal DSL Grammar
 
 ## Overview
 
-![alt text](http://crystal-sds.org/wp-content/uploads/2016/05/policies-768x180.png "Crystal DSL structure")
+![alt text](http://crystal-sds.org/wp-content/uploads/2016/10/dsl_structure-767x131.png "Crystal DSL structure")
 
 SDS policies are means of defining storage services or objectives to be achieved by the system. 
 Crystal DSL hides the complexity of low-level policy enforcement, thus achieving simplified storage administration. 
