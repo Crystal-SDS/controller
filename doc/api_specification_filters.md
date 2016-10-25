@@ -91,8 +91,8 @@ JSON input that contains a dictionary with the following keys:
 
 FIELD |  DESCRIPTION
 --- | ---
-**filter_type** | The type of filter. Supported values: 'storlet', 'native' or 'global'
-**interface_version** | Currently we have a single version '1.0'
+**filter_type** | The type of filter. Supported values: "storlet", "native" or "global"
+**interface_version** | Currently we have a single version "1.0"
 **dependencies** | A comma separated list of dependencies. Default: “ ”
 **object_metadata** | Currently, not in use, but must appear. Use an empty value ""
 **main** | The name of the class that implements the IStorlet API.
@@ -101,10 +101,10 @@ FIELD |  DESCRIPTION
 **is_pre_get** | Boolean to indicate that the filter will be executed before get requests reach the storage.
 **is_post_get** | Boolean to indicate that the filter will be executed after get requests reach the storage. 
 **has_reverse** | Boolean to indicate whether the filter has a reverse action, like compression/decompression.
-**execution_server** | The execution server for this filter: 'proxy' or 'object' 
-**execution_server_reverse** | The reverse execution server for this filter: 'proxy' or 'object'
-**execution_order** | This parameter can only be sent if filter_type is 'global'. An integer indicating the execution order of global filters. 
-**enabled** | This parameter can only be sent if filter_type is 'global'. A boolean to indicate if the filter is enabled.
+**execution_server** | The execution server for this filter: "proxy" or "object" 
+**execution_server_reverse** | The reverse execution server for this filter: "proxy" or "object"
+**execution_order** | This parameter can only be sent if filter_type is "global". An integer indicating the execution order of global filters. 
+**enabled** | This parameter can only be sent if filter_type is "global". A boolean to indicate if the filter is enabled.
 
 #### HTTP Request Example
 
@@ -153,7 +153,7 @@ Response <201>
 
 ## Upload a filter data
 
-An application can upload a filter data by issuing an HTTP PUT request. The application needs to provide the filter data like a QueryDicct with a single key 'file' containing the upload file.
+An application can upload a filter data by issuing an HTTP PUT request. The application needs to provide the filter data like a QueryDicct with a single key "file" containing the upload file.
 **media_type:** `multipart/form-data`
 
 ### Request
@@ -179,7 +179,7 @@ FIELD |  DESCRIPTION
 ```
 PUT /filters/1345/data
 "media_type":"multipart/form-data"
-{'file':<binary file>} (QueryDict)
+{"file":<binary file>} (QueryDict)
 
 ```
 
@@ -265,7 +265,7 @@ JSON input that contains a dictionary with the following keys:
 
 FIELD |  DESCRIPTION
 --- | ---
-**interface_version** | Currently we have a single version '1.0'
+**interface_version** | Currently we have a single version "1.0"
 **dependencies** | A comma separated list of dependencies. Default: “ ”
 **object_metadata** | Currently, not in use, but must appear. Use an empty value ""
 **main** | The name of the class that implements the IStorlet API.
@@ -274,10 +274,10 @@ FIELD |  DESCRIPTION
 **is_pre_get** | Boolean to indicate that the filter will be executed before get requests reach the storage.
 **is_post_get** | Boolean to indicate that the filter will be executed after get requests reach the storage. 
 **has_reverse** | Boolean to indicate whether the filter has a reverse action, like compression/decompression.
-**execution_server** | The execution server for this filter: 'proxy' or 'object' 
-**execution_server_reverse** | The reverse execution server for this filter: 'proxy' or 'object'
-**execution_order** | This parameter can only be sent if filter_type is 'global'. An integer indicating the execution order of global filters. 
-**enabled** | This parameter can only be sent if filter_type is 'global'. A boolean to indicate if the filter is enabled.
+**execution_server** | The execution server for this filter: "proxy" or "object" 
+**execution_server_reverse** | The reverse execution server for this filter: "proxy" or "object"
+**execution_order** | This parameter can only be sent if filter_type is "global". An integer indicating the execution order of global filters. 
+**enabled** | This parameter can only be sent if filter_type is "global". A boolean to indicate if the filter is enabled.
 
 #### HTTP Request Example
 
@@ -404,7 +404,7 @@ FIELD |  DESCRIPTION
 --- | ---
 **name** | The name of the dependency to be created. It is a unique field.
 **version** | While the engine currently does not parse this header, it must appear.
-**permissions** | An optional metadata field, where the user can state the permissions given to the dependency when it is copied to the Linux container. This is helpful for binary dependencies invoked by the filter. For a binary dependency once can specify: '0755'
+**permissions** | An optional metadata field, where the user can state the permissions given to the dependency when it is copied to the Linux container. This is helpful for binary dependencies invoked by the filter. For a binary dependency once can specify: "0755"
 
 #### HTTP Request Example
 
@@ -439,7 +439,7 @@ Content-Length: 248
 
 ## Upload a Dependency Data
 
-An application can upload a Dependency data by issuing an HTTP PUT request. The application needs to provide the dependency data like  a QueryDicct with a single key 'file' containing the upload file.
+An application can upload a Dependency data by issuing an HTTP PUT request. The application needs to provide the dependency data like a QueryDict with a single key "file" containing the upload file.
 **media_type:** `multipart/form-data`
 
 
@@ -458,7 +458,7 @@ PUT
 PUT /filters/dependencies/:dependency_id/data
 "media_type":"multipart/form-data"
 
-{'file':<binary file>} (QueryDicct)
+{"file":<binary file>} (QueryDicct)
 ```
 
 ### Response
@@ -602,7 +602,7 @@ FIELD |  DESCRIPTION
 --- | ---
 **name** | The name of the dependency to be created. It is a unique field.
 **version** | While the engine currently does not parse this header, it must appear.
-**permissions** | An optional metadata field, where the user can state the permissions given to the dependency when it is copied to the Linux container. This is helpful for binary dependencies invoked by the filter. For a binary dependency once can specify: '0755'
+**permissions** | An optional metadata field, where the user can state the permissions given to the dependency when it is copied to the Linux container. This is helpful for binary dependencies invoked by the filter. For a binary dependency once can specify: "0755"
 
 #### HTTP Request Example
 ```json

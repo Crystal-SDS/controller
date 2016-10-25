@@ -36,16 +36,16 @@ GET /bw/slas/
 HTTP/1.1 200 OK
 
 [
-{"policy_id": '2',
-"project_id": '0123456789abcdef',
-"bandwidth": '2000',
-"project_name": 'tenantA',
-"policy_name": 's0y1'},
-{"policy_id": '3',
-"project_id": 'abcdef0123456789',
-"bandwidth": '3000',
-"project_name": 'tenantB',
-"policy_name": 's3y4'},
+{"policy_id": "2",
+"project_id": "0123456789abcdef",
+"bandwidth": "2000",
+"project_name": "tenantA",
+"policy_name": "s0y1"},
+{"policy_id": "3",
+"project_id": "abcdef0123456789",
+"bandwidth": "3000",
+"project_name": "tenantB",
+"policy_name": "s3y4"},
 ]
 ```
 
@@ -74,11 +74,11 @@ GET /bw/sla/0123456789abcdef:2
 HTTP/1.1 200 OK
 
 {
-"policy_id": '2',
-"project_id": '0123456789abcdef',
-"bandwidth": '2000',
-"project_name": 'tenantA',
-"policy_name": 's0y1'
+"policy_id": "2",
+"project_id": "0123456789abcdef",
+"bandwidth": "2000",
+"project_name": "tenantA",
+"policy_name": "s0y1"
 }
 ```
 
