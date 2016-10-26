@@ -1,3 +1,5 @@
+import redis
+import requests
 from django.conf import settings
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -5,25 +7,21 @@ from redis.exceptions import RedisError
 from rest_framework import status
 from rest_framework.exceptions import ParseError
 from rest_framework.parsers import JSONParser
-import requests
-import redis
 
-from api.common_utils import JSONResponse, get_redis_connection, is_valid_request
-import storage_policies
 import sds_project
+import storage_policies
+from api.common_utils import JSONResponse, get_redis_connection, get_token_connection
+
 
 @csrf_exempt
 def tenants_list(request):
     """
     List swift tenants.
     """
-    # Validate request: only admin user can access to this method
-    token = is_valid_request(request)
-    if not token:
-        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
- 
+    token = get_token_connection(request)
+
     if request.method == 'GET':
-        r = requests.get(settings.KEYSTONE_URL + "/tenants", headers={'X-Auth-Token':token})
+        r = requests.get(settings.KEYSTONE_URL + "/tenants", headers={'X-Auth-Token': token})
         return HttpResponse(r.content, content_type='application/json', status=r.status_code)
 
     if request.method == "POST":
@@ -35,7 +33,7 @@ def tenants_list(request):
             return JSONResponse('Error creating a new project.', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         return JSONResponse('Account created successfully', status=status.HTTP_201_CREATED)
-    
+
     return JSONResponse('Only HTTP GET /tenants/ requests allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
@@ -44,11 +42,7 @@ def storage_policy_list(request):
     """
     List all storage policies.
     """
-    # Validate request: only admin user can access to this method
-    token = is_valid_request(request)
-    if not token:
-        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
- 
+
     try:
         r = get_redis_connection()
     except RedisError:
@@ -70,11 +64,7 @@ def storage_policies(request):
     Creates a storage policy to swift with an specific ring.
     Allows create replication storage policies and erasure code storage policies
     """
-    # Validate request: only admin user can access to this method
-    token = is_valid_request(request)
-    if not token:
-        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
- 
+
     if request.method == "POST":
         data = JSONParser().parse(request)
         storage_nodes_list = []
@@ -97,11 +87,7 @@ def locality_list(request, account, container=None, swift_object=None):
     Shows the nodes where the account/container/object is stored. In the case that
     the account/container/object does not exist, return the nodes where it will be save.
     """
-    # Validate request: only admin user can access to this method
-    token = is_valid_request(request)
-    if not token:
-        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
- 
+
     if request.method == 'GET':
         if not container:
             r = requests.get(settings.SWIFT_URL + "/endpoints/v2/" + account)
@@ -118,11 +104,7 @@ def sort_list(request):
     """
     List all proxy sortings, or create a proxy sortings.
     """
-    # Validate request: only admin user can access to this method
-    token = is_valid_request(request)
-    if not token:
-        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
- 
+
     try:
         r = get_redis_connection()
     except RedisError:
@@ -157,11 +139,7 @@ def sort_detail(request, id):
     """
     Retrieve, update or delete a Proxy Sorting.
     """
-    # Validate request: only admin user can access to this method
-    token = is_valid_request(request)
-    if not token:
-        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
- 
+
     try:
         r = get_redis_connection()
     except RedisError:

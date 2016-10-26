@@ -17,7 +17,7 @@ from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
 from rest_framework.views import APIView
 
 import dsl_parser
-from api.common_utils import is_valid_request, rsync_dir_with_nodes, to_json_bools, remove_extra_whitespaces, JSONResponse, get_redis_connection, get_project_list
+from api.common_utils import get_token_connection, rsync_dir_with_nodes, to_json_bools, remove_extra_whitespaces, JSONResponse, get_redis_connection, get_project_list
 from api.exceptions import SwiftClientError, StorletNotFoundException, FileSynchronizationException
 from filters.views import save_file, make_sure_path_exists
 from filters.views import set_filter, unset_filter
@@ -102,10 +102,6 @@ def add_metric(request):
     :return: A JSON list with all registered metrics (GET) or a success/error message depending on the result of the function.
     :rtype: JSONResponse
     """
-    # Validate request: only a user with admin role can access to this method
-    token = is_valid_request(request)
-    if not token:
-        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
 
     try:
         r = get_redis_connection()
@@ -135,10 +131,6 @@ def metric_detail(request, name):
     """
     Get, update or delete a metric workload from the registry.
     """
-    # Validate request: only a user with admin role can access to this method
-    token = is_valid_request(request)
-    if not token:
-        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
 
     try:
         r = get_redis_connection()
@@ -175,10 +167,6 @@ def add_dynamic_filter(request):
     Add a filter with its default parameters in the registry (redis). 
     List all the dynamic filters registered.
     """
-    # Validate request: only a user with admin role can access to this method
-    token = is_valid_request(request)
-    if not token:
-        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
 
     try:
         r = get_redis_connection()
@@ -208,10 +196,6 @@ def dynamic_filter_detail(request, name):
     """
     Get, update or delete a dynamic filter from the registry.
     """
-    # Validate request: only a user with admin role can access to this method
-    token = is_valid_request(request)
-    if not token:
-        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
 
     try:
         r = get_redis_connection()
@@ -256,10 +240,6 @@ def metric_module_list(request):
     """
     List all metric modules
     """
-    # Validate request: only a user with admin role can access to this method
-    token = is_valid_request(request)
-    if not token:
-        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
 
     try:
         r = get_redis_connection()
@@ -302,10 +282,6 @@ def metric_module_detail(request, metric_module_id):
     """
     Retrieve, update or delete a metric module.
     """
-    # Validate request: only a user with admin role can access to this method
-    token = is_valid_request(request)
-    if not token:
-        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
 
     try:
         r = get_redis_connection()
@@ -444,10 +420,6 @@ def list_storage_node(request):
     :param request:
     :return: JSONResponse
     """
-    # Validate request: only a user with admin role can access to this method
-    token = is_valid_request(request)
-    if not token:
-        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
 
     try:
         r = get_redis_connection()
@@ -477,10 +449,6 @@ def storage_node_detail(request, snode_id):
     """
     Get, update or delete a storage node from the registry.
     """
-    # Validate request: only a user with admin role can access to this method
-    token = is_valid_request(request)
-    if not token:
-        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
 
     try:
         r = get_redis_connection()
@@ -513,10 +481,6 @@ def add_tenants_group(request):
     """
     Add a tenant group or list all the tenants groups saved in the registry.
     """
-    # Validate request: only a user with admin role can access to this method
-    token = is_valid_request(request)
-    if not token:
-        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
 
     try:
         r = get_redis_connection()
@@ -550,10 +514,6 @@ def tenants_group_detail(request, gtenant_id):
     """
     Get, update or delete a tenants group from the registry.
     """
-    # Validate request: only a user with admin role can access to this method
-    token = is_valid_request(request)
-    if not token:
-        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
 
     try:
         r = get_redis_connection()
@@ -598,10 +558,6 @@ def gtenants_tenant_detail(request, gtenant_id, tenant_id):
     """
     Delete a member from a tenants group.
     """
-    # Validate request: only a user with admin role can access to this method
-    token = is_valid_request(request)
-    if not token:
-        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
 
     try:
         r = get_redis_connection()
@@ -623,10 +579,6 @@ def object_type_list(request):
     GET: List all object types.
     POST: Bind a new object type.
     """
-    # Validate request: only a user with admin role can access to this method
-    token = is_valid_request(request)
-    if not token:
-        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
 
     try:
         r = get_redis_connection()
@@ -667,10 +619,6 @@ def object_type_detail(request, object_type_name):
     PUT: Update the object type word registered.
     DELETE: Delete the object type word registered.
     """
-    # Validate request: only a user with admin role can access to this method
-    token = is_valid_request(request)
-    if not token:
-        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
 
     try:
         r = get_redis_connection()
@@ -713,10 +661,6 @@ def object_type_items_detail(request, object_type_name, item_name):
     """
     Delete an extension from an object type definition.
     """
-    # Validate request: only a user with admin role can access to this method
-    token = is_valid_request(request)
-    if not token:
-        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
 
     try:
         r = get_redis_connection()
@@ -738,10 +682,6 @@ def node_list(request):
     """
     GET: List all nodes ordered by name
     """
-    # Validate request: only a user with admin role can access to this method
-    token = is_valid_request(request)
-    if not token:
-        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
 
     try:
         r = get_redis_connection()
@@ -771,10 +711,6 @@ def node_detail(request, node_id):
     :param node_id:
     :return:
     """
-    # Validate request: only a user with admin role can access to this method
-    token = is_valid_request(request)
-    if not token:
-        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
 
     try:
         r = get_redis_connection()
@@ -810,10 +746,7 @@ def policy_list(request):
     """
     List all policies (sorted by execution_order). Deploy new policies.
     """
-    # Validate request: only a user with admin role can access to this method
-    token = is_valid_request(request)
-    if not token:
-        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
+    token = get_token_connection(request)
 
     try:
         r = get_redis_connection()
@@ -894,10 +827,7 @@ def static_policy_detail(request, policy_id):
     """
     Retrieve, update or delete a static policy.
     """
-    # Validate request: only a user with admin role can access to this method
-    token = is_valid_request(request)
-    if not token:
-        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
+    token = get_token_connection(request)
 
     try:
         r = get_redis_connection()
@@ -937,10 +867,6 @@ def dynamic_policy_detail(request, policy_id):
     """
     Delete a dynamic policy.
     """
-    # Validate request: only a user with admin role can access to this method
-    token = is_valid_request(request)
-    if not token:
-        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
 
     try:
         r = get_redis_connection()
@@ -966,10 +892,7 @@ def dynamic_policy_detail(request, policy_id):
 
 
 def do_action(request, r, rule_parsed):
-    # Validate request: only a user with admin role can access to this method
-    token = is_valid_request(request)
-    if not token:
-        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
+    token = get_token_connection(request)
 
     for target in rule_parsed.target:
         for action_info in rule_parsed.action_list:
@@ -1062,11 +985,6 @@ def deploy_policy(r, rule_string, parsed_rule):
 
 @csrf_exempt
 def node_restart(request, node_id):
-    # Validate request: only a user with admin role can access to this method
-    token = is_valid_request(request)
-    if not token:
-        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
-
     try:
         r = get_redis_connection()
     except RedisError:
