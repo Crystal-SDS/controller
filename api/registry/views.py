@@ -755,7 +755,7 @@ def policy_list(request):
 
     if request.method == 'GET':
         if 'static' in str(request.path):
-            project_list = get_project_list(token)
+            project_list = get_project_list()
             keys = r.keys("pipeline:AUTH_*")
             policies = []
             for it in keys:
@@ -839,7 +839,7 @@ def static_policy_detail(request, policy_id):
     policy = str(policy_id).split(':')[-1]
 
     if request.method == 'GET':
-        project_list = get_project_list(token)
+        project_list = get_project_list()
         policy_redis = r.hget("pipeline:AUTH_" + str(target), policy)
         data = json.loads(policy_redis)
         data["id"] = policy

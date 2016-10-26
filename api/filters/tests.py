@@ -1,7 +1,7 @@
 import json
+import os
 
 import mock
-import os
 import redis
 from django.conf import settings
 from django.test import TestCase, override_settings
@@ -14,9 +14,7 @@ from .views import dependency_list, dependency_detail, storlet_list, storlet_det
 # Tests use database=10 instead of 0.
 @override_settings(REDIS_CON_POOL=redis.ConnectionPool(host='localhost', port=6379, db=10),
                    STORLET_FILTERS_DIR=os.path.join("/tmp", "crystal", "storlet_filters"))
-@mock.patch('filters.views.is_valid_request')
 class StorletTestCase(TestCase):
-
     def setUp(self):
         # Every test needs access to the request factory.
         # Using rest_framework's APIRequestFactory: http://www.django-rest-framework.org/api-guide/testing/
@@ -29,12 +27,11 @@ class StorletTestCase(TestCase):
     def tearDown(self):
         self.r.flushdb()
 
-    def test_list_storlet_ok(self, mock_is_valid_request):
+    def test_list_storlet_ok(self):
         """
         Retrieve storlet list
         """
         # Create an instance of a GET request.
-        mock_is_valid_request.return_value = 'fake_token'
         request = self.factory.get('/filters')
         response = storlet_list(request)
 
@@ -44,11 +41,10 @@ class StorletTestCase(TestCase):
         self.assertEqual(storlets[0]['main'], "com.example.FakeMain")
         self.assertEqual(storlets[0]['id'], "1")
 
-    def test_delete_storlet_ok(self, mock_is_valid_request):
+    def test_delete_storlet_ok(self):
         """
         Delete a storlet
         """
-        mock_is_valid_request.return_value = 'fake_token'
         request = self.factory.delete('/filters/1')
         response = storlet_detail(request, "1")
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
@@ -58,20 +54,18 @@ class StorletTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.content, "[]")
 
-    def test_delete_storlet_if_not_exists(self, mock_is_valid_request):
+    def test_delete_storlet_if_not_exists(self):
         """
         Delete a non existent storlet
         """
-        mock_is_valid_request.return_value = 'fake_token'
         request = self.factory.delete('/filters/2')
         response = storlet_detail(request, "2")
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
-    def test_update_storlet_ok(self, mock_is_valid_request):
+    def test_update_storlet_ok(self):
         """
         Update a storlet
         """
-        mock_is_valid_request.return_value = 'fake_token'
         filter_updated_data = {
             'interface_version': '', 'dependencies': '',
             'object_metadata': '', 'main': 'com.example.UpdatedFakeMain', 'is_pre_put': 'False', 'is_post_get': 'False',
@@ -86,8 +80,7 @@ class StorletTestCase(TestCase):
         storlets = json.loads(response.content)
         self.assertEqual(storlets[0]['main'], 'com.example.UpdatedFakeMain')
 
-    def test_update_storlet_with_invalid_requests(self, mock_is_valid_request):
-        mock_is_valid_request.return_value = 'fake_token'
+    def test_update_storlet_with_invalid_requests(self):
         # Invalid parameter
         filter_updated_data = {'wrongparam': 'dummy', 'filter_type': 'storlet'}
         request = self.factory.put('/filters/1', filter_updated_data, format='json')
@@ -109,11 +102,10 @@ class StorletTestCase(TestCase):
         response = storlet_detail(request, "1")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-    def test_create_storlet_ok(self, mock_is_valid_request):
+    def test_create_storlet_ok(self):
         """
         Create 2 storlets
         """
-        mock_is_valid_request.return_value = 'fake_token'
         # Create a second storlet
         filter_data = {'filter_type': 'storlet', 'interface_version': '', 'dependencies': '',
                        'object_metadata': '', 'main': 'com.example.SecondMain', 'is_pre_put': 'False', 'is_post_get': 'False',
@@ -131,11 +123,10 @@ class StorletTestCase(TestCase):
         self.assertEqual(sorted_list[0]['main'], 'com.example.FakeMain')
         self.assertEqual(sorted_list[1]['main'], 'com.example.SecondMain')
 
-    def test_create_storlets_are_sorted_by_id(self, mock_is_valid_request):
+    def test_create_storlets_are_sorted_by_id(self):
         """
         Create several storlets and check they are returned as a sorted list by identifier
         """
-        mock_is_valid_request.return_value = 'fake_token'
         # Create a second storlet
         filter_data = {'filter_type': 'storlet', 'interface_version': '', 'dependencies': '',
                        'object_metadata': '', 'main': 'com.example.SecondMain', 'is_pre_put': 'False', 'is_post_get': 'False',
@@ -172,8 +163,7 @@ class StorletTestCase(TestCase):
         self.assertEqual(storlets[2]['main'], 'com.example.ThirdMain')
         self.assertEqual(storlets[3]['main'], 'com.example.FourthMain')
 
-    def test_create_storlet_with_invalid_request(self, mock_is_valid_request):
-        mock_is_valid_request.return_value = 'fake_token'
+    def test_create_storlet_with_invalid_request(self):
         # Invalid param
         filter_data = {'wrongparam': 'dummy', 'filter_type': 'storlet'}
         request = self.factory.post('/filters/', filter_data, format='json')
@@ -194,8 +184,7 @@ class StorletTestCase(TestCase):
         response = storlet_list(request)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-    def test_upload_storlet_data_ok(self, mock_is_valid_request):
-        mock_is_valid_request.return_value = 'fake_token'
+    def test_upload_storlet_data_ok(self):
         with open('test_data/test-1.0.jar', 'r') as fp:
             request = self.factory.put('/filters/1/data', {'file': fp})
             response = StorletData.as_view()(request, 1)
@@ -206,21 +195,18 @@ class StorletTestCase(TestCase):
         storlets = json.loads(response.content)
         self.assertTrue(len(storlets[0]['etag']) > 0)
 
-    def test_upload_storlet_data_to_non_existent_storlet(self, mock_is_valid_request):
-        mock_is_valid_request.return_value = 'fake_token'
+    def test_upload_storlet_data_to_non_existent_storlet(self):
         with open('test_data/test-1.0.jar', 'r') as fp:
             request = self.factory.put('/filters/2/data', {'file': fp})
             response = StorletData.as_view()(request, 2)
             self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
-    def test_storlet_list_deployed_for_empty_tenant(self, mock_is_valid_request):
-        mock_is_valid_request.return_value = 'fake_token'
+    def test_storlet_list_deployed_for_empty_tenant(self):
         request = self.factory.get('/filters/0123456789abcdef/deploy')
         response = storlet_list_deployed(request, '0123456789abcdef')
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
-    def test_upload_storlet_with_wrong_extension(self, mock_is_valid_request):
-        mock_is_valid_request.return_value = 'fake_token'
+    def test_upload_storlet_with_wrong_extension(self):
         with open('test_data/test.txt', 'r') as fp:
             request = self.factory.put('/filters/1/data', {'file': fp})
             response = StorletData.as_view()(request, 1)
@@ -233,9 +219,7 @@ class StorletTestCase(TestCase):
         response_dict['status'] = status.HTTP_201_CREATED
 
     @mock.patch('filters.views.swift_client.put_object', side_effect=mock_put_object_status_created)
-    def test_filter_deploy_to_project_ok(self, mock_put_object, mock_is_valid_request):
-        mock_is_valid_request.return_value = 'fake_token'
-
+    def test_filter_deploy_to_project_ok(self, mock_put_object):
         # Upload a filter for the storlet 1
         with open('test_data/test-1.0.jar', 'r') as fp:
             request = self.factory.put('/filters/1/data', {'file': fp})
@@ -260,9 +244,7 @@ class StorletTestCase(TestCase):
         self.assertEqual(json_data["filter_name"], "test-1.0.jar")
 
     @mock.patch('filters.views.swift_client.put_object', side_effect=mock_put_object_status_created)
-    def test_filter_deploy_to_project_and_container_ok(self, mock_put_object, mock_is_valid_request):
-        mock_is_valid_request.return_value = 'fake_token'
-
+    def test_filter_deploy_to_project_and_container_ok(self, mock_put_object):
         # Upload a filter for the storlet 1
         with open('test_data/test-1.0.jar', 'r') as fp:
             request = self.factory.put('/filters/1/data', {'file': fp})
@@ -285,12 +267,6 @@ class StorletTestCase(TestCase):
         dumped_data = self.r.hget("pipeline:AUTH_0123456789abcdef:container1", "1")
         json_data = json.loads(dumped_data)
         self.assertEqual(json_data["filter_name"], "test-1.0.jar")
-
-    def test_filter_deploy_without_auth_token(self, mock_is_valid_request):
-        mock_is_valid_request.return_value = False
-        request = self.factory.put('/filters/0123456789abcdef/deploy/1', {"policy_id": "1"}, format='json')
-        response = filter_deploy(request, "1", "0123456789abcdef")
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     # def _test_storlet_undeploy_for_non_existent_storlet(self):
     #     # Filter 2 does not exist
@@ -329,8 +305,7 @@ class StorletTestCase(TestCase):
     #     print response
     #     self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
-    def test_get_all_dependencies_ok(self, mock_is_valid_request):
-        mock_is_valid_request.return_value = 'fake_token'
+    def test_get_all_dependencies_ok(self):
         request = self.factory.get('/filters/dependencies')
         response = dependency_list(request)
 
@@ -340,8 +315,7 @@ class StorletTestCase(TestCase):
         self.assertEqual(len(dependencies), 1)
         self.assertEqual(dependencies[0]['name'], 'DependencyName')
 
-    def test_create_dependency_ok(self, mock_is_valid_request):
-        mock_is_valid_request.return_value = 'fake_token'
+    def test_create_dependency_ok(self):
         dependency_data = {'name': 'SecondDependencyName', 'version': '2.0', 'permissions': '0755'}
         request = self.factory.post('/filters/dependencies', dependency_data, format='json')
         response = dependency_list(request)
@@ -357,8 +331,7 @@ class StorletTestCase(TestCase):
         self.assertTrue('DependencyName' in dependency_names)
         self.assertTrue('SecondDependencyName' in dependency_names)
 
-    def test_get_dependency_ok(self, mock_is_valid_request):
-        mock_is_valid_request.return_value = 'fake_token'
+    def test_get_dependency_ok(self):
         dependency_id = 1
         request = self.factory.get('/filters/dependencies/' + str(dependency_id))
         response = dependency_detail(request, dependency_id)
@@ -366,8 +339,7 @@ class StorletTestCase(TestCase):
         dependency = json.loads(response.content)
         self.assertEqual(dependency['name'], 'DependencyName')
 
-    def test_update_dependency_ok(self, mock_is_valid_request):
-        mock_is_valid_request.return_value = 'fake_token'
+    def test_update_dependency_ok(self):
         dependency_id = 1
         dependency_data = {'name': 'DependencyName', 'version': '1.1', 'permissions': '0777'}
         request = self.factory.put('/filters/dependencies/' + str(dependency_id), dependency_data, format='json')
@@ -383,8 +355,7 @@ class StorletTestCase(TestCase):
         self.assertEqual(dependencies[0]['version'], '1.1')
         self.assertEqual(dependencies[0]['permissions'], '0777')
 
-    def test_delete_dependency_ok(self, mock_is_valid_request):
-        mock_is_valid_request.return_value = 'fake_token'
+    def test_delete_dependency_ok(self):
         dependency_id = 1
         request = self.factory.delete('/filters/dependencies/' + str(dependency_id))
         response = dependency_detail(request, dependency_id)
@@ -398,14 +369,14 @@ class StorletTestCase(TestCase):
         self.assertEqual(len(dependencies), 0)
 
     @mock.patch('filters.views.swift_client.delete_object')
-    def test_unset_filter_ok(self, mock_delete_object, mock_is_valid_request):
+    def test_unset_filter_ok(self, mock_delete_object):
         data20 = {'filter_name': 'XXXXX'}
         data21 = {'filter_name': 'test-1.0.jar'}
         self.r.hmset('pipeline:AUTH_0123456789abcdef', {'20': json.dumps(data20), '21': json.dumps(data21)})
-        unset_filter(self.r, '0123456789abcdef', {'filter_type':'storlet', 'filter_name': 'test-1.0.jar'}, 'fake_token')
+        unset_filter(self.r, '0123456789abcdef', {'filter_type': 'storlet', 'filter_name': 'test-1.0.jar'}, 'fake_token')
         mock_delete_object.assert_called_with(settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/AUTH_0123456789abcdef",
-                                           'fake_token', "storlet", "test-1.0.jar", mock.ANY, mock.ANY, mock.ANY,
-                                           mock.ANY, mock.ANY)
+                                              'fake_token', "storlet", "test-1.0.jar", mock.ANY, mock.ANY, mock.ANY,
+                                              mock.ANY, mock.ANY)
         self.assertFalse(self.r.hexists("pipeline:AUTH_0123456789abcdef", "21"))  # 21 was deleted
         self.assertTrue(self.r.hexists("pipeline:AUTH_0123456789abcdef", "20"))  # 20 was not deleted
 
@@ -413,9 +384,7 @@ class StorletTestCase(TestCase):
     # Aux methods
     #
 
-    @mock.patch('filters.views.is_valid_request')
-    def create_storlet(self, mock_is_valid_request):
-        mock_is_valid_request.return_value = 'fake_token'
+    def create_storlet(self):
         filter_data = {'filter_type': 'storlet', 'interface_version': '', 'dependencies': '',
                        'object_metadata': '', 'main': 'com.example.FakeMain', 'is_pre_put': 'False', 'is_post_get': 'False',
                        'is_post_put': 'False', 'is_pre_get': 'False',
@@ -424,16 +393,14 @@ class StorletTestCase(TestCase):
         response = storlet_list(request)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
-    @mock.patch('filters.views.is_valid_request')
-    def create_dependency(self, mock_is_valid_request):
-        mock_is_valid_request.return_value = 'fake_token'
+    def create_dependency(self):
         dependency_data = {'name': 'DependencyName', 'version': '1.0', 'permissions': '0755'}
         request = self.factory.post('/filters/dependencies', dependency_data, format='json')
         response = dependency_list(request)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
-    # def keystone_get_tenants_response(self):
-    #     resp = HttpResponse()
-    #     resp.content = json.dumps({'tenants': [{'name': 'tenantA', 'id': '0123456789abcdef'},
-    #                                            {'name': 'tenantB', 'id': '2'}]})
-    #     return resp
+        # def keystone_get_tenants_response(self):
+        #     resp = HttpResponse()
+        #     resp.content = json.dumps({'tenants': [{'name': 'tenantA', 'id': '0123456789abcdef'},
+        #                                            {'name': 'tenantB', 'id': '2'}]})
+        #     return resp

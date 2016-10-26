@@ -26,7 +26,7 @@ def get_redis_connection():
     return redis.Redis(connection_pool=settings.REDIS_CON_POOL)
 
 def get_token_connection(request):
-    return request.META['HTTP_X_AUTH_TOKEN']
+    return request.META['HTTP_X_AUTH_TOKEN'] if 'HTTP_X_AUTH_TOKEN' in request.META else False
 
 
 def get_keystone_admin_auth():
@@ -82,7 +82,7 @@ def get_keystone_admin_auth():
 #     return False
 
 
-def get_project_list(token):
+def get_project_list():
     keystone = get_keystone_admin_auth()
     tenants = keystone.tenants.list()
 

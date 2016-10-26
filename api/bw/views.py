@@ -3,7 +3,7 @@ from redis.exceptions import RedisError, DataError
 from rest_framework import status
 from rest_framework.parsers import JSONParser
 
-from api.common_utils import JSONResponse, get_redis_connection, get_project_list, get_token_connection
+from api.common_utils import JSONResponse, get_redis_connection, get_project_list
 
 
 @csrf_exempt
@@ -11,7 +11,6 @@ def bw_list(request):
     """
     List all slas, or create a SLA.
     """
-    token = get_token_connection(request)
 
     try:
         r = get_redis_connection()
@@ -20,7 +19,7 @@ def bw_list(request):
 
     if request.method == 'GET':
         try:
-            project_list = get_project_list(token)
+            project_list = get_project_list()
             keys = r.keys('bw:AUTH_*')
         except:
             print "Error getting project list in bw_list"
@@ -53,7 +52,6 @@ def bw_detail(request, project_key):
     """
     Retrieve, update or delete SLA.
     """
-    token = get_token_connection(request)
 
     try:
         r = get_redis_connection()
@@ -66,7 +64,7 @@ def bw_detail(request, project_key):
     if request.method == 'GET':
 
         try:
-            project_list = get_project_list(token)
+            project_list = get_project_list()
         except:
             print "Error getting project list in bw_details"
 
