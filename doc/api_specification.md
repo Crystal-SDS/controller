@@ -2,10 +2,19 @@ Crystal Controller API Specification
 ====================================
 **Table of Contents**
 
+- [API specification](#api-specification)
 - [Common aspects](#common-aspects)
   - [Error handling](#error-handling)
   - [Authentication](#authentication)
-- [API specification](#api-specification)
+
+## API specification
+
+The Crystal Controller API structures the allowed operations in different groups:  
+
+- [BW operations](/doc/api_specification_bw.md)
+- [Filters operations](/doc/api_specification_filters.md)
+- [Registry operations](/doc/api_specification_registry.md)
+- [Swift operations](/doc/api_specification_swift.md)
 
 ## Common aspects
 
@@ -31,12 +40,3 @@ After successfully receiving the credentials from keystone, it is necessary that
 OAuth PARAMETER |  DESCRIPTION
 --- | ---
 **X-Auth-Token** | Admin token obtained after a successful authentication in keystone.
-
-## API specification
-
-The Crystal Controller API structures the allowed operations in different groups:  
-
-- [BW operations](/doc/api_specification_bw.md)
-- [Filters operations](/doc/api_specification_filters.md)
-- [Registry operations](/doc/api_specification_registry.md)
-- [Swift operations](/doc/api_specification_swift.md)

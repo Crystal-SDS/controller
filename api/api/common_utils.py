@@ -1,13 +1,15 @@
-from exceptions import FileSynchronizationException
-from rest_framework.renderers import JSONRenderer
-import keystoneclient.v2_0.client as keystone_client
-from django.http import HttpResponse
-from django.conf import settings
-import redis
-from datetime import datetime
 import os
 
+import keystoneclient.v2_0.client as keystone_client
+import redis
+from django.conf import settings
+from django.http import HttpResponse
+from rest_framework.renderers import JSONRenderer
+
+from api.exceptions import FileSynchronizationException
+
 valid_tokens = dict()
+
 
 class JSONResponse(HttpResponse):
     """
@@ -23,70 +25,74 @@ class JSONResponse(HttpResponse):
 def get_redis_connection():
     return redis.Redis(connection_pool=settings.REDIS_CON_POOL)
 
+def get_token_connection(request):
+    return request.META['HTTP_X_AUTH_TOKEN'] if 'HTTP_X_AUTH_TOKEN' in request.META else False
+
 
 def get_keystone_admin_auth():
     admin_project = settings.MANAGEMENT_ACCOUNT
     admin_user = settings.MANAGEMENT_ADMIN_USERNAME
     admin_passwd = settings.MANAGEMENT_ADMIN_PASSWORD
     keystone_url = settings.KEYSTONE_URL
-        
+
+    keystone = None
     try:
         keystone = keystone_client.Client(auth_url=keystone_url,
                                           username=admin_user,
                                           password=admin_passwd,
                                           tenant_name=admin_project)
-    except Exception as e:
-        print e
-            
+    except Exception as exc:
+        print(exc)
+
     return keystone
 
 
-def is_valid_request(request):    
-    token = request.META['HTTP_X_AUTH_TOKEN']
-    is_admin = False
-    now = datetime.utcnow()
+# def is_valid_request(request):
+#     token = request.META['HTTP_X_AUTH_TOKEN']
+#     is_admin = False
+#     now = datetime.utcnow()
+#
+#     if token not in valid_tokens:
+#         keystone = get_keystone_admin_auth()
+#
+#         try:
+#             token_data = keystone.tokens.validate(token)
+#         except:
+#             return False
+#
+#         token_expiration = datetime.strptime(token_data.expires,
+#                                              '%Y-%m-%dT%H:%M:%SZ')
+#
+#         token_roles = token_data.user['roles']
+#         for role in token_roles:
+#             if role['name'] == 'admin':
+#                 is_admin = True
+#
+#         if token_expiration > now and is_admin:
+#             valid_tokens[token] = token_expiration
+#             return token
+#
+#     else:
+#         token_expiration = valid_tokens[token]
+#         if token_expiration > now:
+#             return token
+#         else:
+#             valid_tokens.pop(token, None)
+#
+#     return False
 
-    if token not in valid_tokens:
-        keystone = get_keystone_admin_auth()
-    
-        try:
-            token_data = keystone.tokens.validate(token)
-        except:
-            return False
 
-        token_expiration = datetime.strptime(token_data.expires, 
-                                             '%Y-%m-%dT%H:%M:%SZ')
-
-        token_roles = token_data.user['roles']
-        for role in token_roles:
-            if role['name'] == 'admin':
-                is_admin = True
-
-        if token_expiration > now and is_admin:
-            valid_tokens[token] = token_expiration
-            return token
-        
-    else:
-        token_expiration = valid_tokens[token]
-        if token_expiration > now:
-            return token
-        else:
-            valid_tokens.pop(token, None)
-
-    return False
-
-
-def get_project_list(token):    
+def get_project_list():
     keystone = get_keystone_admin_auth()
     tenants = keystone.tenants.list()
-    
+
     project_list = {}
     for tenant in tenants:
         project_list[tenant.id] = tenant.name
-        
+
     return project_list
-        
-        
+
+
 def rsync_dir_with_nodes(directory):
     # retrieve nodes
     nodes = get_all_registered_nodes()
@@ -96,7 +102,7 @@ def rsync_dir_with_nodes(directory):
 
         # The basename of the path is not needed because it will be the same as source dir
         dest_directory = os.path.dirname(directory)
-        data = {'directory':  directory, 'dest_directory': dest_directory, 'node_ip': node['ip'],
+        data = {'directory': directory, 'dest_directory': dest_directory, 'node_ip': node['ip'],
                 'ssh_username': node['ssh_username'], 'ssh_password': node['ssh_password']}
         rsync_command = 'sshpass -p {ssh_password} rsync --progress --delete -avrz -e ssh {directory} {ssh_username}@{node_ip}:{dest_directory}'.format(**data)
         # print "System: %s" % rsync_command

@@ -4,7 +4,7 @@ from django.conf import settings
 import redis
 
 # By default, PyParsing treats \n as whitespace and ignores it
-# In our grammer, \n is significant, so tell PyParsing not to ignore it
+# In our grammar, \n is significant, so tell PyParsing not to ignore it
 # ParserElement.setDefaultWhitespaceChars(" \t")
 #
 #
@@ -18,7 +18,7 @@ import redis
 #
 # FOR Tenant WHEN"+ condition AND condition AND condition OR condition etc.+"DO"+action
 #
-# TODO: Parse = TRUE or = False or condicion number. Check to convert to float or convert to boolean.
+# TODO: Parse = TRUE or = False or condition number. Check to convert to float or convert to boolean.
 
 
 def get_redis_connection():
@@ -33,7 +33,7 @@ def parse_group_tenants(tokens):
 
 def parse(input_string):
     # TODO Raise an exception if not metrics or not action registered
-    # TODO Raise an exception if group of tenants don't exist.
+    # TODO Raise an exception if group of tenants does not exist.
     r = get_redis_connection()
 
     # Support words to construct the grammar.

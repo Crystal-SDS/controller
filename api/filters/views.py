@@ -1,4 +1,11 @@
+import errno
+import hashlib
+import json
+import logging
+import mimetypes
+import os
 from operator import itemgetter
+
 from django.conf import settings
 from django.core.servers.basehttp import FileWrapper
 from django.http import HttpResponse
@@ -13,15 +20,8 @@ from rest_framework.views import APIView
 from swiftclient import client as swift_client
 from swiftclient.exceptions import ClientException
 
+from api.common_utils import rsync_dir_with_nodes, to_json_bools, JSONResponse, get_redis_connection, get_token_connection
 from api.exceptions import SwiftClientError, StorletNotFoundException, FileSynchronizationException
-from api.common_utils import rsync_dir_with_nodes, to_json_bools, JSONResponse, get_redis_connection, is_valid_request
-
-import errno
-import hashlib
-import json
-import logging
-import mimetypes
-import os
 
 # TODO create a common file and put this into the new file
 # Start Common
@@ -46,10 +46,6 @@ def storlet_list(request):
     """
     List all storlets, or create a new storlet.
     """
-    # Validate request: only admin user can access to this method
-    token = is_valid_request(request)
-    if not token:
-        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
 
     try:
         r = get_redis_connection()
@@ -97,10 +93,6 @@ def storlet_detail(request, storlet_id):
     """
     Retrieve, update or delete a Storlet.
     """
-    # Validate request: only admin user can access to this method
-    token = is_valid_request(request)
-    if not token:
-        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
 
     try:
         r = get_redis_connection()
@@ -133,7 +125,7 @@ def storlet_detail(request, storlet_id):
             if filter['filter_type'] == 'global':
                 if data['enabled'] is True or data['enabled'] == 'True' or data['enabled'] == 'true':
                     to_json_bools(data, 'has_reverse', 'is_pre_get', 'is_post_get', 'is_pre_put', 'is_post_put', 'enabled')
-                    data['filter_type'] = 'global' # Adding filter type
+                    data['filter_type'] = 'global'  # Adding filter type
                     r.hset("global_filters", str(storlet_id), json.dumps(data))
                 else:
                     r.hdel("global_filters", str(storlet_id))
@@ -238,10 +230,7 @@ def filter_deploy(request, filter_id, account, container=None, swift_object=None
     """
     Deploy a filter to a specific swift account.
     """
-    # Validate request: only admin user can access to this method
-    token = is_valid_request(request)
-    if not token:
-        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
+    token = get_token_connection(request)
 
     if request.method == 'PUT':
         try:
@@ -295,10 +284,6 @@ def storlet_list_deployed(request, account):
     """
     List all the storlets deployed.
     """
-    # Validate request: only admin user can access to this method
-    token = is_valid_request(request)
-    if not token:
-        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
 
     if request.method == 'GET':
         try:
@@ -320,10 +305,7 @@ def filter_undeploy(request, filter_id, account, container=None, swift_object=No
     """
     Undeploy a filter from a specific swift account.
     """
-    # Validate request: only admin user can access to this method
-    token = is_valid_request(request)
-    if not token:
-        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
+    token = get_token_connection(request)
 
     if request.method == 'PUT':
         try:
@@ -363,10 +345,6 @@ def dependency_list(request):
     """
     List all dependencies, or create a Dependency.
     """
-    # Validate request: only admin user can access to this method
-    token = is_valid_request(request)
-    if not token:
-        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
 
     try:
         r = get_redis_connection()
@@ -397,10 +375,6 @@ def dependency_detail(request, dependency_id):
     """
     Retrieve, update or delete a Dependency.
     """
-    # Validate request: only admin user can access to this method
-    token = is_valid_request(request)
-    if not token:
-        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
 
     try:
         r = get_redis_connection()
@@ -448,10 +422,7 @@ class DependencyData(APIView):
 
 @csrf_exempt
 def dependency_deploy(request, dependency_id, account):
-    # Validate request: only admin user can access to this method
-    token = is_valid_request(request)
-    if not token:
-        return JSONResponse('You must be authenticated as admin.', status=401)
+    token = get_token_connection(request)
 
     if request.method == 'PUT':
         try:
@@ -494,11 +465,6 @@ def dependency_deploy(request, dependency_id, account):
 
 @csrf_exempt
 def dependency_list_deployed(request, account):
-    # Validate request: only admin user can access to this method
-    token = is_valid_request(request)
-    if not token:
-        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
-
     if request.method == 'GET':
         try:
             r = get_redis_connection()
@@ -516,10 +482,7 @@ def dependency_list_deployed(request, account):
 
 @csrf_exempt
 def dependency_undeploy(request, dependency_id, account):
-    # Validate request: only admin user can access to this method
-    token = is_valid_request(request)
-    if not token:
-        return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
+    token = get_token_connection(request)
 
     if request.method == 'PUT':
         try:
