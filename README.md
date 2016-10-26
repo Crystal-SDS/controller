@@ -1,4 +1,4 @@
-# Crystal
+#  Crystal: Open and Extensible Software-Defined Storage for OpenStack Swift
 
 Crystal is a transparent, dynamic and open Software-Defined Storage (SDS) system for [OpenStack Swift](http://swift.openstack.org).
 
@@ -8,7 +8,7 @@ To do so, it uses three main abstractions: _filter_, _metric_, and _controller_.
 A **filter** is a piece of programming logic that a system administrator can inject into the data plane to perform custom computations. 
 In Crystal, this concept includes from arbitrary computations on object requests, such as compression or encryption, to resource management such as bandwidth differentiation.
 
-A **metric** is an inspection trigger whose role is to automate the execution of filters based on the information accrued from the system. There
+A **metric** has the role to automate the execution of filters based on the information accrued from the system. There
 are two types of information sources. A first type that corresponds to the real-time measurements got from the running workloads, like the number of GET operations
 per second of a tenant or the IO bandwidth allocated to a data container. As with filters, a fundamental feature of workload metrics is that they can be deployed at runtime.
 A second type of source is the metadata from the objects themselves. Such metadata is typically associated with read and write requests and includes properties like the size or type of data objects.
@@ -24,9 +24,9 @@ Crystal source code is structured in several sub-projects:
 
 * **Controller**: this project. The Crystal control plane that offers dynamic meta-programming facilities over the data plane.
 
-* **[Metric middleware](https://github.com/Crystal-SDS/metric-middleware)**: the inspection triggers (data plane), that enable controllers to dynamically respond to workload changes in real time.
+* **[Metric middleware](https://github.com/Crystal-SDS/metric-middleware)**: the middleware (data plane) that executes metrics that enable controllers to dynamically respond to workload changes in real time.
 
-* **[Filter middleware](https://github.com/Crystal-SDS/filter-middleware)**: the storage filters (data plane), that intercept object flows and run computations or perform transformations on them.
+* **[Filter middleware](https://github.com/Crystal-SDS/filter-middleware)**: the middleware (data plane) that executes storage filters that intercept object flows to run computations or perform transformations on them.
 
 * **[Dashboard](https://github.com/iostackproject/SDS-dashboard/tree/urv_dev)**: A user-friendly dashboard to manage policies, filters and workload metrics.
 
