@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/1.8/ref/settings/
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 import os
+
 import redis
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -51,6 +52,7 @@ INSTALLED_APPS = (
 )
 
 MIDDLEWARE_CLASSES = (
+    'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -58,7 +60,7 @@ MIDDLEWARE_CLASSES = (
     'django.contrib.auth.middleware.SessionAuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'django.middleware.security.SecurityMiddleware',
+    'api.middleware.CrystalMiddleware',
 )
 
 ROOT_URLCONF = 'api.urls'
@@ -128,7 +130,7 @@ PYACTIVE_IP = "127.0.0.1"
 PYACTIVE_PORT = 6899
 PYACTIVE_URL = PYACTIVE_TRANSPORT+'://'+PYACTIVE_IP+':'+str(PYACTIVE_PORT)
 
-# Mertrics
+# Metrics
 METRIC_CLASS = 'registry.dynamic_policies.metrics.swift_metric'
 METRIC_MAIN = 'SwiftMetric'
 
