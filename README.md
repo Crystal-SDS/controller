@@ -1,17 +1,34 @@
 # Crystal
 
-[Crystal](http://crystal-sds.org/) is a transparent, dynamic and open Software-Defined Storage (SDS) system for [OpenStack Swift](http://swift.openstack.org).
-It is structured in several sub-projects:
+Crystal is a transparent, dynamic and open Software-Defined Storage (SDS) system for [OpenStack Swift](http://swift.openstack.org).
 
-* **Controller**: the Crystal control plane that offers dynamic meta-programming facilities over the data plane.
+As depicted in the figure below, Crystal separates high level policies from the mechanisms that implement them at the data plane, to avoid hard-coding the policies in the system itself.
+To do so, it uses three main abstractions: _filter_, _metric_, and _controller_.
 
-* **[Introspection middleware](https://github.com/Crystal-SDS/introspection-middleware)**: the inspection triggers (data plane), that enable controllers to dynamically respond to workload changes in real time.
+A **filter** is a piece of programming logic that a system administrator can inject into the data plane to perform custom computations. 
+In Crystal, this concept includes from arbitrary computations on object requests, such as compression or encryption, to resource management such as bandwidth differentiation.
+
+A **metric** is an inspection trigger whose role is to automate the execution of filters based on the information accrued from the system. There
+are two types of information sources. A first type that corresponds to the real-time measurements got from the running workloads, like the number of GET operations
+per second of a tenant or the IO bandwidth allocated to a data container. As with filters, a fundamental feature of workload metrics is that they can be deployed at runtime.
+A second type of source is the metadata from the objects themselves. Such metadata is typically associated with read and write requests and includes properties like the size or type of data objects.
+
+The **controller** is the algorithm that manages the behavior of the data plane based on monitoring metrics. 
+A controller may contain a very simple rule to enforce compression filter on a tenant, or it may execute a complex bandwidth differentiation algorithm requiring global visibility of the cluster.
+
+![alt text](http://crystal-sds.org/wp-content/uploads/2016/05/architecture9-768x575.png "Crystal Architecture")
+
+### Crystal Source code
+
+Crystal source code is structured in several sub-projects:
+
+* **Controller**: this project. The Crystal control plane that offers dynamic meta-programming facilities over the data plane.
+
+* **[Metric middleware](https://github.com/Crystal-SDS/metric-middleware)**: the inspection triggers (data plane), that enable controllers to dynamically respond to workload changes in real time.
 
 * **[Filter middleware](https://github.com/Crystal-SDS/filter-middleware)**: the storage filters (data plane), that intercept object flows and run computations or perform transformations on them.
 
 * **[Dashboard](https://github.com/iostackproject/SDS-dashboard/tree/urv_dev)**: A user-friendly dashboard to manage policies, filters and workload metrics.
-
-![alt text](http://crystal-sds.org/wp-content/uploads/2016/05/architecture9-768x575.png "Crystal Architecture")
 
 # Crystal Controller
 
@@ -26,7 +43,7 @@ and to deploy them as an actor process, who analyze the system data thanks to th
 
 The repository is structured with the next folders:
 
-* **doc:** The doc folder includes the API specifications. In this document you can find all the calls accepted by the SDS Controller. Furthermore, this document specifies all the parameters that each call needs.
+* **doc:** The doc folder includes the API specifications where you can find all the calls and parameters accepted by the SDS Controller.
 
 * **puppet:** In this folder you can find two subfolders more. The manifests folder, that contains all the config files of the puppet (To read more about puppet click [here](http://docs.vagrantup.com/v2/provisioning/puppet_apply.html)). On the other hand, the modules folder that contains all dependencies added by puppet. Remember that these modules only are a link to the original repository, so when you clone this repository you need to add the modules or cloning in recursive way. (To read more about submodules click [here](https://git-scm.com/book/en/v2/Git-Tools-Submodules))
 
@@ -44,8 +61,8 @@ To build the APIs in an easy way we use [Django REST Framework](http://www.djang
 
 This project includes a Vagrant environment with all the dependencies (Django, pyactive, swiftclient, ...), so the only two requirements are:
 
-1. Install Virtual Box [Visit VirtualBox page!](https://www.virtualbox.org/)
-2. Install Vagrant [Visit Vagrant page!](https://www.vagrantup.com/downloads.html)
+1. Install [Virtualbox](https://www.virtualbox.org/)
+2. Install [Vagrant](https://www.vagrantup.com/downloads.html)
 
 ## Installation
 
@@ -78,3 +95,5 @@ Please [open an issue](https://github.com/Crystal-SDS/controller/issues/new) for
 ## Contributing
 
 Please contribute using [Github Flow](https://guides.github.com/introduction/flow/). Create a branch, add commits, and [open a pull request](https://github.com/Crystal-SDS/controller/compare/).
+
+For more information, please visit [crystal-sds.org](http://crystal-sds.org/).
