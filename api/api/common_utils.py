@@ -1,14 +1,38 @@
+import logging
 import os
+import sys
 
 import keystoneclient.v2_0.client as keystone_client
 import redis
 from django.conf import settings
+from django.core.management.color import color_style
 from django.http import HttpResponse
 from rest_framework.renderers import JSONRenderer
 
 from api.exceptions import FileSynchronizationException
 
-valid_tokens = dict()
+
+class LoggingColors(logging.Formatter):
+    def __init__(self, *args, **kwargs):
+        super(LoggingColors, self).__init__(*args, **kwargs)
+        self.style = self.configure_style(color_style())
+
+    @staticmethod
+    def configure_style(style):
+        style.DEBUG = style.HTTP_NOT_MODIFIED
+        style.INFO = style.HTTP_INFO
+        style.WARNING = style.HTTP_NOT_FOUND
+        style.ERROR = style.ERROR
+        style.CRITICAL = style.HTTP_SERVER_ERROR
+        return style
+
+    def format(self, record):
+        message = logging.Formatter.format(self, record)
+        if sys.version_info[0] < 3:
+            if isinstance(message, unicode):
+                message = message.encode('utf-8')
+        colorizer = getattr(self.style, record.levelname, self.style.HTTP_SUCCESS)
+        return colorizer(message)
 
 
 class JSONResponse(HttpResponse):
@@ -24,6 +48,7 @@ class JSONResponse(HttpResponse):
 
 def get_redis_connection():
     return redis.Redis(connection_pool=settings.REDIS_CON_POOL)
+
 
 def get_token_connection(request):
     return request.META['HTTP_X_AUTH_TOKEN'] if 'HTTP_X_AUTH_TOKEN' in request.META else False

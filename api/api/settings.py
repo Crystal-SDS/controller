@@ -27,7 +27,7 @@ ANSIBLE_DIR = os.path.join(BASE_DIR, "swift", "ansible")
 # See https://docs.djangoproject.com/en/1.8/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = '&yx_=2@s(evyq=l9t2efrgmgryz^ea85$csdb_rprvc-9b&#r8' # noqa
+SECRET_KEY = '&yx_=2@s(evyq=l9t2efrgmgryz^ea85$csdb_rprvc-9b&#r8'  # noqa
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -83,7 +83,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'api.wsgi.application'
 
-
 # Database
 # https://docs.djangoproject.com/en/1.8/ref/settings/#databases
 
@@ -92,6 +91,30 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': 'mydatabase.sqlite3',
+    }
+}
+
+# Logging
+LOGGING = {
+    'version': 1,
+    'formatters': {
+        'standard': {
+            '()': 'api.common_utils.LoggingColors',
+            'format': '%(asctime)s [%(levelname)s] %(name)s: %(message)s'
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'standard',
+        }
+    },
+    'loggers': {
+        '': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': True
+        }
     }
 }
 
@@ -128,7 +151,7 @@ MANAGEMENT_ADMIN_PASSWORD = "manager"  # noqa
 PYACTIVE_TRANSPORT = "tcp"
 PYACTIVE_IP = "127.0.0.1"
 PYACTIVE_PORT = 6899
-PYACTIVE_URL = PYACTIVE_TRANSPORT+'://'+PYACTIVE_IP+':'+str(PYACTIVE_PORT)
+PYACTIVE_URL = PYACTIVE_TRANSPORT + '://' + PYACTIVE_IP + ':' + str(PYACTIVE_PORT)
 
 # Metrics
 METRIC_CLASS = 'registry.dynamic_policies.metrics.swift_metric'
