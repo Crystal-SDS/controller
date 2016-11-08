@@ -135,7 +135,10 @@ SWIFT_URL = 'http://localhost:8080/'
 SWIFT_API_VERSION = 'v1'
 
 # Redis
-REDIS_CON_POOL = redis.ConnectionPool(host='localhost', port=6379, db=0)
+REDIS_HOST = 'localhost'
+REDIS_PORT = 6379
+REDIS_DATABASE = 0
+REDIS_CON_POOL = redis.ConnectionPool(host=REDIS_HOST, port=REDIS_PORT, db=REDIS_DATABASE)
 
 # SDS Project
 STORLET_BIN_DIR = '/opt/ibm'
