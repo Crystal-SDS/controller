@@ -993,7 +993,7 @@ def node_restart(request, node_id):
     if request.method == 'PUT':
         node = r.hgetall('node:' + str(node_id))
         data = {'node_ip': node['ip'], 'ssh_username': node['ssh_username'], 'ssh_password': node['ssh_password']}
-        restart_command = 'sshpass -p {ssh_password} ssh {ssh_username}@{node_ip} sudo swift-init all restart'.format(**data)
+        restart_command = 'sshpass -p {ssh_password} ssh {ssh_username}@{node_ip} sudo swift-init main restart'.format(**data)
         # print "System: %s" % rsync_command
         ret = os.system(restart_command)
         if ret != 0:
