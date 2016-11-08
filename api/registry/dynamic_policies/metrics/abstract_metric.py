@@ -1,6 +1,8 @@
-import redis
-import ConfigParser
 import sys
+
+import redis
+
+from api.settings import RABBITMQ_USERNAME, RABBITMQ_PASSWORD, RABBITMQ_HOST, RABBITMQ_PORT, REDIS_HOST, REDIS_PORT, REDIS_DATABASE, LOGSTASH_HOST, LOGSTASH_PORT
 
 
 class Metric(object):
@@ -11,21 +13,22 @@ class Metric(object):
     for each observer in that tenant is subscribed. In this way, the metric
     actor only sends the necessary information to each observer.
     """
+
     def __init__(self):
         self._observers = {}
         self.value = None
         self.name = None
-        settings = ConfigParser.ConfigParser()
-        settings.read("registry/dynamic_policies/settings.conf")
-        self.rmq_user = settings.get('rabbitmq', 'username')
-        self.rmq_pass = settings.get('rabbitmq', 'password')
-        self.rmq_host = settings.get('rabbitmq', 'host')
-        self.rmq_port = settings.get('rabbitmq', 'port')
-        self.redis_host = settings.get('redis', 'host')
-        self.redis_port = settings.get('redis', 'port')
-        self.redis_db = settings.get('redis', 'db')
-        self.logstash_host = settings.get('logstash', 'host')
-        self.logstash_port = int(settings.get('logstash', 'port'))
+        # settings = ConfigParser.ConfigParser()
+        # settings.read("registry/dynamic_policies/settings.conf")
+        self.rmq_user = RABBITMQ_USERNAME
+        self.rmq_pass = RABBITMQ_PASSWORD
+        self.rmq_host = RABBITMQ_HOST
+        self.rmq_port = RABBITMQ_PORT
+        self.redis_host = REDIS_HOST
+        self.redis_port = REDIS_PORT
+        self.redis_db = REDIS_DATABASE
+        self.logstash_host = LOGSTASH_HOST
+        self.logstash_port = LOGSTASH_PORT
 
         self.redis = redis.StrictRedis(host=self.redis_host,
                                        port=int(self.redis_port),
@@ -77,7 +80,7 @@ class Metric(object):
                            consumer appear.
         """
         try:
-            self.redis.hmset("metric:"+self.name, {"network_location": self._atom.aref.replace("atom:", "tcp:", 1), "type": "integer"})
+            self.redis.hmset("metric:" + self.name, {"network_location": self._atom.aref.replace("atom:", "tcp:", 1), "type": "integer"})
 
             self.consumer = self.host.spawn_id(self.id + "_consumer",
                                                "registry.dynamic_policies.consumer",
@@ -107,7 +110,7 @@ class Metric(object):
                     observer.stop_actor()
                     self.redis.hset(observer.get_id(), 'alive', 'False')
 
-            self.redis.delete("metric:"+self.name)
+            self.redis.delete("metric:" + self.name)
             self.stop_consuming()
             self._atom.stop()
 

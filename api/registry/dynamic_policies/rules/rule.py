@@ -1,8 +1,10 @@
-import requests
-import operator
 import json
+import operator
+
 import redis
-import ConfigParser
+import requests
+
+from api.settings import MANAGEMENT_ACCOUNT, MANAGEMENT_ADMIN_USERNAME, MANAGEMENT_ADMIN_PASSWORD, KEYSTONE_ADMIN_URL, REDIS_HOST, REDIS_PORT, REDIS_DATABASE
 
 mappings = {'>': operator.gt, '>=': operator.ge,
             '==': operator.eq, '<=': operator.le, '<': operator.lt,
@@ -36,17 +38,17 @@ class Rule(object):
         :type host: **any** PyActive Proxy type
         """
 
-        settings = ConfigParser.ConfigParser()
-        settings.read("registry/dynamic_policies/settings.conf")
+        # settings = ConfigParser.ConfigParser()
+        # settings.read("registry/dynamic_policies/settings.conf")
 
-        self.openstack_tenant = settings.get('openstack', 'admin_tenant')
-        self.openstack_user = settings.get('openstack', 'admin_name')
-        self.openstack_pass = settings.get('openstack', 'admin_pass')
-        self.openstack_keystone_url = settings.get('openstack', 'keystone_url')
+        self.openstack_tenant = MANAGEMENT_ACCOUNT
+        self.openstack_user = MANAGEMENT_ADMIN_USERNAME
+        self.openstack_pass = MANAGEMENT_ADMIN_PASSWORD
+        self.openstack_keystone_url = KEYSTONE_ADMIN_URL
 
-        self.redis_host = settings.get('redis', 'host')
-        self.redis_port = int(settings.get('redis', 'port'))
-        self.redis_db = int(settings.get('redis', 'db'))
+        self.redis_host = REDIS_HOST
+        self.redis_port = REDIS_PORT
+        self.redis_db = REDIS_DATABASE
 
         self.redis = redis.StrictRedis(host=self.redis_host,
                                        port=self.redis_port,
@@ -84,7 +86,7 @@ class Rule(object):
         for observer in self.observers_proxies.values():
             observer.detach(self.proxy, self.get_target())
         self._atom.stop()
-        print ' - Rule, Actor "'+self.id+'" stopped'
+        print ' - Rule, Actor "' + self.id + '" stopped'
 
     def start_rule(self):
         """
@@ -93,7 +95,7 @@ class Rule(object):
         **check_metrics()** which subscribes the rule to all the workload
         metrics necessaries.
         """
-        print ' - Rule, Start "'+self.id+'"'
+        print ' - Rule, Start "' + self.id + '"'
         self.check_metrics(self.conditions)
 
     def _add_metric(self, workload_name):
@@ -173,8 +175,8 @@ class Rule(object):
             result = mappings[condition_list[1]](float(self.observers_values[condition_list[0].lower()]), float(condition_list[2]))
         else:
             result = self.check_conditions(condition_list[0])
-            for i in range(1, len(condition_list)-1, 2):
-                result = mappings[condition_list[i]](result, self.check_conditions(condition_list[i+1]))
+            for i in range(1, len(condition_list) - 1, 2):
+                result = mappings[condition_list[i]](result, self.check_conditions(condition_list[i + 1]))
         return result
 
     def get_target(self):
@@ -195,12 +197,12 @@ class Rule(object):
             self._admin_login()
 
         headers = {"X-Auth-Token": self.token}
-        dynamic_filter = self.redis.hgetall("dsl_filter:"+str(self.action_list.filter))
+        dynamic_filter = self.redis.hgetall("dsl_filter:" + str(self.action_list.filter))
 
         if self.action_list.action == "SET":
             # TODO Review if this tenant has already deployed this filter. Not deploy the same filter more than one time.
 
-            url = dynamic_filter["activation_url"]+"/"+self.target+"/deploy/"+str(dynamic_filter["identifier"])
+            url = dynamic_filter["activation_url"] + "/" + self.target + "/deploy/" + str(dynamic_filter["identifier"])
 
             data = dict()
 
@@ -232,7 +234,7 @@ class Rule(object):
         elif self.action_list.action == "DELETE":
             print "--> DELETE <--"
 
-            url = dynamic_filter["activation_url"]+"/"+self.target+"/undeploy/"+str(dynamic_filter["identifier"])
+            url = dynamic_filter["activation_url"] + "/" + self.target + "/undeploy/" + str(dynamic_filter["identifier"])
             response = requests.put(url, headers=headers)
 
             if 200 <= response.status_code < 300:
