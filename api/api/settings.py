@@ -17,12 +17,12 @@ import redis
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-WORKLOAD_METRICS_DIR = os.path.join("/opt", "crystal", "workload_metrics")
-NATIVE_FILTERS_DIR = os.path.join("/opt", "crystal", "native_filters")
-STORLET_FILTERS_DIR = os.path.join("/opt", "crystal", "storlet_filters")
-GLOBAL_NATIVE_FILTERS_DIR = os.path.join("/opt", "crystal", "global_native_filters")
-DEPENDENCY_DIR = os.path.join("/opt", "crystal", "dependencies")
-ANSIBLE_DIR = os.path.join(BASE_DIR, "swift", "ansible")
+WORKLOAD_METRICS_DIR = os.path.join('/opt', 'crystal', 'workload_metrics')
+NATIVE_FILTERS_DIR = os.path.join('/opt', 'crystal', 'native_filters')
+STORLET_FILTERS_DIR = os.path.join('/opt', 'crystal', 'storlet_filters')
+GLOBAL_NATIVE_FILTERS_DIR = os.path.join('/opt', 'crystal', 'global_native_filters')
+DEPENDENCY_DIR = os.path.join('/opt', 'crystal', 'dependencies')
+ANSIBLE_DIR = os.path.join(BASE_DIR, 'swift', 'ansible')
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.8/howto/deployment/checklist/
 
@@ -127,29 +127,29 @@ USE_TZ = True
 STATIC_URL = '/static/'
 
 # Keystone
-KEYSTONE_ADMIN_URL = "http://localhost:5000/v2.0"
-KEYSTONE_URL = "http://localhost:35357/v2.0"
+KEYSTONE_ADMIN_URL = 'http://localhost:5000/v2.0'
+KEYSTONE_URL = 'http://localhost:35357/v2.0'
 
 # Swift
-SWIFT_URL = "http://localhost:8080/"
-SWIFT_API_VERSION = "v1"
+SWIFT_URL = 'http://localhost:8080/'
+SWIFT_API_VERSION = 'v1'
 
 # Redis
 REDIS_CON_POOL = redis.ConnectionPool(host='localhost', port=6379, db=0)
 
 # SDS Project
-STORLET_BIN_DIR = "/opt/ibm"
-STORLET_DOCKER_IMAGE = "192.168.2.1:5001/ubuntu_14.04_jre8_storlets"
-STORLET_TAR_FILE = "ubuntu_14.04_jre8_storlets.tar"
+STORLET_BIN_DIR = '/opt/ibm'
+STORLET_DOCKER_IMAGE = '192.168.2.1:5001/ubuntu_14.04_jre8_storlets'
+STORLET_TAR_FILE = 'ubuntu_14.04_jre8_storlets.tar'
 
 # Openstack Admin
-MANAGEMENT_ACCOUNT = "management"
-MANAGEMENT_ADMIN_USERNAME = "manager"
-MANAGEMENT_ADMIN_PASSWORD = "manager"  # noqa
+MANAGEMENT_ACCOUNT = 'management'
+MANAGEMENT_ADMIN_USERNAME = 'manager'
+MANAGEMENT_ADMIN_PASSWORD = 'manager'  # noqa
 
 # pyactive
-PYACTIVE_TRANSPORT = "tcp"
-PYACTIVE_IP = "127.0.0.1"
+PYACTIVE_TRANSPORT = 'tcp'
+PYACTIVE_IP = '127.0.0.1'
 PYACTIVE_PORT = 6899
 PYACTIVE_URL = PYACTIVE_TRANSPORT + '://' + PYACTIVE_IP + ':' + str(PYACTIVE_PORT)
 
@@ -162,3 +162,14 @@ RULE_CLASS = 'registry.dynamic_policies.rules.rule'
 RULE_MAIN = 'Rule'
 RULE_TRANSIENT_CLASS = 'registry.dynamic_policies.rules.rule_transient'
 RULE_TRANSIENT_MAIN = 'TransientRule'
+
+# RabbitMQ
+RABBITMQ_HOST = 'localhost'
+RABBITMQ_PORT = 5672
+RABBITMQ_USERNAME = 'manager'
+RABBITMQ_PASSWORD = 'manager'
+RABBITMQ_EXCHANGE = 'amq.topic'
+
+# Logstash
+LOGSTASH_HOST = 'localhost'
+LOGSTASH_PORT = 5400
