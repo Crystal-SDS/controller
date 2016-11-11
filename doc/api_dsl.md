@@ -30,13 +30,45 @@ Moreover, dynamic storage automation policies can be persistent or transient; a 
 
 ## Examples
 
-- **FOR TENANT:1234567890abcdef DO SET compression**: Apply the compression filter to all objects of tenant '1234567890abcdef'.
-- **FOR CONTAINER:1234567890abcdef/container1 DO SET caching ON PROXY**: Apply caching on the proxy server to all objects of the container 'container1' of tenant '1234567890abcdef'. 
-- **FOR TENANT:1234567890abcdef WHEN get_ops > 10  DO SET caching**: Apply the caching filter to all objects of tenant '1234567890abcdef' when there are more than 10 GET operations per second (the filter remains indefinitely).
-- **FOR TENANT:1234567890abcdef WHEN get_ops > 10  DO SET caching TRANSIENT**: Apply the caching filter to all objects of tenant '1234567890abcdef' only while there are more than 10 GET operations per second.
-- **FOR TENANT:1234567890abcdef DO SET compression WITH param1=lz4, SET encryption**: Apply a filter pipeline to all objects of tenant '1234567890abcdef'. For PUT operations, the first filter is compression (with a parameter) and the second one is encyption. For GET operations, filters are applied in reverse order.
-- **FOR TENANT:1234567890abcdef DO SET compression TO OBJECT_TYPE=DOCS**: Apply the compression filter to all objects of tenant '1234567890abcdef' that belong to the object type 'DOCS'.
-- **FOR TENANT:1234567890abcdef DO SET compression TO OBJECT_SIZE>1024**: Apply the compression filter to all objects of tenant '1234567890abcdef' that are greater than 1024 bytes.
+Apply the compression filter to all objects of tenant '1234567890abcdef':
+```
+FOR TENANT:1234567890abcdef DO SET compression
+```
+
+Apply caching on the proxy server to all objects of the container 'container1' of tenant '1234567890abcdef':
+```
+FOR CONTAINER:1234567890abcdef/container1 DO SET caching ON PROXY
+```
+ 
+Apply the caching filter to all objects of tenant '1234567890abcdef' when there are more than 10 GET operations per second (the filter remains indefinitely): 
+```
+FOR TENANT:1234567890abcdef WHEN get_ops > 10  DO SET caching
+```
+
+Apply the caching filter to all objects of tenant '1234567890abcdef' only while there are more than 10 GET operations per second:
+```
+FOR TENANT:1234567890abcdef WHEN get_ops > 10  DO SET caching TRANSIENT
+```
+
+Apply a filter pipeline to all objects of tenant '1234567890abcdef'. For PUT operations, the first filter is compression (with a parameter) and the second one is encyption. For GET operations, filters are applied in reverse order:
+```
+FOR TENANT:1234567890abcdef DO SET compression WITH param1=lz4, SET encryption
+```
+
+Apply the compression filter to all objects of tenant '1234567890abcdef' that belong to the object type 'DOCS':
+```
+FOR TENANT:1234567890abcdef DO SET compression TO OBJECT_TYPE=DOCS
+```
+
+Apply the compression filter to all objects of tenant '1234567890abcdef' that are greater than 1024 bytes:
+```
+FOR TENANT:1234567890abcdef DO SET compression TO OBJECT_SIZE>1024
+```
+
+Apply the compression filter to all objects of tenant '1234567890abcdef' only when the request includes headers with parameters to invoke the compression filter:
+```
+FOR TENANT:1234567890abcdef DO SET compression CALLABLE
+```
 
 ## Grammar
 
@@ -65,7 +97,7 @@ operand = ( '<' | '>' | '==' | '!=' | '<=' | '>=' ) ;
 
 action list = action, { ',', action list} ;
 
-action = ( 'SET' | 'DELETE' ), filter, { 'WITH', params list }, { 'ON', server }, { 'TRANSIENT' } ;
+action = ( 'SET' | 'DELETE' ), filter, { 'WITH', params list }, { 'ON', server }, { 'TRANSIENT' }, { 'CALLABLE' } ;
 
 params list = param, { ',', params list } ;
 

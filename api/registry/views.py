@@ -917,7 +917,8 @@ def do_action(request, r, rule_parsed):
                     "object_type": "",
                     "object_size": "",
                     "execution_order": policy_id,
-                    "params": ""
+                    "params": "",
+                    "callable": False
                 }
 
                 # Rewrite default values
@@ -931,6 +932,8 @@ def do_action(request, r, rule_parsed):
                     policy_data["execution_server"] = action_info.server_execution
                 if action_info.params:
                     policy_data["params"] = action_info.params
+                if action_info.callable:
+                    policy_data["callable"] = True
 
                 # Deploy (an exception is raised if something goes wrong)
                 set_filter(r, target[1], filter_data, policy_data, token)

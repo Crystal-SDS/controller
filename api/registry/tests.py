@@ -947,6 +947,35 @@ class RegistryTestCase(TestCase):
         with self.assertRaises(ParseException):
             parse('FOR xxxxxxx DO SET compression')
 
+    def test_parse_callable_ok(self):
+        self.setup_dsl_parser_data()
+        has_condition_list, rule_parsed = parse('FOR TENANT:123456789abcdef DO SET compression CALLABLE')
+        self.assertFalse(has_condition_list)
+        self.assertIsNotNone(rule_parsed)
+        targets = rule_parsed.target
+        action_list = rule_parsed.action_list
+        self.assertEqual(len(targets), 1)
+        self.assertEqual(len(action_list), 1)
+        target = targets[0]
+        self.assertEqual(target.type, 'TENANT')
+        self.assertEqual(target[1], '123456789abcdef')
+        action_info = action_list[0]
+        self.assertEqual(action_info.action, 'SET')
+        self.assertEqual(action_info.filter, 'compression')
+        self.assertEqual(action_info.execution_server, '')
+        self.assertEqual(action_info.params, '')
+        self.assertEqual(action_info.callable, 'CALLABLE')
+
+    def test_parse_not_callable(self):
+        self.setup_dsl_parser_data()
+        has_condition_list, rule_parsed = parse('FOR TENANT:123456789abcdef DO SET compression')
+        self.assertFalse(has_condition_list)
+        self.assertIsNotNone(rule_parsed)
+        action_list = rule_parsed.action_list
+        self.assertEqual(len(action_list), 1)
+        action_info = action_list[0]
+        self.assertEqual(action_info.callable, '')
+
     # TODO Add tests with wrong number of parameters, non existent parameters, wrong type parameters, ...
     # TODO Add tests for conditional rules
 
