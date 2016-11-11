@@ -88,7 +88,7 @@ class RegistryTestCase(TestCase):
         response = policy_list(request)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertTrue(mock_set_filter.called)
-        expected_policy_data = {'object_size': '', 'execution_order': 2, 'object_type': 'DOCS', 'params': mock.ANY, 'policy_id': 2, 'execution_server': 'PROXY'}
+        expected_policy_data = {'object_size': '', 'execution_order': 2, 'object_type': 'DOCS', 'params': mock.ANY, 'policy_id': 2, 'execution_server': 'PROXY', 'callable': False}
         mock_set_filter.assert_called_with(mock.ANY, '1234567890abcdef', mock.ANY, expected_policy_data, 'fake_token')
 
     @mock.patch('registry.views.deploy_policy')
