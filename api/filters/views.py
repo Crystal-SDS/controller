@@ -31,7 +31,7 @@ GLOBAL_FILTER_KEYS = ('id', 'filter_name', 'filter_type', 'interface_version', '
                       'is_pre_get', 'is_post_get', 'has_reverse', 'execution_server', 'execution_server_reverse', 'execution_order', 'enabled', 'path')
 DEPENDENCY_KEYS = ('id', 'name', 'version', 'permissions', 'path')
 
-logging.basicConfig()
+logger = logging.getLogger(__name__)
 
 
 def check_keys(data, keys):
@@ -245,6 +245,7 @@ def filter_deploy(request, filter_id, account, container=None, swift_object=None
 
         try:
             params = JSONParser().parse(request)
+            logger.debug(str(params))
         except ParseError:
             return JSONResponse("Invalid format or empty request params", status=status.HTTP_400_BAD_REQUEST)
 
@@ -259,6 +260,16 @@ def filter_deploy(request, filter_id, account, container=None, swift_object=None
             "execution_order": policy_id,
             "params": params['params']
         }
+
+        if 'execution_server' in params:
+            if params['execution_server'] != 'default':
+                policy_data['execution_server'] = params['execution_server']
+
+        if 'execution_server_reverse' in params:
+            if params['execution_server_reverse'] != 'default':
+                policy_data['execution_server_reverse'] = params['execution_server_reverse']
+
+        logger.debug(str(policy_data))
 
         # TODO: Try to improve this part
         if container and swift_object:
