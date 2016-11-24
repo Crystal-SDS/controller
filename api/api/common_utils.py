@@ -123,7 +123,7 @@ def rsync_dir_with_nodes(directory):
     nodes = get_all_registered_nodes()
     for node in nodes:
         if not node.viewkeys() & {'ssh_username', 'ssh_password'}:
-            raise FileSynchronizationException("SSH credentials missing for some Swift node")
+            raise FileSynchronizationException("SSH credentials missing for some Swift node. Please, set the credentials for all nodes.")
 
         # The basename of the path is not needed because it will be the same as source dir
         dest_directory = os.path.dirname(directory)

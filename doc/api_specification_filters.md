@@ -54,7 +54,7 @@ HTTP/1.1 200 OK
 
 [{
 "id":"1",
-"filter_name": "compression-1.0.jar"
+"filter_name": "compression-1.0.jar",
 "filter_type":"storlet",
 "main":"com.example.StorletCompression",
 "is_pre_put":"False",
@@ -230,7 +230,7 @@ HTTP/1.1 200 OK
 
 {
 "id":"1",
-"filter_name": "compression-1.0.jar"
+"filter_name": "compression-1.0.jar",
 "filter_type":"storlet",
 "main":"com.example.StorletCompression",
 "is_pre_put":"False",
