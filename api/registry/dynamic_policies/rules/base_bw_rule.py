@@ -124,7 +124,7 @@ class AbstractEnforcementAlgorithm(object):
                     break
                 node_ip = ip.split('-')
                 address = node_ip[0] + '/' + account + '/' + self.method + '/' + node_ip[1] + '/' + node_ip[2] + '/' + str(round(assign[account][ip], 1))
-                routing_key = '.' + node_ip[0].replace('.', '-').replace(':', '-') + "."
+                routing_key = '#.' + node_ip[0] + ".#"
                 print "BW CHANGED: " + str(address)
                 self.send_message_rmq(address, routing_key)
 
