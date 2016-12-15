@@ -90,7 +90,7 @@ class AbstractEnforcementAlgorithm(object):
 
         now = datetime.datetime.now()
         difference = (now - self.last_update).total_seconds()
-        if difference >= 9:
+        if difference >= 5:
             self.last_bw = dict()
 
         self.send_results(results)
@@ -120,8 +120,8 @@ class AbstractEnforcementAlgorithm(object):
         for account in assign:
             for ip in assign[account]:
                 new_flow = account not in self.last_bw or ip not in self.last_bw[account]
-                if not new_flow and int(assign[account][ip]) == int(self.last_bw[account][ip]):
-                    break
+                if self.last_bw and not new_flow and int(assign[account][ip]) == int(self.last_bw[account][ip]):
+                    continue
                 node_ip = ip.split('-')
                 address = node_ip[0] + '/' + account + '/' + self.method + '/' + node_ip[1] + '/' + node_ip[2] + '/' + str(round(assign[account][ip], 1))
                 routing_key = '#.' + node_ip[0] + ".#"
