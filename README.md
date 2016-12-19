@@ -74,9 +74,9 @@ You can start the server using the command into the source folder (./api): `pyth
 
 If some problem appears, make sure that:
 
-1. redis-server service is running? SDS Controller API stores the meta-data information in redis.
+1. redis-server service is running? Crystal Controller API stores the meta-data information in redis.
 2. is PyActive in the PYTHONPATH? At home folder you can find the pyactive folder, where you can find another install.txt, please follow this steps.
-3. review the settings file from SDS Controller and make sure to write the correct IPs (Swift IP, Keystone IP, PyActive IP)
+3. review the settings file from Crystal Controller and make sure to write the correct IPs (Swift IP, Keystone IP, PyActive IP)
 
 ## Usage
 
@@ -97,3 +97,10 @@ Please [open an issue](https://github.com/Crystal-SDS/controller/issues/new) for
 Please contribute using [Github Flow](https://guides.github.com/introduction/flow/). Create a branch, add commits, and [open a pull request](https://github.com/Crystal-SDS/controller/compare/).
 
 For more information, please visit [crystal-sds.org](http://crystal-sds.org/).
+
+### Development VM
+
+There is an available development Virtual Machine which emulates running a Swift-all-in-one cluster together with Storlets and Crystal controller and middlewares. 
+It also includes an extended version of the OpenStack Dashboard that simplifies the management of Crystal filters, metrics and policies.
+
+* Download [Development VM](ftp://ast2-deim.urv.cat/s2caio_vm)
