@@ -103,4 +103,4 @@ For more information, please visit [crystal-sds.org](http://crystal-sds.org/).
 There is an available development Virtual Machine which emulates running a Swift-all-in-one cluster together with Storlets and Crystal controller and middlewares. 
 It also includes an extended version of the OpenStack Dashboard that simplifies the management of Crystal filters, metrics and policies.
 
-* Download [Development VM](ftp://ast2-deim.urv.cat/s2caio_vm)
+* ftp://ast2-deim.urv.cat/s2caio_vm
