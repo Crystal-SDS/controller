@@ -1,9 +1,12 @@
+import logging
 from datetime import datetime
 
 from keystoneauth1 import exceptions
 from rest_framework import status
 
 from api.common_utils import JSONResponse, get_keystone_admin_auth
+
+logger = logging.getLogger(__name__)
 
 valid_tokens = dict()
 
@@ -14,6 +17,12 @@ class CrystalMiddleware:
 
     @staticmethod
     def process_request(request):
+
+        # Example of the django logging
+        logger.info('Remote address: ' + str(request.META['REMOTE_ADDR']))
+        logger.info('User agent: ' + str(request.META['HTTP_USER_AGENT']))
+        logger.info('X-Auth-Token: ' + str(request.META['HTTP_X_AUTH_TOKEN']))
+
         if 'HTTP_X_AUTH_TOKEN' in request.META:
             token = request.META['HTTP_X_AUTH_TOKEN']
         else:

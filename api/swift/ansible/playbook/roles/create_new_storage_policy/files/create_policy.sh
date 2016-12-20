@@ -12,7 +12,7 @@ IFS=',' read -r -a storage_nodes <<< "$6"
 if [ $# -eq 6 ]
   then
     echo "[storage-policy:"$policyID"]
-name = "$policyName >> /etc/swift/swift.conf
+name="$policyName >> /etc/swift/swift.conf
 fi
 
 if [ $# -eq 10 ]
@@ -31,8 +31,8 @@ cd /etc/swift
 
 swift-ring-builder object-$policyID\.builder create $paritions $replicas $time
 #swift-ring-builder object-$policyID\.builder add $storage_node
-
-for i in $(seq 0 2 ${#storage_nodes[@]})
+let "storage_max=${#storage_nodes[@]} - 1"
+for i in $(seq 0 2 $storage_max)
   do
      let "j= $i + 1"
      swift-ring-builder object-$policyID\.builder add ${storage_nodes[$i]} ${storage_nodes[$j]}

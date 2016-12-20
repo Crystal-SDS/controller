@@ -1,4 +1,5 @@
 import json
+import logging
 import mimetypes
 import os
 import re
@@ -21,6 +22,8 @@ from api.common_utils import get_token_connection, rsync_dir_with_nodes, to_json
 from api.exceptions import SwiftClientError, StorletNotFoundException, FileSynchronizationException
 from filters.views import save_file, make_sure_path_exists
 from filters.views import set_filter, unset_filter
+
+logger = logging.getLogger(__name__)
 
 host = None
 remote_host = None
@@ -914,7 +917,8 @@ def do_action(request, r, rule_parsed):
                     "object_type": "",
                     "object_size": "",
                     "execution_order": policy_id,
-                    "params": ""
+                    "params": "",
+                    "callable": False
                 }
 
                 # Rewrite default values
@@ -928,6 +932,8 @@ def do_action(request, r, rule_parsed):
                     policy_data["execution_server"] = action_info.server_execution
                 if action_info.params:
                     policy_data["params"] = action_info.params
+                if action_info.callable:
+                    policy_data["callable"] = True
 
                 # Deploy (an exception is raised if something goes wrong)
                 set_filter(r, target[1], filter_data, policy_data, token)
@@ -990,13 +996,23 @@ def node_restart(request, node_id):
     except RedisError:
         return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+    logger.debug('Node id: ' + str(node_id))
+
     if request.method == 'PUT':
         node = r.hgetall('node:' + str(node_id))
+        logger.debug('Node data: ' + str(node))
+
         data = {'node_ip': node['ip'], 'ssh_username': node['ssh_username'], 'ssh_password': node['ssh_password']}
-        restart_command = 'sshpass -p {ssh_password} ssh {ssh_username}@{node_ip} sudo swift-init all restart'.format(**data)
-        # print "System: %s" % rsync_command
+        restart_command = 'sshpass -p {ssh_password} ssh {ssh_username}@{node_ip} sudo swift-init main restart'.format(**data)
+        logger.debug('Command: ' + str(restart_command))
+
         ret = os.system(restart_command)
         if ret != 0:
+            logger.error('An error occurred restarting Swift nodes')
             raise FileSynchronizationException("An error occurred restarting Swift nodes")
 
+        logger.debug('Node ' + str(node_id) + ' was restarted!')
+        return JSONResponse('The node was restarted successfully.', status=status.HTTP_200_OK)
+
+    logger.error('Method ' + str(request.method) + ' not allowed.')
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)

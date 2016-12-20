@@ -17,17 +17,17 @@ import redis
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-WORKLOAD_METRICS_DIR = os.path.join("/opt", "crystal", "workload_metrics")
-NATIVE_FILTERS_DIR = os.path.join("/opt", "crystal", "native_filters")
-STORLET_FILTERS_DIR = os.path.join("/opt", "crystal", "storlet_filters")
-GLOBAL_NATIVE_FILTERS_DIR = os.path.join("/opt", "crystal", "global_native_filters")
-DEPENDENCY_DIR = os.path.join("/opt", "crystal", "dependencies")
-ANSIBLE_DIR = os.path.join(BASE_DIR, "swift", "ansible")
+WORKLOAD_METRICS_DIR = os.path.join('/opt', 'crystal', 'workload_metrics')
+NATIVE_FILTERS_DIR = os.path.join('/opt', 'crystal', 'native_filters')
+STORLET_FILTERS_DIR = os.path.join('/opt', 'crystal', 'storlet_filters')
+GLOBAL_NATIVE_FILTERS_DIR = os.path.join('/opt', 'crystal', 'global_native_filters')
+DEPENDENCY_DIR = os.path.join('/opt', 'crystal', 'dependencies')
+ANSIBLE_DIR = os.path.join(BASE_DIR, 'swift', 'ansible')
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.8/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = '&yx_=2@s(evyq=l9t2efrgmgryz^ea85$csdb_rprvc-9b&#r8' # noqa
+SECRET_KEY = '&yx_=2@s(evyq=l9t2efrgmgryz^ea85$csdb_rprvc-9b&#r8'  # noqa
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -83,7 +83,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'api.wsgi.application'
 
-
 # Database
 # https://docs.djangoproject.com/en/1.8/ref/settings/#databases
 
@@ -92,6 +91,30 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': 'mydatabase.sqlite3',
+    }
+}
+
+# Logging
+LOGGING = {
+    'version': 1,
+    'formatters': {
+        'standard': {
+            '()': 'api.common_utils.LoggingColors',
+            'format': '%(asctime)s [%(levelname)s] %(name)s: %(message)s'
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'standard',
+        }
+    },
+    'loggers': {
+        '': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': True
+        }
     }
 }
 
@@ -104,31 +127,34 @@ USE_TZ = True
 STATIC_URL = '/static/'
 
 # Keystone
-KEYSTONE_ADMIN_URL = "http://localhost:5000/v2.0"
-KEYSTONE_URL = "http://localhost:35357/v2.0"
+KEYSTONE_ADMIN_URL = 'http://localhost:5000/v2.0'
+KEYSTONE_URL = 'http://localhost:35357/v2.0'
 
 # Swift
-SWIFT_URL = "http://localhost:8080/"
-SWIFT_API_VERSION = "v1"
+SWIFT_URL = 'http://localhost:8080/'
+SWIFT_API_VERSION = 'v1'
 
 # Redis
-REDIS_CON_POOL = redis.ConnectionPool(host='localhost', port=6379, db=0)
+REDIS_HOST = 'localhost'
+REDIS_PORT = 6379
+REDIS_DATABASE = 0
+REDIS_CON_POOL = redis.ConnectionPool(host=REDIS_HOST, port=REDIS_PORT, db=REDIS_DATABASE)
 
 # SDS Project
-STORLET_BIN_DIR = "/opt/ibm"
-STORLET_DOCKER_IMAGE = "192.168.2.1:5001/ubuntu_14.04_jre8_storlets"
-STORLET_TAR_FILE = "ubuntu_14.04_jre8_storlets.tar"
+STORLET_BIN_DIR = '/opt/ibm'
+STORLET_DOCKER_IMAGE = '192.168.2.1:5001/ubuntu_14.04_jre8_storlets'
+STORLET_TAR_FILE = 'ubuntu_14.04_jre8_storlets.tar'
 
 # Openstack Admin
-MANAGEMENT_ACCOUNT = "management"
-MANAGEMENT_ADMIN_USERNAME = "manager"
-MANAGEMENT_ADMIN_PASSWORD = "manager"  # noqa
+MANAGEMENT_ACCOUNT = 'management'
+MANAGEMENT_ADMIN_USERNAME = 'manager'
+MANAGEMENT_ADMIN_PASSWORD = 'manager'  # noqa
 
 # pyactive
-PYACTIVE_TRANSPORT = "tcp"
-PYACTIVE_IP = "127.0.0.1"
+PYACTIVE_TRANSPORT = 'tcp'
+PYACTIVE_IP = '127.0.0.1'
 PYACTIVE_PORT = 6899
-PYACTIVE_URL = PYACTIVE_TRANSPORT+'://'+PYACTIVE_IP+':'+str(PYACTIVE_PORT)
+PYACTIVE_URL = PYACTIVE_TRANSPORT + '://' + PYACTIVE_IP + ':' + str(PYACTIVE_PORT)
 
 # Metrics
 METRIC_CLASS = 'registry.dynamic_policies.metrics.swift_metric'
@@ -139,3 +165,14 @@ RULE_CLASS = 'registry.dynamic_policies.rules.rule'
 RULE_MAIN = 'Rule'
 RULE_TRANSIENT_CLASS = 'registry.dynamic_policies.rules.rule_transient'
 RULE_TRANSIENT_MAIN = 'TransientRule'
+
+# RabbitMQ
+RABBITMQ_HOST = 'localhost'
+RABBITMQ_PORT = 5672
+RABBITMQ_USERNAME = 'manager'
+RABBITMQ_PASSWORD = 'manager'
+RABBITMQ_EXCHANGE = 'amq.topic'
+
+# Logstash
+LOGSTASH_HOST = 'localhost'
+LOGSTASH_PORT = 5400

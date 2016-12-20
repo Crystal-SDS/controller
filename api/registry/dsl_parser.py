@@ -75,10 +75,13 @@ def parse(input_string):
     server_execution = oneOf("PROXY OBJECT")
     # TRANSIENT
     transient = Literal("TRANSIENT")
+    # CALLABLE
+    is_callable = Literal("CALLABLE")
     action = Group(action("action") + oneOf(sfilter)("filter") +
                    Optional(with_params + params_list("params")) +
                    Optional(Suppress("ON")+server_execution("server_execution")) +
-                   Optional(transient("transient")))
+                   Optional(transient("transient")) +
+                   Optional(is_callable("callable")))
 
     action_list = Group(delimitedList(action))
     # Object types

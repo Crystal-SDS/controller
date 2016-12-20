@@ -88,7 +88,7 @@ class RegistryTestCase(TestCase):
         response = policy_list(request)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertTrue(mock_set_filter.called)
-        expected_policy_data = {'object_size': '', 'execution_order': 2, 'object_type': 'DOCS', 'params': mock.ANY, 'policy_id': 2, 'execution_server': 'PROXY'}
+        expected_policy_data = {'object_size': '', 'execution_order': 2, 'object_type': 'DOCS', 'params': mock.ANY, 'policy_id': 2, 'execution_server': 'PROXY', 'callable': False}
         mock_set_filter.assert_called_with(mock.ANY, '1234567890abcdef', mock.ANY, expected_policy_data, 'fake_token')
 
     @mock.patch('registry.views.deploy_policy')
@@ -946,6 +946,35 @@ class RegistryTestCase(TestCase):
         self.setup_dsl_parser_data()
         with self.assertRaises(ParseException):
             parse('FOR xxxxxxx DO SET compression')
+
+    def test_parse_callable_ok(self):
+        self.setup_dsl_parser_data()
+        has_condition_list, rule_parsed = parse('FOR TENANT:123456789abcdef DO SET compression CALLABLE')
+        self.assertFalse(has_condition_list)
+        self.assertIsNotNone(rule_parsed)
+        targets = rule_parsed.target
+        action_list = rule_parsed.action_list
+        self.assertEqual(len(targets), 1)
+        self.assertEqual(len(action_list), 1)
+        target = targets[0]
+        self.assertEqual(target.type, 'TENANT')
+        self.assertEqual(target[1], '123456789abcdef')
+        action_info = action_list[0]
+        self.assertEqual(action_info.action, 'SET')
+        self.assertEqual(action_info.filter, 'compression')
+        self.assertEqual(action_info.execution_server, '')
+        self.assertEqual(action_info.params, '')
+        self.assertEqual(action_info.callable, 'CALLABLE')
+
+    def test_parse_not_callable(self):
+        self.setup_dsl_parser_data()
+        has_condition_list, rule_parsed = parse('FOR TENANT:123456789abcdef DO SET compression')
+        self.assertFalse(has_condition_list)
+        self.assertIsNotNone(rule_parsed)
+        action_list = rule_parsed.action_list
+        self.assertEqual(len(action_list), 1)
+        action_info = action_list[0]
+        self.assertEqual(action_info.callable, '')
 
     # TODO Add tests with wrong number of parameters, non existent parameters, wrong type parameters, ...
     # TODO Add tests for conditional rules

@@ -1,10 +1,11 @@
-import os
-import redis
-import pika
-import logging
-import ConfigParser
 import datetime
+import logging
+
+import pika
+import redis
 from redis.exceptions import RedisError
+
+from api.settings import RABBITMQ_USERNAME, RABBITMQ_PASSWORD, RABBITMQ_HOST, RABBITMQ_PORT, REDIS_HOST, REDIS_PORT, REDIS_DATABASE
 
 logging.basicConfig(filename='./rule.log', format='%(asctime)s %(message)s', level=logging.INFO)
 
@@ -23,31 +24,31 @@ class AbstractEnforcementAlgorithm(object):
     def __init__(self, name, method):
         """
         """
-        settings = ConfigParser.ConfigParser()
-        config_file = (os.path.join(os.getcwd(), 'registry', 'dynamic_policies', 'settings.conf'))
-        settings.read(config_file)
+        # settings = ConfigParser.ConfigParser()
+        # config_file = (os.path.join(os.getcwd(), 'registry', 'dynamic_policies', 'settings.conf'))
+        # settings.read(config_file)
 
         logging.info('Rule init: OK')
-        self.rmq_user = settings.get('rabbitmq', 'username')
-        self.rmq_pass = settings.get('rabbitmq', 'password')
-        self.rmq_host = settings.get('rabbitmq', 'host')
-        self.rmq_port = int(settings.get('rabbitmq', 'port'))
-        self.rmq_exchange = "bw_assignations"  # settings.get('rabbitmq', 'exchange')
-        
-        self.redis_host = settings.get('redis', 'host')
-        self.redis_port = int(settings.get('redis', 'port'))
-        self.redis_db = int(settings.get('redis', 'db'))
-        
+        self.rmq_user = RABBITMQ_USERNAME
+        self.rmq_pass = RABBITMQ_PASSWORD
+        self.rmq_host = RABBITMQ_HOST
+        self.rmq_port = RABBITMQ_PORT
+        self.rmq_exchange = 'bw_assignations'  # RABBITMQ_EXCHANGE
+
+        self.redis_host = REDIS_HOST
+        self.redis_port = REDIS_PORT
+        self.redis_db = REDIS_DATABASE
+
         self.credentials = pika.PlainCredentials(self.rmq_user, self.rmq_pass)
-        
+
         try:
-            self.r = redis.Redis(connection_pool=redis.ConnectionPool(host=self.redis_host, 
-                                                                      port=self.redis_port, 
+            self.r = redis.Redis(connection_pool=redis.ConnectionPool(host=self.redis_host,
+                                                                      port=self.redis_port,
                                                                       db=self.redis_db))
         except RedisError:
             logging.info('"Error connecting with Redis DB"')
             print "Error connecting with Redis DB"
-            
+
         self.last_bw = dict()
         self.last_update = datetime.datetime.now()
         self.name = name
@@ -66,7 +67,7 @@ class AbstractEnforcementAlgorithm(object):
             observer = self.host.lookup(workload_metic_id)
             observer.attach(self.proxy, True)
         except Exception as e:
-            raise Exception('Error attaching to metric bw_info: '+str(e))
+            raise Exception('Error attaching to metric bw_info: ' + str(e))
 
     def connect_rmq(self):
         # TODO: WARNING: BlockingConnection can block the actor
@@ -86,10 +87,10 @@ class AbstractEnforcementAlgorithm(object):
 
     def update(self, metric, info):
         results = self.compute_algorithm(info)
-        
+
         now = datetime.datetime.now()
         difference = (now - self.last_update).total_seconds()
-        if difference >= 9:
+        if difference >= 5:
             self.last_bw = dict()
 
         self.send_results(results)
@@ -117,13 +118,13 @@ class AbstractEnforcementAlgorithm(object):
         Sends the calculated BW to each Node that has active requests
         """
         for account in assign:
-            for ip in assign[account]:		
+            for ip in assign[account]:
                 new_flow = account not in self.last_bw or ip not in self.last_bw[account]
-                if not new_flow and int(assign[account][ip]) == int(self.last_bw[account][ip]):
-                    break
+                if self.last_bw and not new_flow and int(assign[account][ip]) == int(self.last_bw[account][ip]):
+                    continue
                 node_ip = ip.split('-')
-                address = node_ip[0]+'/'+account+'/'+self.method+'/' + node_ip[1]+'/'+node_ip[2]+'/'+str(round(assign[account][ip], 1))
-                routing_key = '.'+node_ip[0].replace('.', '-').replace(':', '-') + "."
+                address = node_ip[0] + '/' + account + '/' + self.method + '/' + node_ip[1] + '/' + node_ip[2] + '/' + str(round(assign[account][ip], 1))
+                routing_key = '#.' + node_ip[0] + ".#"
                 print "BW CHANGED: " + str(address)
                 self.send_message_rmq(address, routing_key)
 

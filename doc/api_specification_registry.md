@@ -9,11 +9,11 @@ Crystal Controller API Specification - Registry
   - [Get metric metadata](get-metric-metadata)
   - [Delete a workload metric](#delete-a-workload-metric)
 - [Filters](#filters)
-  - [Add a filter](#add-a-filter)
-  - [Get all filters](#get-all-filters)
-  - [Update a filter](#update-a-filter)
-  - [Get filter metadata](#get-filter-metadata)
-  - [Delete a filter](#delete-a-filter)
+  - [Register a filter](#register-a-filter)
+  - [Get all registered filters](#get-all-registered-filters)
+  - [Update a registered filter](#update-a-registered-filter)
+  - [Get registered filter metadata](#get-registered-filter-metadata)
+  - [Delete a registered filter](#delete-a-registered-filter)
 - [Projects group](#projects-group)
   - [Add a projects group](#add-a-projects-group)
   - [Get all projects groups](#get-all-projects-groups)
@@ -216,21 +216,11 @@ HTTP/1.1 204 NO CONTENT
 
 ```
 
-
-
-
-
-
-
-
-
-
-
 #Filters
 
-## Add a filter
+## Register a filter
 
-An application can registry a filter by issuing an HTTP POST request. The application needs to provide the filter metadata in json format.
+An application can register a filter by issuing an HTTP POST request. The application needs to provide the filter metadata in json format.
 
 ### Request
 
@@ -246,7 +236,7 @@ JSON input that contains a dictionary with the following keys:
 FIELD |  DESCRIPTION
 --- | ---
 **name** | Filter names should be unique and self-descriptive to ease the design of storage policies.
-**identifier** | The identifier field is only required by our filter framework for object storage based on Storlets **(Optional)**
+**identifier** | The identifier of the previously uploaded filter.
 **activation_url** | Different filter types may have distinct calls from the SDS Controller API viewpoint, we need to provide the base URL to be used to trigger the filter activation.
 **valid_parameters** | Dictionary where the keys are the parameters accepted by the filter, and the values are the type (i.e. boolean, integer) of each parameter.
 
@@ -271,9 +261,9 @@ POST /registry/filters
 HTTP/1.1 201 CREATED
 ```
 
-## Get all filters
+## Get all registered filters
 
-An application can get all filters registered by issuing an HTTP PUT request.
+An application can get all registered filters by issuing an HTTP PUT request.
 
 ### Request
 
@@ -310,9 +300,9 @@ HTTP/1.1 200 OK
 }]
 ```
 
-## Update a filter
+## Update a registered filter
 
-An application can update the metadata of a filter by issuing an HTTP PUT request.
+An application can update the metadata of a registered filter by issuing an HTTP PUT request.
 
 ### Request
 
@@ -341,7 +331,7 @@ PUT /registry/filters/compression
 HTTP/1.1 201 CREATED
 ```
 
-## Get filter metadata
+## Get registered filter metadata
 
 An application can ask for a filter metadata by issuing an HTTP GET request.
 
@@ -374,9 +364,9 @@ HTTP/1.1 200 OK
 }
 ```
 
-## Delete a filter
+## Delete a registered filter
 
-An application can delete a filter by issuing an HTTP DELETE request.
+An application can delete a registered filter by issuing an HTTP DELETE request.
 
 ### Request
 
@@ -402,8 +392,6 @@ DELETE /registry/filters/compress
 HTTP/1.1 204 NO CONTENT
 
 ```
-
-
 
 
 #Projects group
@@ -1280,7 +1268,7 @@ An application can delete a dynamic policy by issuing an HTTP DELETE request.
 ### Request
 
 #### URL structure
-The URL that represents the dynamic policy resource. The URL is **/registry/static_policy/{policy_id}**
+The URL that represents the dynamic policy resource. The URL is **/registry/dynamic_policy/{policy_id}**
 
 #### Method
 DELETE
