@@ -258,7 +258,8 @@ def filter_deploy(request, filter_id, account, container=None, swift_object=None
             "object_type": params['object_type'],
             "object_size": params['object_size'],
             "execution_order": policy_id,
-            "params": params['params']
+            "params": params['params'],
+            "callable": False
         }
 
         if 'execution_server' in params:
