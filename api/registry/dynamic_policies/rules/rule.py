@@ -1,6 +1,6 @@
 import json
 import operator
-
+import logging
 import redis
 import requests
 
@@ -9,6 +9,7 @@ from api.settings import MANAGEMENT_ACCOUNT, MANAGEMENT_ADMIN_USERNAME, MANAGEME
 mappings = {'>': operator.gt, '>=': operator.ge,
             '==': operator.eq, '<=': operator.le, '<': operator.lt,
             '!=': operator.ne, "OR": operator.or_, "AND": operator.and_}
+logger = logging.getLogger(__name__)
 
 
 class Rule(object):
@@ -86,7 +87,7 @@ class Rule(object):
         for observer in self.observers_proxies.values():
             observer.detach(self.proxy, self.get_target())
         self._atom.stop()
-        print ' - Rule, Actor "' + self.id + '" stopped'
+        logger.info("Rule, Actor '" + self.id + "' stopped")
 
     def start_rule(self):
         """
@@ -95,7 +96,7 @@ class Rule(object):
         **check_metrics()** which subscribes the rule to all the workload
         metrics necessaries.
         """
-        print ' - Rule, Start "' + self.id + '"'
+        logger.info("Rule, Start '" + self.id + "'")
         self.check_metrics(self.conditions)
 
     def _add_metric(self, workload_name):
@@ -109,9 +110,9 @@ class Rule(object):
         """
         if workload_name not in self.observers_values.keys():
             # Trying the new PyActive version. New lookup function.
-            print " - Rule, Workload name:", workload_name
+            logger.info("Rule, Workload name:", workload_name)
             observer = self.host.lookup(workload_name)
-            print ' - Rule, Observer: ', observer.get_id(), observer
+            logger.info('Rule, Observer: ' + observer.get_id() + " " + observer)
             observer.attach(self.proxy)
             self.observers_proxies[workload_name] = observer
             self.observers_values[workload_name] = None
@@ -125,7 +126,7 @@ class Rule(object):
         :param condition_list: The list of all the conditions.
         :type condition_list: **any** List type
         """
-        print ' - Rule, Condition: ', condition_list
+        logger.info('Rule, Condition: ' + str(condition_list))
         if not isinstance(condition_list[0], list):
             self._add_metric(condition_list[0].lower())
         else:
@@ -146,7 +147,7 @@ class Rule(object):
                             workload metric.
         :type tenant_info: **any** PyParsing type
         """
-        print ' --> Success update: ', value
+        logger.info("--> Success update: " + value)
 
         self.observers_values[metric] = value
 
@@ -157,7 +158,7 @@ class Rule(object):
             if self._check_conditions(self.conditions):
                 self._do_action()
         else:
-            print 'not all values setted', self.observers_values.values()
+            logger.error("not all values setted" + str(self.observers_values.values()))
 
     def _check_conditions(self, condition_list):
         """
@@ -221,7 +222,7 @@ class Rule(object):
             response = requests.put(url, json.dumps(data), headers=headers)
 
             if 200 <= response.status_code < 300:
-                print 'Policy ' + self.id + ' applied'
+                logger.info('Policy ' + self.id + ' applied')
                 self.redis.hset(self.id, 'alive', False)
                 try:
                     self.stop_actor()
@@ -229,22 +230,22 @@ class Rule(object):
                     pass
                 return
             else:
-                print 'Error setting policy'
+                logger.error('Error setting policy')
 
         elif self.action_list.action == "DELETE":
-            print "--> DELETE <--"
+            logger.info("--> DELETE <--")
 
             url = dynamic_filter["activation_url"] + "/" + self.target + "/undeploy/" + str(dynamic_filter["identifier"])
             response = requests.put(url, headers=headers)
 
             if 200 <= response.status_code < 300:
-                print response.text, response.status_code
+                logger.info(response.text + " " + response.status_code)
                 try:
                     self.stop_actor()
                 except:
                     pass
                 return response.text
             else:
-                print 'ERROR RESPONSE'
+                logger.error('ERROR RESPONSE')
 
         return 'Not action supported'

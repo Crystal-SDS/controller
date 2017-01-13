@@ -1,8 +1,11 @@
 import sys
-
+import logging
 import redis
 
 from api.settings import RABBITMQ_USERNAME, RABBITMQ_PASSWORD, RABBITMQ_HOST, RABBITMQ_PORT, REDIS_HOST, REDIS_PORT, REDIS_DATABASE, LOGSTASH_HOST, LOGSTASH_PORT
+
+
+logger = logging.getLogger(__name__)
 
 
 class Metric(object):
@@ -46,7 +49,7 @@ class Metric(object):
         :type observer: **any** PyActive Proxy type
         """
         # TODO: Add the possibility to subscribe to container or object
-        print '- Metric, Attaching observer: ', observer
+        logger.info('Metric, Attaching observer: ' + observer)
         tenant = observer.get_target()
 
         if tenant not in self._observers.keys():
@@ -63,7 +66,7 @@ class Metric(object):
         :param observer: The PyActive proxy of the oberver rule that calls this method.
         :type observer: **any** PyActive Proxy type
         """
-        print '- Metric, Detaching observer: ', observer
+        logger.info('Metric, Detaching observer: ' + observer)
         try:
             self._observers[target].remove(observer)
         except KeyError:
@@ -115,6 +118,7 @@ class Metric(object):
             self._atom.stop()
 
         except Exception as e:
+            logger.error(str(e))
             print e
 
     def start_consuming(self):
