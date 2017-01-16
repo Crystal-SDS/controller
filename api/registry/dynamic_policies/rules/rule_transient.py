@@ -48,7 +48,7 @@ class TransientRule(Rule):
                             workload metric.
         :type tenant_info: **any** PyParsing type
         """
-        logger.info('Success update: ' + tenant_info)
+        logger.info('Success update: ' + str(tenant_info))
 
         self.observers_values[metric] = tenant_info
 
@@ -103,7 +103,7 @@ class TransientRule(Rule):
                 logger.error('Error setting policy')
 
         elif action == "DELETE":
-            logger.info("Deleting static policy "+self.static_policy_id)
+            logger.info("Deleting static policy " + str(self.static_policy_id))
 
             url = dynamic_filter["activation_url"].rsplit("/",1)[0]+"/registry/static_policy/"+self.target+":"+str(self.static_policy_id)
             response = requests.delete(url, headers=headers)
