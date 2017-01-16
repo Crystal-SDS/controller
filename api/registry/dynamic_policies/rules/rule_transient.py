@@ -1,6 +1,9 @@
 from rule import Rule
 import requests
+import logging
 import json
+
+logger = logging.getLogger(__name__)
 
 
 class TransientRule(Rule):
@@ -28,7 +31,7 @@ class TransientRule(Rule):
         :type target: **any** String type
         """
         super(TransientRule, self).__init__(rule_parsed, action, target, host)
-        print "- Transient Rule"
+        logger.info("Transient Rule")
         self.execution_stat = False
         self.static_policy_id = None
 
@@ -45,7 +48,7 @@ class TransientRule(Rule):
                             workload metric.
         :type tenant_info: **any** PyParsing type
         """
-        print '\nSuccess update: ', tenant_info
+        logger.info('Success update: ' + str(tenant_info))
 
         self.observers_values[metric] = tenant_info
 
@@ -75,7 +78,7 @@ class TransientRule(Rule):
 
         if action == "SET":
             # TODO Review if this tenant has already deployed this filter. Don't deploy the same filter more than one time.
-            print "Setting static policy"
+            logger.info("Setting static policy")
             data = dict()
             url = dynamic_filter["activation_url"]+"/"+self.target+"/deploy/"+str(dynamic_filter["identifier"])
 
@@ -83,7 +86,7 @@ class TransientRule(Rule):
                 data['object_type'] = self.rule_parsed.object_list.object_type.object_value
             else:
                 data['object_type'] = ''
- 
+
             if hasattr(self.rule_parsed.object_list, "object_size"):
                 data['object_size'] = self.rule_parsed.object_list.object_size.object_value
             else:
@@ -94,23 +97,20 @@ class TransientRule(Rule):
             response = requests.put(url, json.dumps(data), headers=headers)
 
             if 200 <= response.status_code < 300:
-                print "Static policy applied with ID: " + response.content
+                logger.info("Static policy applied with ID: " + response.content)
                 self.static_policy_id = response.content
             else:
-                print 'Error setting policy'
+                logger.error('Error setting policy')
 
         elif action == "DELETE":
-            print "Deleting static policy "+self.static_policy_id
+            logger.info("Deleting static policy " + str(self.static_policy_id))
 
             url = dynamic_filter["activation_url"].rsplit("/",1)[0]+"/registry/static_policy/"+self.target+":"+str(self.static_policy_id)
             response = requests.delete(url, headers=headers)
 
-
             if 200 <= response.status_code < 300:
-                print "Policy " + str(self.static_policy_id) + " successfully deleted"
+                logger.info("Policy " + str(self.static_policy_id) + " successfully deleted")
             else:
-                print 'Error Deleting policy'
-
-
+                logger.error('Error Deleting policy')
 
         return 'Not action supported'

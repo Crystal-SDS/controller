@@ -1,5 +1,8 @@
 from threading import Thread
+import logging
 import pika
+
+logger = logging.getLogger(__name__)
 
 
 class Consumer(object):
@@ -19,8 +22,8 @@ class Consumer(object):
         self.obj = obj
         self.queue = queue
 
-        print '- Metric, Exchange:', exchange
-        print '- Metric, Routing_key: ', routing_key
+        logger.info('Metric, Exchange:' + exchange)
+        logger.info('Metric, Routing_key: ' + routing_key)
 
         self._channel.queue_declare(queue=queue)
 
@@ -32,18 +35,19 @@ class Consumer(object):
                                                         queue=queue,
                                                         no_ack=True)
         else:
+            logger.error("Consumer: You must entry a routing key")
             print "You must entry a routing key"
 
     def callback(self, ch, method, properties, body):
         self.obj.notify(body)
 
     def start_consuming(self):
-        print '- Metric, Start to consume from rabbitmq'
+        logger.info('Metric, Start to consume from rabbitmq')
         self.thread = Thread(target=self._channel.start_consuming)
         self.thread.start()
 
     def stop_consuming(self):
-        print '- Metric, Stopping to consume from rabbitmq'
+        logger.info('Metric, Stopping to consume from rabbitmq')
         self._atom.stop()
         self._channel.stop_consuming()
         self._channel.close()

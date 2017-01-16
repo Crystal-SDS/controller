@@ -37,7 +37,7 @@ def create_local_host():
     try:
         start_controller("pyactive_thread")
         host = init_host(tcpconf)
-        print("Controller PyActive host created")
+        logger.info("Controller PyActive host created")
     except:
         pass
 
@@ -51,7 +51,7 @@ def load_metrics():
     workload_metrics = r.keys("workload_metric:*")
 
     if workload_metrics:
-        print "\nStarting workload metrics:"
+        logger.info("Starting workload metrics")
 
     for wm in workload_metrics:
         wm_data = r.hgetall(wm)
@@ -70,7 +70,7 @@ def load_policies():
     dynamic_policies = r.keys("policy:*")
 
     if dynamic_policies:
-        print "\nStarting dynamic rules stored in redis:"
+        logger.info("Starting dynamic rules stored in redis")
 
     for policy in dynamic_policies:
         policy_data = r.hgetall(policy)
@@ -80,12 +80,12 @@ def load_policies():
             target = rule_parsed.target[0][1]  # Tenant ID or tenant+container
             for action_info in rule_parsed.action_list:
                 if action_info.transient:
-                    print 'Transient rule:', policy_data['policy_description']
+                    logger.info("Transient rule: " + policy_data['policy_description'])
                     rules[policy] = host.spawn_id(str(policy), settings.RULE_TRANSIENT_CLASS, settings.RULE_TRANSIENT_MAIN,
                                                   [rule_parsed, action_info, target, host])
                     rules[policy].start_rule()
                 else:
-                    print 'Rule:', policy_data['policy_description']
+                    logger.info("Rule: "+policy_data['policy_description'])
                     rules[policy] = host.spawn_id(str(policy), settings.RULE_CLASS, settings.RULE_MAIN,
                                                   [rule_parsed, action_info, target, host])
                     rules[policy].start_rule()
@@ -167,7 +167,7 @@ def metric_detail(request, name):
 @csrf_exempt
 def add_dynamic_filter(request):
     """
-    Add a filter with its default parameters in the registry (redis). 
+    Add a filter with its default parameters in the registry (redis).
     List all the dynamic filters registered.
     """
 
@@ -263,19 +263,20 @@ def metric_module_list(request):
 
 def start_metric(metric_id, actor_id):
     create_local_host()
-    print "- Metric, Starting workload metric actor " + str(metric_id)
+    logger.info("Metric, Starting workload metric actor " + str(metric_id))
     try:
         if metric_id not in metrics:
             metrics[metric_id] = host.spawn_id(actor_id, settings.METRIC_CLASS, settings.METRIC_MAIN,
                                                ["amq.topic", actor_id, "metrics." + actor_id])
             metrics[metric_id].init_consum()
     except Exception as e:
+        logger.error(str(e))
         print e
 
 
 def stop_metric(metric_id):
     if metric_id in metrics:
-        print "- Metric, Stopping workload metric actor " + str(metric_id)
+        logger.info("Metric, Stopping workload metric actor " + str(metric_id))
         metrics[metric_id].stop_actor()
         del metrics[metric_id]
 
@@ -308,7 +309,7 @@ def metric_module_detail(request, metric_module_id):
             return JSONResponse("Invalid format or empty request", status=status.HTTP_400_BAD_REQUEST)
 
         if data['enabled']:
-            if not 'metric_name' in data:
+            if 'metric_name' not in data:
                 wm_data = r.hgetall('workload_metric:' + str(metric_id))
                 data['metric_name'] = wm_data['metric_name']
 
@@ -384,6 +385,7 @@ class MetricModuleData(APIView):
             return JSONResponse("Error to save the object", status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             print e
+            logger.error(str(e))
             return JSONResponse("Error uploading file", status=status.HTTP_400_BAD_REQUEST)
 
     def get(self, request, metric_module_id):
@@ -749,7 +751,7 @@ def policy_list(request):
     """
     List all policies (sorted by execution_order). Deploy new policies.
     """
-    token = get_token_connection(request)
+    # token = get_token_connection(request)
 
     try:
         r = get_redis_connection()
@@ -808,13 +810,13 @@ def policy_list(request):
                 else:
                     # Static Rule
                     response = do_action(request, r, rule_parsed)
-                    print("RESPONSE: " + str(response))
+                    logger.info("RESPONSE: " + str(response))
 
             except SwiftClientError:
                 return JSONResponse('Error accessing Swift.', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             except StorletNotFoundException:
                 return JSONResponse('Storlet not found.', status=status.HTTP_404_NOT_FOUND)
-            except Exception as e:
+            except Exception:
                 # print("The rule: " + rule_string + " cannot be parsed")
                 # print("Exception message", e)
                 return JSONResponse('Please, review the rule, register the dsl filter and start the workload '
@@ -830,7 +832,7 @@ def static_policy_detail(request, policy_id):
     """
     Retrieve, update or delete a static policy.
     """
-    token = get_token_connection(request)
+    # token = get_token_connection(request)
 
     try:
         r = get_redis_connection()
@@ -883,6 +885,7 @@ def dynamic_policy_detail(request, policy_id):
             rules[int(policy_id)].stop_actor()
             del rules[int(policy_id)]
         except Exception as e:
+            logger.error(str(e))
             print e
 
         r.delete('policy:' + policy_id)
@@ -899,7 +902,7 @@ def do_action(request, r, rule_parsed):
 
     for target in rule_parsed.target:
         for action_info in rule_parsed.action_list:
-            print("TARGET RULE: ", action_info)
+            logger.info("TARGET RULE: " + action_info)
             dynamic_filter = r.hgetall("dsl_filter:" + str(action_info.filter))
             filter_data = r.hgetall("filter:" + dynamic_filter["identifier"])
 

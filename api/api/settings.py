@@ -100,7 +100,8 @@ LOGGING = {
     'formatters': {
         'standard': {
             '()': 'api.common_utils.LoggingColors',
-            'format': '%(asctime)s [%(levelname)s] %(name)s: %(message)s'
+            'format': '[%(asctime)s]"%(levelname)s" %(name)s: %(message)s',
+            'datefmt': '%d/%b/%Y %H:%M:%S',
         },
     },
     'handlers': {
@@ -112,7 +113,7 @@ LOGGING = {
     'loggers': {
         '': {
             'handlers': ['console'],
-            'level': 'DEBUG',
+            'level': 'INFO',
             'propagate': True
         }
     }
@@ -169,8 +170,8 @@ RULE_TRANSIENT_MAIN = 'TransientRule'
 # RabbitMQ
 RABBITMQ_HOST = 'localhost'
 RABBITMQ_PORT = 5672
-RABBITMQ_USERNAME = 'manager'
-RABBITMQ_PASSWORD = 'manager'
+RABBITMQ_USERNAME = 'guest'
+RABBITMQ_PASSWORD = 'guest'
 RABBITMQ_EXCHANGE = 'amq.topic'
 
 # Logstash

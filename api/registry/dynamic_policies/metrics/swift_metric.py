@@ -29,7 +29,7 @@ class SwiftMetric(Metric):
         rabbitmq queue. After receive the value, this value is communicated to
         all the observers subscribed to this metric.
 
-        {"controller": {"AUTH_bd34c4073b65426894545b36f0d8dcce": 3}}
+        {"controller": {"TenantName#:#AUTH_bd34c4073b65426894545b36f0d8dcce": 3}}
         """
         data = json.loads(body)
         Thread(target=self._send_data_to_logstash, args=(deepcopy(data), )).start()
@@ -39,7 +39,7 @@ class SwiftMetric(Metric):
                 del data[host]['@timestamp']
                 for target in data[host]:
                     value = data[host][target]
-                    tenant = target.replace('AUTH_', '')
+                    tenant = target.split("#:#")[1].replace('AUTH_', '')
                     if tenant in self._observers:
                         for observer in self._observers[tenant]:
                             observer.update(self.name, value)
@@ -61,7 +61,7 @@ class SwiftMetric(Metric):
                 del data[source_ip]['@timestamp']
 
                 for tenant, value in data[source_ip].items():
-                    monitoring_data['metric_target'] = tenant.replace('AUTH_', '')
+                    monitoring_data['metric_target'] = tenant.split("#:#")[0].replace('AUTH_', '')
                     if (tenant in self.last_metrics and self.last_metrics[tenant]['value'] == 0) or tenant not in self.last_metrics:
                         monitoring_data['value'] = 0
                         current_time = monitoring_data['@timestamp']
