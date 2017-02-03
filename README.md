@@ -16,7 +16,7 @@ A second type of source is the metadata from the objects themselves. Such metada
 The **controller** is the algorithm that manages the behavior of the data plane based on monitoring metrics. 
 A controller may contain a very simple rule to enforce compression filter on a tenant, or it may execute a complex bandwidth differentiation algorithm requiring global visibility of the cluster.
 
-![alt text](http://crystal-sds.org/wp-content/uploads/2016/05/architecture9-768x575.png "Crystal Architecture")
+![alt text](http://crystal-sds.org/wp-content/uploads/2016/05/architecture2-300x248.png "Crystal Architecture")
 
 ### Crystal Source code
 
