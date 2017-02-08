@@ -1,4 +1,4 @@
-from registry.dynamic_policies.rules.base_bw_controller import BaseBwController
+from controller.dynamic_policies.rules.base_bw_controller import BaseBwController
 
 
 class SimpleProportionalReplicationBandwidth(BaseBwController):

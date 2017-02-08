@@ -44,12 +44,12 @@ class RegistryTestCase(TestCase):
     # Static policy tests
     #
 
-    @mock.patch('registry.views.get_project_list')
+    @mock.patch('controller.views.get_project_list')
     def test_registry_static_policy(self, mock_get_project_list):
         mock_get_project_list.return_value = {'0123456789abcdef': 'tenantA', '2': 'tenantB'}
 
         # Create an instance of a GET request.
-        request = self.factory.get('/registry/static_policy')
+        request = self.factory.get('/controller/static_policy')
         request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
         response = policy_list(request)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -58,32 +58,32 @@ class RegistryTestCase(TestCase):
 
     def test_registry_dynamic_policy(self):
         # Create an instance of a GET request.
-        request = self.factory.get('/registry/dynamic_policy')
+        request = self.factory.get('/controller/dynamic_policy')
         request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
         response = policy_list(request)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         json_data = json.loads(response.content)
         self.assertEqual(len(json_data), 0)  # is empty
 
-    @mock.patch('registry.views.do_action')
+    @mock.patch('controller.views.do_action')
     def test_registry_static_policy_create_ok(self, mock_do_action):
         self.setup_dsl_parser_data()
 
         # Create an instance of a POST request.
         data = "FOR TENANT:1234567890abcdef DO SET compression"
-        request = self.factory.post('/registry/static_policy', data, content_type='text/plain')
+        request = self.factory.post('/controller/static_policy', data, content_type='text/plain')
         request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
         response = policy_list(request)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertTrue(mock_do_action.called)
 
-    @mock.patch('registry.views.set_filter')
+    @mock.patch('controller.views.set_filter')
     def test_registry_static_policy_create_set_filter_ok(self, mock_set_filter):
         self.setup_dsl_parser_data()
 
         # Create an instance of a POST request.
         data = "FOR TENANT:1234567890abcdef DO SET compression WITH bw=2 ON PROXY TO OBJECT_TYPE=DOCS"
-        request = self.factory.post('/registry/static_policy', data, content_type='text/plain')
+        request = self.factory.post('/controller/static_policy', data, content_type='text/plain')
         request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
         response = policy_list(request)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
@@ -91,25 +91,25 @@ class RegistryTestCase(TestCase):
         expected_policy_data = {'object_size': '', 'execution_order': 2, 'object_type': 'DOCS', 'params': mock.ANY, 'policy_id': 2, 'execution_server': 'PROXY', 'callable': False}
         mock_set_filter.assert_called_with(mock.ANY, '1234567890abcdef', mock.ANY, expected_policy_data, 'fake_token')
 
-    @mock.patch('registry.views.deploy_policy')
+    @mock.patch('controller.views.deploy_policy')
     def test_registry_dynamic_policy_create_ok(self, mock_deploy_policy):
         self.setup_dsl_parser_data()
 
         # Create an instance of a POST request.
         data = "FOR TENANT:1234567890abcdef WHEN metric1 > 5 DO SET compression"
-        request = self.factory.post('/registry/dynamic_policy', data, content_type='text/plain')
+        request = self.factory.post('/controller/dynamic_policy', data, content_type='text/plain')
         request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
         response = policy_list(request)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertTrue(mock_deploy_policy.called)
 
-    @mock.patch('registry.views.create_local_host')
+    @mock.patch('controller.views.create_local_host')
     def test_registry_dynamic_policy_create_spawn_id_ok(self, mock_create_local_host):
         self.setup_dsl_parser_data()
 
         # Create an instance of a POST request.
         data = "FOR TENANT:1234567890abcdef WHEN metric1 > 5 DO SET compression"
-        request = self.factory.post('/registry/dynamic_policy', data, content_type='text/plain')
+        request = self.factory.post('/controller/dynamic_policy', data, content_type='text/plain')
         request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
         response = policy_list(request)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
@@ -126,7 +126,7 @@ class RegistryTestCase(TestCase):
     #
     #     # Create an instance of a POST request.
     #     data = "FOR TENANT:1234567890abcdef DO SET compression"
-    #     request = self.factory.post('/registry/static_policy', data, content_type='text/plain')
+    #     request = self.factory.post('/controller/static_policy', data, content_type='text/plain')
     #     request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
     #     response = policy_list(request)
     #     self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
@@ -137,7 +137,7 @@ class RegistryTestCase(TestCase):
 
     def test_list_metrics_ok(self):
         self.setup_dsl_parser_data()
-        request = self.factory.get('/registry/metrics')
+        request = self.factory.get('/controller/metrics')
         response = add_metric(request)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         metrics = json.loads(response.content)
@@ -146,12 +146,12 @@ class RegistryTestCase(TestCase):
     def test_create_metric_ok(self):
         self.setup_dsl_parser_data()
         data = {'name': 'metric3', 'network_location': '?', 'type': 'integer'}
-        request = self.factory.post('/registry/metrics', data, format='json')
+        request = self.factory.post('/controller/metrics', data, format='json')
         response = add_metric(request)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         # Assert metric was created successfully
-        request = self.factory.get('/registry/metrics')
+        request = self.factory.get('/controller/metrics')
         response = add_metric(request)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         metrics = json.loads(response.content)
@@ -160,7 +160,7 @@ class RegistryTestCase(TestCase):
     def test_get_metric_ok(self):
         self.setup_dsl_parser_data()
         metric_name = 'metric1'
-        request = self.factory.get('/registry/metrics/' + metric_name)
+        request = self.factory.get('/controller/metrics/' + metric_name)
         response = metric_detail(request, metric_name)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         metric_data = json.loads(response.content)
@@ -170,12 +170,12 @@ class RegistryTestCase(TestCase):
         self.setup_dsl_parser_data()
         metric_name = 'metric1'
         data = {'network_location': '?', 'type': 'float'}
-        request = self.factory.put('/registry/metrics/' + metric_name, data, format='json')
+        request = self.factory.put('/controller/metrics/' + metric_name, data, format='json')
         response = metric_detail(request, metric_name)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         # Assert metric was updated successfully
-        request = self.factory.get('/registry/metrics/' + metric_name)
+        request = self.factory.get('/controller/metrics/' + metric_name)
         response = metric_detail(request, metric_name)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         metric_data = json.loads(response.content)
@@ -184,12 +184,12 @@ class RegistryTestCase(TestCase):
     def test_delete_metric_ok(self):
         self.setup_dsl_parser_data()
         metric_name = 'metric1'
-        request = self.factory.delete('/registry/metrics/' + metric_name)
+        request = self.factory.delete('/controller/metrics/' + metric_name)
         response = metric_detail(request, metric_name)
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
         # Assert metric was deleted successfully
-        request = self.factory.get('/registry/metrics')
+        request = self.factory.get('/controller/metrics')
         response = add_metric(request)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         metrics = json.loads(response.content)
@@ -201,12 +201,12 @@ class RegistryTestCase(TestCase):
 
     def test_metric_module_list_with_method_not_allowed(self):
         # No post for metric module
-        request = self.factory.post('/registry/metric_module')
+        request = self.factory.post('/controller/metric_module')
         response = metric_module_list(request)
         self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
     def test_list_metric_modules_ok(self):
-        request = self.factory.get('/registry/metric_module')
+        request = self.factory.get('/controller/metric_module')
         response = metric_module_list(request)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         metrics = json.loads(response.content)
@@ -214,13 +214,13 @@ class RegistryTestCase(TestCase):
         self.assertEqual(metrics[0]['metric_name'], 'm1.py')
 
     def test_metric_module_detail_with_method_not_allowed(self):
-        request = self.factory.post('/registry/metric_module')
+        request = self.factory.post('/controller/metric_module')
         response = metric_module_list(request)
         self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
     def test_get_metric_module_detail_ok(self):
         metric_id = '1'
-        request = self.factory.get('/registry/metric_module/' + metric_id)
+        request = self.factory.get('/controller/metric_module/' + metric_id)
         response = metric_module_detail(request, metric_id)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         metric_data = json.loads(response.content)
@@ -229,12 +229,12 @@ class RegistryTestCase(TestCase):
     def test_update_metric_module_detail_ok(self):
         metric_id = '1'
         data = {'execution_server': 'object', 'enabled': False}
-        request = self.factory.put('/registry/metric_module/' + metric_id, data, format='json')
+        request = self.factory.put('/controller/metric_module/' + metric_id, data, format='json')
         response = metric_module_detail(request, metric_id)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         # check the metric_module has been updated
-        request = self.factory.get('/registry/metric_module/' + metric_id)
+        request = self.factory.get('/controller/metric_module/' + metric_id)
         response = metric_module_detail(request, metric_id)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         metric_data = json.loads(response.content)
@@ -242,12 +242,12 @@ class RegistryTestCase(TestCase):
 
     def test_delete_metric_module_detail_ok(self):
         metric_id = '1'
-        request = self.factory.delete('/registry/metric_module/' + metric_id)
+        request = self.factory.delete('/controller/metric_module/' + metric_id)
         response = metric_module_detail(request, metric_id)
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
         # check the metric module has been deleted
-        request = self.factory.get('/registry/metric_module')
+        request = self.factory.get('/controller/metric_module')
         response = metric_module_list(request)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         metrics = json.loads(response.content)
@@ -255,16 +255,16 @@ class RegistryTestCase(TestCase):
 
     def test_metric_module_data_view_with_method_not_allowed(self):
         # No PUT method for this API call
-        request = self.factory.put('/registry/metric_module/data/')
+        request = self.factory.put('/controller/metric_module/data/')
         response = MetricModuleData.as_view()(request)
         self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
-    @mock.patch('registry.views.rsync_dir_with_nodes')
+    @mock.patch('controller.views.rsync_dir_with_nodes')
     def test_create_metric_module_ok(self, mock_rsync_dir):
         with open('test_data/test.py', 'r') as fp:
             metadata = {'class_name': 'Metric1', 'execution_server': 'proxy', 'out_flow': False,
                         'in_flow': False, 'enabled': False}
-            request = self.factory.post('/registry/metric_module/data/', {'file': fp, 'metadata': json.dumps(metadata)})
+            request = self.factory.post('/controller/metric_module/data/', {'file': fp, 'metadata': json.dumps(metadata)})
             response = MetricModuleData.as_view()(request)
             mock_rsync_dir.assert_called_with(settings.WORKLOAD_METRICS_DIR)
 
@@ -276,7 +276,7 @@ class RegistryTestCase(TestCase):
 
         # check the metric module has been created
         metric_id = '2'
-        request = self.factory.get('/registry/metric_module/' + metric_id)
+        request = self.factory.get('/controller/metric_module/' + metric_id)
         response = metric_module_detail(request, metric_id)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         metric_data = json.loads(response.content)
@@ -288,7 +288,7 @@ class RegistryTestCase(TestCase):
 
     def test_add_dynamic_filter_with_method_not_allowed(self):
         # No DELETE method for this API call
-        request = self.factory.delete('/registry/filters')
+        request = self.factory.delete('/controller/filters')
         response = add_dynamic_filter(request)
         self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
@@ -296,7 +296,7 @@ class RegistryTestCase(TestCase):
         # Create 2 dsl filters in redis
         self.setup_dsl_parser_data()
 
-        request = self.factory.get('/registry/filters')
+        request = self.factory.get('/controller/filters')
         response = add_dynamic_filter(request)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         dsl_filters = json.loads(response.content)
@@ -307,12 +307,12 @@ class RegistryTestCase(TestCase):
 
     def test_create_dsl_filter_ok(self):
         data = {'name': 'caching', 'identifier': 'caching-1.0.jar', 'activation_url': 'http://localhost:7000/caching', 'valid_parameters': ''}
-        request = self.factory.post('/registry/filters', data, format='json')
+        request = self.factory.post('/controller/filters', data, format='json')
         response = add_dynamic_filter(request)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         # Check the DSL filter has been created successfully
-        request = self.factory.get('/registry/filters')
+        request = self.factory.get('/controller/filters')
         response = add_dynamic_filter(request)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         dsl_filters = json.loads(response.content)
@@ -321,7 +321,7 @@ class RegistryTestCase(TestCase):
 
     def test_dynamic_filter_detail_with_method_not_allowed(self):
         # No POST method for this API call
-        request = self.factory.post('/registry/filters/dummy', {'activation_url': 'http://www.example.com'}, format='json')
+        request = self.factory.post('/controller/filters/dummy', {'activation_url': 'http://www.example.com'}, format='json')
         response = dynamic_filter_detail(request, 'dummy')
         self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
@@ -330,7 +330,7 @@ class RegistryTestCase(TestCase):
         self.setup_dsl_parser_data()
 
         dsl_filter_name = 'encryption'
-        request = self.factory.get('/registry/filters/' + dsl_filter_name)
+        request = self.factory.get('/controller/filters/' + dsl_filter_name)
         response = dynamic_filter_detail(request, dsl_filter_name)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         dsl_filter = json.loads(response.content)
@@ -344,12 +344,12 @@ class RegistryTestCase(TestCase):
 
         dsl_filter_name = 'encryption'
         data = {'activation_url': 'http://www.example.com/encryption'}
-        request = self.factory.put('/registry/filters/' + dsl_filter_name, data, format='json')
+        request = self.factory.put('/controller/filters/' + dsl_filter_name, data, format='json')
         response = dynamic_filter_detail(request, dsl_filter_name)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         # Verify the DSL filter has been updated successfully
-        request = self.factory.get('/registry/filters/' + dsl_filter_name)
+        request = self.factory.get('/controller/filters/' + dsl_filter_name)
         response = dynamic_filter_detail(request, dsl_filter_name)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         dsl_filter = json.loads(response.content)
@@ -358,7 +358,7 @@ class RegistryTestCase(TestCase):
     def test_update_dsl_filter_with_non_existent_name(self):
         dsl_filter_name = 'unknown'
         data = {'activation_url': 'http://www.example.com'}
-        request = self.factory.put('/registry/filters/' + dsl_filter_name, data, format='json')
+        request = self.factory.put('/controller/filters/' + dsl_filter_name, data, format='json')
         response = dynamic_filter_detail(request, dsl_filter_name)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
@@ -367,12 +367,12 @@ class RegistryTestCase(TestCase):
         self.setup_dsl_parser_data()
 
         dsl_filter_name = 'encryption'
-        request = self.factory.delete('/registry/filters/' + dsl_filter_name)
+        request = self.factory.delete('/controller/filters/' + dsl_filter_name)
         response = dynamic_filter_detail(request, dsl_filter_name)
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
         # Verify the DSL filter has been deleted successfully
-        request = self.factory.get('/registry/filters')
+        request = self.factory.get('/controller/filters')
         response = add_dynamic_filter(request)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         dsl_filters = json.loads(response.content)
@@ -383,7 +383,7 @@ class RegistryTestCase(TestCase):
     #
 
     def test_list_storage_nodes_ok(self):
-        request = self.factory.get('/registry/snode')
+        request = self.factory.get('/controller/snode')
         response = list_storage_node(request)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         storage_nodes = json.loads(response.content)
@@ -391,12 +391,12 @@ class RegistryTestCase(TestCase):
 
     def test_create_storage_node_ok(self):
         data = {'name': 'storagenode2', 'location': 'location2', 'type': 'type2'}
-        request = self.factory.post('/registry/snode', data, format='json')
+        request = self.factory.post('/controller/snode', data, format='json')
         response = list_storage_node(request)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         # Assert the storage node was created successfully
-        request = self.factory.get('/registry/snode')
+        request = self.factory.get('/controller/snode')
         response = list_storage_node(request)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         storage_nodes = json.loads(response.content)
@@ -405,24 +405,24 @@ class RegistryTestCase(TestCase):
     def test_list_storage_nodes_are_ordered_by_name(self):
         # Register a new SN
         data = {'name': 'storagenode3', 'location': 'location3', 'type': 'type3'}
-        request = self.factory.post('/registry/snode', data, format='json')
+        request = self.factory.post('/controller/snode', data, format='json')
         response = list_storage_node(request)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         # Register a new SN
         data = {'name': 'storagenode2', 'location': 'location2', 'type': 'type2'}
-        request = self.factory.post('/registry/snode', data, format='json')
+        request = self.factory.post('/controller/snode', data, format='json')
         response = list_storage_node(request)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         # Register a new SN
         data = {'name': 'storagenode4', 'location': 'location4', 'type': 'type4'}
-        request = self.factory.post('/registry/snode', data, format='json')
+        request = self.factory.post('/controller/snode', data, format='json')
         response = list_storage_node(request)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         # Assert the storage nodes are returned ordered by name
-        request = self.factory.get('/registry/snode')
+        request = self.factory.get('/controller/snode')
         response = list_storage_node(request)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         storage_nodes = json.loads(response.content)
@@ -434,7 +434,7 @@ class RegistryTestCase(TestCase):
 
     def test_get_storage_node_ok(self):
         snode_id = 1
-        request = self.factory.get('/registry/snode/' + str(snode_id))
+        request = self.factory.get('/controller/snode/' + str(snode_id))
         response = storage_node_detail(request, str(snode_id))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         metric_data = json.loads(response.content)
@@ -445,12 +445,12 @@ class RegistryTestCase(TestCase):
     def test_update_storage_node_ok(self):
         snode_id = 1
         data = {'name': 'storagenode1updated', 'location': 'r1z1-192.168.1.6:6000/sdb1', 'type': 'hddupdated'}
-        request = self.factory.put('/registry/snode/' + str(snode_id), data, format='json')
+        request = self.factory.put('/controller/snode/' + str(snode_id), data, format='json')
         response = storage_node_detail(request, str(snode_id))
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         # asserts it was modified successfully
-        request = self.factory.get('/registry/snode/' + str(snode_id))
+        request = self.factory.get('/controller/snode/' + str(snode_id))
         response = storage_node_detail(request, str(snode_id))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         metric_data = json.loads(response.content)
@@ -460,12 +460,12 @@ class RegistryTestCase(TestCase):
 
     def test_delete_storage_node_ok(self):
         snode_id = 1
-        request = self.factory.delete('/registry/snode/' + str(snode_id))
+        request = self.factory.delete('/controller/snode/' + str(snode_id))
         response = storage_node_detail(request, str(snode_id))
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
         # assert it was deleted successfully
-        request = self.factory.get('/registry/snode')
+        request = self.factory.get('/controller/snode')
         response = list_storage_node(request)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         storage_nodes = json.loads(response.content)
@@ -476,19 +476,19 @@ class RegistryTestCase(TestCase):
     #
 
     def test_object_type_list_with_method_not_allowed(self):
-        request = self.factory.delete('/registry/object_type')
+        request = self.factory.delete('/controller/object_type')
         response = object_type_list(request)
         self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
     def test_object_type_detail_with_method_not_allowed(self):
         name = 'AUDIO'
         object_type_data = {'name': name, 'types_list': ['avi', 'mkv']}
-        request = self.factory.post('/registry/object_type/' + name, object_type_data, format='json')
+        request = self.factory.post('/controller/object_type/' + name, object_type_data, format='json')
         response = object_type_detail(request, name)
         self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
     def test_list_object_types_ok(self):
-        request = self.factory.get('/registry/object_type')
+        request = self.factory.get('/controller/object_type')
         response = object_type_list(request)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -502,12 +502,12 @@ class RegistryTestCase(TestCase):
     def test_create_object_type_ok(self):
         # Create a second object type:
         object_type_data = {'name': 'VIDEO', 'types_list': ['avi', 'mkv']}
-        request = self.factory.post('/registry/object_type', object_type_data, format='json')
+        request = self.factory.post('/controller/object_type', object_type_data, format='json')
         response = object_type_list(request)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         # obtain the list
-        request = self.factory.get('/registry/object_type')
+        request = self.factory.get('/controller/object_type')
         response = object_type_list(request)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertNotEqual(response.content, "[]")
@@ -517,34 +517,34 @@ class RegistryTestCase(TestCase):
     def test_create_object_type_without_name(self):
         # Create a second object type without name --> ERROR
         object_type_data = {'types_list': ['avi', 'mkv']}
-        request = self.factory.post('/registry/object_type', object_type_data, format='json')
+        request = self.factory.post('/controller/object_type', object_type_data, format='json')
         response = object_type_list(request)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_create_object_type_with_an_existing_name(self):
         # Create a second object type with an existing name --> ERROR
         object_type_data = {'name': 'DOCS', 'types_list': ['avi', 'mkv']}
-        request = self.factory.post('/registry/object_type', object_type_data, format='json')
+        request = self.factory.post('/controller/object_type', object_type_data, format='json')
         response = object_type_list(request)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_create_object_type_without_types_list(self):
         # Create a second object type without_types_list --> ERROR
         object_type_data = {'name': 'VIDEO'}
-        request = self.factory.post('/registry/object_type', object_type_data, format='json')
+        request = self.factory.post('/controller/object_type', object_type_data, format='json')
         response = object_type_list(request)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_create_object_type_with_empty_types_list(self):
         # Create a second object type with empty types_list --> ERROR
         object_type_data = {'name': 'VIDEO', 'types_list': []}
-        request = self.factory.post('/registry/object_type', object_type_data, format='json')
+        request = self.factory.post('/controller/object_type', object_type_data, format='json')
         response = object_type_list(request)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_object_type_detail_ok(self):
         name = 'DOCS'
-        request = self.factory.get('/registry/object_type/' + name)
+        request = self.factory.get('/controller/object_type/' + name)
         response = object_type_detail(request, name)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         object_type = json.loads(response.content)
@@ -554,29 +554,29 @@ class RegistryTestCase(TestCase):
 
     def test_object_type_detail_with_non_existent_name(self):
         name = 'AUDIO'
-        request = self.factory.get('/registry/object_type/' + name)
+        request = self.factory.get('/controller/object_type/' + name)
         response = object_type_detail(request, name)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_delete_object_type_ok(self):
         name = 'DOCS'
-        request = self.factory.delete('/registry/object_type/' + name)
+        request = self.factory.delete('/controller/object_type/' + name)
         response = object_type_detail(request, name)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-        request = self.factory.get('/registry/object_type')
+        request = self.factory.get('/controller/object_type')
         response = object_type_list(request)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.content, "[]")
 
     def test_delete_object_type_with_non_existent_name(self):
         name = 'AUDIO'
-        request = self.factory.delete('/registry/object_type/' + name)
+        request = self.factory.delete('/controller/object_type/' + name)
         response = object_type_detail(request, name)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
         # Check nothing was deleted
-        request = self.factory.get('/registry/object_type')
+        request = self.factory.get('/controller/object_type')
         response = object_type_list(request)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertNotEqual(response.content, "[]")
@@ -586,12 +586,12 @@ class RegistryTestCase(TestCase):
     def test_update_object_type_ok(self):
         name = 'DOCS'
         data = ['txt', 'doc']
-        request = self.factory.put('/registry/object_type/' + name, data, format='json')
+        request = self.factory.put('/controller/object_type/' + name, data, format='json')
         response = object_type_detail(request, name)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         # Check the object type was updated properly
-        request = self.factory.get('/registry/object_type')
+        request = self.factory.get('/controller/object_type')
         response = object_type_list(request)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertNotEqual(response.content, "[]")
@@ -605,12 +605,12 @@ class RegistryTestCase(TestCase):
     def test_update_object_type_ok_with_more_extensions(self):
         name = 'DOCS'
         data = ['txt', 'doc', 'docx', 'odt']
-        request = self.factory.put('/registry/object_type/' + name, data, format='json')
+        request = self.factory.put('/controller/object_type/' + name, data, format='json')
         response = object_type_detail(request, name)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         # Check the object type was updated properly
-        request = self.factory.get('/registry/object_type')
+        request = self.factory.get('/controller/object_type')
         response = object_type_list(request)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertNotEqual(response.content, "[]")
@@ -624,7 +624,7 @@ class RegistryTestCase(TestCase):
     def test_update_object_type_with_non_existent_name(self):
         name = 'VIDEO'
         data = ['avi', 'mkv']
-        request = self.factory.put('/registry/object_type/' + name, data, format='json')
+        request = self.factory.put('/controller/object_type/' + name, data, format='json')
         response = object_type_detail(request, name)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
@@ -632,7 +632,7 @@ class RegistryTestCase(TestCase):
         # It's wrong to send an empty list
         name = 'DOCS'
         data = []
-        request = self.factory.put('/registry/object_type/' + name, data, format='json')
+        request = self.factory.put('/controller/object_type/' + name, data, format='json')
         response = object_type_detail(request, name)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
@@ -643,26 +643,26 @@ class RegistryTestCase(TestCase):
     #
 
     def test_add_tenants_group_with_method_not_allowed(self):
-        request = self.factory.delete('/registry/gtenants')
+        request = self.factory.delete('/controller/gtenants')
         response = add_tenants_group(request)
         self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
     def test_tenants_group_detail_with_method_not_allowed(self):
         gtenant_id = 1
         tenants = ['1234567890abcdf', 'abcdef1234567890']
-        request = self.factory.post('/registry/gtenants/' + str(gtenant_id), tenants, format='json')
+        request = self.factory.post('/controller/gtenants/' + str(gtenant_id), tenants, format='json')
         response = tenants_group_detail(request, gtenant_id)
         self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
     def test_gtenants_tenant_detail_with_method_not_allowed(self):
         gtenant_id = '1'
         tenant_id = '1234567890abcdef'
-        request = self.factory.get('/registry/gtenants/' + gtenant_id + '/tenants/' + tenant_id)
+        request = self.factory.get('/controller/gtenants/' + gtenant_id + '/tenants/' + tenant_id)
         response = gtenants_tenant_detail(request, gtenant_id, tenant_id)
         self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
     def test_list_tenants_group_ok(self):
-        request = self.factory.get('/registry/gtenants')
+        request = self.factory.get('/controller/gtenants')
         response = add_tenants_group(request)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         tenants_groups = json.loads(response.content)
@@ -674,11 +674,11 @@ class RegistryTestCase(TestCase):
     def test_create_tenant_group_ok(self):
         # Create a second tenant group
         tenant_group_data = ['tenant1_id', 'tenant2_id', 'tenant3_id']
-        request = self.factory.post('/registry/gtenants', tenant_group_data, format='json')
+        request = self.factory.post('/controller/gtenants', tenant_group_data, format='json')
         response = add_tenants_group(request)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
-        request = self.factory.get('/registry/gtenants')
+        request = self.factory.get('/controller/gtenants')
         response = add_tenants_group(request)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         tenants_groups = json.loads(response.content)
@@ -692,13 +692,13 @@ class RegistryTestCase(TestCase):
     def test_create_tenant_group_with_empty_data(self):
         # Create a second tenant group with empty data --> ERROR
         tenant_group_data = []
-        request = self.factory.post('/registry/gtenants', tenant_group_data, format='json')
+        request = self.factory.post('/controller/gtenants', tenant_group_data, format='json')
         response = add_tenants_group(request)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_tenant_group_detail_ok(self):
         gtenant_id = '1'
-        request = self.factory.get('/registry/gtenants/' + gtenant_id)
+        request = self.factory.get('/controller/gtenants/' + gtenant_id)
         response = tenants_group_detail(request, gtenant_id)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         tenant_list = json.loads(response.content)
@@ -708,17 +708,17 @@ class RegistryTestCase(TestCase):
 
     def test_tenant_group_detail_with_non_existent_id(self):
         gtenant_id = '2'
-        request = self.factory.get('/registry/gtenants/' + gtenant_id)
+        request = self.factory.get('/controller/gtenants/' + gtenant_id)
         response = tenants_group_detail(request, gtenant_id)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_delete_tenant_group_ok(self):
         gtenant_id = '1'
-        request = self.factory.delete('/registry/gtenants/' + gtenant_id)
+        request = self.factory.delete('/controller/gtenants/' + gtenant_id)
         response = tenants_group_detail(request, gtenant_id)
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
-        request = self.factory.get('/registry/gtenants')
+        request = self.factory.get('/controller/gtenants')
         response = add_tenants_group(request)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.content, "{}")
@@ -727,12 +727,12 @@ class RegistryTestCase(TestCase):
 
     def test_delete_tenant_group_with_non_existent_id(self):
         gtenant_id = '2'
-        request = self.factory.delete('/registry/gtenants/' + gtenant_id)
+        request = self.factory.delete('/controller/gtenants/' + gtenant_id)
         response = tenants_group_detail(request, gtenant_id)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
         # Check nothing was deleted
-        request = self.factory.get('/registry/gtenants')
+        request = self.factory.get('/controller/gtenants')
         response = add_tenants_group(request)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertNotEqual(response.content, "{}")
@@ -743,12 +743,12 @@ class RegistryTestCase(TestCase):
     def test_update_tenant_group_ok(self):
         gtenant_id = '1'
         data = ['1234567890abcdef', 'abcdef1234567890', '3333333333']
-        request = self.factory.put('/registry/gtenants/' + gtenant_id, data, format='json')
+        request = self.factory.put('/controller/gtenants/' + gtenant_id, data, format='json')
         response = tenants_group_detail(request, gtenant_id)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         # Check the object type was updated properly
-        request = self.factory.get('/registry/gtenants')
+        request = self.factory.get('/controller/gtenants')
         response = add_tenants_group(request)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         tenants_groups = json.loads(response.content)
@@ -761,26 +761,26 @@ class RegistryTestCase(TestCase):
     def test_update_tenant_group_with_non_existent_id(self):
         gtenant_id = '2'
         data = ['1234567890abcdef', 'abcdef1234567890', '3333333333']
-        request = self.factory.put('/registry/gtenants/' + gtenant_id, data, format='json')
+        request = self.factory.put('/controller/gtenants/' + gtenant_id, data, format='json')
         response = tenants_group_detail(request, gtenant_id)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_update_tenant_group_with_empty_data(self):
         gtenant_id = '1'
         data = []
-        request = self.factory.put('/registry/gtenants/' + gtenant_id, data, format='json')
+        request = self.factory.put('/controller/gtenants/' + gtenant_id, data, format='json')
         response = tenants_group_detail(request, gtenant_id)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_delete_individual_tenant_from_group_ok(self):
         gtenant_id = '1'
         tenant_id = '1234567890abcdef'
-        request = self.factory.delete('/registry/gtenants/' + gtenant_id + '/tenants/' + tenant_id)
+        request = self.factory.delete('/controller/gtenants/' + gtenant_id + '/tenants/' + tenant_id)
         response = gtenants_tenant_detail(request, gtenant_id, tenant_id)
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
         # Check delete was successful
-        request = self.factory.get('/registry/gtenants')
+        request = self.factory.get('/controller/gtenants')
         response = add_tenants_group(request)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         tenants_groups = json.loads(response.content)
@@ -938,19 +938,19 @@ class RegistryTestCase(TestCase):
     # load_metrics() / load_policies()
     #
 
-    @mock.patch('registry.views.start_metric')
+    @mock.patch('controller.views.start_metric')
     def test_load_metrics(self, mock_start_metric):
         load_metrics()
         mock_start_metric.assert_called_with(1, 'm1')
 
-    @mock.patch('registry.views.create_local_host')
+    @mock.patch('controller.views.create_local_host')
     def test_load_policies_not_alive(self, mock_create_local_host):
         self.r.hmset('policy:20',
                      {'alive': 'False', 'policy_description': 'FOR TENANT:0123456789abcdef DO SET compression'})
         load_policies()
         self.assertEqual(len(mock_create_local_host.return_value.method_calls), 0)
 
-    @mock.patch('registry.views.create_local_host')
+    @mock.patch('controller.views.create_local_host')
     def test_load_policies_alive(self, mock_create_local_host):
         self.setup_dsl_parser_data()
         self.r.hmset('policy:21',
@@ -958,7 +958,7 @@ class RegistryTestCase(TestCase):
         load_policies()
         self.assertTrue(mock_create_local_host.return_value.spawn_id.called)
 
-    @mock.patch('registry.views.create_local_host')
+    @mock.patch('controller.views.create_local_host')
     def test_load_policies_alive_transient(self, mock_create_local_host):
         self.setup_dsl_parser_data()
         self.r.hmset('policy:21',
@@ -970,31 +970,31 @@ class RegistryTestCase(TestCase):
     # static_policy_detail()
     #
 
-    @mock.patch('registry.views.get_project_list')
+    @mock.patch('controller.views.get_project_list')
     def test_registry_static_policy_detail_ok(self, mock_get_project_list):
         mock_get_project_list.return_value = {'0123456789abcdef': 'tenantA', '2': 'tenantB'}
 
         # Create an instance of a GET request.
-        request = self.factory.get('/registry/static_policy/0123456789abcdef:1')
+        request = self.factory.get('/controller/static_policy/0123456789abcdef:1')
         request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
         response = static_policy_detail(request, '0123456789abcdef:1')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         json_data = json.loads(response.content)
         self.assertEqual(json_data["target_name"], 'tenantA')
 
-    @mock.patch('registry.views.get_project_list')
+    @mock.patch('controller.views.get_project_list')
     def test_registry_static_policy_update(self, mock_get_project_list):
         mock_get_project_list.return_value = {'0123456789abcdef': 'tenantA', '2': 'tenantB'}
 
         # Create an instance of a PUT request.
         data = {"execution_server": "object", "execution_server_reverse": "object"}
-        request = self.factory.put('/registry/static_policy/0123456789abcdef:1', data, format='json')
+        request = self.factory.put('/controller/static_policy/0123456789abcdef:1', data, format='json')
         request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
         response = static_policy_detail(request, '0123456789abcdef:1')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         # Create an instance of a GET request.
-        request = self.factory.get('/registry/static_policy/0123456789abcdef:1')
+        request = self.factory.get('/controller/static_policy/0123456789abcdef:1')
         request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
         response = static_policy_detail(request, '0123456789abcdef:1')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -1002,18 +1002,18 @@ class RegistryTestCase(TestCase):
         self.assertEqual(json_data["execution_server"], 'object')
         self.assertEqual(json_data["execution_server_reverse"], 'object')
 
-    @mock.patch('registry.views.get_project_list')
+    @mock.patch('controller.views.get_project_list')
     def test_registry_static_policy_detail_delete(self, mock_get_project_list):
         mock_get_project_list.return_value = {'0123456789abcdef': 'tenantA', '2': 'tenantB'}
 
         # Create an instance of a DELETE request.
-        request = self.factory.delete('/registry/static_policy/0123456789abcdef:1')
+        request = self.factory.delete('/controller/static_policy/0123456789abcdef:1')
         request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
         response = static_policy_detail(request, '0123456789abcdef:1')
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
         # Check there is no policy
-        request = self.factory.get('/registry/static_policy')
+        request = self.factory.get('/controller/static_policy')
         request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
         response = policy_list(request)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -1025,7 +1025,7 @@ class RegistryTestCase(TestCase):
     #
 
     def test_registry_dynamic_policy_detail_with_method_not_allowed(self):
-        request = self.factory.get('/registry/dynamic_policy/123')
+        request = self.factory.get('/controller/dynamic_policy/123')
         response = dynamic_policy_detail(request, '123')
         self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
@@ -1055,7 +1055,7 @@ class RegistryTestCase(TestCase):
                                        query_string=None, response_dict=None):
         response_dict['status'] = status.HTTP_201_CREATED
 
-    @mock.patch('registry.views.get_project_list')
+    @mock.patch('controller.views.get_project_list')
     @mock.patch('filters.views.swift_client.put_object', side_effect=mock_put_object_status_created)
     def deploy_storlet(self, mock_put_object, mock_get_project_list):
         mock_get_project_list.return_value = {'0123456789abcdef': 'tenantA', '2': 'tenantB'}
@@ -1078,7 +1078,7 @@ class RegistryTestCase(TestCase):
 
     def create_object_type_docs(self):
         object_type_data = {'name': 'DOCS', 'types_list': ['txt', 'doc', 'docx']}
-        request = self.factory.post('/registry/object_type', object_type_data, format='json')
+        request = self.factory.post('/controller/object_type', object_type_data, format='json')
         response = object_type_list(request)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
@@ -1094,7 +1094,7 @@ class RegistryTestCase(TestCase):
 
     def create_tenant_group_1(self):
         tenant_group_data = ['1234567890abcdef', 'abcdef1234567890']
-        request = self.factory.post('/registry/gtenants', tenant_group_data, format='json')
+        request = self.factory.post('/controller/gtenants', tenant_group_data, format='json')
         response = add_tenants_group(request)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 

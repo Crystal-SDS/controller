@@ -105,7 +105,7 @@ class TransientRule(Rule):
         elif action == "DELETE":
             logger.info("Deleting static policy " + str(self.static_policy_id))
 
-            url = dynamic_filter["activation_url"].rsplit("/",1)[0]+"/registry/static_policy/"+self.target+":"+str(self.static_policy_id)
+            url = dynamic_filter["activation_url"].rsplit("/",1)[0]+"/controller/static_policy/"+self.target+":"+str(self.static_policy_id)
             response = requests.delete(url, headers=headers)
 
             if 200 <= response.status_code < 300:

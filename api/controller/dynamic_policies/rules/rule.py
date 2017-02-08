@@ -40,7 +40,7 @@ class Rule(object):
         """
 
         # settings = ConfigParser.ConfigParser()
-        # settings.read("registry/dynamic_policies/settings.conf")
+        # settings.read("controller/dynamic_policies/settings.conf")
 
         self.openstack_tenant = MANAGEMENT_ACCOUNT
         self.openstack_user = MANAGEMENT_ADMIN_USERNAME

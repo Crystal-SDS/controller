@@ -30,7 +30,7 @@ class AbstractEnforcementAlgorithm(object):
         """
         """
         # settings = ConfigParser.ConfigParser()
-        # config_file = (os.path.join(os.getcwd(), 'registry', 'dynamic_policies', 'settings.conf'))
+        # config_file = (os.path.join(os.getcwd(), 'controller', 'dynamic_policies', 'settings.conf'))
         # settings.read(config_file)
 
         logging.info('Rule init: OK')

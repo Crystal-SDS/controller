@@ -21,5 +21,5 @@ urlpatterns = [
     url(r'^filters', include('filters.urls')),
     # url(r'^bw', include('bw.urls')),
     url(r'^swift', include('swift.urls')),
-    url(r'^registry', include('registry.urls'))
+    url(r'^controller', include('controller.urls'))
 ]

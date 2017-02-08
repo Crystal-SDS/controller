@@ -1,4 +1,4 @@
-from registry.dynamic_policies.rules.base_global_controller import AbstractEnforcementAlgorithm
+from controller.dynamic_policies.rules.base_global_controller import AbstractEnforcementAlgorithm
 
 
 class BaseBwController(AbstractEnforcementAlgorithm):

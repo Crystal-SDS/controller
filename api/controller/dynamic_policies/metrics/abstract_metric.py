@@ -24,7 +24,7 @@ class Metric(object):
         self.value = None
         self.name = None
         # settings = ConfigParser.ConfigParser()
-        # settings.read("registry/dynamic_policies/settings.conf")
+        # settings.read("controller/dynamic_policies/settings.conf")
         self.rmq_user = settings.RABBITMQ_USERNAME
         self.rmq_pass = settings.RABBITMQ_PASSWORD
         self.rmq_host = settings.RABBITMQ_HOST
@@ -94,7 +94,7 @@ class Metric(object):
             self.redis.hmset("metric:" + self.name, {"network_location": self._atom.aref.replace("atom:", "tcp:", 1), "type": "integer"})
 
             self.consumer = self.host.spawn_id(self.id + "_consumer",
-                                               "registry.dynamic_policies.consumer",
+                                               "controller.dynamic_policies.consumer",
                                                "Consumer",
                                                [str(self.rmq_host),
                                                 int(self.rmq_port),

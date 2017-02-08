@@ -48,7 +48,7 @@ INSTALLED_APPS = (
     'rest_framework',
     'filters',
     'swift',
-    'registry'
+    'controller'
 )
 
 MIDDLEWARE_CLASSES = (
@@ -158,18 +158,18 @@ PYACTIVE_PORT = 6899
 PYACTIVE_URL = PYACTIVE_TRANSPORT + '://' + PYACTIVE_IP + ':' + str(PYACTIVE_PORT)
 
 # Metrics
-METRIC_MODULE = 'registry.dynamic_policies.metrics.swift_metric'
+METRIC_MODULE = 'controller.dynamic_policies.metrics.swift_metric'
 METRIC_CLASS = 'SwiftMetric'
 
 # Rules
-RULE_MODULE = 'registry.dynamic_policies.rules.rule'
+RULE_MODULE = 'controller.dynamic_policies.rules.rule'
 RULE_CLASS = 'Rule'
-RULE_TRANSIENT_MODULE = 'registry.dynamic_policies.rules.rule_transient'
+RULE_TRANSIENT_MODULE = 'controller.dynamic_policies.rules.rule_transient'
 RULE_TRANSIENT_CLASS = 'TransientRule'
 
 # Global controllers
-GLOBAL_CONTROLLERS_BASE_MODULE = 'registry.dynamic_policies.rules'
-METRICS_BASE_MODULE = 'registry.dynamic_policies.metrics'
+GLOBAL_CONTROLLERS_BASE_MODULE = 'controller.dynamic_policies.rules'
+METRICS_BASE_MODULE = 'controller.dynamic_policies.metrics'
 
 # RabbitMQ
 RABBITMQ_HOST = 'localhost'

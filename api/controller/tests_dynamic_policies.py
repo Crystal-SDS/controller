@@ -7,16 +7,16 @@ from django.conf import settings
 from django.test import TestCase, override_settings
 from httmock import urlmatch, HTTMock
 
-from registry.dynamic_policies.metrics.bw_info import BwInfo
-from registry.dynamic_policies.metrics.bw_info_ssync import BwInfoSSYNC
-from registry.dynamic_policies.metrics.swift_metric import SwiftMetric
-from registry.dynamic_policies.rules.rule import Rule
-from registry.dynamic_policies.rules.rule_transient import TransientRule
-from registry.dynamic_policies.rules.sample_bw_controllers.simple_proportional_bandwidth import SimpleProportionalBandwidthPerTenant
-from registry.dynamic_policies.rules.sample_bw_controllers.simple_proportional_replication_bandwidth import SimpleProportionalReplicationBandwidth
-from registry.dynamic_policies.rules.sample_bw_controllers.min_bandwidth_per_tenant import SimpleMinBandwidthPerTenant
-from registry.dynamic_policies.rules.sample_bw_controllers.min_slo_tenant_global_share_spare_bw import MinTenantSLOGlobalSpareBWShare
-from registry.dynamic_policies.rules.sample_bw_controllers.min_slo_tenant_global_share_spare_bw_v2 import MinTenantSLOGlobalSpareBWShare as MinTenantSLOGlobalSpareBWShareV2
+from controller.dynamic_policies.metrics.bw_info import BwInfo
+from controller.dynamic_policies.metrics.bw_info_ssync import BwInfoSSYNC
+from controller.dynamic_policies.metrics.swift_metric import SwiftMetric
+from controller.dynamic_policies.rules.rule import Rule
+from controller.dynamic_policies.rules.rule_transient import TransientRule
+from controller.dynamic_policies.rules.sample_bw_controllers.simple_proportional_bandwidth import SimpleProportionalBandwidthPerTenant
+from controller.dynamic_policies.rules.sample_bw_controllers.simple_proportional_replication_bandwidth import SimpleProportionalReplicationBandwidth
+from controller.dynamic_policies.rules.sample_bw_controllers.min_bandwidth_per_tenant import SimpleMinBandwidthPerTenant
+from controller.dynamic_policies.rules.sample_bw_controllers.min_slo_tenant_global_share_spare_bw import MinTenantSLOGlobalSpareBWShare
+from controller.dynamic_policies.rules.sample_bw_controllers.min_slo_tenant_global_share_spare_bw_v2 import MinTenantSLOGlobalSpareBWShare as MinTenantSLOGlobalSpareBWShareV2
 from .dsl_parser import parse
 
 
@@ -53,7 +53,7 @@ class DynamicPoliciesTestCase(TestCase):
         rule = Rule(parsed_rule, parsed_rule.action_list[0], target, host)
         self.assertEqual(rule.get_target(), '4f0279da74ef4584a29dc72c835fe2c9')
 
-    @mock.patch('registry.dynamic_policies.rules.rule.Rule._do_action')
+    @mock.patch('controller.dynamic_policies.rules.rule.Rule._do_action')
     def test_action_is_not_triggered(self, mock_do_action):
         self.setup_dsl_parser_data()
         _, parsed_rule = parse('FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 WHEN metric1 > 5 DO SET compression')
@@ -63,7 +63,7 @@ class DynamicPoliciesTestCase(TestCase):
         rule.update('metric1', 3)
         self.assertFalse(mock_do_action.called)
 
-    @mock.patch('registry.dynamic_policies.rules.rule.Rule._do_action')
+    @mock.patch('controller.dynamic_policies.rules.rule.Rule._do_action')
     def test_action_is_triggered(self, mock_do_action):
         self.setup_dsl_parser_data()
         _, parsed_rule = parse('FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 WHEN metric1 > 5 DO SET compression')
@@ -73,9 +73,9 @@ class DynamicPoliciesTestCase(TestCase):
         rule.update('metric1', 6)
         self.assertTrue(mock_do_action.called)
 
-    @mock.patch('registry.dynamic_policies.rules.rule.redis.StrictRedis.hgetall')
-    @mock.patch('registry.dynamic_policies.rules.rule.redis.StrictRedis.hset')
-    @mock.patch('registry.dynamic_policies.rules.rule.Rule._admin_login')
+    @mock.patch('controller.dynamic_policies.rules.rule.redis.StrictRedis.hgetall')
+    @mock.patch('controller.dynamic_policies.rules.rule.redis.StrictRedis.hset')
+    @mock.patch('controller.dynamic_policies.rules.rule.Rule._admin_login')
     def test_action_set_is_triggered_deploy_200(self, mock_admin_login, mock_redis_hset, mock_redis_hgetall):
         mock_redis_hgetall.return_value = {'activation_url': 'http://example.com/filters',
                                            'identifier': '1',
@@ -92,9 +92,9 @@ class DynamicPoliciesTestCase(TestCase):
         self.assertTrue(mock_redis_hset.called)
         mock_redis_hset.assert_called_with('10', 'alive', False)
 
-    @mock.patch('registry.dynamic_policies.rules.rule.redis.StrictRedis.hgetall')
-    @mock.patch('registry.dynamic_policies.rules.rule.redis.StrictRedis.hset')
-    @mock.patch('registry.dynamic_policies.rules.rule.Rule._admin_login')
+    @mock.patch('controller.dynamic_policies.rules.rule.redis.StrictRedis.hgetall')
+    @mock.patch('controller.dynamic_policies.rules.rule.redis.StrictRedis.hset')
+    @mock.patch('controller.dynamic_policies.rules.rule.Rule._admin_login')
     def test_action_set_is_triggered_deploy_400(self, mock_admin_login, mock_redis_hset, mock_redis_hgetall):
         mock_redis_hgetall.return_value = {'activation_url': 'http://example.com/filters',
                                            'identifier': '1',
@@ -110,9 +110,9 @@ class DynamicPoliciesTestCase(TestCase):
         self.assertTrue(mock_admin_login.called)
         self.assertFalse(mock_redis_hset.called)
 
-    @mock.patch('registry.dynamic_policies.rules.rule.redis.StrictRedis.hgetall')
-    @mock.patch('registry.dynamic_policies.rules.rule.Rule._admin_login')
-    @mock.patch('registry.dynamic_policies.rules.rule.Rule.stop_actor')
+    @mock.patch('controller.dynamic_policies.rules.rule.redis.StrictRedis.hgetall')
+    @mock.patch('controller.dynamic_policies.rules.rule.Rule._admin_login')
+    @mock.patch('controller.dynamic_policies.rules.rule.Rule.stop_actor')
     def test_action_delete_is_triggered_undeploy_200(self, mock_stop_actor, mock_admin_login, mock_redis_hgetall):
         mock_redis_hgetall.return_value = {'activation_url': 'http://example.com/filters',
                                            'identifier': '1',
@@ -134,7 +134,7 @@ class DynamicPoliciesTestCase(TestCase):
     # rules/rule_transient
     #
 
-    @mock.patch('registry.dynamic_policies.rules.rule_transient.TransientRule.do_action')
+    @mock.patch('controller.dynamic_policies.rules.rule_transient.TransientRule.do_action')
     def test_transient_action_is_triggered(self, mock_do_action):
         self.setup_dsl_parser_data()
         _, parsed_rule = parse('FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 WHEN metric1 > 5 DO SET compression TRANSIENT')
@@ -144,10 +144,10 @@ class DynamicPoliciesTestCase(TestCase):
         rule.update('metric1', 6)
         self.assertTrue(mock_do_action.called)
 
-    @mock.patch('registry.dynamic_policies.rules.rule.redis.StrictRedis.hgetall')
-    @mock.patch('registry.dynamic_policies.rules.rule_transient.TransientRule._admin_login')
-    @mock.patch('registry.dynamic_policies.rules.rule_transient.requests.put')
-    @mock.patch('registry.dynamic_policies.rules.rule_transient.requests.delete')
+    @mock.patch('controller.dynamic_policies.rules.rule.redis.StrictRedis.hgetall')
+    @mock.patch('controller.dynamic_policies.rules.rule_transient.TransientRule._admin_login')
+    @mock.patch('controller.dynamic_policies.rules.rule_transient.requests.put')
+    @mock.patch('controller.dynamic_policies.rules.rule_transient.requests.delete')
     def test_transient_action_set_is_triggered_200(self, mock_requests_delete, mock_requests_put, mock_admin_login, mock_redis_hgetall):
         mock_redis_hgetall.return_value = {'activation_url': 'http://example.com/filters',
                                            'identifier': '1',
@@ -172,7 +172,7 @@ class DynamicPoliciesTestCase(TestCase):
     # metrics/bw_info
     #
 
-    @mock.patch('registry.dynamic_policies.metrics.bw_info.Thread.start')
+    @mock.patch('controller.dynamic_policies.metrics.bw_info.Thread.start')
     def test_metrics_bw_info(self, mock_thread_start):
         bw_info = BwInfo('exchange', 'queue', 'routing_key', 'method')
         self.assertTrue(mock_thread_start.called)
@@ -181,7 +181,7 @@ class DynamicPoliciesTestCase(TestCase):
         bw_info.notify(body)
         self.assertEquals(bw_info.count["123456789abcedef"]["10.0.0.1"]["1"]["sda1"], "12")
 
-    @mock.patch('registry.dynamic_policies.metrics.bw_info.Thread.start')
+    @mock.patch('controller.dynamic_policies.metrics.bw_info.Thread.start')
     def test_metrics_bw_info_write_experimental_results(self, mock_thread_start):
         bw_info = BwInfo('exchange', 'queue', 'routing_key', 'method')
         self.assertTrue(mock_thread_start.called)
@@ -199,7 +199,7 @@ class DynamicPoliciesTestCase(TestCase):
     # metrics/bw_info_ssync
     #
 
-    @mock.patch('registry.dynamic_policies.metrics.bw_info.Thread.start')
+    @mock.patch('controller.dynamic_policies.metrics.bw_info.Thread.start')
     def test_metrics_bw_info_ssync(self, mock_thread_start):
         bw_info_ssync = BwInfoSSYNC('exchange', 'queue', 'routing_key', 'method')
         self.assertTrue(mock_thread_start.called)
@@ -208,7 +208,7 @@ class DynamicPoliciesTestCase(TestCase):
         bw_info_ssync.notify(body)
         self.assertEquals(bw_info_ssync.count["10.0.0.1"], "4")
 
-    @mock.patch('registry.dynamic_policies.metrics.bw_info.Thread.start')
+    @mock.patch('controller.dynamic_policies.metrics.bw_info.Thread.start')
     def test_metrics_bw_info_ssync_write_experimental_results(self, mock_thread_start):
         bw_info_ssync = BwInfoSSYNC('exchange', 'queue', 'routing_key', 'method')
         self.assertTrue(mock_thread_start.called)
@@ -231,7 +231,7 @@ class DynamicPoliciesTestCase(TestCase):
     # metrics/swift_metric
     #
 
-    @mock.patch('registry.dynamic_policies.metrics.swift_metric.Thread')
+    @mock.patch('controller.dynamic_policies.metrics.swift_metric.Thread')
     def test_metrics_swift_metric(self, mock_thread):
         swift_metric = SwiftMetric('exchange', 'metric_id', 'routing_key')
         data = {"controller": {"@timestamp": 123456789, "AUTH_bd34c4073b65426894545b36f0d8dcce": 3}}
@@ -240,7 +240,7 @@ class DynamicPoliciesTestCase(TestCase):
         self.assertTrue(mock_thread.called)
         self.assertIsNone(swift_metric.get_value())
 
-    @mock.patch('registry.dynamic_policies.metrics.swift_metric.socket.socket')
+    @mock.patch('controller.dynamic_policies.metrics.swift_metric.socket.socket')
     def test_metrics_swift_metric_send_data_to_logstash(self, mock_socket):
         swift_metric = SwiftMetric('exchange', 'metric_id', 'routing_key')
         data = {"controller": {"@timestamp": 123456789, "AUTH_bd34c4073b65426894545b36f0d8dcce": 3}}
@@ -252,7 +252,7 @@ class DynamicPoliciesTestCase(TestCase):
     # rules/min_bandwidth_per_tenant
     #
 
-    @mock.patch('registry.dynamic_policies.rules.base_global_controller.pika')
+    @mock.patch('controller.dynamic_policies.rules.base_global_controller.pika')
     def test_min_bandwidth_per_tenant(self, mock_pika):
         smin = SimpleMinBandwidthPerTenant('the_name', 'the_method')
         self.assertTrue(mock_pika.PlainCredentials.called)
@@ -260,7 +260,7 @@ class DynamicPoliciesTestCase(TestCase):
         computed = smin.compute_algorithm(info)
         self.assertEqual(computed, {'1234567890abcdef': {'192.168.2.21-1-sdb1': 115.0}})
 
-    @mock.patch('registry.dynamic_policies.rules.base_global_controller.pika')
+    @mock.patch('controller.dynamic_policies.rules.base_global_controller.pika')
     def test_min_bandwidth_per_tenant_overloaded(self, mock_pika):
         self.r.set('SLO:bandwidth:put_bw:AUTH_1234567890abcdef#0', 130)
 
@@ -274,7 +274,7 @@ class DynamicPoliciesTestCase(TestCase):
     # rules/min_slo_tenant_global_share_spare_bw
     #
 
-    @mock.patch('registry.dynamic_policies.rules.base_global_controller.pika')
+    @mock.patch('controller.dynamic_policies.rules.base_global_controller.pika')
     def test_min_tenant_slo_global_spare_bw_share(self, mock_pika):
         smin = MinTenantSLOGlobalSpareBWShare('the_name', 'the_method')
         self.assertTrue(mock_pika.PlainCredentials.called)
@@ -282,7 +282,7 @@ class DynamicPoliciesTestCase(TestCase):
         computed = smin.compute_algorithm(info)
         self.assertEqual(computed, {'1234567890abcdef': {'192.168.2.21-1-sdb1': 100.0}})
 
-    @mock.patch('registry.dynamic_policies.rules.base_global_controller.pika')
+    @mock.patch('controller.dynamic_policies.rules.base_global_controller.pika')
     def test_min_tenant_slo_global_spare_bw_share_overloaded(self, mock_pika):
         self.r.set('SLO:bandwidth:put_bw:AUTH_1234567890abcdef#0', 120)
 
@@ -296,7 +296,7 @@ class DynamicPoliciesTestCase(TestCase):
     # rules/min_slo_tenant_global_share_spare_bw_v2
     #
 
-    @mock.patch('registry.dynamic_policies.rules.base_global_controller.pika')
+    @mock.patch('controller.dynamic_policies.rules.base_global_controller.pika')
     def test_min_tenant_slo_global_spare_bw_share_v2(self, mock_pika):
         self.r.set('SLO:bandwidth:put_bw:AUTH_1234567890abcdef#0', 50)
 
@@ -306,7 +306,7 @@ class DynamicPoliciesTestCase(TestCase):
         computed = smin.compute_algorithm(info)
         self.assertEqual(computed, {'1234567890abcdef': {'192.168.2.21-0-sdb1': 70.0}})
 
-    @mock.patch('registry.dynamic_policies.rules.base_global_controller.pika')
+    @mock.patch('controller.dynamic_policies.rules.base_global_controller.pika')
     def test_min_tenant_slo_global_spare_bw_share_v2_overloaded(self, mock_pika):
         self.r.set('SLO:bandwidth:put_bw:AUTH_1234567890abcdef#0', 100)
 
@@ -320,7 +320,7 @@ class DynamicPoliciesTestCase(TestCase):
     # rules/simple_proportional_bandwidth
     #
 
-    @mock.patch('registry.dynamic_policies.rules.base_global_controller.pika')
+    @mock.patch('controller.dynamic_policies.rules.base_global_controller.pika')
     def test_simple_proportional_bandwidth_per_tenant(self, mock_pika):
         self.r.set('SLO:bandwidth:put_bw:AUTH_1234567890abcdef#0', 80)
 
@@ -334,7 +334,7 @@ class DynamicPoliciesTestCase(TestCase):
     # rules/simple_proportional_replication_bandwidth
     #
 
-    @mock.patch('registry.dynamic_policies.rules.base_global_controller.pika')
+    @mock.patch('controller.dynamic_policies.rules.base_global_controller.pika')
     def test_simple_proportional_replication_bandwidth(self, mock_pika):
         self.r.set('SLO:bandwidth:ssync_bw:AUTH_1234567890abcdef#0', 80)
 

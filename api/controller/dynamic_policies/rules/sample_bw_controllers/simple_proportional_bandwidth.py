@@ -1,7 +1,7 @@
 import sys
 
-# from registry.dynamic_policies.rules.base_global_controller import AbstractEnforcementAlgorithm
-from registry.dynamic_policies.rules.base_bw_controller import BaseBwController
+# from controller.dynamic_policies.rules.base_global_controller import AbstractEnforcementAlgorithm
+from controller.dynamic_policies.rules.base_bw_controller import BaseBwController
 
 
 class SimpleProportionalBandwidthPerTenant(BaseBwController):
