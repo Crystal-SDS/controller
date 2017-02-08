@@ -2,7 +2,9 @@ import sys
 import logging
 import redis
 
-from api.settings import RABBITMQ_USERNAME, RABBITMQ_PASSWORD, RABBITMQ_HOST, RABBITMQ_PORT, REDIS_HOST, REDIS_PORT, REDIS_DATABASE, LOGSTASH_HOST, LOGSTASH_PORT
+#from api.settings import RABBITMQ_USERNAME, RABBITMQ_PASSWORD, RABBITMQ_HOST, RABBITMQ_PORT, REDIS_CON_POOL, LOGSTASH_HOST, LOGSTASH_PORT
+from django.conf import settings
+from redis.exceptions import RedisError
 
 
 logger = logging.getLogger(__name__)
@@ -11,7 +13,7 @@ logger = logging.getLogger(__name__)
 class Metric(object):
     """
     Metric: This is an abstract class. This class is the responsible to consume
-    messages from rabbitMQ and send the data to each observer subscribed to it.
+    messages from RabbitMQ and send the data to each observer subscribed to it.
     This class also treats each tenant as a topic, so it is able to distinguish
     for each observer in that tenant is subscribed. In this way, the metric
     actor only sends the necessary information to each observer.
@@ -23,19 +25,25 @@ class Metric(object):
         self.name = None
         # settings = ConfigParser.ConfigParser()
         # settings.read("registry/dynamic_policies/settings.conf")
-        self.rmq_user = RABBITMQ_USERNAME
-        self.rmq_pass = RABBITMQ_PASSWORD
-        self.rmq_host = RABBITMQ_HOST
-        self.rmq_port = RABBITMQ_PORT
-        self.redis_host = REDIS_HOST
-        self.redis_port = REDIS_PORT
-        self.redis_db = REDIS_DATABASE
-        self.logstash_host = LOGSTASH_HOST
-        self.logstash_port = LOGSTASH_PORT
+        self.rmq_user = settings.RABBITMQ_USERNAME
+        self.rmq_pass = settings.RABBITMQ_PASSWORD
+        self.rmq_host = settings.RABBITMQ_HOST
+        self.rmq_port = settings.RABBITMQ_PORT
+        # self.redis_host = REDIS_HOST
+        # self.redis_port = REDIS_PORT
+        # self.redis_db = REDIS_DATABASE
+        self.logstash_host = settings.LOGSTASH_HOST
+        self.logstash_port = settings.LOGSTASH_PORT
 
-        self.redis = redis.StrictRedis(host=self.redis_host,
-                                       port=int(self.redis_port),
-                                       db=int(self.redis_db))
+        # self.redis = redis.StrictRedis(host=self.redis_host,
+        #                                port=int(self.redis_port),
+        #                                db=int(self.redis_db))
+
+        try:
+            self.redis = redis.Redis(connection_pool=settings.REDIS_CON_POOL)
+        except RedisError:
+            logger.info('"Error connecting with Redis DB"')
+            print "Error connecting with Redis DB"
 
     def attach(self, observer):
         """

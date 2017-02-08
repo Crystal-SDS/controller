@@ -239,7 +239,7 @@ class Rule(object):
             response = requests.put(url, headers=headers)
 
             if 200 <= response.status_code < 300:
-                logger.info(response.text + " " + response.status_code)
+                logger.info(response.text + " " + str(response.status_code))
                 try:
                     self.stop_actor()
                 except:

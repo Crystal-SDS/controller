@@ -15,6 +15,7 @@ urlpatterns = [
     url(r'^/filters/?$', views.add_dynamic_filter),
     url(r'^/filters/(?P<name>\w+)/?$', views.dynamic_filter_detail),
 
+    # TODO Change these to target groups (e.g. multiple containers)
     url(r'^/gtenants/?$', views.add_tenants_group),
     url(r'^/gtenants/(?P<gtenant_id>\w+)/?$', views.tenants_group_detail),
     url(r'^/gtenants/(?P<gtenant_id>\w+)/tenants/(?P<tenant_id>\w+)/?$', views.gtenants_tenant_detail),
@@ -31,9 +32,9 @@ urlpatterns = [
     url(r'^/object_type/?$', views.object_type_list),
     url(r'^/object_type/(?P<object_type_name>\w+)/?$', views.object_type_detail),
 
-    url(r'^/nodes/?$', views.node_list),
-    url(r'^/nodes/(?P<node_id>[^/]+)/?$', views.node_detail),
-
-    url(r'^/nodes/(?P<node_id>[^/]+)/restart/?$', views.node_restart)
+    url(r'^/global_controllers/?$', views.global_controller_list),
+    url(r'^/global_controllers/data/?$', views.GlobalControllerData.as_view()),
+    url(r'^/global_controller/(?P<controller_id>\w+)/data/?$', views.GlobalControllerData.as_view()),
+    url(r'^/global_controller/(?P<controller_id>\d+)/?$', views.global_controller_detail)
 
 ]

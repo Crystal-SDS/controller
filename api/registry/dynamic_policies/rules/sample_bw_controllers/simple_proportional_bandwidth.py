@@ -1,7 +1,10 @@
-from base_bw_rule import AbstractEnforcementAlgorithm
+import sys
+
+# from registry.dynamic_policies.rules.base_global_controller import AbstractEnforcementAlgorithm
+from registry.dynamic_policies.rules.base_bw_controller import BaseBwController
 
 
-class SimpleProportionalBandwidthPerTenant(AbstractEnforcementAlgorithm):
+class SimpleProportionalBandwidthPerTenant(BaseBwController):
 
     def compute_algorithm(self, info):
         """
@@ -9,7 +12,10 @@ class SimpleProportionalBandwidthPerTenant(AbstractEnforcementAlgorithm):
         """
         assign = dict()
         bw_a = dict()
-        bw = self._get_redis_bw()
+
+        # bw = self._get_redis_bw()
+        slo_name = self.method.lower() + "_bw"  # get_bw or put_bw
+        bw = self._get_redis_slos(slo_name)
 
         for account in info:
             assign[account] = dict()
@@ -36,6 +42,6 @@ class SimpleProportionalBandwidthPerTenant(AbstractEnforcementAlgorithm):
                             bw_a[account][ip+"-"+policy+"-"+device] = float(bw[account][policy])/assign[account][policy][device]['requests']
                         except Exception as e:
                             # TODO: NO CONTINUE
-                            print "Error calculating bandwidth in simple_proportional_bandwidht rule: "+str(e)
+                            print "Error calculating bandwidth in simple_proportional_bandwidth rule: " + str(sys.exc_info()[0])
                           
         return bw_a

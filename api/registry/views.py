@@ -3,14 +3,15 @@ import logging
 import mimetypes
 import os
 import re
+import sys
 from operator import itemgetter
+from eventlet import sleep
 
 from django.conf import settings
 from django.core.servers.basehttp import FileWrapper
 from django.http import HttpResponse
 from django.http import StreamingHttpResponse
 from django.views.decorators.csrf import csrf_exempt
-from pyactive.controller import init_host, start_controller
 from redis.exceptions import RedisError, DataError
 from rest_framework import status
 from rest_framework.exceptions import ParseError
@@ -18,28 +19,17 @@ from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
 from rest_framework.views import APIView
 
 import dsl_parser
-from api.common_utils import get_token_connection, rsync_dir_with_nodes, to_json_bools, remove_extra_whitespaces, JSONResponse, get_redis_connection, get_project_list
+from api.common_utils import get_token_connection, rsync_dir_with_nodes, to_json_bools, remove_extra_whitespaces, JSONResponse, get_redis_connection, \
+    get_project_list, create_local_host
 from api.exceptions import SwiftClientError, StorletNotFoundException, FileSynchronizationException
 from filters.views import save_file, make_sure_path_exists
 from filters.views import set_filter, unset_filter
 
 logger = logging.getLogger(__name__)
 
-host = None
-remote_host = None
-metrics = dict()
-rules = dict()
-
-
-def create_local_host():
-    tcpconf = ('tcp', (settings.PYACTIVE_IP, settings.PYACTIVE_PORT))
-    global host
-    try:
-        start_controller("pyactive_thread")
-        host = init_host(tcpconf)
-        logger.info("Controller PyActive host created")
-    except:
-        pass
+controller_actors = dict()
+metric_actors = dict()
+rule_actors = dict()
 
 
 def load_metrics():
@@ -72,6 +62,7 @@ def load_policies():
     if dynamic_policies:
         logger.info("Starting dynamic rules stored in redis")
 
+    host = create_local_host()
     for policy in dynamic_policies:
         policy_data = r.hgetall(policy)
 
@@ -81,14 +72,14 @@ def load_policies():
             for action_info in rule_parsed.action_list:
                 if action_info.transient:
                     logger.info("Transient rule: " + policy_data['policy_description'])
-                    rules[policy] = host.spawn_id(str(policy), settings.RULE_TRANSIENT_CLASS, settings.RULE_TRANSIENT_MAIN,
+                    rule_actors[policy] = host.spawn_id(str(policy), settings.RULE_TRANSIENT_MODULE, settings.RULE_TRANSIENT_CLASS,
                                                   [rule_parsed, action_info, target, host])
-                    rules[policy].start_rule()
+                    rule_actors[policy].start_rule()
                 else:
                     logger.info("Rule: "+policy_data['policy_description'])
-                    rules[policy] = host.spawn_id(str(policy), settings.RULE_CLASS, settings.RULE_MAIN,
+                    rule_actors[policy] = host.spawn_id(str(policy), settings.RULE_MODULE, settings.RULE_CLASS,
                                                   [rule_parsed, action_info, target, host])
-                    rules[policy].start_rule()
+                    rule_actors[policy].start_rule()
 
 
 #
@@ -262,23 +253,23 @@ def metric_module_list(request):
 
 
 def start_metric(metric_id, actor_id):
-    create_local_host()
-    logger.info("Metric, Starting workload metric actor " + str(metric_id))
+    host = create_local_host()
+    logger.info("Metric, Starting workload metric actor " + str(metric_id) + "("+ str(actor_id) + ")")
     try:
-        if metric_id not in metrics:
-            metrics[metric_id] = host.spawn_id(actor_id, settings.METRIC_CLASS, settings.METRIC_MAIN,
+        if metric_id not in metric_actors:
+            metric_actors[metric_id] = host.spawn_id(actor_id, settings.METRIC_MODULE, settings.METRIC_CLASS,
                                                ["amq.topic", actor_id, "metrics." + actor_id])
-            metrics[metric_id].init_consum()
+            metric_actors[metric_id].init_consum()
     except Exception as e:
         logger.error(str(e))
         print e
 
 
 def stop_metric(metric_id):
-    if metric_id in metrics:
+    if metric_id in metric_actors:
         logger.info("Metric, Stopping workload metric actor " + str(metric_id))
-        metrics[metric_id].stop_actor()
-        del metrics[metric_id]
+        metric_actors[metric_id].stop_actor()
+        del metric_actors[metric_id]
 
 
 @csrf_exempt
@@ -326,7 +317,7 @@ def metric_module_detail(request, metric_module_id):
 
     elif request.method == 'DELETE':
         try:
-            if metric_id in metrics:
+            if metric_id in metric_actors:
                 stop_metric(metric_id)
 
             r.delete("workload_metric:" + str(metric_id))
@@ -552,7 +543,7 @@ def tenants_group_detail(request, gtenant_id):
         key = 'G:' + str(gtenant_id)
         if r.exists(key):
             r.delete("G:" + str(gtenant_id))
-            return JSONResponse('Tenants grpup has been deleted', status=status.HTTP_204_NO_CONTENT)
+            return JSONResponse('Tenants group has been deleted', status=status.HTTP_204_NO_CONTENT)
         else:
             return JSONResponse('The tenant group with id:  ' + str(gtenant_id) + ' does not exist.', status=status.HTTP_404_NOT_FOUND)
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
@@ -563,7 +554,6 @@ def gtenants_tenant_detail(request, gtenant_id, tenant_id):
     """
     Delete a member from a tenants group.
     """
-
     try:
         r = get_redis_connection()
     except RedisError:
@@ -676,74 +666,6 @@ def object_type_items_detail(request, object_type_name, item_name):
         return JSONResponse('Extension ' + str(item_name) + ' has been deleted from object type ' + str(object_type_name),
                             status=204)
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
-
-
-#
-# Node part
-#
-
-@csrf_exempt
-def node_list(request):
-    """
-    GET: List all nodes ordered by name
-    """
-
-    try:
-        r = get_redis_connection()
-    except RedisError:
-        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-    if request.method == 'GET':
-        keys = r.keys("node:*")
-        nodes = []
-        for key in keys:
-            node = r.hgetall(key)
-            node.pop("ssh_username", None)  # username & password are not returned in the list
-            node.pop("ssh_password", None)
-            node['devices'] = json.loads(node['devices'])
-            nodes.append(node)
-        sorted_list = sorted(nodes, key=itemgetter('name'))
-        return JSONResponse(sorted_list, status=status.HTTP_200_OK)
-
-    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
-
-
-@csrf_exempt
-def node_detail(request, node_id):
-    """
-    GET: Retrieve node details. PUT: Update node.
-    :param request:
-    :param node_id:
-    :return:
-    """
-
-    try:
-        r = get_redis_connection()
-    except RedisError:
-        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-    key = "node:" + node_id
-    if request.method == 'GET':
-        if r.exists(key):
-            node = r.hgetall(key)
-            node.pop("ssh_password", None)  # password is not returned
-            node['devices'] = json.loads(node['devices'])
-            return JSONResponse(node, status=status.HTTP_200_OK)
-        else:
-            return JSONResponse('Node not found.', status=status.HTTP_404_NOT_FOUND)
-
-    if request.method == 'PUT':
-        if r.exists(key):
-            data = JSONParser().parse(request)
-            try:
-                r.hmset(key, data)
-                return JSONResponse("Data updated", status=status.HTTP_201_CREATED)
-            except RedisError:
-                return JSONResponse("Error updating data", status=status.HTTP_400_BAD_REQUEST)
-        else:
-            return JSONResponse('Node not found.', status=status.HTTP_404_NOT_FOUND)
-
-    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
 @csrf_exempt
@@ -882,8 +804,8 @@ def dynamic_policy_detail(request, policy_id):
         create_local_host()
 
         try:
-            rules[int(policy_id)].stop_actor()
-            del rules[int(policy_id)]
+            rule_actors[int(policy_id)].stop_actor()
+            del rule_actors[int(policy_id)]
         except Exception as e:
             logger.error(str(e))
             print e
@@ -948,7 +870,7 @@ def do_action(request, r, rule_parsed):
 
 
 def deploy_policy(r, rule_string, parsed_rule):
-    create_local_host()
+    host = create_local_host()
     rules_to_parse = dict()
 
     for target in parsed_rule.target:
@@ -961,18 +883,18 @@ def deploy_policy(r, rule_string, parsed_rule):
 
             if action_info.transient:
                 # print 'Transient rule:', parsed_rule
-                rules[policy_id] = host.spawn_id(rule_id, settings.RULE_TRANSIENT_CLASS, settings.RULE_TRANSIENT_MAIN,
+                rule_actors[policy_id] = host.spawn_id(rule_id, settings.RULE_TRANSIENT_MODULE, settings.RULE_TRANSIENT_CLASS,
                                                  [rules_to_parse[key], action_info, key, host])
-                location = os.path.join(settings.RULE_TRANSIENT_CLASS, settings.RULE_TRANSIENT_MAIN)
+                location = os.path.join(settings.RULE_TRANSIENT_MODULE, settings.RULE_TRANSIENT_CLASS)
                 is_transient = True
             else:
                 # print 'Rule:', parsed_rule
-                rules[policy_id] = host.spawn_id(rule_id, settings.RULE_CLASS, settings.RULE_MAIN,
+                rule_actors[policy_id] = host.spawn_id(rule_id, settings.RULE_MODULE, settings.RULE_CLASS,
                                                  [rules_to_parse[key], action_info, key, host])
-                location = os.path.join(settings.RULE_CLASS, settings.RULE_MAIN)
+                location = os.path.join(settings.RULE_MODULE, settings.RULE_CLASS)
                 is_transient = False
 
-            rules[policy_id].start_rule()
+                rule_actors[policy_id].start_rule()
 
             # FIXME Should we recreate a static rule for each target and action??
             condition_re = re.compile(r'.* (WHEN .*) DO .*', re.M | re.I)
@@ -992,30 +914,194 @@ def deploy_policy(r, rule_string, parsed_rule):
                                                  "alive": True})
 
 
+#
+# Global Controllers
+#
+
+
 @csrf_exempt
-def node_restart(request, node_id):
+def global_controller_list(request):
+    """
+    List all global controllers.
+    """
     try:
         r = get_redis_connection()
     except RedisError:
         return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    logger.debug('Node id: ' + str(node_id))
+    if request.method == 'GET':
+        keys = r.keys('controller:*')
+        controller_list = []
+        for key in keys:
+            controller = r.hgetall(key)
+            to_json_bools(controller, 'enabled')
+            controller_list.append(controller)
+        return JSONResponse(controller_list, status=status.HTTP_200_OK)
 
-    if request.method == 'PUT':
-        node = r.hgetall('node:' + str(node_id))
-        logger.debug('Node data: ' + str(node))
-
-        data = {'node_ip': node['ip'], 'ssh_username': node['ssh_username'], 'ssh_password': node['ssh_password']}
-        restart_command = 'sshpass -p {ssh_password} ssh {ssh_username}@{node_ip} sudo swift-init main restart'.format(**data)
-        logger.debug('Command: ' + str(restart_command))
-
-        ret = os.system(restart_command)
-        if ret != 0:
-            logger.error('An error occurred restarting Swift nodes')
-            raise FileSynchronizationException("An error occurred restarting Swift nodes")
-
-        logger.debug('Node ' + str(node_id) + ' was restarted!')
-        return JSONResponse('The node was restarted successfully.', status=status.HTTP_200_OK)
-
-    logger.error('Method ' + str(request.method) + ' not allowed.')
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+
+@csrf_exempt
+def global_controller_detail(request, controller_id):
+    """
+    Retrieve, update or delete a global controller.
+    """
+    try:
+        r = get_redis_connection()
+    except RedisError:
+        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    if request.method == 'GET':
+        controller = r.hgetall('controller:' + str(controller_id))
+        to_json_bools(controller, 'enabled')
+        return JSONResponse(controller, status=status.HTTP_200_OK)
+
+    elif request.method == 'PUT':
+        data = JSONParser().parse(request)
+        try:
+            r.hmset('controller:' + str(controller_id), data)
+            controller_data = r.hgetall('controller:' + str(controller_id))
+            to_json_bools(controller_data, 'enabled')
+
+            if controller_data['enabled']:
+                actor_id = controller_data['controller_name'].split('.')[0]
+                start_global_controller(str(controller_id), actor_id, controller_data['class_name'], controller_data['type'])
+            else:
+                stop_global_controller(str(controller_id))
+
+            return JSONResponse("Data updated", status=status.HTTP_201_CREATED)
+        except DataError:
+            return JSONResponse("Error updating data", status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        r.delete("controller:" + str(controller_id))
+
+        # If this is the last controller, the counter is reset
+        keys = r.keys('controller:*')
+        if not keys:
+            r.delete('controllers:id')
+
+        return JSONResponse('Controller has been deleted', status=status.HTTP_204_NO_CONTENT)
+
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+
+class GlobalControllerData(APIView):
+    """
+    Upload or download a global controller.
+    """
+    parser_classes = (MultiPartParser, FormParser,)
+
+    def post(self, request):
+        try:
+            r = get_redis_connection()
+        except RedisError:
+            return JSONResponse('Error connecting with DB', status=500)
+
+        data = json.loads(request.POST['metadata'])  # json data is in metadata parameter for this request
+        if not data:
+            return JSONResponse("Invalid format or empty request", status=status.HTTP_400_BAD_REQUEST)
+
+        controller_id = r.incr("controllers:id")
+        try:
+            data['id'] = controller_id
+
+            file_obj = request.FILES['file']
+
+            make_sure_path_exists(settings.GLOBAL_CONTROLLERS_DIR)
+            path = save_file(file_obj, settings.GLOBAL_CONTROLLERS_DIR)
+            data['controller_name'] = os.path.basename(path)
+
+            r.hmset('controller:' + str(controller_id), data)
+
+            if data['enabled']:
+                actor_id = data['controller_name'].split('.')[0]
+                start_global_controller(str(controller_id), actor_id, data['class_name'], data['type'])
+
+            return JSONResponse(data, status=status.HTTP_201_CREATED)
+
+        except DataError:
+            return JSONResponse("Error to save the object", status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            print e
+            return JSONResponse("Error uploading file", status=status.HTTP_400_BAD_REQUEST)
+
+    def get(self, request, controller_id):
+        try:
+            r = get_redis_connection()
+        except RedisError:
+            return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        if r.exists('controller:' + str(controller_id)):
+            global_controller_path = os.path.join(settings.GLOBAL_CONTROLLERS_DIR,
+                                                  str(r.hget('controller:' + str(controller_id), 'controller_name')))
+            if os.path.exists(global_controller_path):
+                global_controller_name = os.path.basename(global_controller_path)
+                global_controller_size = os.stat(global_controller_path).st_size
+
+                # Generate response
+                response = StreamingHttpResponse(FileWrapper(open(global_controller_path), global_controller_size),
+                                                 content_type=mimetypes.guess_type(global_controller_path)[0])
+                response['Content-Length'] = global_controller_size
+                response['Content-Disposition'] = "attachment; filename=%s" % global_controller_name
+
+                return response
+            else:
+                return HttpResponse(status=status.HTTP_404_NOT_FOUND)
+        else:
+            return HttpResponse(status=status.HTTP_404_NOT_FOUND)
+
+
+def start_global_controller(controller_id, actor_id, controller_class_name, method_type):
+
+    host = create_local_host()
+    logger.info("Controller, Starting controller actor " + str(controller_id))
+
+    # FIXME: Decouple global controllers and the me
+
+    try:
+        if controller_id not in controller_actors:
+            # 1) Spawn metric actor if not already spawned
+            metric_name = method_type + "_bw_info"  # get_bw_info, put_bw_info, ssync_bw_info
+            if metric_name not in metric_actors:
+                if method_type == 'ssync':
+                    metric_module_name = ''.join([settings.METRICS_BASE_MODULE, '.', 'bw_info_ssync'])
+                    metric_class_name = 'BwInfoSSYNC'
+                else:
+                    metric_module_name = ''.join([settings.METRICS_BASE_MODULE, '.', 'bw_info'])
+                    metric_class_name = 'BwInfo'
+                logger.info("Controller, Starting metric actor " + metric_name)
+                metric_actors[metric_name] = host.spawn_id(metric_name, metric_module_name, metric_class_name,
+                                                       ["amq.topic", metric_name, "bwdifferentiation."+metric_name+".#", method_type.upper()])
+
+                try:
+                    metric_actors[metric_name].init_consum()
+                    logger.info("Controller, Started metric actor " + metric_name)
+                    sleep(0.1)
+                except Exception as e:
+                    logger.error(e.args)
+                    logger.info("Controller, Failed to start metric actor " + metric_name)
+                    metric_actors[metric_name].stop_actor()
+
+            # 2) Spawn controller actor
+            #module_name = ''.join([settings.GLOBAL_CONTROLLERS_BASE_MODULE, '.', actor_id])
+            module_name = actor_id
+            controller_actors[controller_id] = host.spawn_id(actor_id, module_name, controller_class_name,
+                                                       ["bw_algorithm_" + method_type, method_type.upper()])
+            logger.info("Controller, Started controller actor " + str(controller_id) + " " + str(actor_id))
+            # ["abstract_enforcement_algorithm_get", "GET"])
+            # ["amq.topic", actor_id, "controllers." + actor_id])
+
+            controller_actors[controller_id].run(metric_name)
+    except Exception as e:
+        print e
+
+
+def stop_global_controller(controller_id):
+    if controller_id in controller_actors:
+        try:
+            controller_actors[controller_id].stop_actor()
+        except Exception as e:
+            print e.args
+        del controller_actors[controller_id]
+        logger.info("Controller, Stopped controller actor " + str(controller_id))

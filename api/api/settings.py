@@ -22,6 +22,7 @@ NATIVE_FILTERS_DIR = os.path.join('/opt', 'crystal', 'native_filters')
 STORLET_FILTERS_DIR = os.path.join('/opt', 'crystal', 'storlet_filters')
 GLOBAL_NATIVE_FILTERS_DIR = os.path.join('/opt', 'crystal', 'global_native_filters')
 DEPENDENCY_DIR = os.path.join('/opt', 'crystal', 'dependencies')
+GLOBAL_CONTROLLERS_DIR = os.path.join('/opt', 'crystal', 'global_controllers')
 ANSIBLE_DIR = os.path.join(BASE_DIR, 'swift', 'ansible')
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.8/howto/deployment/checklist/
@@ -158,14 +159,18 @@ PYACTIVE_PORT = 6899
 PYACTIVE_URL = PYACTIVE_TRANSPORT + '://' + PYACTIVE_IP + ':' + str(PYACTIVE_PORT)
 
 # Metrics
-METRIC_CLASS = 'registry.dynamic_policies.metrics.swift_metric'
-METRIC_MAIN = 'SwiftMetric'
+METRIC_MODULE = 'registry.dynamic_policies.metrics.swift_metric'
+METRIC_CLASS = 'SwiftMetric'
 
 # Rules
-RULE_CLASS = 'registry.dynamic_policies.rules.rule'
-RULE_MAIN = 'Rule'
-RULE_TRANSIENT_CLASS = 'registry.dynamic_policies.rules.rule_transient'
-RULE_TRANSIENT_MAIN = 'TransientRule'
+RULE_MODULE = 'registry.dynamic_policies.rules.rule'
+RULE_CLASS = 'Rule'
+RULE_TRANSIENT_MODULE = 'registry.dynamic_policies.rules.rule_transient'
+RULE_TRANSIENT_CLASS = 'TransientRule'
+
+# Global controllers
+GLOBAL_CONTROLLERS_BASE_MODULE = 'registry.dynamic_policies.rules'
+METRICS_BASE_MODULE = 'registry.dynamic_policies.metrics'
 
 # RabbitMQ
 RABBITMQ_HOST = 'localhost'

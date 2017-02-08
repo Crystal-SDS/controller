@@ -1,20 +1,29 @@
-from base_bw_rule import AbstractEnforcementAlgorithm
+from registry.dynamic_policies.rules.base_bw_controller import BaseBwController
 
 
-class SimpleProportionalReplicationBandwidth(AbstractEnforcementAlgorithm):
+class SimpleProportionalReplicationBandwidth(BaseBwController):
 
-    def _get_redis_bw(self):
+    def _get_redis_slos(self, slo_name):
         """
         Gets the bw assignation from the redis database
         """            
-        return float(self.r.get("replication_bw"))
+        # return float(self.r.get("replication_bw"))
+
+        # FIXME: Now getting the ssync_bw from an arbitrary key
+        keys = self.r.keys("SLO:bandwidth:" + slo_name + ":*")
+        key = keys[0]
+        return float(self.r.get(key))
+
     
     def compute_algorithm(self, info):
         """
         Simple compute algorithm for replication
         """
         bw_a = dict()
-        bw = self._get_redis_bw()
+
+        # bw = self._get_redis_bw()
+        bw = self._get_redis_slos("ssync_bw")
+
         total_ssync_requests = 0
         # Example: {u'storage5:6000': {u'source:192.168.2.21': {u'sdb1': 655350.0}}, u'storage4:6000': {u'source:192.168.2.23': {u'sdb1': 983025.0}}}
         # Example: {u'storage5:6000': {u'source:192.168.2.23': {u'sdb1': 2621400.0}, u'source:192.168.2.21': {u'sdb1': 1638375.0}}}

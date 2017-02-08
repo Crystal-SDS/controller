@@ -23,6 +23,10 @@ class SwiftMetric(Metric):
         self.last_metrics = dict()
         self.th = None
 
+    # TODO REFACTORING method that can be overriden to aggregate the different dicts from all nodes.
+    # This would be useful for all metrics, except bw metrics because their generated dict is not
+    # standard (they add device, storage policy, ...)
+
     def notify(self, body):
         """
         Method called from the consumer to indicate the value consumed from the
@@ -34,6 +38,8 @@ class SwiftMetric(Metric):
         data = json.loads(body)
         Thread(target=self._send_data_to_logstash, args=(deepcopy(data), )).start()
 
+        # TODO REFACTORING A method must be called here to aggregate results from all nodes that have sent
+        # a data dict, otherwise it will only work with 1 node.
         try:
             for host in data:
                 del data[host]['@timestamp']

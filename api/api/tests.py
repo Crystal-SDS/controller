@@ -163,11 +163,11 @@ class MainTestCase(TestCase):
         self.assertEqual(resolver.view_name, 'filters.views.StorletData')
         self.assertEqual(resolver.kwargs, {'storlet_id': '123'})
 
-        resolver = resolve('/registry/nodes/')
-        self.assertEqual(resolver.view_name, 'registry.views.node_list')
+        resolver = resolve('/swift/nodes/')
+        self.assertEqual(resolver.view_name, 'swift.views.node_list')
 
-        resolver = resolve('/registry/nodes/node1')
-        self.assertEqual(resolver.view_name, 'registry.views.node_detail')
+        resolver = resolve('/swift/nodes/node1')
+        self.assertEqual(resolver.view_name, 'swift.views.node_detail')
         self.assertEqual(resolver.kwargs, {'node_id': 'node1'})
 
     #

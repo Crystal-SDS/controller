@@ -10,7 +10,12 @@ from django.http import HttpResponse
 from rest_framework.renderers import JSONRenderer
 
 from api.exceptions import FileSynchronizationException
+from pyactive.controller import init_host, start_controller
 
+host = None
+# remote_host = None
+
+logger = logging.getLogger(__name__)
 
 class LoggingColors(logging.Formatter):
     def __init__(self, *args, **kwargs):
@@ -161,3 +166,16 @@ def to_json_bools(dictionary, *args):
 
 def remove_extra_whitespaces(_str):
     return ' '.join(_str.split())
+
+
+def create_local_host():
+    tcpconf = ('tcp', (settings.PYACTIVE_IP, settings.PYACTIVE_PORT))
+    global host
+    try:
+        start_controller("pyactive_thread")
+        host = init_host(tcpconf)
+        logger.info("Controller PyActive host created")
+    except:
+        pass
+
+    return host

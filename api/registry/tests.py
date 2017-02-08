@@ -11,7 +11,7 @@ from rest_framework.test import APIRequestFactory
 
 from filters.views import storlet_list, filter_deploy, StorletData
 from .dsl_parser import parse
-from .views import object_type_list, object_type_detail, add_tenants_group, tenants_group_detail, gtenants_tenant_detail, node_list, node_detail, \
+from .views import object_type_list, object_type_detail, add_tenants_group, tenants_group_detail, gtenants_tenant_detail, \
     add_metric, metric_detail, metric_module_list, metric_module_detail, MetricModuleData, list_storage_node, storage_node_detail, add_dynamic_filter, \
     dynamic_filter_detail, load_metrics, load_policies, static_policy_detail, dynamic_policy_detail
 from .views import policy_list
@@ -103,9 +103,8 @@ class RegistryTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertTrue(mock_deploy_policy.called)
 
-    @mock.patch('registry.views.host')
     @mock.patch('registry.views.create_local_host')
-    def test_registry_dynamic_policy_create_spawn_id_ok(self, mock_create_local_host, mock_host):
+    def test_registry_dynamic_policy_create_spawn_id_ok(self, mock_create_local_host):
         self.setup_dsl_parser_data()
 
         # Create an instance of a POST request.
@@ -115,7 +114,7 @@ class RegistryTestCase(TestCase):
         response = policy_list(request)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertTrue(mock_create_local_host.called)
-        self.assertTrue(mock_host.spawn_id.called)
+        self.assertTrue(mock_create_local_host.return_value.spawn_id.called)
         self.assertTrue(self.r.exists('policy:2'))
         policy_data = self.r.hgetall('policy:2')
         self.assertEqual(policy_data['policy'], 'FOR TENANT:1234567890abcdef DO SET compression')
@@ -640,50 +639,6 @@ class RegistryTestCase(TestCase):
     # TODO Add tests for object_type_items_detail()
 
     #
-    # Nodes
-    #
-
-    def test_node_list_with_method_not_allowed(self):
-        request = self.factory.delete('/registry/nodes')
-        response = node_list(request)
-        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
-
-    def test_list_nodes_ok(self):
-        request = self.factory.get('/registry/nodes')
-        response = node_list(request)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertNotEqual(response.content, "[]")
-
-        nodes = json.loads(response.content)
-        self.assertEqual(len(nodes), 3)
-        node_names = [node['name'] for node in nodes]
-        self.assertTrue('controller' in node_names)
-        self.assertTrue('storagenode1' in node_names)
-        self.assertTrue('storagenode2' in node_names)
-        a_device = nodes[0]['devices'].keys()[0]
-        self.assertIsNotNone(nodes[0]['devices'][a_device]['free'])
-
-    def test_node_detail_with_method_not_allowed(self):
-        node_name = 'storagenode1'
-        request = self.factory.delete('/registry/nodes/' + node_name)
-        response = node_detail(request, node_name)
-        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
-
-    def test_get_node_detail_ok(self):
-        node_name = 'storagenode1'
-        request = self.factory.get('/registry/nodes/' + node_name)
-        response = node_detail(request, node_name)
-        node = json.loads(response.content)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(node['name'], 'storagenode1')
-
-    def test_get_node_detail_with_non_existent_node_name(self):
-        node_name = 'storagenode1000'
-        request = self.factory.get('/registry/nodes/' + node_name)
-        response = node_detail(request, node_name)
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-
-    #
     # Tenant groups
     #
 
@@ -988,28 +943,28 @@ class RegistryTestCase(TestCase):
         load_metrics()
         mock_start_metric.assert_called_with(1, 'm1')
 
-    @mock.patch('registry.views.host')
-    def test_load_policies_not_alive(self, mock_host):
+    @mock.patch('registry.views.create_local_host')
+    def test_load_policies_not_alive(self, mock_create_local_host):
         self.r.hmset('policy:20',
                      {'alive': 'False', 'policy_description': 'FOR TENANT:0123456789abcdef DO SET compression'})
         load_policies()
-        self.assertEqual(len(mock_host.method_calls), 0)
+        self.assertEqual(len(mock_create_local_host.return_value.method_calls), 0)
 
-    @mock.patch('registry.views.host')
-    def test_load_policies_alive(self, mock_host):
+    @mock.patch('registry.views.create_local_host')
+    def test_load_policies_alive(self, mock_create_local_host):
         self.setup_dsl_parser_data()
         self.r.hmset('policy:21',
                      {'alive': 'True', 'policy_description': 'FOR TENANT:0123456789abcdef DO SET compression'})
         load_policies()
-        self.assertTrue(mock_host.spawn_id.called)
+        self.assertTrue(mock_create_local_host.return_value.spawn_id.called)
 
-    @mock.patch('registry.views.host')
-    def test_load_policies_alive_transient(self, mock_host):
+    @mock.patch('registry.views.create_local_host')
+    def test_load_policies_alive_transient(self, mock_create_local_host):
         self.setup_dsl_parser_data()
         self.r.hmset('policy:21',
                      {'alive': 'True', 'policy_description': 'FOR TENANT:0123456789abcdef DO SET compression TRANSIENT'})
         load_policies()
-        self.assertTrue(mock_host.spawn_id.called)
+        self.assertTrue(mock_create_local_host.return_value.spawn_id.called)
 
     #
     # static_policy_detail()

@@ -528,6 +528,71 @@ def dependency_undeploy(request, dependency_id, account):
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
 
 
+@csrf_exempt
+def slo_list(request):
+    """
+    List all SLOs, or create an SLO.
+    """
+
+    try:
+        r = get_redis_connection()
+    except RedisError:
+        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    if request.method == 'GET':
+        slos = []
+        keys = r.keys('SLO:*')
+        for key in keys:
+            _, dsl_filter, slo_name, target = key.split(':')
+            value = r.get(key)
+            slos.append({'dsl_filter': dsl_filter, 'slo_name': slo_name, 'target': target, 'value': value})
+        return JSONResponse(slos, status=status.HTTP_200_OK)
+
+    elif request.method == 'POST':
+        data = JSONParser().parse(request)
+        try:
+            slo_key = ':'.join(['SLO', data['dsl_filter'], data['slo_name'], data['target']])
+            r.set(slo_key, data['value'])
+
+            return JSONResponse(data, status=status.HTTP_201_CREATED)
+        except DataError:
+            return JSONResponse('Error saving SLA.', status=status.HTTP_400_BAD_REQUEST)
+
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+
+@csrf_exempt
+def slo_detail(request, dsl_filter, slo_name, target):
+    """
+    Retrieve, update or delete SLO.
+    """
+
+    try:
+        r = get_redis_connection()
+    except RedisError:
+        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    slo_key = ':'.join(['SLO', dsl_filter, slo_name, target])
+
+    if request.method == 'GET':
+        value = r.get(slo_key)
+        slo = {'dsl_filter': dsl_filter, 'slo_name': slo_name, 'target': target, 'value': value}
+        return JSONResponse(slo, status=status.HTTP_200_OK)
+
+    elif request.method == 'PUT':
+        data = JSONParser().parse(request)
+        try:
+            r.set(slo_key, data['value'])
+            return JSONResponse('Data updated', status=status.HTTP_201_CREATED)
+        except DataError:
+            return JSONResponse('Error updating data', status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        r.delete(slo_key)
+        return JSONResponse('SLA has been deleted', status=status.HTTP_204_NO_CONTENT)
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+
 def set_filter(r, target, filter_data, parameters, token):
     if filter_data['filter_type'] == 'storlet':
         metadata = {"X-Object-Meta-Storlet-Language": 'java',
