@@ -1,5 +1,5 @@
 from pyparsing import Word, Suppress, alphas, Literal, Group, Combine, opAssoc, alphanums
-from pyparsing import Regex, operatorPrecedence, oneOf, ZeroOrMore, nums, Optional, delimitedList
+from pyparsing import Regex, operatorPrecedence, oneOf, nums, Optional, delimitedList
 from django.conf import settings
 import redis
 

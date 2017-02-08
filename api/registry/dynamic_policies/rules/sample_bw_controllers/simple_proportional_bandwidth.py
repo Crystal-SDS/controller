@@ -40,7 +40,7 @@ class SimpleProportionalBandwidthPerTenant(BaseBwController):
                     for ip in assign[account][policy][device]['ips']:
                         try:
                             bw_a[account][ip+"-"+policy+"-"+device] = float(bw[account][policy])/assign[account][policy][device]['requests']
-                        except Exception as e:
+                        except Exception:
                             # TODO: NO CONTINUE
                             print "Error calculating bandwidth in simple_proportional_bandwidth rule: " + str(sys.exc_info()[0])
                           

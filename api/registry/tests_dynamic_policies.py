@@ -47,7 +47,7 @@ class DynamicPoliciesTestCase(TestCase):
 
     def test_get_target_ok(self):
         self.setup_dsl_parser_data()
-        has_condition_list, parsed_rule = parse('FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 WHEN metric1 > 5 DO SET compression')
+        _, parsed_rule = parse('FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 WHEN metric1 > 5 DO SET compression')
         target = '4f0279da74ef4584a29dc72c835fe2c9'
         host = None
         rule = Rule(parsed_rule, parsed_rule.action_list[0], target, host)
@@ -56,7 +56,7 @@ class DynamicPoliciesTestCase(TestCase):
     @mock.patch('registry.dynamic_policies.rules.rule.Rule._do_action')
     def test_action_is_not_triggered(self, mock_do_action):
         self.setup_dsl_parser_data()
-        has_condition_list, parsed_rule = parse('FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 WHEN metric1 > 5 DO SET compression')
+        _, parsed_rule = parse('FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 WHEN metric1 > 5 DO SET compression')
         target = '4f0279da74ef4584a29dc72c835fe2c9'
         host = None
         rule = Rule(parsed_rule, parsed_rule.action_list[0], target, host)
@@ -66,7 +66,7 @@ class DynamicPoliciesTestCase(TestCase):
     @mock.patch('registry.dynamic_policies.rules.rule.Rule._do_action')
     def test_action_is_triggered(self, mock_do_action):
         self.setup_dsl_parser_data()
-        has_condition_list, parsed_rule = parse('FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 WHEN metric1 > 5 DO SET compression')
+        _, parsed_rule = parse('FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 WHEN metric1 > 5 DO SET compression')
         target = '4f0279da74ef4584a29dc72c835fe2c9'
         host = None
         rule = Rule(parsed_rule, parsed_rule.action_list[0], target, host)
@@ -81,7 +81,7 @@ class DynamicPoliciesTestCase(TestCase):
                                            'identifier': '1',
                                            'valid_parameters': '{"cparam1": "integer", "cparam2": "integer", "cparam3": "integer"}'}
         self.setup_dsl_parser_data()
-        has_condition_list, parsed_rule = parse('FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 WHEN metric1 > 5 DO SET compression')
+        _, parsed_rule = parse('FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 WHEN metric1 > 5 DO SET compression')
         target = '4f0279da74ef4584a29dc72c835fe2c9'
         host = None
         rule = Rule(parsed_rule, parsed_rule.action_list[0], target, host)
@@ -100,7 +100,7 @@ class DynamicPoliciesTestCase(TestCase):
                                            'identifier': '1',
                                            'valid_parameters': '{"cparam1": "integer", "cparam2": "integer", "cparam3": "integer"}'}
         self.setup_dsl_parser_data()
-        has_condition_list, parsed_rule = parse('FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 WHEN metric1 > 5 DO SET compression')
+        _, parsed_rule = parse('FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 WHEN metric1 > 5 DO SET compression')
         target = '4f0279da74ef4584a29dc72c835fe2c9'
         host = None
         rule = Rule(parsed_rule, parsed_rule.action_list[0], target, host)
@@ -118,7 +118,7 @@ class DynamicPoliciesTestCase(TestCase):
                                            'identifier': '1',
                                            'valid_parameters': '{"cparam1": "integer", "cparam2": "integer", "cparam3": "integer"}'}
         self.setup_dsl_parser_data()
-        has_condition_list, parsed_rule = parse('FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 WHEN metric1 > 5 DO SET compression')
+        _, parsed_rule = parse('FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 WHEN metric1 > 5 DO SET compression')
         target = '4f0279da74ef4584a29dc72c835fe2c9'
         host = None
         action = parsed_rule.action_list[0]
@@ -137,7 +137,7 @@ class DynamicPoliciesTestCase(TestCase):
     @mock.patch('registry.dynamic_policies.rules.rule_transient.TransientRule.do_action')
     def test_transient_action_is_triggered(self, mock_do_action):
         self.setup_dsl_parser_data()
-        has_condition_list, parsed_rule = parse('FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 WHEN metric1 > 5 DO SET compression TRANSIENT')
+        _, parsed_rule = parse('FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 WHEN metric1 > 5 DO SET compression TRANSIENT')
         target = '4f0279da74ef4584a29dc72c835fe2c9'
         host = None
         rule = TransientRule(parsed_rule, parsed_rule.action_list[0], target, host)
@@ -153,7 +153,7 @@ class DynamicPoliciesTestCase(TestCase):
                                            'identifier': '1',
                                            'valid_parameters': '{"cparam1": "integer", "cparam2": "integer", "cparam3": "integer"}'}
         self.setup_dsl_parser_data()
-        has_condition_list, parsed_rule = parse('FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 WHEN metric1 > 5 DO SET compression TRANSIENT')
+        _, parsed_rule = parse('FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 WHEN metric1 > 5 DO SET compression TRANSIENT')
         target = '4f0279da74ef4584a29dc72c835fe2c9'
         host = None
         rule = TransientRule(parsed_rule, parsed_rule.action_list[0], target, host)
@@ -277,7 +277,7 @@ class DynamicPoliciesTestCase(TestCase):
     #
 
     @mock.patch('registry.dynamic_policies.rules.base_global_controller.pika')
-    def test_min_tenant_slo_global_spare_bw_share(self, mock_pika):
+    def test_min_tenant_slo_global_spare_bw_share_v2(self, mock_pika):
         self.r.set('SLO:bandwidth:put_bw:AUTH_1234567890abcdef#0', 50)
 
         smin = MinTenantSLOGlobalSpareBWShareV2('the_name', 'PUT')

@@ -3,7 +3,6 @@ import logging
 import mimetypes
 import os
 import re
-import sys
 from operator import itemgetter
 from eventlet import sleep
 

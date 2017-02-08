@@ -13,7 +13,7 @@ from rest_framework.parsers import JSONParser
 from operator import itemgetter
 
 import sds_project
-import storage_policies
+import storage_policies_utils
 from api.common_utils import JSONResponse, get_redis_connection, get_token_connection
 from api.exceptions import FileSynchronizationException
 
@@ -79,7 +79,7 @@ def storage_policies(request):
                 storage_nodes_list.extend([k, v])
             data["storage_node"] = ','.join(map(str, storage_nodes_list))
             try:
-                storage_policies.create(data)
+                storage_policies_utils.create(data)
             except Exception as e:
                 return JSONResponse('Error creating the Storage Policy: ' + e, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -141,7 +141,7 @@ def sort_list(request):
 
 
 @csrf_exempt
-def sort_detail(request, id):
+def sort_detail(request, sort_id):
     """
     Retrieve, update or delete a Proxy Sorting.
     """
@@ -152,13 +152,13 @@ def sort_detail(request, id):
         return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     if request.method == 'GET':
-        proxy_sorting = r.hgetall("proxy_sorting:" + str(id))
+        proxy_sorting = r.hgetall("proxy_sorting:" + str(sort_id))
         return JSONResponse(proxy_sorting, status=status.HTTP_200_OK)
 
     elif request.method == 'PUT':
         try:
             data = JSONParser().parse(request)
-            r.hmset('proxy_sorting:' + str(id), data)
+            r.hmset('proxy_sorting:' + str(sort_id), data)
             return JSONResponse("Data updated", status=status.HTTP_201_CREATED)
         except redis.exceptions.DataError:
             return JSONResponse("Error updating data", status=status.HTTP_400_BAD_REQUEST)
@@ -166,7 +166,7 @@ def sort_detail(request, id):
             return JSONResponse("Invalid format or empty request", status=status.HTTP_400_BAD_REQUEST)
 
     elif request.method == 'DELETE':
-        r.delete("proxy_sorting:" + str(id))
+        r.delete("proxy_sorting:" + str(sort_id))
         return JSONResponse('Proxy sorting has been deleted', status=status.HTTP_204_NO_CONTENT)
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 

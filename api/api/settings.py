@@ -47,7 +47,6 @@ INSTALLED_APPS = (
     'bootstrap3',
     'rest_framework',
     'filters',
-    'bw',
     'swift',
     'registry'
 )

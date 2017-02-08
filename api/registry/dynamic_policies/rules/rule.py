@@ -110,7 +110,7 @@ class Rule(object):
         """
         if workload_name not in self.observers_values.keys():
             # Trying the new PyActive version. New lookup function.
-            logger.info("Rule, Workload name:", workload_name)
+            logger.info("Rule, Workload name: " + workload_name)
             observer = self.host.lookup(workload_name)
             logger.info('Rule, Observer: ' + str(observer.get_id()) + " " + observer)
             observer.attach(self.proxy)
