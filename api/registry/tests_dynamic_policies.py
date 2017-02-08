@@ -272,6 +272,16 @@ class DynamicPoliciesTestCase(TestCase):
         computed = smin.compute_algorithm(info)
         self.assertEqual(computed, {'1234567890abcdef': {'192.168.2.21-1-sdb1': 100.0}})
 
+    @mock.patch('registry.dynamic_policies.rules.base_global_controller.pika')
+    def test_min_tenant_slo_global_spare_bw_share_overloaded(self, mock_pika):
+        self.r.set('SLO:bandwidth:put_bw:AUTH_1234567890abcdef#0', 120)
+
+        smin = MinTenantSLOGlobalSpareBWShare('the_name', 'PUT')
+        self.assertTrue(mock_pika.PlainCredentials.called)
+        info = {'1234567890abcdef': {'192.168.2.21': {'0': {u'sdb1': 655350.0}}}}
+        computed = smin.compute_algorithm(info)
+        self.assertEqual(computed, {'1234567890abcdef': {'192.168.2.21-0-sdb1': 100.0}})
+
     #
     # rules/min_slo_tenant_global_share_spare_bw_v2
     #
@@ -279,6 +289,16 @@ class DynamicPoliciesTestCase(TestCase):
     @mock.patch('registry.dynamic_policies.rules.base_global_controller.pika')
     def test_min_tenant_slo_global_spare_bw_share_v2(self, mock_pika):
         self.r.set('SLO:bandwidth:put_bw:AUTH_1234567890abcdef#0', 50)
+
+        smin = MinTenantSLOGlobalSpareBWShareV2('the_name', 'PUT')
+        self.assertTrue(mock_pika.PlainCredentials.called)
+        info = {'1234567890abcdef': {'192.168.2.21': {'0': {u'sdb1': 655350.0}}}}
+        computed = smin.compute_algorithm(info)
+        self.assertEqual(computed, {'1234567890abcdef': {'192.168.2.21-0-sdb1': 70.0}})
+
+    @mock.patch('registry.dynamic_policies.rules.base_global_controller.pika')
+    def test_min_tenant_slo_global_spare_bw_share_v2_overloaded(self, mock_pika):
+        self.r.set('SLO:bandwidth:put_bw:AUTH_1234567890abcdef#0', 100)
 
         smin = MinTenantSLOGlobalSpareBWShareV2('the_name', 'PUT')
         self.assertTrue(mock_pika.PlainCredentials.called)
