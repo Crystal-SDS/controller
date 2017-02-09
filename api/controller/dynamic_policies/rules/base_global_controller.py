@@ -8,7 +8,7 @@ from redis.exceptions import RedisError
 # from api.settings import RABBITMQ_USERNAME, RABBITMQ_PASSWORD, RABBITMQ_HOST, RABBITMQ_PORT, REDIS_CON_POOL
 from django.conf import settings
 
-logging.basicConfig(filename='./rule.log', format='%(asctime)s %(message)s', level=logging.INFO)
+# logging.basicConfig(filename='./rule.log', format='%(asctime)s %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 

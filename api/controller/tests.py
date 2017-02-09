@@ -22,7 +22,7 @@ from .views import policy_list
 @override_settings(REDIS_CON_POOL=redis.ConnectionPool(host='localhost', port=6379, db=10),
                    STORLET_FILTERS_DIR=os.path.join("/tmp", "crystal", "storlet_filters"),
                    WORKLOAD_METRICS_DIR=os.path.join("/tmp", "crystal", "native_metrics"))
-class RegistryTestCase(TestCase):
+class ControllerTestCase(TestCase):
     def setUp(self):
         # Every test needs access to the request factory.
         # Using rest_framework's APIRequestFactory: http://www.django-rest-framework.org/api-guide/testing/
@@ -1112,7 +1112,8 @@ class RegistryTestCase(TestCase):
             request = self.factory.post('/controller/global_controllers/data/', {'file': fp, 'metadata': json.dumps(metadata)})
             response = GlobalControllerData.as_view()(request)
 
-        self.assertTrue(mock_start_global_controller.called)
+        mock_start_global_controller.assert_called_with('2', 'test', 'TestClass', 'get', 'test_filter')
+        #self.assertTrue(mock_start_global_controller.called)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         global_controller = json.loads(response.content)
         self.assertEqual(global_controller['id'], 2)
