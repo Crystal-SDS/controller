@@ -1013,9 +1013,6 @@ class GlobalControllerData(APIView):
 
             r.hmset('controller:' + str(controller_id), data)
 
-            logger.info(data['enabled'])
-            logger.info(type(data['enabled']))
-
             if data['enabled']:
                 actor_id = data['controller_name'].split('.')[0]
                 start_global_controller(str(controller_id), actor_id, data['class_name'], data['type'], data['dsl_filter'])

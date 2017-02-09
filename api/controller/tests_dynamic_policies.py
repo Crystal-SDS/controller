@@ -32,7 +32,7 @@ def example_mock_400(url, request):
 # Tests use database=10 instead of 0.
 @override_settings(REDIS_CON_POOL=redis.ConnectionPool(host='localhost', port=6379, db=10),
                    STORLET_FILTERS_DIR=os.path.join("/tmp", "crystal", "storlet_filters"),
-                   WORKLOAD_METRICS_DIR=os.path.join("/tmp", "crystal", "native_metrics"))
+                   WORKLOAD_METRICS_DIR=os.path.join("/tmp", "crystal", "workload_metrics"))
 class DynamicPoliciesTestCase(TestCase):
 
     def setUp(self):
