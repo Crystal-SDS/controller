@@ -13,7 +13,8 @@ from filters.views import storlet_list, filter_deploy, StorletData
 from .dsl_parser import parse
 from .views import object_type_list, object_type_detail, add_tenants_group, tenants_group_detail, gtenants_tenant_detail, \
     add_metric, metric_detail, metric_module_list, metric_module_detail, MetricModuleData, list_storage_node, storage_node_detail, add_dynamic_filter, \
-    dynamic_filter_detail, load_metrics, load_policies, static_policy_detail, dynamic_policy_detail
+    dynamic_filter_detail, load_metrics, load_policies, static_policy_detail, dynamic_policy_detail, global_controller_list, global_controller_detail, \
+    GlobalControllerData
 from .views import policy_list
 
 
@@ -36,6 +37,7 @@ class RegistryTestCase(TestCase):
         self.create_nodes()
         self.create_storage_nodes()
         self.create_metric_modules()
+        self.create_global_controllers()
 
     def tearDown(self):
         self.r.flushdb()
@@ -1030,9 +1032,104 @@ class RegistryTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
     #
-    # Aux methods
+    # global_controller_list()/global_controller_detail()
     #
 
+    def test_global_controller_list_with_method_not_allowed(self):
+        request = self.factory.delete('/controller/global_controllers')
+        response = global_controller_list(request)
+        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    def test_global_controller_detail_with_method_not_allowed(self):
+        gc_id = '1'
+        request = self.factory.post('/controller/global_controller/' + gc_id)
+        response = global_controller_detail(request, gc_id)
+        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    # def test_object_type_detail_with_method_not_allowed(self):
+    #     name = 'AUDIO'
+    #     object_type_data = {'name': name, 'types_list': ['avi', 'mkv']}
+    #     request = self.factory.post('/controller/object_type/' + name, object_type_data, format='json')
+    #     response = object_type_detail(request, name)
+    #     self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    def test_global_controller_list_ok(self):
+        request = self.factory.get('/controller/global_controllers')
+        response = global_controller_list(request)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        global_controllers = json.loads(response.content)
+        self.assertEqual(global_controllers[0]['class_name'], "MinTenantSLOGlobalSpareBWShare")
+
+    def test_global_controller_detail_get_ok(self):
+        gc_id = '1'
+        request = self.factory.get('/controller/global_controller/' + gc_id)
+        response = global_controller_detail(request, gc_id)
+
+        global_controller = json.loads(response.content)
+        self.assertEqual(global_controller['class_name'], "MinTenantSLOGlobalSpareBWShare")
+        self.assertEqual(global_controller['enabled'], False)
+
+    def test_global_controller_detail_delete_ok(self):
+        gc_id = '1'
+        request = self.factory.delete('/controller/global_controller/' + gc_id)
+        response = global_controller_detail(request, gc_id)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+        # Verify controller is deleted
+        request = self.factory.get('/controller/global_controllers')
+        response = global_controller_list(request)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        global_controllers = json.loads(response.content)
+        self.assertEqual(len(global_controllers), 0)
+
+    @mock.patch('controller.views.stop_global_controller')
+    @mock.patch('controller.views.start_global_controller')
+    def test_global_controller_detail_update_start_stop_ok(self, mock_start_global_controller, mock_stop_global_controller):
+        gc_id = '1'
+        controller_data = {'enabled': 'True'}
+        request = self.factory.put('/controller/global_controller/' + gc_id, controller_data, format='json')
+        response = global_controller_detail(request, gc_id)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(mock_start_global_controller.called)
+
+        controller_data = {'enabled': 'False'}
+        request = self.factory.put('/controller/global_controller/' + gc_id, controller_data, format='json')
+        response = global_controller_detail(request, gc_id)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(mock_stop_global_controller.called)
+
+    def test_global_controller_data_view_with_method_not_allowed(self):
+        # No PUT method for this API call
+        request = self.factory.put('/controller/global_controllers/data/')
+        response = GlobalControllerData.as_view()(request)
+        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    @mock.patch('controller.views.start_global_controller')
+    def test_create_global_controller_ok(self, mock_start_global_controller):
+        with open('test_data/test.py', 'r') as fp:
+            metadata = {'class_name': 'TestClass', 'enabled': True, 'dsl_filter': 'test_filter', 'type': 'get'}
+            request = self.factory.post('/controller/global_controllers/data/', {'file': fp, 'metadata': json.dumps(metadata)})
+            response = GlobalControllerData.as_view()(request)
+            self.assertTrue(mock_start_global_controller.called)
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        global_controller = json.loads(response.content)
+        self.assertEqual(global_controller['id'], 2)
+        self.assertEqual(global_controller['enabled'], True)
+        self.assertEqual(global_controller['controller_name'], 'test.py')
+
+        # check the global controller has been created
+        gc_id = '2'
+        request = self.factory.get('/controller/global_controller/' + gc_id)
+        response = global_controller_detail(request, gc_id)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        gc_data = json.loads(response.content)
+        self.assertEqual(gc_data['controller_name'], 'test.py')
+
+    #
+    # Aux methods
+    #
 
     def create_storlet(self):
         filter_data = {'filter_type': 'storlet', 'interface_version': '', 'dependencies': '',
@@ -1117,3 +1214,9 @@ class RegistryTestCase(TestCase):
         self.r.incr("workload_metrics:id")  # setting autoincrement to 1
         self.r.hmset('workload_metric:1', {'metric_name': 'm1.py', 'class_name': 'Metric1', 'execution_server': 'proxy', 'out_flow': 'False',
                                            'in_flow': 'False', 'enabled': 'True', 'id': '1'})
+
+    def create_global_controllers(self):
+        self.r.incr("controllers:id")  # setting autoincrement to 1
+        self.r.hmset('controller:1', {'class_name': 'MinTenantSLOGlobalSpareBWShare', 'enabled': 'False',
+                                      'controller_name': 'min_slo_tenant_global_share_spare_bw_v2.py',
+                                      'dsl_filter': 'bandwidth', 'type': 'put', 'id': '1'})
