@@ -575,9 +575,12 @@ def slo_detail(request, dsl_filter, slo_name, target):
     slo_key = ':'.join(['SLO', dsl_filter, slo_name, target])
 
     if request.method == 'GET':
-        value = r.get(slo_key)
-        slo = {'dsl_filter': dsl_filter, 'slo_name': slo_name, 'target': target, 'value': value}
-        return JSONResponse(slo, status=status.HTTP_200_OK)
+        if r.exists(slo_key):
+            value = r.get(slo_key)
+            slo = {'dsl_filter': dsl_filter, 'slo_name': slo_name, 'target': target, 'value': value}
+            return JSONResponse(slo, status=status.HTTP_200_OK)
+        else:
+            return JSONResponse("SLO not found.", status=status.HTTP_404_NOT_FOUND)
 
     elif request.method == 'PUT':
         data = JSONParser().parse(request)

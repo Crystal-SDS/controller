@@ -21,6 +21,12 @@ Crystal Controller API Specification - Filters
   - [Deploy Dependency](#deploy_dependency)
   - [Undeploy a Dependency](#undeploy-a-dependency)
   - [List deployed Dependencies of an Account](#list-deployed-dependencies-of-an-account)
+- [SLO info](#slo-info)
+  - [Get all SLOs](#get-all-slos)
+  - [Get a SLO](#get-a-slo)
+  - [Create a SLO](#create-a-slo)
+  - [Edit a SLO](#edit-a-slo)
+  - [Delete a SLO](#delete-a-slo)
 
 #Filters
 
@@ -688,4 +694,161 @@ GET
 
 GET /filters/dependencies/123/deploy/
 
+```
+
+# SLO info
+
+## Get all SLOs
+
+An application can return all the SLO information about all projects by issuing an HTTP GET request.
+
+### Request
+#### URL structure
+The URL that represents the SLO information about all projects. The URL is **/filters/slos/**
+
+#### Method
+GET
+
+#### HTTP Request Example
+```
+GET /filters/slos/
+```
+
+### Response
+
+#### Response example
+
+```json
+
+HTTP/1.1 200 OK
+
+[
+{"dsl_filter": "bandwidth",
+"slo_name": "get_bw",
+"target": "AUTH_0123456789abcdef#0",
+"value": "20"},
+{"dsl_filter":"bandwidth",
+"slo_name":"put_bw",
+"target":"AUTH_0123456789abcdef#0",
+"value":"24"}
+]
+
+```
+
+## Get a SLO
+
+An application can return the SLO information by issuing an HTTP GET request.
+
+### Request
+#### URL structure
+The URL that represents the SLO information for a filter, slo_name and target. The URL is **/filters/slo/{dsl_filter_keyword}/{slo_name}/{target}**
+
+#### Method
+GET
+
+#### HTTP Request Example
+```
+GET /filters/slo/bandwidth/get_bw/AUTH_0123456789abcdef%230
+```
+
+### Response
+
+#### Response example
+
+```json
+
+HTTP/1.1 200 OK
+
+{
+"dsl_filter":"bandwidth",
+"slo_name":"get_bw",
+"target":"AUTH_0123456789abcdef#0",
+"value":"20"
+}
+```
+
+## Create a SLO
+
+An application can create a SLO for a filter, slo_name and target by issuing an HTTP POST request.
+
+### Request
+#### URL structure
+The URL to create a SLO for the selected filter, slo_name and target is **/filters/slos** with a body containing a JSON object.
+
+#### Method
+POST
+
+#### HTTP Request Example
+```
+PUT /filters/slos/
+{
+"dsl_filter": "bandwidth", 
+"slo_name": "get_bw", 
+"target": "AUTH_0123456789abcdef#0", 
+"value": "80"
+}
+```
+
+### Response
+
+#### Response example
+
+```json
+
+HTTP/1.1 201 CREATED
+
+```
+
+## Edit a SLO
+
+An application can modify the assigned value for a filter, slo_name and target by issuing an HTTP PUT request.
+
+### Request
+#### URL structure
+The URL that represents the SLO information to edit. The URL is **/filters/slo/{dsl_filter_keyword}/{slo_name}/{target}** with a body containing a JSON object.
+
+#### Method
+PUT
+
+#### HTTP Request Example
+```
+PUT /filters/slo/bandwidth/get_bw/AUTH_0123456789abcdef%230
+{
+"value": "100"
+}
+```
+
+### Response
+
+#### Response example
+
+```json
+
+HTTP/1.1 201 CREATED
+```
+
+
+## Delete a SLO
+
+An application can delete an SLO by issuing an HTTP DELETE request.
+
+### Request
+#### URL structure
+The URL that represents the SLO information to delete. The URL is **/filters/slo/{dsl_filter_keyword}/{slo_name}/{target}**
+
+#### Method
+DELETE
+
+#### HTTP Request Example
+```
+DELETE /filters/slo/bandwidth/get_bw/AUTH_0123456789abcdef%230
+```
+
+### Response
+
+#### Response example
+
+```json
+
+HTTP/1.1 204 NO CONTENT
 ```

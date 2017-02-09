@@ -15,7 +15,7 @@ from .views import dependency_list, dependency_detail, storlet_list, storlet_det
 # Tests use database=10 instead of 0.
 @override_settings(REDIS_CON_POOL=redis.ConnectionPool(host='localhost', port=6379, db=10),
                    STORLET_FILTERS_DIR=os.path.join("/tmp", "crystal", "storlet_filters"))
-class StorletTestCase(TestCase):
+class FiltersTestCase(TestCase):
     def setUp(self):
         # Every test needs access to the request factory.
         # Using rest_framework's APIRequestFactory: http://www.django-rest-framework.org/api-guide/testing/
@@ -436,7 +436,7 @@ class StorletTestCase(TestCase):
         self.assertEqual(sorted_data[3]['dsl_filter'], 'bandwidth')
 
     def test_slo_detail_ok(self):
-        """ Test that a GET request to slo_list() returns OK """
+        """ Test that a GET request to slo_detail() returns OK """
 
         # mock_get_project_list.return_value = {'0123456789abcdef': 'tenantA', 'abcdef0123456789': 'tenantB'}
         dsl_filter = 'bandwidth'
@@ -451,6 +451,15 @@ class StorletTestCase(TestCase):
         self.assertEqual(json_data['target'], target)
         self.assertEqual(json_data['value'], '20')
 
+    def test_slo_detail_when_does_not_exist(self):
+        """ Test that a GET request to slo_detail() returns 404 if the slo does not exist """
+
+        dsl_filter = 'bandwidth'
+        slo_name = 'get_bw'
+        target = 'inexistent'
+        request = self.factory.get('/filters/slo/' + dsl_filter + '/' + slo_name + '/' + target)
+        response = slo_detail(request, dsl_filter, slo_name, target)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_update_slo_ok(self):
         """ Test that a PUT request to slo_detail() returns OK """

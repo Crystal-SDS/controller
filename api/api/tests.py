@@ -7,7 +7,7 @@ from django.core.urlresolvers import resolve
 from django.test import TestCase, override_settings
 from rest_framework.test import APIRequestFactory
 
-from .common_utils import get_all_registered_nodes, remove_extra_whitespaces, to_json_bools, rsync_dir_with_nodes, get_project_list, get_keystone_admin_auth, get_token_connection
+from .common_utils import get_all_registered_nodes, remove_extra_whitespaces, to_json_bools, rsync_dir_with_nodes, get_project_list, get_keystone_admin_auth
 from .exceptions import FileSynchronizationException
 from .startup import run as startup_run
 

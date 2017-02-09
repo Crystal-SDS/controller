@@ -11,9 +11,8 @@ Crystal Controller API Specification
 
 The Crystal Controller API structures the allowed operations in different groups:  
 
-- [BW operations](/doc/api_specification_bw.md)
 - [Filters operations](/doc/api_specification_filters.md)
-- [Registry operations](/doc/api_specification_registry.md)
+- [Controller operations](/doc/api_specification_controller.md)
 - [Swift operations](/doc/api_specification_swift.md)
 
 ## Common aspects
