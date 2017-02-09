@@ -1111,8 +1111,8 @@ class RegistryTestCase(TestCase):
             metadata = {'class_name': 'TestClass', 'enabled': True, 'dsl_filter': 'test_filter', 'type': 'get'}
             request = self.factory.post('/controller/global_controllers/data/', {'file': fp, 'metadata': json.dumps(metadata)})
             response = GlobalControllerData.as_view()(request)
-            self.assertTrue(mock_start_global_controller.called)
 
+        self.assertTrue(mock_start_global_controller.called)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         global_controller = json.loads(response.content)
         self.assertEqual(global_controller['id'], 2)
