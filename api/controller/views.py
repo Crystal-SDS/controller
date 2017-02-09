@@ -253,7 +253,7 @@ def metric_module_list(request):
 
 def start_metric(metric_id, actor_id):
     host = create_local_host()
-    logger.info("Metric, Starting workload metric actor " + str(metric_id) + "("+ str(actor_id) + ")")
+    logger.info("Metric, Starting workload metric actor " + str(metric_id) + " (" + str(actor_id) + ")")
     try:
         if metric_id not in metric_actors:
             metric_actors[metric_id] = host.spawn_id(actor_id, settings.METRIC_MODULE, settings.METRIC_CLASS,
@@ -964,7 +964,7 @@ def global_controller_detail(request, controller_id):
 
             if controller_data['enabled']:
                 actor_id = controller_data['controller_name'].split('.')[0]
-                start_global_controller(str(controller_id), actor_id, controller_data['class_name'], controller_data['type'])
+                start_global_controller(str(controller_id), actor_id, controller_data['class_name'], controller_data['type'], controller_data['dsl_filter'])
             else:
                 stop_global_controller(str(controller_id))
 
@@ -1015,7 +1015,7 @@ class GlobalControllerData(APIView):
 
             if data['enabled']:
                 actor_id = data['controller_name'].split('.')[0]
-                start_global_controller(str(controller_id), actor_id, data['class_name'], data['type'])
+                start_global_controller(str(controller_id), actor_id, data['class_name'], data['type'], data['dsl_filter'])
 
             return JSONResponse(data, status=status.HTTP_201_CREATED)
 
@@ -1051,36 +1051,40 @@ class GlobalControllerData(APIView):
             return HttpResponse(status=status.HTTP_404_NOT_FOUND)
 
 
-def start_global_controller(controller_id, actor_id, controller_class_name, method_type):
+def start_global_controller(controller_id, actor_id, controller_class_name, method_type, dsl_filter):
 
     host = create_local_host()
-    logger.info("Controller, Starting controller actor " + str(controller_id))
+    logger.info("Controller, Starting controller actor " + str(controller_id) + " " + str(actor_id))
 
-    # FIXME: Decouple global controllers and the me
-
+    # FIXME: Decouple global controllers and their related metrics
     try:
         if controller_id not in controller_actors:
-            # 1) Spawn metric actor if not already spawned
-            metric_name = method_type + "_bw_info"  # get_bw_info, put_bw_info, ssync_bw_info
-            if metric_name not in metric_actors:
-                if method_type == 'ssync':
-                    metric_module_name = ''.join([settings.METRICS_BASE_MODULE, '.', 'bw_info_ssync'])
-                    metric_class_name = 'BwInfoSSYNC'
-                else:
-                    metric_module_name = ''.join([settings.METRICS_BASE_MODULE, '.', 'bw_info'])
-                    metric_class_name = 'BwInfo'
-                logger.info("Controller, Starting metric actor " + metric_name)
-                metric_actors[metric_name] = host.spawn_id(metric_name, metric_module_name, metric_class_name,
-                                                       ["amq.topic", metric_name, "bwdifferentiation."+metric_name+".#", method_type.upper()])
 
-                try:
-                    metric_actors[metric_name].init_consum()
-                    logger.info("Controller, Started metric actor " + metric_name)
-                    sleep(0.1)
-                except Exception as e:
-                    logger.error(e.args)
-                    logger.info("Controller, Failed to start metric actor " + metric_name)
-                    metric_actors[metric_name].stop_actor()
+            if dsl_filter == 'bandwidth':
+                # 1) Spawn metric actor if not already spawned
+                metric_name = method_type + "_bw_info"  # get_bw_info, put_bw_info, ssync_bw_info
+                if metric_name not in metric_actors:
+                    if method_type == 'ssync':
+                        metric_module_name = ''.join([settings.METRICS_BASE_MODULE, '.', 'bw_info_ssync'])
+                        metric_class_name = 'BwInfoSSYNC'
+                    else:
+                        metric_module_name = ''.join([settings.METRICS_BASE_MODULE, '.', 'bw_info'])
+                        metric_class_name = 'BwInfo'
+                    logger.info("Controller, Starting metric actor " + metric_name)
+                    metric_actors[metric_name] = host.spawn_id(metric_name, metric_module_name, metric_class_name,
+                                                           ["amq.topic", metric_name, "bwdifferentiation."+metric_name+".#", method_type.upper()])
+
+                    try:
+                        metric_actors[metric_name].init_consum()
+                        logger.info("Controller, Started metric actor " + metric_name)
+                        sleep(0.1)
+                    except Exception as e:
+                        logger.error(e.args)
+                        logger.info("Controller, Failed to start metric actor " + metric_name)
+                        metric_actors[metric_name].stop_actor()
+            else:
+                # FIXME: Obtain the related metric_name that the global controller must observe
+                metric_name = 'dummy'
 
             # 2) Spawn controller actor
             #module_name = ''.join([settings.GLOBAL_CONTROLLERS_BASE_MODULE, '.', actor_id])
