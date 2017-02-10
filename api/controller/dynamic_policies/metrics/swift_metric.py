@@ -60,13 +60,13 @@ class SwiftMetric(Metric):
         monitoring_data = dict()
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            for source_ip in data:
+            for host in data:
                 monitoring_data['metric_name'] = self.queue
-                monitoring_data['source_ip'] = source_ip.replace('.', '-')
-                monitoring_data['@timestamp'] = data[source_ip]['@timestamp']
-                del data[source_ip]['@timestamp']
+                monitoring_data['host'] = host
+                monitoring_data['@timestamp'] = data[host]['@timestamp']
+                del data[host]['@timestamp']
 
-                for tenant, value in data[source_ip].items():
+                for tenant, value in data[host].items():
                     monitoring_data['metric_target'] = tenant.split("#:#")[0].replace('AUTH_', '')
                     if (tenant in self.last_metrics and self.last_metrics[tenant]['value'] == 0) or tenant not in self.last_metrics:
                         monitoring_data['value'] = 0
