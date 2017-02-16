@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 valid_tokens = dict()
 
 
-class CrystalMiddleware:
+class CrystalMiddleware(object):
     def __init__(self):
         pass
 

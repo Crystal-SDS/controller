@@ -1,3 +1,6 @@
+import json
+import logging
+import os
 import redis
 import requests
 from django.conf import settings
@@ -7,11 +10,14 @@ from redis.exceptions import RedisError
 from rest_framework import status
 from rest_framework.exceptions import ParseError
 from rest_framework.parsers import JSONParser
+from operator import itemgetter
 
 import sds_project
-import storage_policies
+import storage_policies_utils
 from api.common_utils import JSONResponse, get_redis_connection, get_token_connection
+from api.exceptions import FileSynchronizationException
 
+logger = logging.getLogger(__name__)
 
 @csrf_exempt
 def tenants_list(request):
@@ -73,7 +79,7 @@ def storage_policies(request):
                 storage_nodes_list.extend([k, v])
             data["storage_node"] = ','.join(map(str, storage_nodes_list))
             try:
-                storage_policies.create(data)
+                storage_policies_utils.create(data)
             except Exception as e:
                 return JSONResponse('Error creating the Storage Policy: ' + e, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -135,7 +141,7 @@ def sort_list(request):
 
 
 @csrf_exempt
-def sort_detail(request, id):
+def sort_detail(request, sort_id):
     """
     Retrieve, update or delete a Proxy Sorting.
     """
@@ -146,13 +152,13 @@ def sort_detail(request, id):
         return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     if request.method == 'GET':
-        proxy_sorting = r.hgetall("proxy_sorting:" + str(id))
+        proxy_sorting = r.hgetall("proxy_sorting:" + str(sort_id))
         return JSONResponse(proxy_sorting, status=status.HTTP_200_OK)
 
     elif request.method == 'PUT':
         try:
             data = JSONParser().parse(request)
-            r.hmset('proxy_sorting:' + str(id), data)
+            r.hmset('proxy_sorting:' + str(sort_id), data)
             return JSONResponse("Data updated", status=status.HTTP_201_CREATED)
         except redis.exceptions.DataError:
             return JSONResponse("Error updating data", status=status.HTTP_400_BAD_REQUEST)
@@ -160,6 +166,110 @@ def sort_detail(request, id):
             return JSONResponse("Invalid format or empty request", status=status.HTTP_400_BAD_REQUEST)
 
     elif request.method == 'DELETE':
-        r.delete("proxy_sorting:" + str(id))
+        r.delete("proxy_sorting:" + str(sort_id))
         return JSONResponse('Proxy sorting has been deleted', status=status.HTTP_204_NO_CONTENT)
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+#
+# Node part
+#
+
+@csrf_exempt
+def node_list(request):
+    """
+    GET: List all nodes ordered by name
+    """
+
+    try:
+        r = get_redis_connection()
+    except RedisError:
+        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    if request.method == 'GET':
+        keys = r.keys("node:*")
+        nodes = []
+        for key in keys:
+            node = r.hgetall(key)
+            node.pop("ssh_username", None)  # username & password are not returned in the list
+            node.pop("ssh_password", None)
+            node['devices'] = json.loads(node['devices'])
+            nodes.append(node)
+        sorted_list = sorted(nodes, key=itemgetter('name'))
+        return JSONResponse(sorted_list, status=status.HTTP_200_OK)
+
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+
+@csrf_exempt
+def node_detail(request, node_id):
+    """
+    GET: Retrieve node details. PUT: Update node.
+    :param request:
+    :param node_id:
+    :return:
+    """
+
+    try:
+        r = get_redis_connection()
+    except RedisError:
+        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    key = "node:" + node_id
+    if request.method == 'GET':
+        if r.exists(key):
+            node = r.hgetall(key)
+            node.pop("ssh_password", None)  # password is not returned
+            node['devices'] = json.loads(node['devices'])
+            return JSONResponse(node, status=status.HTTP_200_OK)
+        else:
+            return JSONResponse('Node not found.', status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'PUT':
+        if r.exists(key):
+            data = JSONParser().parse(request)
+            try:
+                r.hmset(key, data)
+                return JSONResponse("Data updated", status=status.HTTP_201_CREATED)
+            except RedisError:
+                return JSONResponse("Error updating data", status=status.HTTP_400_BAD_REQUEST)
+        else:
+            return JSONResponse('Node not found.', status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'DELETE':
+        # Deletes the key. If the node is alive, the metric middleware will recreate this key again.
+        if r.exists(key):
+            node = r.delete(key)
+            return JSONResponse('Node has been deleted', status=status.HTTP_204_NO_CONTENT)
+        else:
+            return JSONResponse('Node not found.', status=status.HTTP_404_NOT_FOUND)
+
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+
+@csrf_exempt
+def node_restart(request, node_id):
+    try:
+        r = get_redis_connection()
+    except RedisError:
+        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    logger.debug('Node id: ' + str(node_id))
+
+    if request.method == 'PUT':
+        node = r.hgetall('node:' + str(node_id))
+        logger.debug('Node data: ' + str(node))
+
+        data = {'node_ip': node['ip'], 'ssh_username': node['ssh_username'], 'ssh_password': node['ssh_password']}
+        restart_command = 'sshpass -p {ssh_password} ssh {ssh_username}@{node_ip} sudo swift-init main restart'.format(**data)
+        logger.debug('Command: ' + str(restart_command))
+
+        ret = os.system(restart_command)
+        if ret != 0:
+            logger.error('An error occurred restarting Swift nodes')
+            raise FileSynchronizationException("An error occurred restarting Swift nodes")
+
+        logger.debug('Node ' + str(node_id) + ' was restarted!')
+        return JSONResponse('The node was restarted successfully.', status=status.HTTP_200_OK)
+
+    logger.error('Method ' + str(request.method) + ' not allowed.')
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)

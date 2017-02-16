@@ -1,6 +1,8 @@
+import calendar
 import logging
 import os
 import sys
+import time
 
 import keystoneclient.v2_0.client as keystone_client
 import redis
@@ -10,7 +12,14 @@ from django.http import HttpResponse
 from rest_framework.renderers import JSONRenderer
 
 from api.exceptions import FileSynchronizationException
+from pyactive.controller import init_host, start_controller
 
+host = None
+# remote_host = None
+
+logger = logging.getLogger(__name__)
+
+NODE_STATUS_THRESHOLD = 15  # seconds
 
 class LoggingColors(logging.Formatter):
     def __init__(self, *args, **kwargs):
@@ -125,15 +134,17 @@ def rsync_dir_with_nodes(directory):
         if not node.viewkeys() & {'ssh_username', 'ssh_password'}:
             raise FileSynchronizationException("SSH credentials missing for some Swift node. Please, set the credentials for all nodes.")
 
-        # The basename of the path is not needed because it will be the same as source dir
-        dest_directory = os.path.dirname(directory)
-        data = {'directory': directory, 'dest_directory': dest_directory, 'node_ip': node['ip'],
-                'ssh_username': node['ssh_username'], 'ssh_password': node['ssh_password']}
-        rsync_command = 'sshpass -p {ssh_password} rsync --progress --delete -avrz -e ssh {directory} {ssh_username}@{node_ip}:{dest_directory}'.format(**data)
-        # print "System: %s" % rsync_command
-        ret = os.system(rsync_command)
-        if ret != 0:
-            raise FileSynchronizationException("An error occurred copying files to Swift nodes")
+        # Directory is only synchronized if node status is UP
+        if calendar.timegm(time.gmtime()) - int(float(node['last_ping'])) <= NODE_STATUS_THRESHOLD:
+            # The basename of the path is not needed because it will be the same as source dir
+            dest_directory = os.path.dirname(directory)
+            data = {'directory': directory, 'dest_directory': dest_directory, 'node_ip': node['ip'],
+                    'ssh_username': node['ssh_username'], 'ssh_password': node['ssh_password']}
+            rsync_command = 'sshpass -p {ssh_password} rsync --progress --delete -avrz -e ssh {directory} {ssh_username}@{node_ip}:{dest_directory}'.format(**data)
+            # print "System: %s" % rsync_command
+            ret = os.system(rsync_command)
+            if ret != 0:
+                raise FileSynchronizationException("An error occurred copying files to Swift nodes")
 
 
 def get_all_registered_nodes():
@@ -161,3 +172,16 @@ def to_json_bools(dictionary, *args):
 
 def remove_extra_whitespaces(_str):
     return ' '.join(_str.split())
+
+
+def create_local_host():
+    tcpconf = ('tcp', (settings.PYACTIVE_IP, settings.PYACTIVE_PORT))
+    global host
+    try:
+        start_controller("pyactive_thread")
+        host = init_host(tcpconf)
+        logger.info("Controller PyActive host created")
+    except:
+        pass
+
+    return host

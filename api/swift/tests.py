@@ -7,12 +7,12 @@ from django.test.client import RequestFactory
 from rest_framework import status
 from rest_framework.test import APIRequestFactory
 
-from .views import tenants_list, storage_policy_list, storage_policies, locality_list, sort_list, sort_detail
+from .views import tenants_list, storage_policy_list, storage_policies, locality_list, sort_list, sort_detail, node_list, node_detail
 
 
 # Tests use database=10 instead of 0.
 @override_settings(REDIS_CON_POOL=redis.ConnectionPool(host='localhost', port=6379, db=10))
-class BwTestCase(TestCase):
+class SwiftTestCase(TestCase):
     def setUp(self):
         # Every test needs access to the request factory.
         # Using rest_framework's APIRequestFactory: http://www.django-rest-framework.org/api-guide/testing/
@@ -22,6 +22,7 @@ class BwTestCase(TestCase):
         # initializations
         self.create_storage_policies()
         self.create_proxy_sorting()
+        self.create_nodes()
 
     def tearDown(self):
         self.r.flushdb()
@@ -174,6 +175,62 @@ class BwTestCase(TestCase):
         self.assertEqual(len(storage_policies_json), 5)
 
     #
+    # Nodes
+    #
+
+    def test_node_list_with_method_not_allowed(self):
+        request = self.api_factory.delete('/swift/nodes')
+        response = node_list(request)
+        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    def test_list_nodes_ok(self):
+        request = self.api_factory.get('/swift/nodes')
+        response = node_list(request)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertNotEqual(response.content, "[]")
+
+        nodes = json.loads(response.content)
+        self.assertEqual(len(nodes), 3)
+        node_names = [node['name'] for node in nodes]
+        self.assertTrue('controller' in node_names)
+        self.assertTrue('storagenode1' in node_names)
+        self.assertTrue('storagenode2' in node_names)
+        a_device = nodes[0]['devices'].keys()[0]
+        self.assertIsNotNone(nodes[0]['devices'][a_device]['free'])
+
+    def test_node_detail_with_method_not_allowed(self):
+        node_name = 'storagenode1'
+        # POST is not supported
+        request = self.api_factory.post('/swift/nodes/' + node_name)
+        response = node_detail(request, node_name)
+        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    def test_get_node_detail_ok(self):
+        node_name = 'storagenode1'
+        request = self.api_factory.get('/swift/nodes/' + node_name)
+        response = node_detail(request, node_name)
+        node = json.loads(response.content)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(node['name'], 'storagenode1')
+
+    def test_get_node_detail_with_non_existent_node_name(self):
+        node_name = 'storagenode1000'
+        request = self.api_factory.get('/swift/nodes/' + node_name)
+        response = node_detail(request, node_name)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_delete_node_detail_ok(self):
+        node_name = 'storagenode1'
+        request = self.api_factory.delete('/swift/nodes/' + node_name)
+        response = node_detail(request, node_name)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+        # Verify it was deleted
+        request = self.api_factory.get('/swift/nodes/' + node_name)
+        response = node_detail(request, node_name)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    #
     # Aux functions
     #
 
@@ -189,3 +246,14 @@ class BwTestCase(TestCase):
         request = self.api_factory.post('/swift/sort_nodes', proxy_sorting_data, format='json')
         response = sort_list(request)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def create_nodes(self):
+        self.r.hmset('node:controller',
+                     {'ip': '192.168.2.1', 'last_ping': '1467623304.332646', 'type': 'proxy', 'name': 'controller',
+                      'devices': '{"sdb1": {"free": 16832876544, "size": 16832880640}}'})
+        self.r.hmset('node:storagenode1',
+                     {'ip': '192.168.2.2', 'last_ping': '1467623304.332646', 'type': 'object', 'name': 'storagenode1',
+                      'devices': '{"sdb1": {"free": 16832876544, "size": 16832880640}}'})
+        self.r.hmset('node:storagenode2',
+                     {'ip': '192.168.2.3', 'last_ping': '1467623304.332646', 'type': 'object', 'name': 'storagenode2',
+                      'devices': '{"sdb1": {"free": 16832876544, "size": 16832880640}}'})

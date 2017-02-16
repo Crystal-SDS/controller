@@ -103,10 +103,10 @@ def storlet_detail(request, storlet_id):
         return JSONResponse('Object does not exist!', status=status.HTTP_404_NOT_FOUND)
 
     if request.method == 'GET':
-        filter = r.hgetall("filter:" + str(storlet_id))
+        my_filter = r.hgetall("filter:" + str(storlet_id))
 
-        to_json_bools(filter, 'has_reverse', 'is_pre_get', 'is_post_get', 'is_pre_put', 'is_post_put', 'enabled')
-        return JSONResponse(filter, status=status.HTTP_200_OK)
+        to_json_bools(my_filter, 'has_reverse', 'is_pre_get', 'is_post_get', 'is_pre_put', 'is_post_put', 'enabled')
+        return JSONResponse(my_filter, status=status.HTTP_200_OK)
 
     elif request.method == 'PUT':
         try:
@@ -114,15 +114,15 @@ def storlet_detail(request, storlet_id):
         except ParseError:
             return JSONResponse("Invalid format or empty request", status=status.HTTP_400_BAD_REQUEST)
 
-        filter = r.hgetall("filter:" + str(storlet_id))
+        my_filter = r.hgetall("filter:" + str(storlet_id))
 
-        if (((filter['filter_type'] == 'storlet' or filter['filter_type'] == 'native') and not check_keys(data.keys(), FILTER_KEYS[3:-1])) or
-                ((filter['filter_type'] == 'global') and not check_keys(data.keys(), GLOBAL_FILTER_KEYS[3:-1]))):
+        if (((my_filter['filter_type'] == 'storlet' or my_filter['filter_type'] == 'native') and not check_keys(data.keys(), FILTER_KEYS[3:-1])) or
+                ((my_filter['filter_type'] == 'global') and not check_keys(data.keys(), GLOBAL_FILTER_KEYS[3:-1]))):
             return JSONResponse("Invalid parameters in request", status=status.HTTP_400_BAD_REQUEST)
 
         try:
             r.hmset('filter:' + str(storlet_id), data)
-            if filter['filter_type'] == 'global':
+            if my_filter['filter_type'] == 'global':
                 if data['enabled'] is True or data['enabled'] == 'True' or data['enabled'] == 'true':
                     to_json_bools(data, 'has_reverse', 'is_pre_get', 'is_post_get', 'is_pre_put', 'is_post_put', 'enabled')
                     data['filter_type'] = 'global'  # Adding filter type
@@ -142,9 +142,9 @@ def storlet_detail(request, storlet_id):
                 if dsl_filter_id == storlet_id:
                     return JSONResponse('Unable to delete filter, is in use by the Registry DSL.', status=status.HTTP_403_FORBIDDEN)
 
-            filter = r.hgetall("filter:" + str(storlet_id))
+            my_filter = r.hgetall("filter:" + str(storlet_id))
             r.delete("filter:" + str(storlet_id))
-            if filter['filter_type'] == 'global':
+            if my_filter['filter_type'] == 'global':
                 r.hdel("global_filters", str(storlet_id))
             return JSONResponse('Filter has been deleted', status=status.HTTP_204_NO_CONTENT)
         except DataError:
@@ -526,6 +526,74 @@ def dependency_undeploy(request, dependency_id, account):
         return JSONResponse(response.get("reason"), status=swift_status)
 
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
+
+
+@csrf_exempt
+def slo_list(request):
+    """
+    List all SLOs, or create an SLO.
+    """
+
+    try:
+        r = get_redis_connection()
+    except RedisError:
+        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    if request.method == 'GET':
+        slos = []
+        keys = r.keys('SLO:*')
+        for key in keys:
+            _, dsl_filter, slo_name, target = key.split(':')
+            value = r.get(key)
+            slos.append({'dsl_filter': dsl_filter, 'slo_name': slo_name, 'target': target, 'value': value})
+        return JSONResponse(slos, status=status.HTTP_200_OK)
+
+    elif request.method == 'POST':
+        data = JSONParser().parse(request)
+        try:
+            slo_key = ':'.join(['SLO', data['dsl_filter'], data['slo_name'], data['target']])
+            r.set(slo_key, data['value'])
+
+            return JSONResponse(data, status=status.HTTP_201_CREATED)
+        except DataError:
+            return JSONResponse('Error saving SLA.', status=status.HTTP_400_BAD_REQUEST)
+
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+
+@csrf_exempt
+def slo_detail(request, dsl_filter, slo_name, target):
+    """
+    Retrieve, update or delete SLO.
+    """
+
+    try:
+        r = get_redis_connection()
+    except RedisError:
+        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    slo_key = ':'.join(['SLO', dsl_filter, slo_name, target])
+
+    if request.method == 'GET':
+        if r.exists(slo_key):
+            value = r.get(slo_key)
+            slo = {'dsl_filter': dsl_filter, 'slo_name': slo_name, 'target': target, 'value': value}
+            return JSONResponse(slo, status=status.HTTP_200_OK)
+        else:
+            return JSONResponse("SLO not found.", status=status.HTTP_404_NOT_FOUND)
+
+    elif request.method == 'PUT':
+        data = JSONParser().parse(request)
+        try:
+            r.set(slo_key, data['value'])
+            return JSONResponse('Data updated', status=status.HTTP_201_CREATED)
+        except DataError:
+            return JSONResponse('Error updating data', status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        r.delete(slo_key)
+        return JSONResponse('SLA has been deleted', status=status.HTTP_204_NO_CONTENT)
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
 def set_filter(r, target, filter_data, parameters, token):

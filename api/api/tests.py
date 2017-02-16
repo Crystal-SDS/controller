@@ -1,5 +1,5 @@
-from datetime import datetime, timedelta
-
+import calendar
+import time
 import mock
 import redis
 from django.conf import settings
@@ -7,7 +7,7 @@ from django.core.urlresolvers import resolve
 from django.test import TestCase, override_settings
 from rest_framework.test import APIRequestFactory
 
-from .common_utils import get_all_registered_nodes, remove_extra_whitespaces, to_json_bools, rsync_dir_with_nodes, get_project_list, get_keystone_admin_auth, get_token_connection
+from .common_utils import get_all_registered_nodes, remove_extra_whitespaces, to_json_bools, rsync_dir_with_nodes, get_project_list, get_keystone_admin_auth
 from .exceptions import FileSynchronizationException
 from .startup import run as startup_run
 
@@ -163,11 +163,11 @@ class MainTestCase(TestCase):
         self.assertEqual(resolver.view_name, 'filters.views.StorletData')
         self.assertEqual(resolver.kwargs, {'storlet_id': '123'})
 
-        resolver = resolve('/registry/nodes/')
-        self.assertEqual(resolver.view_name, 'registry.views.node_list')
+        resolver = resolve('/swift/nodes/')
+        self.assertEqual(resolver.view_name, 'swift.views.node_list')
 
-        resolver = resolve('/registry/nodes/node1')
-        self.assertEqual(resolver.view_name, 'registry.views.node_detail')
+        resolver = resolve('/swift/nodes/node1')
+        self.assertEqual(resolver.view_name, 'swift.views.node_detail')
         self.assertEqual(resolver.kwargs, {'node_id': 'node1'})
 
     #
@@ -176,13 +176,13 @@ class MainTestCase(TestCase):
 
     def create_nodes(self):
         self.r.hmset('node:controller',
-                     {'ip': '192.168.2.1', 'last_ping': '1467623304.332646', 'type': 'proxy', 'name': 'controller',
+                     {'ip': '192.168.2.1', 'last_ping': str(calendar.timegm(time.gmtime())), 'type': 'proxy', 'name': 'controller',
                       'devices': '{"sdb1": {"free": 16832876544, "size": 16832880640}}'})
         self.r.hmset('node:storagenode1',
-                     {'ip': '192.168.2.2', 'last_ping': '1467623304.332646', 'type': 'object', 'name': 'storagenode1',
+                     {'ip': '192.168.2.2', 'last_ping': str(calendar.timegm(time.gmtime())), 'type': 'object', 'name': 'storagenode1',
                       'devices': '{"sdb1": {"free": 16832876544, "size": 16832880640}}'})
         self.r.hmset('node:storagenode2',
-                     {'ip': '192.168.2.3', 'last_ping': '1467623304.332646', 'type': 'object', 'name': 'storagenode2',
+                     {'ip': '192.168.2.3', 'last_ping': str(calendar.timegm(time.gmtime())), 'type': 'object', 'name': 'storagenode2',
                       'devices': '{"sdb1": {"free": 16832876544, "size": 16832880640}}'})
 
     def configure_usernames_and_passwords_for_nodes(self):

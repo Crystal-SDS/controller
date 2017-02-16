@@ -23,5 +23,8 @@ urlpatterns = [
     url(r'^/dependencies/(?P<dependency_id>\w+)/data/?$', views.DependencyData.as_view()),
     url(r'^/dependencies/(?P<account>\w+)/deploy/?$', views.dependency_list_deployed),
     url(r'^/dependencies/(?P<account>\w+)/deploy/(?P<dependency_id>\w+)/?$', views.dependency_deploy),
-    url(r'^/dependencies/(?P<account>\w+)/undeploy/(?P<dependency_id>\w+)/?$', views.dependency_undeploy)
+    url(r'^/dependencies/(?P<account>\w+)/undeploy/(?P<dependency_id>\w+)/?$', views.dependency_undeploy),
+
+    url(r'^/slos/?$', views.slo_list),
+    url(r'^/slo/(?P<dsl_filter>[^/]+)/(?P<slo_name>[^/]+)/(?P<target>[^/]+)/?$', views.slo_detail)
 ]

@@ -8,13 +8,14 @@ from django.test import TestCase, override_settings
 from rest_framework import status
 from rest_framework.test import APIRequestFactory
 
-from .views import dependency_list, dependency_detail, storlet_list, storlet_detail, storlet_list_deployed, filter_deploy, unset_filter, StorletData
+from .views import dependency_list, dependency_detail, storlet_list, storlet_detail, storlet_list_deployed, filter_deploy, unset_filter, StorletData, \
+    slo_list, slo_detail
 
 
 # Tests use database=10 instead of 0.
 @override_settings(REDIS_CON_POOL=redis.ConnectionPool(host='localhost', port=6379, db=10),
                    STORLET_FILTERS_DIR=os.path.join("/tmp", "crystal", "storlet_filters"))
-class StorletTestCase(TestCase):
+class FiltersTestCase(TestCase):
     def setUp(self):
         # Every test needs access to the request factory.
         # Using rest_framework's APIRequestFactory: http://www.django-rest-framework.org/api-guide/testing/
@@ -23,6 +24,8 @@ class StorletTestCase(TestCase):
 
         self.create_storlet()
         self.create_dependency()
+        self.create_storage_policies()
+        self.create_sample_bw_policies()
 
     def tearDown(self):
         self.r.flushdb()
@@ -380,6 +383,123 @@ class StorletTestCase(TestCase):
         self.assertFalse(self.r.hexists("pipeline:AUTH_0123456789abcdef", "21"))  # 21 was deleted
         self.assertTrue(self.r.hexists("pipeline:AUTH_0123456789abcdef", "20"))  # 20 was not deleted
 
+    # slo_list / slo_detail
+
+    def test_slo_list_with_method_not_allowed(self):
+        """ Test that DELETE requests to slo_list() return METHOD_NOT_ALLOWED """
+        request = self.factory.delete('/filters/slos')
+        response = slo_list(request)
+        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    def test_slo_detail_with_method_not_allowed(self):
+        """ Test that POST requests to slo_detail() return METHOD_NOT_ALLOWED """
+        dsl_filter = 'bandwidth'
+        slo_name = 'get_bw'
+        target = 'AUTH_0123456789abcdef#1'
+        request = self.factory.post('/filters/slo/' + dsl_filter + '/' + slo_name + '/' + target)
+        response = slo_detail(request, dsl_filter, slo_name, target)
+        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    def test_slo_list_ok(self):
+        """ Test that a GET request to slo_list() returns OK """
+
+        request = self.factory.get('/filters/slos')
+        response = slo_list(request)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_data = json.loads(response.content)
+        self.assertEqual(len(json_data), 6)
+
+        sorted_data = sorted(json_data, key=lambda datum: (datum['target'], datum['slo_name']))
+        self.assertEqual(sorted_data[0]['value'], '20')
+        self.assertEqual(sorted_data[1]['value'], '30')
+        self.assertEqual(sorted_data[2]['value'], '50')
+        self.assertEqual(sorted_data[3]['value'], '10')
+        self.assertEqual(sorted_data[4]['value'], '15')
+        self.assertEqual(sorted_data[5]['value'], '25')
+
+    def test_create_slo_ok(self):
+        """ Test that a POST request to slo_list() returns OK """
+        slo_data = {'dsl_filter': 'bandwidth', 'slo_name': 'get_bw', 'target': 'AUTH_0123456789abcdef#4', 'value': '10'}
+        request = self.factory.post('/filters/slos', slo_data, format='json')
+        response = slo_list(request)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        # Verify the SLO was created
+        request = self.factory.get('/filters/slos')
+        response = slo_list(request)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_data = json.loads(response.content)
+        self.assertEqual(len(json_data), 7)  # 6 --> 7
+        sorted_data = sorted(json_data, key=lambda datum: datum['target'])
+        self.assertEqual(sorted_data[3]['value'], '10')
+        self.assertEqual(sorted_data[3]['slo_name'], 'get_bw')
+        self.assertEqual(sorted_data[3]['dsl_filter'], 'bandwidth')
+
+    def test_slo_detail_ok(self):
+        """ Test that a GET request to slo_detail() returns OK """
+
+        # mock_get_project_list.return_value = {'0123456789abcdef': 'tenantA', 'abcdef0123456789': 'tenantB'}
+        dsl_filter = 'bandwidth'
+        slo_name = 'get_bw'
+        target = 'AUTH_0123456789abcdef#2'
+        request = self.factory.get('/filters/slo/' + dsl_filter + '/' + slo_name + '/' + target)
+        response = slo_detail(request, dsl_filter, slo_name, target)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_data = json.loads(response.content)
+        self.assertEqual(json_data['dsl_filter'], dsl_filter)
+        self.assertEqual(json_data['slo_name'], slo_name)
+        self.assertEqual(json_data['target'], target)
+        self.assertEqual(json_data['value'], '20')
+
+    def test_slo_detail_when_does_not_exist(self):
+        """ Test that a GET request to slo_detail() returns 404 if the slo does not exist """
+
+        dsl_filter = 'bandwidth'
+        slo_name = 'get_bw'
+        target = 'inexistent'
+        request = self.factory.get('/filters/slo/' + dsl_filter + '/' + slo_name + '/' + target)
+        response = slo_detail(request, dsl_filter, slo_name, target)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_update_slo_ok(self):
+        """ Test that a PUT request to slo_detail() returns OK """
+
+        dsl_filter = 'bandwidth'
+        slo_name = 'get_bw'
+        target = 'AUTH_0123456789abcdef#2'
+        new_value = '60'
+        slo_data = {'value': new_value}
+        request = self.factory.put('/filters/slo/' + dsl_filter + '/' + slo_name + '/' + target, slo_data, format='json')
+
+        response = slo_detail(request, dsl_filter, slo_name, target)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        # Verify the SLO was updated
+        request = self.factory.get('/filters/slo/' + dsl_filter + '/' + slo_name + '/' + target)
+        response = slo_detail(request, dsl_filter, slo_name, target)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_data = json.loads(response.content)
+        self.assertEqual(json_data['value'], new_value)
+
+    def test_delete_slo_ok(self):
+        """ Test that a DELETE request to slo_detail() returns OK """
+
+        dsl_filter = 'bandwidth'
+        slo_name = 'get_bw'
+        target = 'AUTH_0123456789abcdef#2'
+        request = self.factory.delete('/filters/slo/' + dsl_filter + '/' + slo_name + '/' + target)
+
+        response = slo_detail(request, dsl_filter, slo_name, target)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+        # Verify the SLO was deleted
+        request = self.factory.get('/filters/slos')
+        response = slo_list(request)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_data = json.loads(response.content)
+        self.assertEqual(len(json_data), 5)  # 6 --> 5
+
+
     #
     # Aux methods
     #
@@ -399,8 +519,19 @@ class StorletTestCase(TestCase):
         response = dependency_list(request)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
-        # def keystone_get_tenants_response(self):
-        #     resp = HttpResponse()
-        #     resp.content = json.dumps({'tenants': [{'name': 'tenantA', 'id': '0123456789abcdef'},
-        #                                            {'name': 'tenantB', 'id': '2'}]})
-        #     return resp
+    def create_storage_policies(self):
+        self.r.hmset("storage-policy:0", {'name': 'allnodes', 'default': 'yes', 'policy_type': 'replication'})
+        self.r.hmset("storage-policy:1", {'name': 'storage4', 'default': 'no', 'policy_type': 'replication'})
+        self.r.hmset("storage-policy:2", {'name': 's0y1', 'default': 'no', 'policy_type': 'replication'})
+        self.r.hmset("storage-policy:3", {'name': 's3y4', 'default': 'no', 'policy_type': 'replication'})
+        self.r.hmset("storage-policy:4", {'name': 's5y6', 'default': 'no', 'policy_type': 'replication'})
+
+    def create_sample_bw_policies(self):
+        # self.r.hmset('bw:AUTH_0123456789abcdef', {'2': '2000'})
+        # self.r.hmset('bw:AUTH_abcdef0123456789', {'3': '3000'})
+        self.r.set('SLO:bandwidth:get_bw:AUTH_0123456789abcdef#2', 20)
+        self.r.set('SLO:bandwidth:put_bw:AUTH_0123456789abcdef#2', 30)
+        self.r.set('SLO:bandwidth:ssync_bw:AUTH_0123456789abcdef#2', 50)
+        self.r.set('SLO:bandwidth:get_bw:AUTH_abcdef0123456789#3', 10)
+        self.r.set('SLO:bandwidth:put_bw:AUTH_abcdef0123456789#3', 15)
+        self.r.set('SLO:bandwidth:ssync_bw:AUTH_abcdef0123456789#3', 25)
