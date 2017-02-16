@@ -1,26 +1,14 @@
 #  Crystal: Open and Extensible Software-Defined Storage for OpenStack Swift
 
-Crystal is a transparent, dynamic and open Software-Defined Storage (SDS) system for [OpenStack Swift](http://swift.openstack.org).
+Crystal is a transparent, dynamic and open Software-Defined Storage (SDS) system for [OpenStack Swift](http://swift.openstack.org). 
 
-As depicted in the figure below, Crystal separates high level policies from the mechanisms that implement them at the data plane, to avoid hard-coding the policies in the system itself.
-To do so, it uses three main abstractions: _filter_, _metric_, and _controller_.
+### Documentation
 
-A **filter** is a piece of programming logic that a system administrator can inject into the data plane to perform custom computations. 
-In Crystal, this concept includes from arbitrary computations on object requests, such as compression or encryption, to resource management such as bandwidth differentiation.
-
-A **metric** has the role to automate the execution of filters based on the information accrued from the system. There
-are two types of information sources. A first type that corresponds to the real-time measurements got from the running workloads, like the number of GET operations
-per second of a tenant or the IO bandwidth allocated to a data container. As with filters, a fundamental feature of workload metrics is that they can be deployed at runtime.
-A second type of source is the metadata from the objects themselves. Such metadata is typically associated with read and write requests and includes properties like the size or type of data objects.
-
-The **controller** is the algorithm that manages the behavior of the data plane based on monitoring metrics. 
-A controller may contain a very simple rule to enforce compression filter on a tenant, or it may execute a complex bandwidth differentiation algorithm requiring global visibility of the cluster.
-
-![alt text](http://crystal-sds.org/wp-content/uploads/2016/05/architecture9-768x575.png "Crystal Architecture")
+The Crystal documentation is auto-generated after every commit and available online at http://crystal-controller.readthedocs.io/en/latest/
 
 ### Crystal Source code
 
-Crystal source code is structured in several sub-projects:
+Crystal source code is structured in several components:
 
 * **Controller**: this project. The Crystal control plane that offers dynamic meta-programming facilities over the data plane.
 
@@ -80,9 +68,9 @@ If some problem appears, make sure that:
 
 ## Usage
 
-API usage is detailed in the [API specification](/doc/api_specification.md).
+API usage is detailed in the [API specification](http://crystal-controller.readthedocs.io/en/latest/index.html#controller-api-specification).
 
-A convenient [web dashboard](https://github.com/iostackproject/SDS-dashboard) is also available to simplify these API calls. Refer to the [dashboard overview](/doc/dashboard_overview.md) for detailed information.
+A convenient [web dashboard](https://github.com/iostackproject/SDS-dashboard) is also available to simplify these API calls. Refer to the [dashboard overview](http://crystal-controller.readthedocs.io/en/latest/components/dashboard.html) for detailed information.
 
 ### Tests
 

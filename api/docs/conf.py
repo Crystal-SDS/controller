@@ -55,7 +55,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'Crystal Controller'
-copyright = u'2015-2016, Josep Sampé, Gerard París, Edgar Zamora-Gómez, Raúl Gracia'
+copyright = u'2015-2017, Josep Sampé, Gerard París, Edgar Zamora-Gómez, Raúl Gracia'
 author = u'Josep Sampé, Gerard París, Edgar Zamora-Gómez, Raúl Gracia'
 
 # The version info for the project you're documenting, acts as replacement for
