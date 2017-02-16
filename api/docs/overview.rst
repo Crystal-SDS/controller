@@ -20,6 +20,6 @@ To do so, it uses three main abstractions: *filter*, *metric*, and *controller*.
 - The **controller** is the algorithm that manages the behavior of the data plane based on monitoring metrics.
   A controller may contain a very simple rule to enforce compression filter on a tenant, or it may execute a complex bandwidth differentiation algorithm requiring global visibility of the cluster.
 
-.. figure:: http://crystal-sds.org/wp-content/uploads/2016/05/architecture9-768x575.png
+.. figure:: http://crystal-sds.org/wp-content/uploads/2016/05/architecture2-1.png
 
    Crystal Architecture
