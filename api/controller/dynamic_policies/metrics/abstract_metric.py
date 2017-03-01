@@ -47,7 +47,7 @@ class Metric(object):
 
     def attach(self, observer):
         """
-        Asyncronous method. This method allows to be called remotelly. It is
+        Asyncronous method. This method allows to be called remotely. It is
         called from observers in order to subscribe in this workload metric.
         This observer will be saved in a dictionary type structure where the
         key will be the tenant assigned in the observer, and the value will be
@@ -67,11 +67,11 @@ class Metric(object):
 
     def detach(self, observer, target):
         """
-        Asyncronous method. This method allows to be called remotelly.
+        Asynchronous method. This method allows to be called remotely.
         It is called from observers in order to unsubscribe from this workload
         metric.
 
-        :param observer: The PyActive proxy of the oberver rule that calls this method.
+        :param observer: The PyActive proxy of the observer rule that calls this method.
         :type observer: **any** PyActive Proxy type
         """
         logger.info('Metric, Detaching observer: ' + observer)
@@ -82,7 +82,7 @@ class Metric(object):
 
     def init_consum(self):
         """
-        Asynchronous method. This method allows to be called remotelly. This
+        Asynchronous method. This method allows to be called remotely. This
         method registries the workload metric in the redis database. Also
         create a new consumer actor in order to consume from a specific
         rabbitmq queue.
@@ -111,7 +111,7 @@ class Metric(object):
 
     def stop_actor(self):
         """
-        Asynchronous method. This method allows to be called remotelly.
+        Asynchronous method. This method allows to be called remotely.
         This method ends the workload execution and kills the actor.
         """
         try:
