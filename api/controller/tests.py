@@ -107,7 +107,7 @@ class ControllerTestCase(TestCase):
         self.assertTrue(mock_deploy_policy.called)
 
     @mock.patch('controller.views.create_local_host')
-    def test_registry_dynamic_policy_create_spawn_id_ok(self, mock_create_local_host):
+    def test_registry_dynamic_policy_create_spawn_ok(self, mock_create_local_host):
         self.setup_dsl_parser_data()
 
         # Create an instance of a POST request.
@@ -117,7 +117,7 @@ class ControllerTestCase(TestCase):
         response = policy_list(request)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertTrue(mock_create_local_host.called)
-        self.assertTrue(mock_create_local_host.return_value.spawn_id.called)
+        self.assertTrue(mock_create_local_host.return_value.spawn.called)
         self.assertTrue(self.r.exists('policy:2'))
         policy_data = self.r.hgetall('policy:2')
         self.assertEqual(policy_data['policy'], 'FOR TENANT:1234567890abcdef DO SET compression')
@@ -959,7 +959,7 @@ class ControllerTestCase(TestCase):
         self.r.hmset('policy:21',
                      {'alive': 'True', 'policy_description': 'FOR TENANT:0123456789abcdef DO SET compression'})
         load_policies()
-        self.assertTrue(mock_create_local_host.return_value.spawn_id.called)
+        self.assertTrue(mock_create_local_host.return_value.spawn.called)
 
     @mock.patch('controller.views.create_local_host')
     def test_load_policies_alive_transient(self, mock_create_local_host):
@@ -967,7 +967,7 @@ class ControllerTestCase(TestCase):
         self.r.hmset('policy:21',
                      {'alive': 'True', 'policy_description': 'FOR TENANT:0123456789abcdef DO SET compression TRANSIENT'})
         load_policies()
-        self.assertTrue(mock_create_local_host.return_value.spawn_id.called)
+        self.assertTrue(mock_create_local_host.return_value.spawn.called)
 
     #
     # static_policy_detail()
