@@ -7,10 +7,8 @@ from copy import deepcopy
 
 
 class SwiftMetric(Metric):
-    _sync = {}
-    _async = ['get_value', 'attach', 'detach', 'notify', 'start_consuming', 'stop_consuming', 'init_consum', 'stop_actor']
-    _ref = ['attach', 'detach']
-    _parallel = []
+    _tell = ['get_value', 'attach', 'detach', 'notify', 'start_consuming', 'stop_consuming', 'init_consum', 'stop_actor']
+    _ref = ['attach']
 
     def __init__(self, exchange, metric_id, routing_key):
         Metric.__init__(self)
@@ -45,9 +43,10 @@ class SwiftMetric(Metric):
                 del data[host]['@timestamp']
                 for target in data[host]:
                     value = data[host][target]
+                    # tenant = target.replace('AUTH_', '')
                     tenant = target.split("#:#")[1].replace('AUTH_', '')
                     if tenant in self._observers:
-                        for observer in self._observers[tenant]:
+                        for observer in self._observers[tenant].values():
                             observer.update(self.name, value)
 
         except Exception as e:
