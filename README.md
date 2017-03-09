@@ -31,8 +31,6 @@ and to deploy them as an actor process, who analyze the system data thanks to th
 
 The repository is structured with the next folders:
 
-* **doc:** The doc folder includes the API specifications where you can find all the calls and parameters accepted by the SDS Controller.
-
 * **puppet:** In this folder you can find two subfolders more. The manifests folder, that contains all the config files of the puppet (To read more about puppet click [here](http://docs.vagrantup.com/v2/provisioning/puppet_apply.html)). On the other hand, the modules folder that contains all dependencies added by puppet. Remember that these modules only are a link to the original repository, so when you clone this repository you need to add the modules or cloning in recursive way. (To read more about submodules click [here](https://git-scm.com/book/en/v2/Git-Tools-Submodules))
 
 * **scripts:** The scripts folder contains all the scripts needed for the project. The file vagrant-init.sh will be executed each time that you start the virtual machine using vagrant.

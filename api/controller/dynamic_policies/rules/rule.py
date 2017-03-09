@@ -73,7 +73,7 @@ class Rule(object):
                                                                                                  "password": self.openstack_pass}}})
         headers = {"Content-type": "application/json"}
 
-        r = requests.post(self.openstack_keystone_url, data=body, headers=headers)
+        r = requests.post(self.openstack_keystone_url + '/tokens', data=body, headers=headers)
         if r.status_code == 200:
             self.token = r.json()["access"]["token"]["id"]
         else:
