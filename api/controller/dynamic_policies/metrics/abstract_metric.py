@@ -57,7 +57,7 @@ class Metric(object):
         :type observer: **any** PyActive Proxy type
         """
         # TODO: Add the possibility to subscribe to container or object
-        logger.info('Metric, Attaching observer: ' + observer)
+        logger.info('Metric, Attaching observer: ' + str(observer))
         tenant = observer.get_target()
 
         if tenant not in self._observers.keys():

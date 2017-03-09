@@ -12,8 +12,9 @@ class BaseBwController(AbstractEnforcementAlgorithm):
         for key in keys:
             target = key.rsplit(':', 1)[1]
             project, policy_id = target.split('#')
-            project_id = project.split('_')[1]
-            if project_id not in slos:
-                slos[project_id] = dict()
-            slos[project_id][policy_id] = self.r.get(key)
+            #project_id = project.split('_')[1]
+            #if project_id not in slos:
+            if project not in slos:
+                slos[project] = dict()
+            slos[project][policy_id] = self.r.get(key)
         return slos
