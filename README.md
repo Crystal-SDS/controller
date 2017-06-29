@@ -29,40 +29,25 @@ It is a Django project that implements the REST API needed to handle filters, st
 the [PyActive middleware](https://github.com/cloudspaces/pyactive), an Object Oriented implementation of the Actor model. This part allows to create simple policies using a DSL (integrated in the Crystal Controller API)
 and to deploy them as an actor process, who analyze the system data thanks to the monitoring system, and allows to set or remove filters to tenants depending on the established policy.
 
-The repository is structured with the next folders:
-
-* **puppet:** In this folder you can find two subfolders more. The manifests folder, that contains all the config files of the puppet (To read more about puppet click [here](http://docs.vagrantup.com/v2/provisioning/puppet_apply.html)). On the other hand, the modules folder that contains all dependencies added by puppet. Remember that these modules only are a link to the original repository, so when you clone this repository you need to add the modules or cloning in recursive way. (To read more about submodules click [here](https://git-scm.com/book/en/v2/Git-Tools-Submodules))
-
-* **scripts:** The scripts folder contains all the scripts needed for the project. The file vagrant-init.sh will be executed each time that you start the virtual machine using vagrant.
-
-* **api:** The folder contains the API source code. Its structure follows a standard Django project structure.
-
-* **dynamic_policies** The dynamic_policies contains the source code of this part.
-
-* **Vagrantfile:** This is the vagrant config file, where we define all the information that vagrant needs to start a virtual machine with all the requirements.
-
 To build the APIs in an easy way we use [Django REST Framework](http://www.django-rest-framework.org/).
 
 ## Requirements
 
-This project includes a Vagrant environment with all the dependencies (Django, pyactive, swiftclient, ...), so the only two requirements are:
-
-1. Install [Virtualbox](https://www.virtualbox.org/)
-2. Install [Vagrant](https://www.vagrantup.com/downloads.html)
+* Python 2.7
+* OpenStack Swift cluster with Keystone authentication.
+* Redis server
+* RabbitMQ server
 
 ## Installation
 
-Once you have already installed the requirements, you only need to go to the project location using a terminal, and execute the command: `vagrant up`. First time, the process may take a few minutes because Vagrant downloads the Operative System to create the Virtual Machine. Next time the process will be faster.
-
-The Virtual Machine that we started has all the tools that we need to run the server. To connect to this machine you only need to run the command `vagrant ssh`. The repository folder is synchronized between the local machine and the Virtual Machine, so you can develop the code in your local machine with your preferred IDE, and run the project in the Virtual Machine.
-
-You can start the server using the command into the source folder (./api): `python manage.py runserver 0.0.0.0:8000`. After that, the server starts, and if you prefer to call Crystal controller from the host machine the port to use is `18000`. For instance, to list the Storlets from the host machine the URL should be: localhost:18000/storlets.
-
-If some problem appears, make sure that:
-
-1. redis-server service is running? Crystal Controller API stores the meta-data information in redis.
-2. is PyActive in the PYTHONPATH? At home folder you can find the pyactive folder, where you can find another install.txt, please follow this steps.
-3. review the settings file from Crystal Controller and make sure to write the correct IPs (Swift IP, Keystone IP, PyActive IP)
+1. Clone the Crystal controller repository
+2. Install Python package dependencies: `pip install -r requirements.txt`
+3. Install PyActive:
+    1. `git clone https://github.com/cloudspaces/pyactive.git`
+    2. `cd pyactive/pyactive_project`
+    3. `python setup.py develop`
+4. Edit Crystal controller settings file `api/api/settings.py`: configure Swift proxy IP and port, Keystone IP, OpenStack credentials, Redis location, RabbitMQ credentials.
+5. You can start the server running the following command from the source folder (`./api`): `python manage.py runserver 0.0.0.0:8000`.
 
 ## Usage
 
@@ -86,7 +71,11 @@ For more information, please visit [crystal-sds.org](http://crystal-sds.org/).
 
 ### Development VM
 
-There is an available development Virtual Machine which emulates running a Swift-all-in-one cluster together with Storlets and Crystal controller and middlewares. 
+The easiest way to start using Crystal is to download the Development Virtual Machine.
+
+The Development VM runs a Swift-all-in-one cluster together with Storlets and Crystal controller and middlewares.
 It also includes an extended version of the OpenStack Dashboard that simplifies the management of Crystal filters, metrics and policies.
+
+Download the Development VM from the following URL:
 
 * ftp://ast2-deim.urv.cat/s2caio_vm

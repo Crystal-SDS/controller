@@ -186,7 +186,8 @@ class StorletData(APIView):
             try:
                 r.hset(filter_name, "filter_name", os.path.basename(path))
                 r.hset(filter_name, "path", str(path))
-                r.hset(filter_name, "content_length", str(request.META["CONTENT_LENGTH"]))
+                #r.hset(filter_name, "content_length", str(request.META["CONTENT_LENGTH"]))
+                r.hset(filter_name, "content_length", os.stat(path).st_size)
                 r.hset(filter_name, "etag", str(md5_etag))
             except RedisError:
                 return JSONResponse('Problems connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
