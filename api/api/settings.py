@@ -23,6 +23,8 @@ STORLET_FILTERS_DIR = os.path.join('/opt', 'crystal', 'storlet_filters')
 GLOBAL_NATIVE_FILTERS_DIR = os.path.join('/opt', 'crystal', 'global_native_filters')
 DEPENDENCY_DIR = os.path.join('/opt', 'crystal', 'dependencies')
 GLOBAL_CONTROLLERS_DIR = os.path.join('/opt', 'crystal', 'global_controllers')
+ANALYZERS_DIR = os.path.join('/opt', 'crystal', 'job_analyzers')
+JOBS_DIR = os.path.join('/opt', 'crystal', 'jobs')
 ANSIBLE_DIR = os.path.join(BASE_DIR, 'swift', 'ansible')
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.8/howto/deployment/checklist/
@@ -181,3 +183,16 @@ RABBITMQ_EXCHANGE = 'amq.topic'
 # Logstash
 LOGSTASH_HOST = 'localhost'
 LOGSTASH_PORT = 5400
+
+# Job analyzer executor
+JOB_ANALYZER_EXECUTOR_LOCATION = '/opt/crystal/jobs/'
+JOB_ANALYZER_JAVAC_PATH = '/usr/bin/javac'
+JOB_ANALYZER_SPARK_FOLDER = '/usr/local/spark/'
+JOB_ANALYZER_SPARK_LIBS_LOCATION = JOB_ANALYZER_SPARK_FOLDER + 'jars/'
+JOB_ANALYZER_LAMBDA_PUSHDOWN_FILTER = 'lambdapushdown-1.0.jar'
+JOB_ANALYZER_SPARK_MASTER_URL = 'spark://127.0.0.1:7077'
+JOB_ANALYZER_AVAILABLE_RAM = '1G'
+JOB_ANALYZER_AVAILABLE_CPUS = '2'
+JOB_ANALYZER_CLUSTER_MODE = False
+JOB_ANALYZER_HDFS_LOCATION = '/usr/local/hadoop/bin/hdfs dfs '
+JOB_ANALYZER_HDFS_IP_PORT = '127.0.0.1:9000'

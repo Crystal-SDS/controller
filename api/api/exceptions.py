@@ -22,3 +22,7 @@ class FileSynchronizationException(CrystalControllerException):
     """Exception to be raised when a file synchronization between controller and Swift nodes fails."""
     pass
 
+class AnalyticsJobSubmissionException(CrystalControllerException):
+    """Exception to be raised when something goes wrong in job submission."""
+    pass
+
