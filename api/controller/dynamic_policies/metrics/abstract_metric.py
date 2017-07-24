@@ -51,19 +51,19 @@ class Metric(object):
         called from observers in order to subscribe in this workload metric.
         This observer will be saved in a dictionary type structure where the
         key will be the tenant assigned in the observer, and the value will be
-        the PyActive proxy to connect to the observer.
+        the PyActor proxy to connect to the observer.
 
-        :param observer: The PyActive proxy of the oberver rule that calls this method.
-        :type observer: **any** PyActive Proxy type
+        :param observer: The PyActor proxy of the oberver rule that calls this method.
+        :type observer: **any** PyActor Proxy type
         """
         # TODO: Add the possibility to subscribe to container or object
         logger.info('Metric, Attaching observer: ' + str(observer))
-        tenant = observer.get_target()
+        tenant = observer.get_target(timeout=2)
 
         if tenant not in self._observers.keys():
-            self._observers[tenant] = set()
-        if observer not in self._observers[tenant]:
-            self._observers[tenant].add(observer)
+            self._observers[tenant] = {}
+        if observer.get_id() not in self._observers[tenant].keys():
+            self._observers[tenant][observer.get_id()] = observer
 
     def detach(self, observer, target):
         """
@@ -71,12 +71,12 @@ class Metric(object):
         It is called from observers in order to unsubscribe from this workload
         metric.
 
-        :param observer: The PyActive proxy of the observer rule that calls this method.
-        :type observer: **any** PyActive Proxy type
+        :param observer: The PyActor actor id of the oberver rule that calls this method.
+        :type observer: String
         """
-        logger.info('Metric, Detaching observer: ' + observer)
+        logger.info('Metric, Detaching observer: ' + str(observer))
         try:
-            self._observers[target].remove(observer)
+            del self._observers[target][observer]
         except KeyError:
             pass
 
@@ -91,22 +91,21 @@ class Metric(object):
                            consumer appear.
         """
         try:
-            self.redis.hmset("metric:" + self.name, {"network_location": self._atom.aref.replace("atom:", "tcp:", 1), "type": "integer"})
+            self.redis.hmset("metric:" + self.name, {"network_location": self.proxy.actor.url, "type": "integer"})
 
-            self.consumer = self.host.spawn_id(self.id + "_consumer",
-                                               "controller.dynamic_policies.consumer",
-                                               "Consumer",
-                                               [str(self.rmq_host),
-                                                int(self.rmq_port),
-                                                str(self.rmq_user),
-                                                str(self.rmq_pass),
-                                                self.exchange,
-                                                self.queue,
-                                                self.routing_key,
-                                                self.proxy])
+            self.consumer = self.host.spawn(self.id + "_consumer",
+                                            "controller.dynamic_policies.consumer"
+                                            + "/Consumer",
+                                            [str(self.rmq_host),
+                                             int(self.rmq_port),
+                                             str(self.rmq_user),
+                                             str(self.rmq_pass),
+                                             self.exchange,
+                                             self.queue,
+                                             self.routing_key,
+                                             self.proxy])
             self.start_consuming()
-        except:
-            e = sys.exc_info()[0]
+        except Exception, e:
             print e
 
     def stop_actor(self):
@@ -117,13 +116,13 @@ class Metric(object):
         try:
             # Stop observers
             for tenant in self._observers:
-                for observer in self._observers[tenant]:
+                for observer in self._observers[tenant].values():
                     observer.stop_actor()
                     self.redis.hset(observer.get_id(), 'alive', 'False')
 
             self.redis.delete("metric:" + self.name)
             self.stop_consuming()
-            self._atom.stop()
+            self.host.stop_actor(self.id)
 
         except Exception as e:
             logger.error(str(e))

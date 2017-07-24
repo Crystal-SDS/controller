@@ -20,12 +20,10 @@ class Rule(object):
     Rule actor executes an Action that it is also defined in the policy. Once
     the rule executed the action, this actor is destroyed.
     """
-    _sync = {'get_target': '2'}
-    _async = ['update', 'start_rule', 'stop_actor']
-    _ref = []
-    _parallel = []
+    _ask = ['get_target']
+    _tell = ['update', 'start_rule', 'stop_actor']
 
-    def __init__(self, rule_parsed, action, target, host):
+    def __init__(self, rule_parsed, action, target):
         """
         Initialize all the variables needed for the rule.
 
@@ -35,8 +33,8 @@ class Rule(object):
         :type action: **any** PyParsing type
         :param target: The target assigned to this rule.
         :type target: **any** String type
-        :param host: The proxy host provided by the PyActive Middleware.
-        :type host: **any** PyActive Proxy type
+        :param host: The proxy host provided by the PyActor Middleware.
+        :type host: **any** PyActor Proxy type
         """
 
         # settings = ConfigParser.ConfigParser()
@@ -55,7 +53,6 @@ class Rule(object):
                                        port=self.redis_port,
                                        db=self.redis_db)
 
-        self.host = host
         self.rule_parsed = rule_parsed
         self.target = target
         self.conditions = rule_parsed.condition_list.asList()
@@ -85,8 +82,8 @@ class Rule(object):
         all the workload metrics subscribed, and kills the actor of the rule.
         """
         for observer in self.observers_proxies.values():
-            observer.detach(self.proxy, self.get_target())
-        self._atom.stop()
+            observer.detach(self.id, self.get_target())
+        self.host.stop_actor(self.id)
         logger.info("Rule, Actor '" + str(self.id) + "' stopped")
 
     def start_rule(self):
@@ -109,10 +106,9 @@ class Rule(object):
 
         """
         if workload_name not in self.observers_values.keys():
-            # Trying the new PyActive version. New lookup function.
             logger.info("Rule, Workload name: " + workload_name)
             observer = self.host.lookup(workload_name)
-            logger.info('Rule, Observer: ' + str(observer.get_id()) + " " + observer)
+            logger.info('Rule, Observer: ' + str(observer.get_id()) + " " + str(observer))
             observer.attach(self.proxy)
             self.observers_proxies[workload_name] = observer
             self.observers_values[workload_name] = None

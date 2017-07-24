@@ -151,11 +151,11 @@ MANAGEMENT_ACCOUNT = 'management'
 MANAGEMENT_ADMIN_USERNAME = 'manager'
 MANAGEMENT_ADMIN_PASSWORD = 'manager'  # noqa
 
-# pyactive
-PYACTIVE_TRANSPORT = 'tcp'
-PYACTIVE_IP = '127.0.0.1'
-PYACTIVE_PORT = 6899
-PYACTIVE_URL = PYACTIVE_TRANSPORT + '://' + PYACTIVE_IP + ':' + str(PYACTIVE_PORT)
+# pyactor
+PYACTOR_TRANSPORT = 'http'
+PYACTOR_IP = '127.0.0.1'
+PYACTOR_PORT = 6899
+PYACTOR_URL = PYACTOR_TRANSPORT + '://' + PYACTOR_IP + ':' + str(PYACTOR_PORT)
 
 # Metrics
 METRIC_MODULE = 'controller.dynamic_policies.metrics.swift_metric'

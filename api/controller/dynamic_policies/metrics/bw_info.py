@@ -7,11 +7,9 @@ AGGREGATION_INTERVAL = 0.2
 
 
 class BwInfo(Metric):
-    _sync = {}
-    _async = ['get_value', 'attach', 'detach', 'notify', 'start_consuming', 'stop_consuming', 'init_consum',
-              'stop_actor', 'get_redis_bw', 'compute_assignations', 'parse_osinfo', 'send_bw', 'detach_global_obs']
-    _ref = ['attach', 'detach']
-    _parallel = []
+    _tell = ['get_value', 'attach', 'detach', 'notify', 'start_consuming', 'stop_consuming', 'init_consum',
+             'stop_actor', 'get_redis_bw', 'compute_assignations', 'parse_osinfo', 'send_bw', 'detach_global_obs']
+    _ref = ['attach']
 
     def __init__(self, exchange, queue, routing_key, method):
         Metric.__init__(self)
@@ -30,10 +28,10 @@ class BwInfo(Metric):
         # self.output = open("/home/lab144/bw_experiment_"+method+".dat", "w")
         self.last_bw_info = list()
         self.bw_info_to_average = int(1/AGGREGATION_INTERVAL)
-        
+
         # TODELETE:
         # self.oh = open("/home/lab144/oh_"+method+".dat", "w")
-        
+
         # Subprocess to aggregate collected metrics every time interval
         self.notifier = Thread(target=self.aggregate_and_send_info)
         self.notifier.start()
@@ -46,9 +44,9 @@ class BwInfo(Metric):
         Asynchronous method. This method allows to be called remotely. It is called from
         observers in order to subscribe in this workload metric. This observer will be
         saved in a dictionary type structure where the key will be the tenant assigned in the observer,
-        and the value will be the PyActive proxy to connect to the observer.
-        :param observer: The PyActive proxy of the observer rule that calls this method.
-        :type observer: **any** PyActive Proxy type
+        and the value will be the PyActor proxy to connect to the observer.
+        :param observer: The PyActor proxy of the observer rule that calls this method.
+        :type observer: **any** PyActor Proxy type
         """
         if bw_obs:
             self.bw_observer = observer
@@ -85,7 +83,7 @@ class BwInfo(Metric):
             if self.bw_observer and aggregated_results:
                 print "updating bw_observer with " + str(aggregated_results)
                 self.bw_observer.update(self.name, aggregated_results)
-        
+
             # Notify to simple observers of aggregated values (policy actors)
             for tenant in self._observers.keys():
                 if tenant in aggregated_results.keys():
@@ -110,7 +108,7 @@ class BwInfo(Metric):
                             self.count[tenant][ip] = {}
                         if policy not in self.count[tenant][ip]:
                             self.count[tenant][ip][policy] = {}
-                        self.count[tenant][ip][policy][device] = os[ip][tenant][policy][device] 
+                        self.count[tenant][ip][policy][device] = os[ip][tenant][policy][device]
 
     def _write_experimental_results(self, aggregated_results):
         """
@@ -135,6 +133,6 @@ class BwInfo(Metric):
                 # self.output.write(tenant+"\t"+str(time.time())+"\t"+str(averaged_aggregated_results[tenant]/self.bw_info_to_average)+"\n")
                 # self.output.flush()
             self.last_bw_info = list()
-                
+
         # Aggregate results for further averages
         self.last_bw_info.append(aggregated_results)

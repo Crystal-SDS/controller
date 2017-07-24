@@ -49,8 +49,7 @@ class DynamicPoliciesTestCase(TestCase):
         self.setup_dsl_parser_data()
         _, parsed_rule = parse('FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 WHEN metric1 > 5 DO SET compression')
         target = '4f0279da74ef4584a29dc72c835fe2c9'
-        host = None
-        rule = Rule(parsed_rule, parsed_rule.action_list[0], target, host)
+        rule = Rule(parsed_rule, parsed_rule.action_list[0], target)
         self.assertEqual(rule.get_target(), '4f0279da74ef4584a29dc72c835fe2c9')
 
     @mock.patch('controller.dynamic_policies.rules.rule.Rule._do_action')
@@ -58,8 +57,7 @@ class DynamicPoliciesTestCase(TestCase):
         self.setup_dsl_parser_data()
         _, parsed_rule = parse('FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 WHEN metric1 > 5 DO SET compression')
         target = '4f0279da74ef4584a29dc72c835fe2c9'
-        host = None
-        rule = Rule(parsed_rule, parsed_rule.action_list[0], target, host)
+        rule = Rule(parsed_rule, parsed_rule.action_list[0], target)
         rule.update('metric1', 3)
         self.assertFalse(mock_do_action.called)
 
@@ -68,8 +66,7 @@ class DynamicPoliciesTestCase(TestCase):
         self.setup_dsl_parser_data()
         _, parsed_rule = parse('FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 WHEN metric1 > 5 DO SET compression')
         target = '4f0279da74ef4584a29dc72c835fe2c9'
-        host = None
-        rule = Rule(parsed_rule, parsed_rule.action_list[0], target, host)
+        rule = Rule(parsed_rule, parsed_rule.action_list[0], target)
         rule.update('metric1', 6)
         self.assertTrue(mock_do_action.called)
 
@@ -83,8 +80,7 @@ class DynamicPoliciesTestCase(TestCase):
         self.setup_dsl_parser_data()
         _, parsed_rule = parse('FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 WHEN metric1 > 5 DO SET compression')
         target = '4f0279da74ef4584a29dc72c835fe2c9'
-        host = None
-        rule = Rule(parsed_rule, parsed_rule.action_list[0], target, host)
+        rule = Rule(parsed_rule, parsed_rule.action_list[0], target)
         rule.id = '10'
         with HTTMock(example_mock_200):
             rule.update('metric1', 6)
@@ -102,8 +98,7 @@ class DynamicPoliciesTestCase(TestCase):
         self.setup_dsl_parser_data()
         _, parsed_rule = parse('FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 WHEN metric1 > 5 DO SET compression')
         target = '4f0279da74ef4584a29dc72c835fe2c9'
-        host = None
-        rule = Rule(parsed_rule, parsed_rule.action_list[0], target, host)
+        rule = Rule(parsed_rule, parsed_rule.action_list[0], target)
         rule.id = '10'
         with HTTMock(example_mock_400):
             rule.update('metric1', 6)
@@ -120,10 +115,9 @@ class DynamicPoliciesTestCase(TestCase):
         self.setup_dsl_parser_data()
         _, parsed_rule = parse('FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 WHEN metric1 > 5 DO SET compression')
         target = '4f0279da74ef4584a29dc72c835fe2c9'
-        host = None
         action = parsed_rule.action_list[0]
         action.action = 'DELETE'
-        rule = Rule(parsed_rule, action, target, host)
+        rule = Rule(parsed_rule, action, target)
         rule.id = '10'
         with HTTMock(example_mock_200):
             rule.update('metric1', 6)
@@ -139,8 +133,7 @@ class DynamicPoliciesTestCase(TestCase):
         self.setup_dsl_parser_data()
         _, parsed_rule = parse('FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 WHEN metric1 > 5 DO SET compression TRANSIENT')
         target = '4f0279da74ef4584a29dc72c835fe2c9'
-        host = None
-        rule = TransientRule(parsed_rule, parsed_rule.action_list[0], target, host)
+        rule = TransientRule(parsed_rule, parsed_rule.action_list[0], target)
         rule.update('metric1', 6)
         self.assertTrue(mock_do_action.called)
 
@@ -155,8 +148,7 @@ class DynamicPoliciesTestCase(TestCase):
         self.setup_dsl_parser_data()
         _, parsed_rule = parse('FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 WHEN metric1 > 5 DO SET compression TRANSIENT')
         target = '4f0279da74ef4584a29dc72c835fe2c9'
-        host = None
-        rule = TransientRule(parsed_rule, parsed_rule.action_list[0], target, host)
+        rule = TransientRule(parsed_rule, parsed_rule.action_list[0], target)
 
         rule.update('metric1', 6)
         self.assertTrue(mock_requests_put.called)
