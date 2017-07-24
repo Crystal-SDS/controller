@@ -1,10 +1,8 @@
+from controller.dynamic_policies.rules.base_bw_controller import BaseBwController
 import sys
 
-# from controller.dynamic_policies.rules.base_global_controller import AbstractEnforcementAlgorithm
-from controller.dynamic_policies.rules.base_bw_controller import BaseBwController
 
-
-class SimpleProportionalBandwidthPerTenant(BaseBwController):
+class StaticBandwidthPerTenant(BaseBwController):
 
     def compute_algorithm(self, info):
         """
@@ -34,7 +32,7 @@ class SimpleProportionalBandwidthPerTenant(BaseBwController):
                         if 'ips' not in assign[account][policy][device]:
                             assign[account][policy][device]['ips'] = set()
                         assign[account][policy][device]['ips'].add(ip)
-                          
+
             for policy in assign[account]:
                 for device in assign[account][policy]:
                     for ip in assign[account][policy][device]['ips']:
@@ -43,5 +41,5 @@ class SimpleProportionalBandwidthPerTenant(BaseBwController):
                         except Exception:
                             # TODO: NO CONTINUE
                             print "Error calculating bandwidth in simple_proportional_bandwidth rule: " + str(sys.exc_info()[0])
-                          
+
         return bw_a

@@ -81,7 +81,7 @@ class BwInfo(Metric):
             # TODO REFACTORING: This discrimination must be in swift_metric because it is orthogonal
             # Notify of raw monitoring info to distributed enforcement algorithms
             if self.bw_observer and aggregated_results:
-                print "updating bw_observer with " + str(aggregated_results)
+                # print "updating bw_observer with " + str(aggregated_results)
                 self.bw_observer.update(self.name, aggregated_results)
 
             # Notify to simple observers of aggregated values (policy actors)
@@ -126,12 +126,13 @@ class BwInfo(Metric):
                         for policy in tmp_result[tenant][ip]:
                             for device in tmp_result[tenant][ip][policy]:
                                 averaged_aggregated_results[tenant] += tmp_result[tenant][ip][policy][device]
-            print
+            """
             for tenant in averaged_aggregated_results:
                 value = averaged_aggregated_results[tenant]/self.bw_info_to_average
                 print "TENANT " + tenant + " " + self.method + " -> " + str("{:,}".format(value))
                 # self.output.write(tenant+"\t"+str(time.time())+"\t"+str(averaged_aggregated_results[tenant]/self.bw_info_to_average)+"\n")
                 # self.output.flush()
+            """
             self.last_bw_info = list()
 
         # Aggregate results for further averages

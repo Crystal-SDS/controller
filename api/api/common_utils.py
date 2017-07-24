@@ -144,7 +144,7 @@ def rsync_dir_with_nodes(directory):
             # print "System: %s" % rsync_command
             ret = os.system(rsync_command)
             if ret != 0:
-                raise FileSynchronizationException("An error occurred copying files to Swift nodes")
+                raise FileSynchronizationException("An error occurred copying files to Swift nodes. Please check the SSH credentials of the node: "+node['name'])
 
 
 def get_all_registered_nodes():
