@@ -6,10 +6,7 @@ logger = logging.getLogger(__name__)
 
 
 class Consumer(object):
-    _sync = {}
-    _async = ['start_consuming', 'stop_consuming']
-    _ref = []
-    _parallel = []
+    _tell = ['start_consuming', 'stop_consuming']
 
     def __init__(self, host, port, username, password, exchange, queue, routing_key, obj):
 
@@ -48,6 +45,6 @@ class Consumer(object):
 
     def stop_consuming(self):
         logger.info('Metric, Stopping to consume from rabbitmq')
-        self._atom.stop()
+        self.host.stop_actor(self.id)
         self._channel.stop_consuming()
         self._channel.close()

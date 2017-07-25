@@ -12,7 +12,7 @@ from django.http import HttpResponse
 from rest_framework.renderers import JSONRenderer
 
 from api.exceptions import FileSynchronizationException
-from pyactive.controller import init_host, start_controller
+from pyactor.context import set_context, create_host
 
 host = None
 # remote_host = None
@@ -144,7 +144,7 @@ def rsync_dir_with_nodes(directory):
             # print "System: %s" % rsync_command
             ret = os.system(rsync_command)
             if ret != 0:
-                raise FileSynchronizationException("An error occurred copying files to Swift nodes")
+                raise FileSynchronizationException("An error occurred copying files to Swift nodes. Please check the SSH credentials of the node: "+node['name'])
 
 
 def get_all_registered_nodes():
@@ -175,12 +175,11 @@ def remove_extra_whitespaces(_str):
 
 
 def create_local_host():
-    tcpconf = ('tcp', (settings.PYACTIVE_IP, settings.PYACTIVE_PORT))
     global host
     try:
-        start_controller("pyactive_thread")
-        host = init_host(tcpconf)
-        logger.info("Controller PyActive host created")
+        set_context()
+        host = create_host(settings.PYACTOR_URL)
+        logger.info("Controller PyActor host created")
     except:
         pass
 

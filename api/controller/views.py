@@ -71,13 +71,17 @@ def load_policies():
             for action_info in rule_parsed.action_list:
                 if action_info.transient:
                     logger.info("Transient rule: " + policy_data['policy_description'])
-                    rule_actors[policy] = host.spawn_id(str(policy), settings.RULE_TRANSIENT_MODULE, settings.RULE_TRANSIENT_CLASS,
-                                                  [rule_parsed, action_info, target, host])
+                    rule_actors[policy] = host.spawn(str(policy),
+                                                     settings.RULE_TRANSIENT_MODULE +
+                                                     '/' + settings.RULE_TRANSIENT_CLASS,
+                                                     [rule_parsed, action_info, target])
                     rule_actors[policy].start_rule()
                 else:
                     logger.info("Rule: "+policy_data['policy_description'])
-                    rule_actors[policy] = host.spawn_id(str(policy), settings.RULE_MODULE, settings.RULE_CLASS,
-                                                  [rule_parsed, action_info, target, host])
+                    rule_actors[policy] = host.spawn(str(policy),
+                                                     settings.RULE_MODULE + '/' +
+                                                     settings.RULE_CLASS,
+                                                     [rule_parsed, action_info, target])
                     rule_actors[policy].start_rule()
 
 
@@ -256,8 +260,9 @@ def start_metric(metric_id, actor_id):
     logger.info("Metric, Starting workload metric actor " + str(metric_id) + " (" + str(actor_id) + ")")
     try:
         if metric_id not in metric_actors:
-            metric_actors[metric_id] = host.spawn_id(actor_id, settings.METRIC_MODULE, settings.METRIC_CLASS,
-                                               ["amq.topic", actor_id, "metrics." + actor_id])
+            metric_actors[metric_id] = host.spawn(actor_id, settings.METRIC_MODULE +
+                                                  '/' + settings.METRIC_CLASS,
+                                                  ["amq.topic", actor_id, "metrics." + actor_id])
             metric_actors[metric_id].init_consum()
     except Exception as e:
         logger.error(str(e))
@@ -882,14 +887,17 @@ def deploy_policy(r, rule_string, parsed_rule):
 
             if action_info.transient:
                 # print 'Transient rule:', parsed_rule
-                rule_actors[policy_id] = host.spawn_id(rule_id, settings.RULE_TRANSIENT_MODULE, settings.RULE_TRANSIENT_CLASS,
-                                                 [rules_to_parse[key], action_info, key, host])
+                rule_actors[policy_id] = host.spawn(rule_id,
+                                                    settings.RULE_TRANSIENT_MODULE +
+                                                    '/' + settings.RULE_TRANSIENT_CLASS,
+                                                    [rules_to_parse[key], action_info, key])
                 location = os.path.join(settings.RULE_TRANSIENT_MODULE, settings.RULE_TRANSIENT_CLASS)
                 is_transient = True
             else:
                 # print 'Rule:', parsed_rule
-                rule_actors[policy_id] = host.spawn_id(rule_id, settings.RULE_MODULE, settings.RULE_CLASS,
-                                                 [rules_to_parse[key], action_info, key, host])
+                rule_actors[policy_id] = host.spawn(rule_id, settings.RULE_MODULE +
+                                                    '/' + settings.RULE_CLASS,
+                                                    [rules_to_parse[key], action_info, key])
                 location = os.path.join(settings.RULE_MODULE, settings.RULE_CLASS)
                 is_transient = False
 
@@ -903,7 +911,7 @@ def deploy_policy(r, rule_string, parsed_rule):
             static_policy_rule_string = remove_extra_whitespaces(tmp_rule_string)
 
             # Add policy into redis
-            policy_location = os.path.join(settings.PYACTIVE_URL, location, str(rule_id))
+            policy_location = os.path.join(settings.PYACTOR_URL, location, str(rule_id))
             r.hmset('policy:' + str(policy_id), {"id": policy_id,
                                                  "policy": static_policy_rule_string,
                                                  "policy_description": rule_string,
@@ -1071,8 +1079,8 @@ def start_global_controller(controller_id, actor_id, controller_class_name, meth
                         metric_module_name = ''.join([settings.METRICS_BASE_MODULE, '.', 'bw_info'])
                         metric_class_name = 'BwInfo'
                     logger.info("Controller, Starting metric actor " + metric_name)
-                    metric_actors[metric_name] = host.spawn_id(metric_name, metric_module_name, metric_class_name,
-                                                           ["amq.topic", metric_name, "bwdifferentiation."+metric_name+".#", method_type.upper()])
+                    metric_actors[metric_name] = host.spawn(metric_name, metric_module_name + '/' + metric_class_name,
+                                                            ["amq.topic", metric_name, "bwdifferentiation."+metric_name+".#", method_type.upper()])
 
                     try:
                         metric_actors[metric_name].init_consum()
@@ -1089,8 +1097,8 @@ def start_global_controller(controller_id, actor_id, controller_class_name, meth
             # 2) Spawn controller actor
             #module_name = ''.join([settings.GLOBAL_CONTROLLERS_BASE_MODULE, '.', actor_id])
             module_name = actor_id
-            controller_actors[controller_id] = host.spawn_id(actor_id, module_name, controller_class_name,
-                                                       ["bw_algorithm_" + method_type, method_type.upper()])
+            controller_actors[controller_id] = host.spawn(actor_id, module_name + '/' + controller_class_name,
+                                                          ["bw_algorithm_" + method_type, method_type.upper()])
             logger.info("Controller, Started controller actor " + str(controller_id) + " " + str(actor_id))
             # ["abstract_enforcement_algorithm_get", "GET"])
             # ["amq.topic", actor_id, "controllers." + actor_id])

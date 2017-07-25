@@ -1,3 +1,7 @@
+import sys
+# Adding a path to be able to import bandwidth_controller_samples
+sys.path.insert(0, '../')
+
 import json
 import os
 
@@ -12,11 +16,11 @@ from controller.dynamic_policies.metrics.bw_info_ssync import BwInfoSSYNC
 from controller.dynamic_policies.metrics.swift_metric import SwiftMetric
 from controller.dynamic_policies.rules.rule import Rule
 from controller.dynamic_policies.rules.rule_transient import TransientRule
-from controller.dynamic_policies.rules.sample_bw_controllers.simple_proportional_bandwidth import SimpleProportionalBandwidthPerTenant
-from controller.dynamic_policies.rules.sample_bw_controllers.simple_proportional_replication_bandwidth import SimpleProportionalReplicationBandwidth
-from controller.dynamic_policies.rules.sample_bw_controllers.min_bandwidth_per_tenant import SimpleMinBandwidthPerTenant
-from controller.dynamic_policies.rules.sample_bw_controllers.min_slo_tenant_global_share_spare_bw import MinTenantSLOGlobalSpareBWShare
-from controller.dynamic_policies.rules.sample_bw_controllers.min_slo_tenant_global_share_spare_bw_v2 import MinTenantSLOGlobalSpareBWShare as MinTenantSLOGlobalSpareBWShareV2
+from bandwidth_controller_samples.static_bandwidth import StaticBandwidthPerTenant
+from bandwidth_controller_samples.static_replication_bandwidth import StaticReplicationBandwidth
+from bandwidth_controller_samples.min_bandwidth_per_tenant import SimpleMinBandwidthPerTenant
+from bandwidth_controller_samples.min_slo_tenant_global_share_spare_bw import MinTenantSLOGlobalSpareBWShare
+from bandwidth_controller_samples.min_slo_tenant_global_share_spare_bw_v2 import MinTenantSLOGlobalSpareBWShare as MinTenantSLOGlobalSpareBWShareV2
 from .dsl_parser import parse
 
 
@@ -49,8 +53,7 @@ class DynamicPoliciesTestCase(TestCase):
         self.setup_dsl_parser_data()
         _, parsed_rule = parse('FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 WHEN metric1 > 5 DO SET compression')
         target = '4f0279da74ef4584a29dc72c835fe2c9'
-        host = None
-        rule = Rule(parsed_rule, parsed_rule.action_list[0], target, host)
+        rule = Rule(parsed_rule, parsed_rule.action_list[0], target)
         self.assertEqual(rule.get_target(), '4f0279da74ef4584a29dc72c835fe2c9')
 
     @mock.patch('controller.dynamic_policies.rules.rule.Rule._do_action')
@@ -58,8 +61,7 @@ class DynamicPoliciesTestCase(TestCase):
         self.setup_dsl_parser_data()
         _, parsed_rule = parse('FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 WHEN metric1 > 5 DO SET compression')
         target = '4f0279da74ef4584a29dc72c835fe2c9'
-        host = None
-        rule = Rule(parsed_rule, parsed_rule.action_list[0], target, host)
+        rule = Rule(parsed_rule, parsed_rule.action_list[0], target)
         rule.update('metric1', 3)
         self.assertFalse(mock_do_action.called)
 
@@ -68,8 +70,7 @@ class DynamicPoliciesTestCase(TestCase):
         self.setup_dsl_parser_data()
         _, parsed_rule = parse('FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 WHEN metric1 > 5 DO SET compression')
         target = '4f0279da74ef4584a29dc72c835fe2c9'
-        host = None
-        rule = Rule(parsed_rule, parsed_rule.action_list[0], target, host)
+        rule = Rule(parsed_rule, parsed_rule.action_list[0], target)
         rule.update('metric1', 6)
         self.assertTrue(mock_do_action.called)
 
@@ -83,8 +84,7 @@ class DynamicPoliciesTestCase(TestCase):
         self.setup_dsl_parser_data()
         _, parsed_rule = parse('FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 WHEN metric1 > 5 DO SET compression')
         target = '4f0279da74ef4584a29dc72c835fe2c9'
-        host = None
-        rule = Rule(parsed_rule, parsed_rule.action_list[0], target, host)
+        rule = Rule(parsed_rule, parsed_rule.action_list[0], target)
         rule.id = '10'
         with HTTMock(example_mock_200):
             rule.update('metric1', 6)
@@ -102,8 +102,7 @@ class DynamicPoliciesTestCase(TestCase):
         self.setup_dsl_parser_data()
         _, parsed_rule = parse('FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 WHEN metric1 > 5 DO SET compression')
         target = '4f0279da74ef4584a29dc72c835fe2c9'
-        host = None
-        rule = Rule(parsed_rule, parsed_rule.action_list[0], target, host)
+        rule = Rule(parsed_rule, parsed_rule.action_list[0], target)
         rule.id = '10'
         with HTTMock(example_mock_400):
             rule.update('metric1', 6)
@@ -120,10 +119,9 @@ class DynamicPoliciesTestCase(TestCase):
         self.setup_dsl_parser_data()
         _, parsed_rule = parse('FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 WHEN metric1 > 5 DO SET compression')
         target = '4f0279da74ef4584a29dc72c835fe2c9'
-        host = None
         action = parsed_rule.action_list[0]
         action.action = 'DELETE'
-        rule = Rule(parsed_rule, action, target, host)
+        rule = Rule(parsed_rule, action, target)
         rule.id = '10'
         with HTTMock(example_mock_200):
             rule.update('metric1', 6)
@@ -139,8 +137,7 @@ class DynamicPoliciesTestCase(TestCase):
         self.setup_dsl_parser_data()
         _, parsed_rule = parse('FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 WHEN metric1 > 5 DO SET compression TRANSIENT')
         target = '4f0279da74ef4584a29dc72c835fe2c9'
-        host = None
-        rule = TransientRule(parsed_rule, parsed_rule.action_list[0], target, host)
+        rule = TransientRule(parsed_rule, parsed_rule.action_list[0], target)
         rule.update('metric1', 6)
         self.assertTrue(mock_do_action.called)
 
@@ -155,8 +152,7 @@ class DynamicPoliciesTestCase(TestCase):
         self.setup_dsl_parser_data()
         _, parsed_rule = parse('FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 WHEN metric1 > 5 DO SET compression TRANSIENT')
         target = '4f0279da74ef4584a29dc72c835fe2c9'
-        host = None
-        rule = TransientRule(parsed_rule, parsed_rule.action_list[0], target, host)
+        rule = TransientRule(parsed_rule, parsed_rule.action_list[0], target)
 
         rule.update('metric1', 6)
         self.assertTrue(mock_requests_put.called)
@@ -324,7 +320,7 @@ class DynamicPoliciesTestCase(TestCase):
     def test_simple_proportional_bandwidth_per_tenant(self, mock_pika):
         self.r.set('SLO:bandwidth:put_bw:AUTH_1234567890abcdef#0', 80)
 
-        smin = SimpleProportionalBandwidthPerTenant('the_name', 'PUT')
+        smin = StaticBandwidthPerTenant('the_name', 'PUT')
         self.assertTrue(mock_pika.PlainCredentials.called)
         info = {'AUTH_1234567890abcdef': {'192.168.2.21': {'0': {u'sdb1': 655350.0}}}}
         computed = smin.compute_algorithm(info)
@@ -338,7 +334,7 @@ class DynamicPoliciesTestCase(TestCase):
     def test_simple_proportional_replication_bandwidth(self, mock_pika):
         self.r.set('SLO:bandwidth:ssync_bw:AUTH_1234567890abcdef#0', 80)
 
-        smin = SimpleProportionalReplicationBandwidth('the_name', 'the_method')
+        smin = StaticReplicationBandwidth('the_name', 'the_method')
         self.assertTrue(mock_pika.PlainCredentials.called)
         info = {'AUTH_1234567890abcdef': {'192.168.2.21': {'1': {u'sdb1': 655350.0}}}}
         computed = smin.compute_algorithm(info)

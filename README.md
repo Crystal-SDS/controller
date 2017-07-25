@@ -26,7 +26,7 @@ Crystal source code is structured in several components:
 
 This repository contains the code of Crystal Controller, the Software-Defined-Storage (SDS) REST API in the [IOStack](https://github.com/iostackproject) architecture.
 It is a Django project that implements the REST API needed to handle filters, storlets and policies on top of Openstack Swift object-storage system. This API also includes a set of python processes who use
-the [PyActive middleware](https://github.com/cloudspaces/pyactive), an Object Oriented implementation of the Actor model. This part allows to create simple policies using a DSL (integrated in the Crystal Controller API)
+the [PyActor middleware](https://github.com/pedrotgn/pyactor), an Object Oriented implementation of the Actor model. This part allows to create simple policies using a DSL (integrated in the Crystal Controller API)
 and to deploy them as an actor process, who analyze the system data thanks to the monitoring system, and allows to set or remove filters to tenants depending on the established policy.
 
 To build the APIs in an easy way we use [Django REST Framework](http://www.django-rest-framework.org/).
@@ -42,18 +42,14 @@ To build the APIs in an easy way we use [Django REST Framework](http://www.djang
 
 1. Clone the Crystal controller repository
 2. Install Python package dependencies: `pip install -r requirements.txt`
-3. Install PyActive:
-    1. `git clone https://github.com/cloudspaces/pyactive.git`
-    2. `cd pyactive/pyactive_project`
-    3. `python setup.py develop`
-4. Edit Crystal controller settings file `api/api/settings.py`: configure Swift proxy IP and port, Keystone IP, OpenStack credentials, Redis location, RabbitMQ credentials.
-5. You can start the server running the following command from the source folder (`./api`): `python manage.py runserver 0.0.0.0:8000`.
+3. Edit Crystal controller settings file `api/api/settings.py`: configure Swift proxy IP and port, Keystone IP, OpenStack credentials, Redis location, RabbitMQ credentials.
+4. You can start the server running the following command from the source folder (`./api`): `python manage.py runserver 0.0.0.0:8000`.
 
 ## Usage
 
 API usage is detailed in the [API specification](http://crystal-controller.readthedocs.io/en/latest/index.html#controller-api-specification).
 
-A convenient [web dashboard](https://github.com/iostackproject/SDS-dashboard) is also available to simplify these API calls. Refer to the [dashboard overview](http://crystal-controller.readthedocs.io/en/latest/components/dashboard.html) for detailed information.
+A convenient [web dashboard](https://github.com/iostackproject/SDS-dashboard/tree/urv_dev) is also available to simplify these API calls. Refer to the [dashboard overview](http://crystal-controller.readthedocs.io/en/latest/components/dashboard.html) for detailed information.
 
 ### Tests
 

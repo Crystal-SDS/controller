@@ -11,13 +11,13 @@ class SimpleMinBandwidthPerTenant(BaseBwController):
         """
         Simple compute algorithm
         """
-        
+
         monitoring_info = self._format_monitoring_info(info)
-        
+
         # bw_enforcements = self._get_redis_bw()
         slo_name = self.method.lower() + "_bw"  # get_bw or put_bw
         bw_enforcements = self._get_redis_slos(slo_name)
-         
+
         # Work without policies at this moment
         clean_bw_enforcements = dict()
         for tenant in bw_enforcements:
@@ -28,15 +28,15 @@ class SimpleMinBandwidthPerTenant(BaseBwController):
 
         computed_assignments = dict()
         disk_usage = dict()
-        
+
         # First, sort tenants depending on the amount of transfers they are doing
         sorted_tenants = sorted(monitoring_info.items(), key=lambda t: len(t[1]))
         # FIRST STAGE, SIMPLE ALLOCATION OF QOS TENANTS
         # Allocation iteration based on the first fit decreasing strategy
         for (tenant, previous_assignments) in sorted_tenants:
             # Initialize assignment entry for this tenant
-            if tenant not in computed_assignments: 
-                computed_assignments[tenant] = dict()  
+            if tenant not in computed_assignments:
+                computed_assignments[tenant] = dict()
             for (disk_id, transfer_speed) in previous_assignments:
                 assert transfer_speed >= -1, "NEGATIVE TRANSFER SPEED!!" + str(transfer_speed)
                 # Initialize disk usage dicts
@@ -47,7 +47,7 @@ class SimpleMinBandwidthPerTenant(BaseBwController):
                 if tenant not in disk_usage[disk_id]:
                     disk_usage[disk_id][tenant] = []
                 # Now, only work with QoS tenants
-                if tenant not in bw_enforcements.keys(): 
+                if tenant not in bw_enforcements.keys():
                     disk_usage[disk_id][tenant].append(0)
                     continue
                 # Get the slot per transfer of this tenant in the optimal case
@@ -60,7 +60,7 @@ class SimpleMinBandwidthPerTenant(BaseBwController):
 
         # SECOND STAGE, CHECK FOR REALLOCATION OF QOS TENANTS TO MEET MINIMUM BW
         # Get disks of QoS tenants in disks that are overloaded
-        overloaded_disks = dict()    
+        overloaded_disks = dict()
         for disk_id in sorted(disk_usage):
             disk_load = 0
             for tenant in disk_usage[disk_id]:
@@ -132,14 +132,14 @@ class SimpleMinBandwidthPerTenant(BaseBwController):
                     updated_useless_tenants = len([t for t in qos_tenants_for_this_disk
                                                    if computed_assignments[t][disk_id] < reduce_bw_slot])
                     if len(current_useless_tenants) == updated_useless_tenants: 
-                        converged = True                        
+                        converged = True
                 # Reduce the share of QoS tenants in the overloaded disk
                 for tenant in qos_tenants_for_this_disk:
                     if reduce_bw_slot > computed_assignments[tenant][disk_id]:
                         continue
                     disk_usage[disk_id][tenant] = [(x - reduce_bw_slot) for x in disk_usage[disk_id][tenant]]
-                    computed_assignments[tenant][disk_id] -= reduce_bw_slot      
-                
+                    computed_assignments[tenant][disk_id] -= reduce_bw_slot
+
         # THIRD STAGE, SHARE SPARE BW ACROSS QOS AND REGULAR TENANTS
         total_bw_assigned = 0.0
         total_disk_connections = 0.0
@@ -151,7 +151,7 @@ class SimpleMinBandwidthPerTenant(BaseBwController):
         free_proxy_bw = (self.NUM_PROXYS*self.PROXY_IO_BANDWIDTH)-total_bw_assigned
         if free_proxy_bw > 0:
             free_proxy_bw_slot = free_proxy_bw/total_disk_connections
-                
+
         for disk_id in disk_usage.keys():
             spare_disk_capacity = self.DISK_IO_BANDWIDTH
             disk_connections = 0
@@ -167,7 +167,7 @@ class SimpleMinBandwidthPerTenant(BaseBwController):
                 disk_usage[disk_id][tenant].append(spare_bw_slot)
 
         return computed_assignments
-    
+
     def _format_monitoring_info(self, info):
         """
         Arrange and simplify the obtained monitoring info for the algorithm
@@ -180,5 +180,5 @@ class SimpleMinBandwidthPerTenant(BaseBwController):
                     for device in info[account][ip][policy]:
                         disk_id = ip + "-" + policy + "-" + device
                         formatted_info[account].append((disk_id, info[account][ip][policy][device]))
-                        
+
         return formatted_info

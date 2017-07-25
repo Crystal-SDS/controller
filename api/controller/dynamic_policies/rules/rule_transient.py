@@ -16,12 +16,10 @@ class TransientRule(Rule):
     rule will execute the reverse action (if action is SET, the will execute
     DELETE)
     """
-    _sync = {'get_target': '2'}
+    _ask = ['get_target']
     _async = ['update', 'start_rule', 'stop_actor']
-    _ref = []
-    _parallel = []
 
-    def __init__(self, rule_parsed, action, target, host):
+    def __init__(self, rule_parsed, action, target):
         """
         Initialize all the variables needed for the rule.
 
@@ -30,7 +28,7 @@ class TransientRule(Rule):
         :param target: The target assigned to this rule.
         :type target: **any** String type
         """
-        super(TransientRule, self).__init__(rule_parsed, action, target, host)
+        super(TransientRule, self).__init__(rule_parsed, action, target)
         logger.info("Transient Rule")
         self.execution_stat = False
         self.static_policy_id = None
