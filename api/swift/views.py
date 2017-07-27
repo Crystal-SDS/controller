@@ -19,6 +19,7 @@ from api.exceptions import FileSynchronizationException
 
 logger = logging.getLogger(__name__)
 
+
 @csrf_exempt
 def tenants_list(request):
     """
@@ -174,6 +175,7 @@ def sort_detail(request, sort_id):
 # Node part
 #
 
+
 @csrf_exempt
 def node_list(request):
     """
@@ -186,7 +188,7 @@ def node_list(request):
         return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     if request.method == 'GET':
-        keys = r.keys("node:*")
+        keys = r.keys("*_node:*")
         nodes = []
         for key in keys:
             node = r.hgetall(key)
@@ -201,10 +203,11 @@ def node_list(request):
 
 
 @csrf_exempt
-def node_detail(request, node_id):
+def node_detail(request, server, node_id):
     """
     GET: Retrieve node details. PUT: Update node.
     :param request:
+    :param server:
     :param node_id:
     :return:
     """
@@ -214,7 +217,7 @@ def node_detail(request, node_id):
     except RedisError:
         return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    key = "node:" + node_id
+    key = server+"_node:" + node_id
     if request.method == 'GET':
         if r.exists(key):
             node = r.hgetall(key)
