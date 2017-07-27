@@ -4,7 +4,7 @@ import os
 import sys
 import time
 
-import keystoneclient.v2_0.client as keystone_client
+import keystoneclient.v3.client as keystone_client
 import redis
 from django.conf import settings
 from django.core.management.color import color_style
@@ -20,6 +20,7 @@ host = None
 logger = logging.getLogger(__name__)
 
 NODE_STATUS_THRESHOLD = 15  # seconds
+
 
 class LoggingColors(logging.Formatter):
     def __init__(self, *args, **kwargs):
@@ -67,7 +68,7 @@ def get_keystone_admin_auth():
     admin_project = settings.MANAGEMENT_ACCOUNT
     admin_user = settings.MANAGEMENT_ADMIN_USERNAME
     admin_passwd = settings.MANAGEMENT_ADMIN_PASSWORD
-    keystone_url = settings.KEYSTONE_URL
+    keystone_url = settings.KEYSTONE_ADMIN_URL
 
     keystone = None
     try:
@@ -81,48 +82,13 @@ def get_keystone_admin_auth():
     return keystone
 
 
-# def is_valid_request(request):
-#     token = request.META['HTTP_X_AUTH_TOKEN']
-#     is_admin = False
-#     now = datetime.utcnow()
-#
-#     if token not in valid_tokens:
-#         keystone = get_keystone_admin_auth()
-#
-#         try:
-#             token_data = keystone.tokens.validate(token)
-#         except:
-#             return False
-#
-#         token_expiration = datetime.strptime(token_data.expires,
-#                                              '%Y-%m-%dT%H:%M:%SZ')
-#
-#         token_roles = token_data.user['roles']
-#         for role in token_roles:
-#             if role['name'] == 'admin':
-#                 is_admin = True
-#
-#         if token_expiration > now and is_admin:
-#             valid_tokens[token] = token_expiration
-#             return token
-#
-#     else:
-#         token_expiration = valid_tokens[token]
-#         if token_expiration > now:
-#             return token
-#         else:
-#             valid_tokens.pop(token, None)
-#
-#     return False
-
-
 def get_project_list():
     keystone = get_keystone_admin_auth()
-    tenants = keystone.tenants.list()
+    projects = keystone.projects.list()
 
     project_list = {}
-    for tenant in tenants:
-        project_list[tenant.id] = tenant.name
+    for project in projects:
+        project_list[project.id] = project.name
 
     return project_list
 
