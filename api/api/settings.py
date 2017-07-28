@@ -33,7 +33,7 @@ SECRET_KEY = '&yx_=2@s(evyq=l9t2efrgmgryz^ea85$csdb_rprvc-9b&#r8'  # noqa
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['controller',]
+ALLOWED_HOSTS = ['controller', ]
 
 # Application definition
 
