@@ -1,11 +1,7 @@
-import sys
-import logging
-import redis
-
-#from api.settings import RABBITMQ_USERNAME, RABBITMQ_PASSWORD, RABBITMQ_HOST, RABBITMQ_PORT, REDIS_CON_POOL, LOGSTASH_HOST, LOGSTASH_PORT
 from django.conf import settings
 from redis.exceptions import RedisError
-
+import logging
+import redis
 
 logger = logging.getLogger(__name__)
 
@@ -23,21 +19,14 @@ class Metric(object):
         self._observers = {}
         self.value = None
         self.name = None
-        # settings = ConfigParser.ConfigParser()
-        # settings.read("controller/dynamic_policies/settings.conf")
+
         self.rmq_user = settings.RABBITMQ_USERNAME
         self.rmq_pass = settings.RABBITMQ_PASSWORD
         self.rmq_host = settings.RABBITMQ_HOST
         self.rmq_port = settings.RABBITMQ_PORT
-        # self.redis_host = REDIS_HOST
-        # self.redis_port = REDIS_PORT
-        # self.redis_db = REDIS_DATABASE
+
         self.logstash_host = settings.LOGSTASH_HOST
         self.logstash_port = settings.LOGSTASH_PORT
-
-        # self.redis = redis.StrictRedis(host=self.redis_host,
-        #                                port=int(self.redis_port),
-        #                                db=int(self.redis_db))
 
         try:
             self.redis = redis.Redis(connection_pool=settings.REDIS_CON_POOL)
@@ -94,8 +83,8 @@ class Metric(object):
             self.redis.hmset("metric:" + self.name, {"network_location": self.proxy.actor.url, "type": "integer"})
 
             self.consumer = self.host.spawn(self.id + "_consumer",
-                                            "controller.dynamic_policies.consumer"
-                                            + "/Consumer",
+                                            "controller.dynamic_policies.consumer" +
+                                            "/Consumer",
                                             [str(self.rmq_host),
                                              int(self.rmq_port),
                                              str(self.rmq_user),
