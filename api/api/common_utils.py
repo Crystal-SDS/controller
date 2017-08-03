@@ -98,7 +98,7 @@ def rsync_dir_with_nodes(directory):
     nodes = get_all_registered_nodes()
     for node in nodes:
         if not node.viewkeys() & {'ssh_username', 'ssh_password'}:
-            raise FileSynchronizationException("SSH credentials missing for some Swift node. Please, set the credentials for all nodes.")
+            raise FileSynchronizationException("SSH credentials missing. Please, set the credentials for this node: "+node['name'])
 
         # Directory is only synchronized if node status is UP
         if calendar.timegm(time.gmtime()) - int(float(node['last_ping'])) <= NODE_STATUS_THRESHOLD:
@@ -110,7 +110,7 @@ def rsync_dir_with_nodes(directory):
             # print "System: %s" % rsync_command
             ret = os.system(rsync_command)
             if ret != 0:
-                raise FileSynchronizationException("An error occurred copying files to Swift nodes. Please check the SSH credentials of the node: "+node['name'])
+                raise FileSynchronizationException("An error occurred copying files to Swift nodes. Please check the SSH credentials of this node: "+node['name'])
 
 
 def get_all_registered_nodes():
@@ -119,7 +119,7 @@ def get_all_registered_nodes():
     :return:
     """
     r = get_redis_connection()
-    keys = r.keys("node:*")
+    keys = r.keys("*_node:*")
     nodes = []
     for key in keys:
         node = r.hgetall(key)
