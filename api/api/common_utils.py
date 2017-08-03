@@ -15,7 +15,6 @@ from api.exceptions import FileSynchronizationException
 from pyactor.context import set_context, create_host
 
 host = None
-# remote_host = None
 
 logger = logging.getLogger(__name__)
 
@@ -97,6 +96,7 @@ def rsync_dir_with_nodes(directory):
     # retrieve nodes
     nodes = get_all_registered_nodes()
     for node in nodes:
+        logger.info("Rsync pushing to "+node['name'])
         if not node.viewkeys() & {'ssh_username', 'ssh_password'}:
             raise FileSynchronizationException("SSH credentials missing. Please, set the credentials for this node: "+node['name'])
 
