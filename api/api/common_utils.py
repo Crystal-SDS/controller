@@ -10,14 +10,11 @@ from django.conf import settings
 from django.core.management.color import color_style
 from django.http import HttpResponse
 from rest_framework.renderers import JSONRenderer
-
 from api.exceptions import FileSynchronizationException
 from pyactor.context import set_context, create_host
 
-host = None
-
 logger = logging.getLogger(__name__)
-
+host = None
 NODE_STATUS_THRESHOLD = 15  # seconds
 
 
@@ -96,7 +93,7 @@ def rsync_dir_with_nodes(directory):
     # retrieve nodes
     nodes = get_all_registered_nodes()
     for node in nodes:
-        logger.info("Rsync pushing to "+node['name'])
+        logger.info("\nRsync - pushing to "+node['name'])
         if not node.viewkeys() & {'ssh_username', 'ssh_password'}:
             raise FileSynchronizationException("SSH credentials missing. Please, set the credentials for this node: "+node['name'])
 
