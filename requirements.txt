@@ -6,7 +6,7 @@
 # added in alphabetical order, however, some dependencies may need to
 # be installed in a specific order.
 #
-Django<1.9,>=1.8
+Django<2.0,>=1.8
 redis
 pyparsing<2.1,>=2.0
 djangorestframework<3.4,>=3.3
