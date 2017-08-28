@@ -125,17 +125,17 @@ class MainTestCase(TestCase):
     @mock.patch('api.common_utils.get_keystone_admin_auth')
     def test_get_project_list_ok(self, mock_keystone_admin_auth):
         fake_tenants_list = [FakeTenantData('1234567890abcdef', 'tenantA'), FakeTenantData('abcdef1234567890', 'tenantB')]
-        mock_keystone_admin_auth.return_value.tenants.list.return_value = fake_tenants_list
+        mock_keystone_admin_auth.return_value.projects.list.return_value = fake_tenants_list
         resp = get_project_list()
         self.assertEquals(resp['1234567890abcdef'], 'tenantA')
         self.assertEquals(resp['abcdef1234567890'], 'tenantB')
 
     @override_settings(MANAGEMENT_ACCOUNT='mng_account', MANAGEMENT_ADMIN_USERNAME='mng_username', MANAGEMENT_ADMIN_PASSWORD='mng_pw',
-                       KEYSTONE_URL='http://localhost:35357/v2.0')
+                       KEYSTONE_ADMIN_URL='http://localhost:35357/v3')
     @mock.patch('api.common_utils.keystone_client.Client')
     def test_get_keystone_admin_auth_ok(self, mock_keystone_client):
         get_keystone_admin_auth()
-        mock_keystone_client.assert_called_with(username='mng_username', tenant_name='mng_account', password='mng_pw', auth_url='http://localhost:35357/v2.0')
+        mock_keystone_client.assert_called_with(username='mng_username', tenant_name='mng_account', password='mng_pw', auth_url='http://localhost:35357/v3')
 
     def test_startup_run_ok(self):
         self.create_startup_fixtures()
@@ -166,29 +166,29 @@ class MainTestCase(TestCase):
         resolver = resolve('/swift/nodes/')
         self.assertEqual(resolver.view_name, 'swift.views.node_list')
 
-        resolver = resolve('/swift/nodes/node1')
+        resolver = resolve('/swift/nodes/node1/0')
         self.assertEqual(resolver.view_name, 'swift.views.node_detail')
-        self.assertEqual(resolver.kwargs, {'node_id': 'node1'})
+        self.assertEqual(resolver.kwargs, {'server': 'node1', 'node_id': '0'})
 
     #
     # Aux methods
     #
 
     def create_nodes(self):
-        self.r.hmset('node:controller',
+        self.r.hmset('controller_node:0',
                      {'ip': '192.168.2.1', 'last_ping': str(calendar.timegm(time.gmtime())), 'type': 'proxy', 'name': 'controller',
                       'devices': '{"sdb1": {"free": 16832876544, "size": 16832880640}}'})
-        self.r.hmset('node:storagenode1',
+        self.r.hmset('storage1_node:0',
                      {'ip': '192.168.2.2', 'last_ping': str(calendar.timegm(time.gmtime())), 'type': 'object', 'name': 'storagenode1',
                       'devices': '{"sdb1": {"free": 16832876544, "size": 16832880640}}'})
-        self.r.hmset('node:storagenode2',
+        self.r.hmset('storage2_node:0',
                      {'ip': '192.168.2.3', 'last_ping': str(calendar.timegm(time.gmtime())), 'type': 'object', 'name': 'storagenode2',
                       'devices': '{"sdb1": {"free": 16832876544, "size": 16832880640}}'})
 
     def configure_usernames_and_passwords_for_nodes(self):
-        self.r.hmset('node:controller', {'ssh_username': 'user1', 'ssh_password': 's3cr3t'})
-        self.r.hmset('node:storagenode1', {'ssh_username': 'user1', 'ssh_password': 's3cr3t'})
-        self.r.hmset('node:storagenode2', {'ssh_username': 'user1', 'ssh_password': 's3cr3t'})
+        self.r.hmset('controller_node:0', {'ssh_username': 'user1', 'ssh_password': 's3cr3t'})
+        self.r.hmset('storage1_node:0', {'ssh_username': 'user1', 'ssh_password': 's3cr3t'})
+        self.r.hmset('storage2_node:0', {'ssh_username': 'user1', 'ssh_password': 's3cr3t'})
 
     def create_startup_fixtures(self):
         self.r.hmset('workload_metric:1', {'metric_name': 'm1.py', 'class_name': 'Metric1', 'execution_server': 'proxy', 'out_flow': 'False',
