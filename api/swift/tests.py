@@ -199,39 +199,39 @@ class SwiftTestCase(TestCase):
         self.assertIsNotNone(nodes[0]['devices'][a_device]['free'])
 
     def test_node_detail_with_method_not_allowed(self):
-        server_name = 'storage1'
-        node_id = '0'
+        server_type = 'object'
+        node_id = 'storagenode1'
         # POST is not supported
-        request = self.api_factory.post('/swift/nodes/' + server_name + '/' + node_id)
-        response = node_detail(request, server_name, node_id)
+        request = self.api_factory.post('/swift/nodes/' + server_type + '/' + node_id)
+        response = node_detail(request, server_type, node_id)
         self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
     def test_get_node_detail_ok(self):
-        server_name = 'storage1'
-        node_id = '0'
-        request = self.api_factory.get('/swift/nodes/' + server_name + '/' + node_id)
-        response = node_detail(request, server_name, node_id)
+        server_type = 'object'
+        node_id = 'storagenode1'
+        request = self.api_factory.get('/swift/nodes/' + server_type + '/' + node_id)
+        response = node_detail(request, server_type, node_id)
         node = json.loads(response.content)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(node['name'], 'storagenode1')
 
     def test_get_node_detail_with_non_existent_server_name(self):
-        server_name = 'storage10000'
-        node_id = '0'
-        request = self.api_factory.get('/swift/nodes/' + server_name + '/' + node_id)
-        response = node_detail(request, server_name, node_id)
+        server_type = 'object'
+        node_id = 'storagenode100000'
+        request = self.api_factory.get('/swift/nodes/' + server_type + '/' + node_id)
+        response = node_detail(request, server_type, node_id)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_delete_node_detail_ok(self):
-        server_name = 'storage1'
-        node_id = '0'
-        request = self.api_factory.delete('/swift/nodes/' + server_name + '/' + node_id)
-        response = node_detail(request, server_name, node_id)
+        server_type = 'object'
+        node_id = 'storagenode1'
+        request = self.api_factory.delete('/swift/nodes/' + server_type + '/' + node_id)
+        response = node_detail(request, server_type, node_id)
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
         # Verify it was deleted
-        request = self.api_factory.get('/swift/nodes/' + server_name + '/' + node_id)
-        response = node_detail(request, server_name, node_id)
+        request = self.api_factory.get('/swift/nodes/' + server_type + '/' + node_id)
+        response = node_detail(request, server_type, node_id)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     #
@@ -252,12 +252,12 @@ class SwiftTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
     def create_nodes(self):
-        self.r.hmset('controller_node:0',
+        self.r.hmset('proxy_node:controller',
                      {'ip': '192.168.2.1', 'last_ping': '1467623304.332646', 'type': 'proxy', 'name': 'controller',
                       'devices': '{"sdb1": {"free": 16832876544, "size": 16832880640}}'})
-        self.r.hmset('storage1_node:0',
+        self.r.hmset('object_node:storagenode1',
                      {'ip': '192.168.2.2', 'last_ping': '1467623304.332646', 'type': 'object', 'name': 'storagenode1',
                       'devices': '{"sdb1": {"free": 16832876544, "size": 16832880640}}'})
-        self.r.hmset('storage2_node:0',
+        self.r.hmset('object_node:storagenode2',
                      {'ip': '192.168.2.3', 'last_ping': '1467623304.332646', 'type': 'object', 'name': 'storagenode2',
                       'devices': '{"sdb1": {"free": 16832876544, "size": 16832880640}}'})

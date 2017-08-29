@@ -166,29 +166,29 @@ class MainTestCase(TestCase):
         resolver = resolve('/swift/nodes/')
         self.assertEqual(resolver.view_name, 'swift.views.node_list')
 
-        resolver = resolve('/swift/nodes/node1/0')
+        resolver = resolve('/swift/nodes/object/node1')
         self.assertEqual(resolver.view_name, 'swift.views.node_detail')
-        self.assertEqual(resolver.kwargs, {'server': 'node1', 'node_id': '0'})
+        self.assertEqual(resolver.kwargs, {'server': 'object', 'node_id': 'node1'})
 
     #
     # Aux methods
     #
 
     def create_nodes(self):
-        self.r.hmset('controller_node:0',
+        self.r.hmset('proxy_node:controller',
                      {'ip': '192.168.2.1', 'last_ping': str(calendar.timegm(time.gmtime())), 'type': 'proxy', 'name': 'controller',
                       'devices': '{"sdb1": {"free": 16832876544, "size": 16832880640}}'})
-        self.r.hmset('storage1_node:0',
+        self.r.hmset('object_node:storagenode1',
                      {'ip': '192.168.2.2', 'last_ping': str(calendar.timegm(time.gmtime())), 'type': 'object', 'name': 'storagenode1',
                       'devices': '{"sdb1": {"free": 16832876544, "size": 16832880640}}'})
-        self.r.hmset('storage2_node:0',
+        self.r.hmset('object_node:storagenode2',
                      {'ip': '192.168.2.3', 'last_ping': str(calendar.timegm(time.gmtime())), 'type': 'object', 'name': 'storagenode2',
                       'devices': '{"sdb1": {"free": 16832876544, "size": 16832880640}}'})
 
     def configure_usernames_and_passwords_for_nodes(self):
-        self.r.hmset('controller_node:0', {'ssh_username': 'user1', 'ssh_password': 's3cr3t'})
-        self.r.hmset('storage1_node:0', {'ssh_username': 'user1', 'ssh_password': 's3cr3t'})
-        self.r.hmset('storage2_node:0', {'ssh_username': 'user1', 'ssh_password': 's3cr3t'})
+        self.r.hmset('proxy_node:controller', {'ssh_username': 'user1', 'ssh_password': 's3cr3t'})
+        self.r.hmset('object_node:storagenode1', {'ssh_username': 'user1', 'ssh_password': 's3cr3t'})
+        self.r.hmset('object_node:storagenode2', {'ssh_username': 'user1', 'ssh_password': 's3cr3t'})
 
     def create_startup_fixtures(self):
         self.r.hmset('workload_metric:1', {'metric_name': 'm1.py', 'class_name': 'Metric1', 'execution_server': 'proxy', 'out_flow': 'False',
