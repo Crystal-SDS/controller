@@ -137,8 +137,11 @@ class MainTestCase(TestCase):
         get_keystone_admin_auth()
         mock_keystone_client.assert_called_with(username='mng_username', tenant_name='mng_account', password='mng_pw', auth_url='http://localhost:35357/v3')
 
-    def test_startup_run_ok(self):
+    @mock.patch('api.startup.redis.Redis')
+    def test_startup_run_ok(self, mock_startup_redis):
         self.create_startup_fixtures()
+        # Mocking redis to use DB=10 (in startup.py, settings are imported directly from ./settings.py instead of using django.conf)
+        mock_startup_redis.return_value = self.r
         startup_run()
         self.assertEquals(self.r.hget('workload_metric:1', 'enabled'), 'False')
         self.assertEquals(self.r.hget('workload_metric:2', 'enabled'), 'False')
