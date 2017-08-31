@@ -1,7 +1,6 @@
 import redis
 import sys
-
-from django.conf import settings
+import settings
 
 
 def run():

@@ -137,8 +137,11 @@ class MainTestCase(TestCase):
         get_keystone_admin_auth()
         mock_keystone_client.assert_called_with(username='mng_username', tenant_name='mng_account', password='mng_pw', auth_url='http://localhost:35357/v3')
 
-    def test_startup_run_ok(self):
+    @mock.patch('api.startup.redis.Redis')
+    def test_startup_run_ok(self, mock_startup_redis):
         self.create_startup_fixtures()
+        # Mocking redis to use DB=10 (in startup.py, settings are imported directly from ./settings.py instead of using django.conf)
+        mock_startup_redis.return_value = self.r
         startup_run()
         self.assertEquals(self.r.hget('workload_metric:1', 'enabled'), 'False')
         self.assertEquals(self.r.hget('workload_metric:2', 'enabled'), 'False')
@@ -166,29 +169,29 @@ class MainTestCase(TestCase):
         resolver = resolve('/swift/nodes/')
         self.assertEqual(resolver.view_name, 'swift.views.node_list')
 
-        resolver = resolve('/swift/nodes/node1/0')
+        resolver = resolve('/swift/nodes/object/node1')
         self.assertEqual(resolver.view_name, 'swift.views.node_detail')
-        self.assertEqual(resolver.kwargs, {'server': 'node1', 'node_id': '0'})
+        self.assertEqual(resolver.kwargs, {'server': 'object', 'node_id': 'node1'})
 
     #
     # Aux methods
     #
 
     def create_nodes(self):
-        self.r.hmset('controller_node:0',
+        self.r.hmset('proxy_node:controller',
                      {'ip': '192.168.2.1', 'last_ping': str(calendar.timegm(time.gmtime())), 'type': 'proxy', 'name': 'controller',
                       'devices': '{"sdb1": {"free": 16832876544, "size": 16832880640}}'})
-        self.r.hmset('storage1_node:0',
+        self.r.hmset('object_node:storagenode1',
                      {'ip': '192.168.2.2', 'last_ping': str(calendar.timegm(time.gmtime())), 'type': 'object', 'name': 'storagenode1',
                       'devices': '{"sdb1": {"free": 16832876544, "size": 16832880640}}'})
-        self.r.hmset('storage2_node:0',
+        self.r.hmset('object_node:storagenode2',
                      {'ip': '192.168.2.3', 'last_ping': str(calendar.timegm(time.gmtime())), 'type': 'object', 'name': 'storagenode2',
                       'devices': '{"sdb1": {"free": 16832876544, "size": 16832880640}}'})
 
     def configure_usernames_and_passwords_for_nodes(self):
-        self.r.hmset('controller_node:0', {'ssh_username': 'user1', 'ssh_password': 's3cr3t'})
-        self.r.hmset('storage1_node:0', {'ssh_username': 'user1', 'ssh_password': 's3cr3t'})
-        self.r.hmset('storage2_node:0', {'ssh_username': 'user1', 'ssh_password': 's3cr3t'})
+        self.r.hmset('proxy_node:controller', {'ssh_username': 'user1', 'ssh_password': 's3cr3t'})
+        self.r.hmset('object_node:storagenode1', {'ssh_username': 'user1', 'ssh_password': 's3cr3t'})
+        self.r.hmset('object_node:storagenode2', {'ssh_username': 'user1', 'ssh_password': 's3cr3t'})
 
     def create_startup_fixtures(self):
         self.r.hmset('workload_metric:1', {'metric_name': 'm1.py', 'class_name': 'Metric1', 'execution_server': 'proxy', 'out_flow': 'False',
