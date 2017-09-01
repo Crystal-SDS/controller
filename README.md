@@ -14,9 +14,13 @@ To build the APIs in an easy way we use [Django REST Framework](http://www.djang
 ## Requirements
 
 * Python 2.7
+
 * OpenStack Swift cluster with Keystone authentication.
-* Redis server
-* RabbitMQ server
+
+* [RabbitMQ Server](https://www.rabbitmq.com/)
+
+* [Redis Server](http://redis.io/)
+
 
 ## Installation
 
@@ -44,7 +48,7 @@ service apache2 reload
 
 API usage is detailed in the [API specification](http://crystal-controller.readthedocs.io/en/latest/index.html#controller-api-specification).
 
-A convenient [web dashboard](https://github.com/iostackproject/SDS-dashboard/tree/urv_dev) is also available to simplify these API calls. Refer to the [dashboard overview](http://crystal-controller.readthedocs.io/en/latest/components/dashboard.html) for detailed information.
+A convenient [web dashboard](https://github.com/Crystal-SDS/dashboard) is also available to simplify these API calls. Refer to the [dashboard overview](http://crystal-controller.readthedocs.io/en/latest/components/dashboard.html) for detailed information.
 
 ### Tests
 
