@@ -3,7 +3,7 @@ from datetime import datetime
 
 from keystoneauth1 import exceptions
 from rest_framework import status
-
+from django.utils import timezone
 from api.common_utils import JSONResponse, get_keystone_admin_auth
 
 logger = logging.getLogger(__name__)
@@ -29,7 +29,7 @@ class CrystalMiddleware(object):
             return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
 
         is_admin = False
-        now = datetime.utcnow()
+        now = timezone.now()
 
         if token not in valid_tokens:
             keystone = get_keystone_admin_auth()
@@ -39,15 +39,12 @@ class CrystalMiddleware(object):
             except exceptions.base.ClientException:
                 return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
 
-            token_expiration = datetime.strptime(token_data.expires, '%Y-%m-%dT%H:%M:%SZ')
-
-            token_roles = token_data.user['roles']
-            for role in token_roles:
+            for role in token_data['roles']:
                 if role['name'] == 'admin':
                     is_admin = True
 
-            if token_expiration > now and is_admin:
-                valid_tokens[token] = token_expiration
+            if token_data.expires > now and is_admin:
+                valid_tokens[token] = token_data.expires
                 return None
 
         else:

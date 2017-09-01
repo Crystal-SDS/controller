@@ -33,7 +33,7 @@ SECRET_KEY = '&yx_=2@s(evyq=l9t2efrgmgryz^ea85$csdb_rprvc-9b&#r8'  # noqa
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['controller', ]
 
 # Application definition
 
@@ -128,8 +128,8 @@ USE_TZ = True
 STATIC_URL = '/static/'
 
 # Keystone
-KEYSTONE_ADMIN_URL = 'http://localhost:5000/v2.0'
-KEYSTONE_URL = 'http://localhost:35357/v2.0'
+KEYSTONE_ADMIN_URL = 'http://localhost:35357/v3'
+KEYSTONE_URL = 'http://localhost:5000/v3'
 
 # Swift
 SWIFT_URL = 'http://localhost:8080/'
