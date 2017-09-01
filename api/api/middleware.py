@@ -32,10 +32,10 @@ class CrystalMiddleware(object):
         now = timezone.now()
 
         if token not in valid_tokens:
-            keystone = get_keystone_admin_auth()
+            keystone_client = get_keystone_admin_auth()
 
             try:
-                token_data = keystone.tokens.validate(token)
+                token_data = keystone_client.tokens.validate(token)
             except exceptions.base.ClientException:
                 return JSONResponse('You must be authenticated as admin.', status=status.HTTP_401_UNAUTHORIZED)
 

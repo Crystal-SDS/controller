@@ -4,7 +4,9 @@ import os
 import sys
 import time
 
-import keystoneclient.v3.client as keystone_client
+from keystoneauth1.identity import v3
+from keystoneauth1 import session
+from keystoneclient.v3 import client
 import redis
 from django.conf import settings
 from django.core.management.color import color_style
@@ -66,21 +68,25 @@ def get_keystone_admin_auth():
     admin_passwd = settings.MANAGEMENT_ADMIN_PASSWORD
     keystone_url = settings.KEYSTONE_ADMIN_URL
 
-    keystone = None
+    keystone_client = None
     try:
-        keystone = keystone_client.Client(auth_url=keystone_url,
-                                          username=admin_user,
-                                          password=admin_passwd,
-                                          tenant_name=admin_project)
+        auth = v3.Password(auth_url=keystone_url,
+                           username=admin_user,
+                           password=admin_passwd,
+                           project_name=admin_project,
+                           user_domain_id='default',
+                           project_domain_id='default')
+        sess = session.Session(auth=auth)
+        keystone_client = client.Client(session=sess)
     except Exception as exc:
         print(exc)
 
-    return keystone
+    return keystone_client
 
 
 def get_project_list():
-    keystone = get_keystone_admin_auth()
-    projects = keystone.projects.list()
+    keystone_client = get_keystone_admin_auth()
+    projects = keystone_client.projects.list()
 
     project_list = {}
     for project in projects:
