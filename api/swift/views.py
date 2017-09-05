@@ -1,8 +1,9 @@
 import json
 import logging
-import os
 import redis
 import requests
+import paramiko
+from paramiko.ssh_exception import SSHException
 from django.conf import settings
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -203,7 +204,7 @@ def node_list(request):
 
 
 @csrf_exempt
-def node_detail(request, server, node_id):
+def node_detail(request, server_type, node_id):
     """
     GET: Retrieve node details. PUT: Update node.
     :param request:
@@ -217,7 +218,7 @@ def node_detail(request, server, node_id):
     except RedisError:
         return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    key = server+"_node:" + node_id
+    key = server_type+"_node:" + node_id
     if request.method == 'GET':
         if r.exists(key):
             node = r.hgetall(key)
@@ -250,28 +251,31 @@ def node_detail(request, server, node_id):
 
 
 @csrf_exempt
-def node_restart(request, node_id):
+def node_restart(request, server_type, node_id):
     try:
         r = get_redis_connection()
     except RedisError:
         return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    logger.debug('Node id: ' + str(node_id))
+    key = server_type+"_node:" + node_id
+    logger.debug('Restarting node: ' + str(key))
 
     if request.method == 'PUT':
-        node = r.hgetall('node:' + str(node_id))
-        logger.debug('Node data: ' + str(node))
+        node = r.hgetall(key)
 
-        data = {'node_ip': node['ip'], 'ssh_username': node['ssh_username'], 'ssh_password': node['ssh_password']}
-        restart_command = 'sshpass -p {ssh_password} ssh {ssh_username}@{node_ip} sudo swift-init main restart'.format(**data)
-        logger.debug('Command: ' + str(restart_command))
+        ssh_client = paramiko.SSHClient()
+        ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        ssh_client.connect(node['ip'], username=node['ssh_username'], password=node['ssh_password'])
 
-        ret = os.system(restart_command)
-        if ret != 0:
+        try:
+            ssh_client.exec_command('sudo swift-init main restart')
+        except SSHException:
+            ssh_client.close()
             logger.error('An error occurred restarting Swift nodes')
             raise FileSynchronizationException("An error occurred restarting Swift nodes")
 
-        logger.debug('Node ' + str(node_id) + ' was restarted!')
+        ssh_client.close()
+        logger.debug('Node ' + str(key) + ' was restarted!')
         return JSONResponse('The node was restarted successfully.', status=status.HTTP_200_OK)
 
     logger.error('Method ' + str(request.method) + ' not allowed.')

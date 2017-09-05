@@ -11,6 +11,6 @@ urlpatterns = [
 
     # Node status
     url(r'^nodes/?$', views.node_list),
-    url(r'^nodes/(?P<server>[^/]+)/(?P<node_id>[^/]+)/?$', views.node_detail),
-    url(r'^nodes/(?P<node_id>[^/]+)/restart/?$', views.node_restart)
+    url(r'^nodes/(?P<server_type>[^/]+)/(?P<node_id>[^/]+)/?$', views.node_detail),
+    url(r'^nodes/(?P<server_type>[^/]+)/(?P<node_id>[^/]+)/restart/?$', views.node_restart)
 ]
