@@ -55,23 +55,25 @@ class SwiftMetric(Metric):
 
             while not self.metrics.empty():
                 metric = self.metrics.get()
-
-                project = metric['project']
-                container = metric['container']
-                value = metric['value']
-
-                if project not in aggregate:
-                    aggregate[project] = 0
-                if container not in aggregate:
-                    aggregate[container] = 0
-
-                aggregate[project] += value
-                aggregate[container] += value
-
                 try:
-                    for target in aggregate:
-                        if target in self._observers:
-                            for observer in self._observers[target].values():
-                                observer.update(self.name, aggregate[target])
-                except Exception as e:
-                    logger.info("Swift Metric: Error sending monitoring data to observer: "+str(e))
+                    project = metric['project']
+                    container = metric['container']
+                    value = metric['value']
+
+                    if project not in aggregate:
+                        aggregate[project] = 0
+                    if container not in aggregate:
+                        aggregate[container] = 0
+
+                    aggregate[project] += value
+                    aggregate[container] += value
+                except:
+                    logger.info("Swift Metric, Error parsing metric: " + str(metric))
+
+            try:
+                for target in aggregate:
+                    if target in self._observers:
+                        for observer in self._observers[target].values():
+                            observer.update(self.name, aggregate[target])
+            except Exception as e:
+                logger.info("Swift Metric: Error sending monitoring data to observer: "+str(e))

@@ -357,6 +357,8 @@ def metric_module_detail(request, metric_module_id):
                 if actor_id in metric_actors:
                     stop_metric(actor_id)
 
+            r.delete('workload_metric:' + str(metric_id))
+
             wm_ids = r.keys('workload_metric:*')
             if len(wm_ids) == 0:
                 r.set('workload_metrics:id', 0)
