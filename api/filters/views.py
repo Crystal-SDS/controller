@@ -226,12 +226,10 @@ class StorletData(APIView):
 
 
 @csrf_exempt
-def filter_deploy(request, filter_id, account, container=None, swift_object=None):
+def filter_deploy(request, filter_id, project, container=None, swift_object=None):
     """
     Deploy a filter to a specific swift account.
     """
-    token = get_token_connection(request)
-
     if request.method == 'PUT':
         try:
             r = get_redis_connection()
@@ -274,15 +272,18 @@ def filter_deploy(request, filter_id, account, container=None, swift_object=None
 
         # TODO: Try to improve this part
         if container and swift_object:
-            target = account + "/" + container + "/" + swift_object
+            target = project + "/" + container + "/" + swift_object
         elif container:
-            target = account + "/" + container
+            target = project + "/" + container
         else:
-            target = account
+            target = project
 
         try:
+            token = get_token_connection(request)
             set_filter(r, target, filter_data, policy_data, token)
+
             return JSONResponse(policy_id, status=status.HTTP_201_CREATED)
+
         except SwiftClientError:
             return JSONResponse('Error accessing Swift.', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         except StorletNotFoundException:
@@ -292,7 +293,7 @@ def filter_deploy(request, filter_id, account, container=None, swift_object=None
 
 
 @csrf_exempt
-def storlet_list_deployed(request, account):
+def storlet_list_deployed(request, project):
     """
     List all the storlets deployed.
     """
@@ -303,7 +304,7 @@ def storlet_list_deployed(request, account):
         except RedisError:
             return JSONResponse('Problems to connect with the DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        result = r.lrange("AUTH_" + str(account), 0, -1)
+        result = r.lrange(str(project), 0, -1)
         if result:
             return JSONResponse(result, status=status.HTTP_200_OK)
         else:
@@ -313,13 +314,12 @@ def storlet_list_deployed(request, account):
 
 
 @csrf_exempt
-def filter_undeploy(request, filter_id, account, container=None, swift_object=None):
+def filter_undeploy(request, filter_id, project, container=None, swift_object=None):
     """
-    Undeploy a filter from a specific swift account.
+    Undeploy a filter from a specific swift project.
     """
-    token = get_token_connection(request)
-
     if request.method == 'PUT':
+
         try:
             r = get_redis_connection()
         except RedisError:
@@ -330,18 +330,14 @@ def filter_undeploy(request, filter_id, account, container=None, swift_object=No
         if not filter_data:
             return JSONResponse('Filter does not exist', status=status.HTTP_404_NOT_FOUND)
 
-        if not r.exists("AUTH_" + str(account) + ":" + str(filter_data["filter_name"])):
-            return JSONResponse('Filter ' + str(filter_data["filter_name"]) + ' has not been deployed already', status=status.HTTP_404_NOT_FOUND)
-
         if container and swift_object:
-            target = account + "/" + container + "/" + swift_object
+            target = project + "/" + container + "/" + swift_object
         elif container:
-            target = account + "/" + container
+            target = project + "/" + container
         else:
-            target = account
+            target = project
 
-        # print target
-
+        token = get_token_connection(request)
         return unset_filter(r, target, filter_data, token)
 
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
@@ -433,8 +429,7 @@ class DependencyData(APIView):
 
 
 @csrf_exempt
-def dependency_deploy(request, dependency_id, account):
-    token = get_token_connection(request)
+def dependency_deploy(request, dependency_id, project_id):
 
     if request.method == 'PUT':
         try:
@@ -454,7 +449,8 @@ def dependency_deploy(request, dependency_id, account):
             dependency_file = open(dependency["path"], 'r')
             content_length = None
             response = dict()
-            url = settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/AUTH_" + str(account)
+            token = get_token_connection(request)
+            url = settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/AUTH_" + project_id
             swift_client.put_object(url, token, 'dependency', dependency["name"], dependency_file, content_length,
                                     None, None, "application/octet-stream", metadata, None, None, None, response)
         except ClientException:
@@ -464,10 +460,10 @@ def dependency_deploy(request, dependency_id, account):
 
         status = response.get('status')
         if status == 201:
-            if r.exists("AUTH_" + str(account) + ":dependency:" + str(dependency['name'])):
+            if r.exists(str(project_id) + ":dependency:" + str(dependency['name'])):
                 return JSONResponse("Already deployed", status=200)
 
-            if r.lpush("AUTH_" + str(account) + ":dependencies", str(dependency['name'])):
+            if r.lpush(str(project_id) + ":dependencies", str(dependency['name'])):
                 return JSONResponse("Deployed", status=201)
 
         return JSONResponse("error", status=400)
@@ -476,14 +472,14 @@ def dependency_deploy(request, dependency_id, account):
 
 
 @csrf_exempt
-def dependency_list_deployed(request, account):
+def dependency_list_deployed(request, project):
     if request.method == 'GET':
         try:
             r = get_redis_connection()
         except RedisError:
             return JSONResponse('Problems to connect with the DB', status=500)
 
-        result = r.lrange("AUTH_" + str(account) + ":dependencies", 0, -1)
+        result = r.lrange(str(project) + ":dependencies", 0, -1)
         if result:
             return JSONResponse(result, status=200)
         else:
@@ -493,8 +489,7 @@ def dependency_list_deployed(request, account):
 
 
 @csrf_exempt
-def dependency_undeploy(request, dependency_id, account):
-    token = get_token_connection(request)
+def dependency_undeploy(request, dependency_id, project_id):
 
     if request.method == 'PUT':
         try:
@@ -506,24 +501,26 @@ def dependency_undeploy(request, dependency_id, account):
 
         if not dependency:
             return JSONResponse('Dependency does not exist', status=404)
-        if not r.exists("AUTH_" + str(account) + ":dependency:" + str(dependency["name"])):
+        if not r.exists(str(project_id) + ":dependency:" + str(dependency["name"])):
             return JSONResponse('Dependency ' + str(dependency["name"]) + ' has not been deployed already', status=404)
 
         try:
-            response = dict()
-            url = settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/AUTH_" + str(account)
-            swift_client.delete_object(url, token, 'dependency', dependency["name"], None, None, None, None, response)
-        except ClientException:
-            return JSONResponse(response.get("reason"), status=response.get('status'))
+            token = get_token_connection(request)
+            url = settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/AUTH_" + project_id
+            swift_response = dict()
+            swift_client.delete_object(url, token, 'dependency', dependency["name"], None, None, None, None, swift_response)
 
-        swift_status = response.get('status')
+        except ClientException:
+            return JSONResponse(swift_response.get("reason"), status=swift_response.get('status'))
+
+        swift_status = swift_response.get('status')
 
         if 200 <= swift_status < 300:
-            r.delete("AUTH_" + str(account) + ":dependency:" + str(dependency["name"]))
-            r.lrem("AUTH_" + str(account) + ":dependencies", str(dependency["name"]), 1)
+            r.delete(str(project_id) + ":dependency:" + str(dependency["name"]))
+            r.lrem(str(project_id) + ":dependencies", str(dependency["name"]), 1)
             return JSONResponse('The dependency has been deleted', status=swift_status)
 
-        return JSONResponse(response.get("reason"), status=swift_status)
+        return JSONResponse(swift_response.get("reason"), status=swift_status)
 
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
 
@@ -598,6 +595,7 @@ def slo_detail(request, dsl_filter, slo_name, target):
 
 def set_filter(r, target, filter_data, parameters, token):
     if filter_data['filter_type'] == 'storlet':
+
         metadata = {"X-Object-Meta-Storlet-Language": 'java',
                     "X-Object-Meta-Storlet-Interface-Version": filter_data["interface_version"],
                     "X-Object-Meta-Storlet-Dependency": filter_data["dependencies"],
@@ -605,15 +603,18 @@ def set_filter(r, target, filter_data, parameters, token):
                     "X-Object-Meta-Storlet-Main": filter_data["main"]
                     }
 
-        target_list = target.split('/', 3)
-        url = settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/AUTH_" + str(target_list[0])
-        swift_response = dict()
-
         try:
+            project_id = target.split('/', 3)[0]
+            swift_response = dict()
+            url = settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/AUTH_" + project_id
             storlet_file = open(filter_data["path"], 'r')
-            swift_client.put_object(url, token, "storlet", filter_data["filter_name"], storlet_file, None,
-                                    None, None, "application/octet-stream", metadata, None, None, None, swift_response)
-        except ClientException as e:
+            swift_client.put_object(url, token, "storlet",
+                                    filter_data["filter_name"],
+                                    storlet_file, None,
+                                    None, None, "application/octet-stream",
+                                    metadata, None, None, None, swift_response)
+
+        except Exception as e:
             logging.error(str(e))
             raise SwiftClientError("A problem occurred accessing Swift")
 
@@ -642,26 +643,27 @@ def set_filter(r, target, filter_data, parameters, token):
 
     data_dumped = json.dumps(data).replace('"True"', 'true').replace('"False"', 'false')
 
-    r.hset("pipeline:AUTH_" + str(target), policy_id, data_dumped)
+    r.hset("pipeline:" + str(target), policy_id, data_dumped)
 
 
-# FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 DO DELETE compression
+# FOR TENANT:crystal DO DELETE compression
 def unset_filter(r, target, filter_data, token):
-    swift_response = dict()
     if filter_data['filter_type'] == 'storlet':
         try:
-            target_list = target.split('/', 3)
-            url = settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/AUTH_" + str(target_list[0])
+            project_id = target.split('/', 3)[0]
+            swift_response = dict()
+            url = settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/AUTH_" + project_id
             swift_client.delete_object(url, token, "storlet", filter_data["filter_name"], None, None, None, None, swift_response)
         except ClientException as e:
             print swift_response + str(e)
             return swift_response.get("status")
 
-    keys = r.hgetall("pipeline:AUTH_" + str(target))
+    target = target.replace('/', ':')
+    keys = r.hgetall("pipeline:" + str(target))
     for key, value in keys.items():
         json_value = json.loads(value)
         if json_value["filter_name"] == filter_data["filter_name"]:
-            r.hdel("pipeline:AUTH_" + str(target), key)
+            r.hdel("pipeline:" + str(target), key)
 
 
 def make_sure_path_exists(path):

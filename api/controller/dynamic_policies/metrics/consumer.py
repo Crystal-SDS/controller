@@ -19,7 +19,7 @@ class Consumer(object):
         self.obj = obj
         self.queue = queue
 
-        logger.info('Metric, Exchange:' + exchange)
+        logger.info('Metric, Exchange: ' + exchange)
         logger.info('Metric, Routing_key: ' + routing_key)
 
         self._channel.queue_declare(queue=queue)
