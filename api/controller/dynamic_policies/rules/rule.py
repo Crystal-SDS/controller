@@ -1,10 +1,13 @@
+from swiftclient import client as c
 import json
 import operator
 import logging
 import redis
 import requests
+import os
 
-from api.settings import MANAGEMENT_ACCOUNT, MANAGEMENT_ADMIN_USERNAME, MANAGEMENT_ADMIN_PASSWORD, KEYSTONE_ADMIN_URL, REDIS_HOST, REDIS_PORT, REDIS_DATABASE
+from api.settings import MANAGEMENT_ACCOUNT, MANAGEMENT_ADMIN_USERNAME, \
+    MANAGEMENT_ADMIN_PASSWORD, KEYSTONE_ADMIN_URL, REDIS_HOST, REDIS_PORT, REDIS_DATABASE
 
 mappings = {'>': operator.gt, '>=': operator.ge,
             '==': operator.eq, '<=': operator.le, '<': operator.lt,
@@ -23,7 +26,7 @@ class Rule(object):
     _ask = ['get_target']
     _tell = ['update', 'start_rule', 'stop_actor']
 
-    def __init__(self, rule_parsed, action, target):
+    def __init__(self, rule_parsed, action, target_id, target_name):
         """
         Initialize all the variables needed for the rule.
 
@@ -37,13 +40,10 @@ class Rule(object):
         :type host: **any** PyActor Proxy type
         """
 
-        # settings = ConfigParser.ConfigParser()
-        # settings.read("controller/dynamic_policies/settings.conf")
-
-        self.openstack_tenant = MANAGEMENT_ACCOUNT
-        self.openstack_user = MANAGEMENT_ADMIN_USERNAME
-        self.openstack_pass = MANAGEMENT_ADMIN_PASSWORD
-        self.openstack_keystone_url = KEYSTONE_ADMIN_URL
+        self.admin_project = MANAGEMENT_ACCOUNT
+        self.admin_user = MANAGEMENT_ADMIN_USERNAME
+        self.admin_pass = MANAGEMENT_ADMIN_PASSWORD
+        self.admin_keystone_url = KEYSTONE_ADMIN_URL
 
         self.redis_host = REDIS_HOST
         self.redis_port = REDIS_PORT
@@ -54,27 +54,27 @@ class Rule(object):
                                        db=self.redis_db)
 
         self.rule_parsed = rule_parsed
-        self.target = target
+        self.action_list = action
+        self.target_id = target_id
+        self.target_name = target_name
+
         self.conditions = rule_parsed.condition_list.asList()
         self.observers_values = dict()
         self.observers_proxies = dict()
-        self.action_list = action
         self.token = None
 
-    def _admin_login(self):
+    def _get_admin_token(self):
         """
         Method called to obtain the admin credentials, which we need to deploy
         filters in accounts.
         """
-        body = json.dumps({"auth": {"tenantName": self.openstack_tenant, "passwordCredentials": {"username": self.openstack_user,
-                                                                                                 "password": self.openstack_pass}}})
-        headers = {"Content-type": "application/json"}
-
-        r = requests.post(self.openstack_keystone_url + '/tokens', data=body, headers=headers)
-        if r.status_code == 200:
-            self.token = r.json()["access"]["token"]["id"]
-        else:
-            raise Exception("Problems with the admin user credentials located in the config file")
+        try:
+            _, self.token = c.get_auth(self.admin_keystone_url,
+                                       self.admin_project+":"+self.admin_user,
+                                       self.admin_pass, auth_version="3")
+        except:
+            logger.error("Rule, There was an error gettting a token from keystone")
+            raise Exception()
 
     def stop_actor(self):
         """
@@ -96,22 +96,22 @@ class Rule(object):
         logger.info("Rule, Start '" + str(self.id) + "'")
         self.check_metrics(self.conditions)
 
-    def _add_metric(self, workload_name):
+    def _add_metric(self, metric_name):
         """
         The `add_metric()` method subscribes the rule to all workload metrics
         that it needs to check the conditions defined in the policy
 
-        :param workload_name: The name that identifies the workload metric.
-        :type workload_name: **any** String type
+        :param metric_name: The name that identifies the workload metric.
+        :type metric_name: **any** String type
 
         """
-        if workload_name not in self.observers_values.keys():
-            logger.info("Rule, Workload name: " + workload_name)
-            observer = self.host.lookup(workload_name)
+        if metric_name not in self.observers_values.keys():
+            logger.info("Rule, Workload metric: " + metric_name)
+            observer = self.host.lookup(metric_name)
             logger.info('Rule, Observer: ' + str(observer.get_id()) + " " + str(observer))
             observer.attach(self.proxy)
-            self.observers_proxies[workload_name] = observer
-            self.observers_values[workload_name] = None
+            self.observers_proxies[metric_name] = observer
+            self.observers_values[metric_name] = None
 
     def check_metrics(self, condition_list):
         """
@@ -130,7 +130,7 @@ class Rule(object):
                 if element is not "OR" and element is not "AND":
                     self.check_metrics(element)
 
-    def update(self, metric, value):
+    def update(self, metric_name, value):
         """
         The method update is called by the workloads metrics following the
         observer pattern. This method is called to send to this actor the
@@ -143,9 +143,9 @@ class Rule(object):
                             workload metric.
         :type tenant_info: **any** PyParsing type
         """
-        logger.info("--> Success update: " + str(value))
+        logger.info("Rule, Success update: " + str(metric_name) + " = " + str(value))
 
-        self.observers_values[metric] = value
+        self.observers_values[metric_name] = value
 
         # TODO Check the last time updated the value
         # Check the condition of the policy if all values are setted. If the
@@ -180,10 +180,11 @@ class Rule(object):
         """
         Return the target assigned to this rule.
 
-        :return: Return the target id assigned to this rule
+        :return: Return the target name assigned to this rule
         :rtype: String type.
         """
-        return self.target
+        # return self.target_id
+        return self.target_name
 
     def _do_action(self):
         """
@@ -191,7 +192,7 @@ class Rule(object):
         this method is responsible to execute the action defined in the policy.
         """
         if not self.token:
-            self._admin_login()
+            self._get_admin_token()
 
         headers = {"X-Auth-Token": self.token}
         dynamic_filter = self.redis.hgetall("dsl_filter:" + str(self.action_list.filter))
@@ -199,7 +200,7 @@ class Rule(object):
         if self.action_list.action == "SET":
             # TODO Review if this tenant has already deployed this filter. Not deploy the same filter more than one time.
 
-            url = dynamic_filter["activation_url"] + "/" + self.target + "/deploy/" + str(dynamic_filter["identifier"])
+            url = dynamic_filter["activation_url"] + "/" + self.target_id + "/deploy/" + str(dynamic_filter["identifier"])
 
             data = dict()
 

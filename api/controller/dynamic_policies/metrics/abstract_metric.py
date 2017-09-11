@@ -45,14 +45,15 @@ class Metric(object):
         :param observer: The PyActor proxy of the oberver rule that calls this method.
         :type observer: **any** PyActor Proxy type
         """
-        # TODO: Add the possibility to subscribe to container or object
-        logger.info('Metric, Attaching observer: ' + str(observer))
-        tenant = observer.get_target(timeout=2)
 
-        if tenant not in self._observers.keys():
-            self._observers[tenant] = {}
-        if observer.get_id() not in self._observers[tenant].keys():
-            self._observers[tenant][observer.get_id()] = observer
+        logger.info('Metric, Attaching observer: ' + str(observer))
+        target = observer.get_target(timeout=2)
+        ovserber_id = observer.get_id()
+
+        if target not in self._observers.keys():
+            self._observers[target] = dict()
+        if ovserber_id not in self._observers[target].keys():
+            self._observers[target][ovserber_id] = observer
 
     def detach(self, observer, target):
         """
@@ -80,10 +81,11 @@ class Metric(object):
                            consumer appear.
         """
         try:
-            self.redis.hmset("metric:" + self.name, {"network_location": self.proxy.actor.url, "type": "integer"})
+            self.redis.hmset("metric:" + self.name, {"network_location": self.proxy.actor.url,
+                                                     "type": "integer"})
 
             self.consumer = self.host.spawn(self.id + "_consumer",
-                                            "controller.dynamic_policies.consumer" +
+                                            "controller.dynamic_policies.metrics.consumer" +
                                             "/Consumer",
                                             [str(self.rmq_host),
                                              int(self.rmq_port),

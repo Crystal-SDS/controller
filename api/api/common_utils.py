@@ -4,7 +4,9 @@ import os
 import sys
 import time
 
-import keystoneclient.v3.client as keystone_client
+from keystoneauth1.identity import v3
+from keystoneauth1 import session
+from keystoneclient.v3 import client
 import redis
 from django.conf import settings
 from django.core.management.color import color_style
@@ -66,21 +68,25 @@ def get_keystone_admin_auth():
     admin_passwd = settings.MANAGEMENT_ADMIN_PASSWORD
     keystone_url = settings.KEYSTONE_ADMIN_URL
 
-    keystone = None
+    keystone_client = None
     try:
-        keystone = keystone_client.Client(auth_url=keystone_url,
-                                          username=admin_user,
-                                          password=admin_passwd,
-                                          tenant_name=admin_project)
+        auth = v3.Password(auth_url=keystone_url,
+                           username=admin_user,
+                           password=admin_passwd,
+                           project_name=admin_project,
+                           user_domain_id='default',
+                           project_domain_id='default')
+        sess = session.Session(auth=auth)
+        keystone_client = client.Client(session=sess)
     except Exception as exc:
         print(exc)
 
-    return keystone
+    return keystone_client
 
 
 def get_project_list():
-    keystone = get_keystone_admin_auth()
-    projects = keystone.projects.list()
+    keystone_client = get_keystone_admin_auth()
+    projects = keystone_client.projects.list()
 
     project_list = {}
     for project in projects:
@@ -95,7 +101,7 @@ def rsync_dir_with_nodes(directory):
     for node in nodes:
         logger.info("\nRsync - pushing to "+node['name'])
         if not node.viewkeys() & {'ssh_username', 'ssh_password'}:
-            raise FileSynchronizationException("SSH credentials missing. Please, set the credentials for this node: "+node['name'])
+            raise FileSynchronizationException("SSH credentials missing. Please, set the credentials for this "+node['type']+" node: "+node['name'])
 
         # Directory is only synchronized if node status is UP
         if calendar.timegm(time.gmtime()) - int(float(node['last_ping'])) <= NODE_STATUS_THRESHOLD:
@@ -107,7 +113,7 @@ def rsync_dir_with_nodes(directory):
             # print "System: %s" % rsync_command
             ret = os.system(rsync_command)
             if ret != 0:
-                raise FileSynchronizationException("An error occurred copying files to Swift nodes. Please check the SSH credentials of this node: "+node['name'])
+                raise FileSynchronizationException("An error occurred copying files to Swift nodes. Please check the SSH credentials of this "+node['type']+" node: "+node['name'])
 
 
 def get_all_registered_nodes():
