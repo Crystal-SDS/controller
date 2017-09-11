@@ -98,23 +98,37 @@ DATABASES = {
 LOGGING = {
     'version': 1,
     'formatters': {
-        'standard': {
-            '()': 'api.common_utils.LoggingColors',
+        'standard_django': {
+            '()': 'api.common_utils.LoggingColorsDjango',
+            'format': '[%(asctime)s]"%(levelname)s" %(message)s',
+            'datefmt': '%d/%b/%Y %H:%M:%S',
+        },
+        'standard_crystal': {
+            '()': 'api.common_utils.LoggingColorsCrystal',
             'format': '[%(asctime)s]"%(levelname)s" %(name)s: %(message)s',
             'datefmt': '%d/%b/%Y %H:%M:%S',
         },
     },
     'handlers': {
-        'console': {
+        'console_django': {
             'class': 'logging.StreamHandler',
-            'formatter': 'standard',
+            'formatter': 'standard_django',
+        },
+        'console_crystal': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'standard_crystal',
         }
     },
     'loggers': {
-        '': {
-            'handlers': ['console'],
+        'django': {
+            'handlers': ['console_django'],
             'level': 'INFO',
-            'propagate': True
+            'propagate': False
+        },
+        '': {
+            'handlers': ['console_crystal'],
+            'level': 'INFO',
+            'propagate': False
         }
     }
 }
