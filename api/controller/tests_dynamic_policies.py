@@ -76,8 +76,8 @@ class DynamicPoliciesTestCase(TestCase):
 
     @mock.patch('controller.dynamic_policies.rules.rule.redis.StrictRedis.hgetall')
     @mock.patch('controller.dynamic_policies.rules.rule.redis.StrictRedis.hset')
-    @mock.patch('controller.dynamic_policies.rules.rule.Rule._admin_login')
-    def test_action_set_is_triggered_deploy_200(self, mock_admin_login, mock_redis_hset, mock_redis_hgetall):
+    @mock.patch('controller.dynamic_policies.rules.rule.Rule._get_admin_token')
+    def test_action_set_is_triggered_deploy_200(self, mock_admin_token, mock_redis_hset, mock_redis_hgetall):
         mock_redis_hgetall.return_value = {'activation_url': 'http://example.com/filters',
                                            'identifier': '1',
                                            'valid_parameters': '{"cparam1": "integer", "cparam2": "integer", "cparam3": "integer"}'}
@@ -88,14 +88,14 @@ class DynamicPoliciesTestCase(TestCase):
         rule.id = '10'
         with HTTMock(example_mock_200):
             rule.update('metric1', 6)
-        self.assertTrue(mock_admin_login.called)
+        self.assertTrue(mock_admin_token.called)
         self.assertTrue(mock_redis_hset.called)
         mock_redis_hset.assert_called_with('10', 'alive', False)
 
     @mock.patch('controller.dynamic_policies.rules.rule.redis.StrictRedis.hgetall')
     @mock.patch('controller.dynamic_policies.rules.rule.redis.StrictRedis.hset')
-    @mock.patch('controller.dynamic_policies.rules.rule.Rule._admin_login')
-    def test_action_set_is_triggered_deploy_400(self, mock_admin_login, mock_redis_hset, mock_redis_hgetall):
+    @mock.patch('controller.dynamic_policies.rules.rule.Rule._get_admin_token')
+    def test_action_set_is_triggered_deploy_400(self, mock_admin_token, mock_redis_hset, mock_redis_hgetall):
         mock_redis_hgetall.return_value = {'activation_url': 'http://example.com/filters',
                                            'identifier': '1',
                                            'valid_parameters': '{"cparam1": "integer", "cparam2": "integer", "cparam3": "integer"}'}
@@ -106,13 +106,13 @@ class DynamicPoliciesTestCase(TestCase):
         rule.id = '10'
         with HTTMock(example_mock_400):
             rule.update('metric1', 6)
-        self.assertTrue(mock_admin_login.called)
+        self.assertTrue(mock_admin_token.called)
         self.assertFalse(mock_redis_hset.called)
 
     @mock.patch('controller.dynamic_policies.rules.rule.redis.StrictRedis.hgetall')
-    @mock.patch('controller.dynamic_policies.rules.rule.Rule._admin_login')
+    @mock.patch('controller.dynamic_policies.rules.rule.Rule._get_admin_token')
     @mock.patch('controller.dynamic_policies.rules.rule.Rule.stop_actor')
-    def test_action_delete_is_triggered_undeploy_200(self, mock_stop_actor, mock_admin_login, mock_redis_hgetall):
+    def test_action_delete_is_triggered_undeploy_200(self, mock_stop_actor, mock_admin_token, mock_redis_hgetall):
         mock_redis_hgetall.return_value = {'activation_url': 'http://example.com/filters',
                                            'identifier': '1',
                                            'valid_parameters': '{"cparam1": "integer", "cparam2": "integer", "cparam3": "integer"}'}
@@ -125,7 +125,7 @@ class DynamicPoliciesTestCase(TestCase):
         rule.id = '10'
         with HTTMock(example_mock_200):
             rule.update('metric1', 6)
-        self.assertTrue(mock_admin_login.called)
+        self.assertTrue(mock_admin_token.called)
         self.assertTrue(mock_stop_actor.called)
 
     #
@@ -142,10 +142,10 @@ class DynamicPoliciesTestCase(TestCase):
         self.assertTrue(mock_do_action.called)
 
     @mock.patch('controller.dynamic_policies.rules.rule.redis.StrictRedis.hgetall')
-    @mock.patch('controller.dynamic_policies.rules.rule_transient.TransientRule._admin_login')
+    @mock.patch('controller.dynamic_policies.rules.rule_transient.TransientRule._get_admin_token')
     @mock.patch('controller.dynamic_policies.rules.rule_transient.requests.put')
     @mock.patch('controller.dynamic_policies.rules.rule_transient.requests.delete')
-    def test_transient_action_set_is_triggered_200(self, mock_requests_delete, mock_requests_put, mock_admin_login, mock_redis_hgetall):
+    def test_transient_action_set_is_triggered_200(self, mock_requests_delete, mock_requests_put, mock_admin_token, mock_redis_hgetall):
         mock_redis_hgetall.return_value = {'activation_url': 'http://example.com/filters',
                                            'identifier': '1',
                                            'valid_parameters': '{"cparam1": "integer", "cparam2": "integer", "cparam3": "integer"}'}
