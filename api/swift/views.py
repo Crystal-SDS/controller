@@ -232,6 +232,45 @@ def node_restart(request, server_type, node_id):
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
+# Regions
+@csrf_exempt
+def regions(request):
+    """
+    GET: List all regions ordered by name
+    """
+    print 'CONTROLLER'
+    try:
+        r = get_redis_connection()
+    except RedisError:
+        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    if request.method == 'GET':
+        keys = r.keys("region:*")
+        if 'region:id' in keys:
+            keys.remove('region:id')
+
+        region_items = []
+
+        for key in keys:
+            region = r.hgetall(key)
+            region['id'] = key.split(':')[1]
+            region_items.append(region)
+
+        sorted_list = sorted(region_items, key=itemgetter('name'))
+        return JSONResponse(sorted_list, status=status.HTTP_200_OK)
+
+    if request.method == 'POST':
+        key = "region:" + str(r.incr('region:id'))
+        data = JSONParser().parse(request)
+        try:
+            r.hmset(key, data)
+            return JSONResponse("Data inserted correctly", status=status.HTTP_201_CREATED)
+        except RedisError:
+            return JSONResponse("Error inserting data", status=status.HTTP_400_BAD_REQUEST)
+
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+
 #
 # PROXY SORTING NOT USED, TODO: Remove
 #
