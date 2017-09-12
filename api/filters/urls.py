@@ -2,10 +2,9 @@ from django.conf.urls import url
 import views
 
 urlpatterns = [
-    url(r'^$', views.storlet_list),
-    url(r'^(?P<storlet_id>[0-9]+)/?$', views.storlet_detail),
-    url(r'^(?P<storlet_id>[0-9]+)/data/?$', views.StorletData.as_view()),
-    url(r'^(?P<project>\w+)/deploy/?$', views.storlet_list_deployed),
+    url(r'^$', views.filter_list),
+    url(r'^(?P<filter_id>[0-9]+)/?$', views.filter_detail),
+    url(r'^(?P<filter_id>[0-9]+)/data/?$', views.FilterData.as_view()),
 
     # Deploy to project container or object
     url(r'^(?P<project>\w+)/deploy/(?P<filter_id>[0-9]+)/?$', views.filter_deploy),

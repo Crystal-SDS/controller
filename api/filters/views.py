@@ -42,9 +42,9 @@ def check_keys(data, keys):
 
 
 @csrf_exempt
-def storlet_list(request):
+def filter_list(request):
     """
-    List all storlets, or create a new storlet.
+    List all filters, or create a new one.
     """
 
     try:
@@ -53,11 +53,11 @@ def storlet_list(request):
         return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     if request.method == 'GET':
         keys = r.keys("filter:*")
-        storlets = []
+        filters = []
         for key in keys:
-            storlet = r.hgetall(key)
-            storlets.append(storlet)
-        sorted_list = sorted(storlets, key=lambda x: int(itemgetter('id')(x)))
+            flter = r.hgetall(key)
+            filters.append(flter)
+        sorted_list = sorted(filters, key=lambda x: int(itemgetter('id')(x)))
         return JSONResponse(sorted_list, status=status.HTTP_200_OK)
 
     if request.method == 'POST':
@@ -89,9 +89,9 @@ def storlet_list(request):
 
 
 @csrf_exempt
-def storlet_detail(request, storlet_id):
+def filter_detail(request, filter_id):
     """
-    Retrieve, update or delete a Storlet.
+    Retrieve, update or delete a Filter.
     """
 
     try:
@@ -99,11 +99,11 @@ def storlet_detail(request, storlet_id):
     except RedisError:
         return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    if not r.exists("filter:" + str(storlet_id)):
+    if not r.exists("filter:" + str(filter_id)):
         return JSONResponse('Object does not exist!', status=status.HTTP_404_NOT_FOUND)
 
     if request.method == 'GET':
-        my_filter = r.hgetall("filter:" + str(storlet_id))
+        my_filter = r.hgetall("filter:" + str(filter_id))
 
         to_json_bools(my_filter, 'has_reverse', 'is_pre_get', 'is_post_get', 'is_pre_put', 'is_post_put', 'enabled')
         return JSONResponse(my_filter, status=status.HTTP_200_OK)
@@ -114,21 +114,21 @@ def storlet_detail(request, storlet_id):
         except ParseError:
             return JSONResponse("Invalid format or empty request", status=status.HTTP_400_BAD_REQUEST)
 
-        my_filter = r.hgetall("filter:" + str(storlet_id))
+        my_filter = r.hgetall("filter:" + str(filter_id))
 
         if (((my_filter['filter_type'] == 'storlet' or my_filter['filter_type'] == 'native') and not check_keys(data.keys(), FILTER_KEYS[3:-1])) or
                 ((my_filter['filter_type'] == 'global') and not check_keys(data.keys(), GLOBAL_FILTER_KEYS[3:-1]))):
             return JSONResponse("Invalid parameters in request", status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            r.hmset('filter:' + str(storlet_id), data)
+            r.hmset('filter:' + str(filter_id), data)
             if my_filter['filter_type'] == 'global':
                 if data['enabled'] is True or data['enabled'] == 'True' or data['enabled'] == 'true':
                     to_json_bools(data, 'has_reverse', 'is_pre_get', 'is_post_get', 'is_pre_put', 'is_post_put', 'enabled')
                     data['filter_type'] = 'global'  # Adding filter type
-                    r.hset("global_filters", str(storlet_id), json.dumps(data))
+                    r.hset("global_filters", str(filter_id), json.dumps(data))
                 else:
-                    r.hdel("global_filters", str(storlet_id))
+                    r.hdel("global_filters", str(filter_id))
 
             return JSONResponse("Data updated", status=status.HTTP_200_OK)
         except DataError:
@@ -139,31 +139,31 @@ def storlet_detail(request, storlet_id):
             keys = r.keys('dsl_filter:*')
             for key in keys:
                 dsl_filter_id = r.hget(key, 'identifier')
-                if dsl_filter_id == storlet_id:
+                if dsl_filter_id == filter_id:
                     return JSONResponse('Unable to delete filter, is in use by the Registry DSL.', status=status.HTTP_403_FORBIDDEN)
 
-            my_filter = r.hgetall("filter:" + str(storlet_id))
-            r.delete("filter:" + str(storlet_id))
+            my_filter = r.hgetall("filter:" + str(filter_id))
+            r.delete("filter:" + str(filter_id))
             if my_filter['filter_type'] == 'global':
-                r.hdel("global_filters", str(storlet_id))
+                r.hdel("global_filters", str(filter_id))
             return JSONResponse('Filter has been deleted', status=status.HTTP_204_NO_CONTENT)
         except DataError:
             return JSONResponse("Error deleting filter", status=status.HTTP_408_REQUEST_TIMEOUT)
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
-class StorletData(APIView):
+class FilterData(APIView):
     """
-    Upload or get a storlet data.
+    Upload or get a filter data.
     """
     parser_classes = (MultiPartParser, FormParser,)
 
-    def put(self, request, storlet_id, format=None):
+    def put(self, request, filter_id, format=None):
         try:
             r = get_redis_connection()
         except RedisError:
             return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        filter_name = "filter:" + str(storlet_id)
+        filter_name = "filter:" + str(filter_id)
         if r.exists(filter_name):
             file_obj = request.FILES['file']
 
@@ -288,27 +288,6 @@ def filter_deploy(request, filter_id, project, container=None, swift_object=None
             return JSONResponse('Error accessing Swift.', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         except StorletNotFoundException:
             return JSONResponse('Storlet not found.', status=status.HTTP_404_NOT_FOUND)
-
-    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
-
-
-@csrf_exempt
-def storlet_list_deployed(request, project):
-    """
-    List all the storlets deployed.
-    """
-
-    if request.method == 'GET':
-        try:
-            r = get_redis_connection()
-        except RedisError:
-            return JSONResponse('Problems to connect with the DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-        result = r.lrange(str(project), 0, -1)
-        if result:
-            return JSONResponse(result, status=status.HTTP_200_OK)
-        else:
-            return JSONResponse('Any Storlet deployed', status=status.HTTP_404_NOT_FOUND)
 
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
