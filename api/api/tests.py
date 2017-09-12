@@ -132,7 +132,7 @@ class MainTestCase(TestCase):
 
     @override_settings(MANAGEMENT_ACCOUNT='mng_account', MANAGEMENT_ADMIN_USERNAME='mng_username', MANAGEMENT_ADMIN_PASSWORD='mng_pw',
                        KEYSTONE_ADMIN_URL='http://localhost:35357/v3')
-    @mock.patch('api.common_utils.keystone_client.Client')
+    @mock.patch('api.common_utils.client.Client')
     def test_get_keystone_admin_auth_ok(self, mock_keystone_client):
         get_keystone_admin_auth()
         mock_keystone_client.assert_called_with(username='mng_username', tenant_name='mng_account', password='mng_pw', auth_url='http://localhost:35357/v3')
@@ -171,7 +171,7 @@ class MainTestCase(TestCase):
 
         resolver = resolve('/swift/nodes/object/node1')
         self.assertEqual(resolver.view_name, 'swift.views.node_detail')
-        self.assertEqual(resolver.kwargs, {'server': 'object', 'node_id': 'node1'})
+        self.assertEqual(resolver.kwargs, {'server_type': 'object', 'node_id': 'node1'})
 
     #
     # Aux methods
