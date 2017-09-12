@@ -18,7 +18,7 @@ from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
 from rest_framework.views import APIView
 
 import dsl_parser
-from api.common_utils import get_token_connection, rsync_dir_with_nodes, to_json_bools, remove_extra_whitespaces, JSONResponse, get_redis_connection, \
+from api.common_utils import get_token_connection, rsync_dir_with_nodes, to_json_bools, JSONResponse, get_redis_connection, \
     get_project_list, create_local_host
 from api.exceptions import SwiftClientError, StorletNotFoundException, FileSynchronizationException, ProjectNotFound
 from filters.views import save_file, make_sure_path_exists
@@ -264,9 +264,9 @@ def start_metric(actor_id):
                                                  '/' + settings.METRIC_CLASS,
                                                  ["amq.topic", actor_id, "metric." + actor_id])
             metric_actors[actor_id].init_consum()
-    except Exception as e:
-        logger.error(str(e))
-        print e
+    except Exception:
+        logger.error("Metric, Error starting workload metric actor: " + str(actor_id))
+        raise Exception
 
 
 def stop_metric(actor_id):
@@ -305,37 +305,25 @@ def metric_module_detail(request, metric_module_id):
 
         if len(data) == 1:
             # Enable/disable button
-            wm_data = r.hgetall('workload_metric:' + str(metric_id))
-            metric_name = wm_data['metric_name'].split('.')[0]
-            if data['enabled']:
-                if wm_data['in_flow'] == 'True':
+            redis_data = r.hgetall('workload_metric:' + str(metric_id))
+            redis_data.update(data)
+            data = redis_data
+
+        metric_name = data['metric_name'].split('.')[0]
+
+        if data['enabled']:
+            try:
+                if data['in_flow'] == 'True':
                     start_metric('put_'+metric_name)
-                if wm_data['out_flow'] == 'True':
+                if data['out_flow'] == 'True':
                     start_metric('get_'+metric_name)
-            else:
-                if wm_data['in_flow'] == 'True':
-                    stop_metric('put_'+metric_name)
-                if wm_data['out_flow'] == 'True':
-                    stop_metric('get_'+metric_name)
+            except Exception:
+                data['enabled'] = False
         else:
-            # Metric data update
-            metric_name = data['metric_name'].split('.')[0]
-
-            actor_id = 'put_'+metric_name
-            if data['in_flow'] and data['enabled']:
-                if actor_id not in metric_actors:
-                    start_metric(actor_id)
-            else:
-                if actor_id in metric_actors:
-                    stop_metric(actor_id)
-
-            actor_id = 'get_'+metric_name
-            if data['out_flow'] and data['enabled']:
-                if actor_id not in metric_actors:
-                    start_metric(actor_id)
-            else:
-                if actor_id in metric_actors:
-                    stop_metric(actor_id)
+            if data['in_flow'] == 'True':
+                stop_metric('put_'+metric_name)
+            if data['out_flow'] == 'True':
+                stop_metric('get_'+metric_name)
 
         try:
             r.hmset('workload_metric:' + str(metric_id), data)
@@ -1172,3 +1160,41 @@ def stop_global_controller(controller_id):
             print e.args
         del controller_actors[controller_id]
         logger.info("Controller, Stopped controller actor " + str(controller_id))
+
+
+#
+# Crystal Projects
+#
+@csrf_exempt
+def projects(request):
+    """
+    GET: List all projects ordered by name
+    """
+    try:
+        r = get_redis_connection()
+    except RedisError:
+        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    if request.method == 'GET':
+        projetcs = r.lrange('projects_crystal_enabled', 0, -1)
+        return JSONResponse(projetcs, status=status.HTTP_200_OK)
+
+    if request.method == 'PUT':
+        data = JSONParser().parse(request)
+        project_id = data['project_id']
+        try:
+            r.lpush('projects_crystal_enabled', project_id)
+            return JSONResponse("Data inserted correctly", status=status.HTTP_201_CREATED)
+        except RedisError:
+            return JSONResponse("Error inserting data", status=status.HTTP_400_BAD_REQUEST)
+
+    if request.method == 'Delete':
+        data = JSONParser().parse(request)
+        project_id = data['project_id']
+        try:
+            r.lrem('projects_crystal_enabled', project_id)
+            return JSONResponse("Data correctly removed", status=status.HTTP_201_CREATED)
+        except RedisError:
+            return JSONResponse("Error inserting data", status=status.HTTP_400_BAD_REQUEST)
+
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)

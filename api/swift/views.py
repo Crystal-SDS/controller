@@ -21,29 +21,9 @@ from api.exceptions import FileSynchronizationException
 logger = logging.getLogger(__name__)
 
 
-@csrf_exempt
-def tenants_list(request):
-    """
-    List swift tenants.
-    """
-    token = get_token_connection(request)
-
-    if request.method == 'GET':
-        r = requests.get(settings.KEYSTONE_URL + "/tenants", headers={'X-Auth-Token': token})
-        return HttpResponse(r.content, content_type='application/json', status=r.status_code)
-
-    if request.method == "POST":
-        data = JSONParser().parse(request)
-
-        try:
-            sds_project.add_new_sds_project(data["tenant_name"])
-        except Exception:
-            return JSONResponse('Error creating a new project.', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-        return JSONResponse('Account created successfully', status=status.HTTP_201_CREATED)
-
-    return JSONResponse('Only HTTP GET /tenants/ requests allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
-
+#
+# Storage Policy
+#
 
 @csrf_exempt
 def storage_policy_list(request):

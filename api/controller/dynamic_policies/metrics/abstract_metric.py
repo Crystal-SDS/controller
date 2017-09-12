@@ -19,6 +19,7 @@ class Metric(object):
         self._observers = {}
         self.value = None
         self.name = None
+        self.consumer = None
 
         self.rmq_user = settings.RABBITMQ_USERNAME
         self.rmq_pass = settings.RABBITMQ_PASSWORD
@@ -123,10 +124,16 @@ class Metric(object):
         """
         Start the consumer.
         """
-        self.consumer.start_consuming()
+        if self.consumer:
+            self.consumer.start_consuming()
+        else:
+            logger.info('Metric, No consumer available to start')
 
     def stop_consuming(self):
         """
         Stop the consumer.
         """
-        self.consumer.stop_consuming()
+        if self.consumer:
+            self.consumer.stop_consuming()
+        else:
+            logger.info('Metric, No consumer available to stop')

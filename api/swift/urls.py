@@ -3,7 +3,6 @@ from . import views
 
 urlpatterns = [
     # Storages Policies
-    url(r'^storage_policies/?$', views.storage_policy_list),
     url(r'^storage_policies/?$', views.storage_policies),
 
     # Object Placement
