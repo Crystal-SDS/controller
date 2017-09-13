@@ -7,7 +7,7 @@ from django.test.client import RequestFactory
 from rest_framework import status
 from rest_framework.test import APIRequestFactory
 
-from .views import tenants_list, storage_policy_list, storage_policies, locality_list, sort_list, sort_detail, node_list, node_detail
+from .views import storage_policy_list, storage_policies, locality_list, sort_list, sort_detail, node_list, node_detail
 
 
 # Tests use database=10 instead of 0.
@@ -27,13 +27,13 @@ class SwiftTestCase(TestCase):
     def tearDown(self):
         self.r.flushdb()
 
-    def test_tenants_list_with_method_not_allowed(self):
-        """ Test that DELETE requests to tenants_list() return METHOD_NOT_ALLOWED """
-
-        request = self.api_factory.delete('/swift/tenants')
-        request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
-        response = tenants_list(request)
-        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+    # def test_tenants_list_with_method_not_allowed(self):
+    #     """ Test that DELETE requests to tenants_list() return METHOD_NOT_ALLOWED """
+    #
+    #     request = self.api_factory.delete('/swift/tenants')
+    #     request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
+    #     response = tenants_list(request)
+    #     self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
     def test_storage_policy_list_with_method_not_allowed(self):
         """ Test that DELETE requests to storage_policy_list() return METHOD_NOT_ALLOWED """

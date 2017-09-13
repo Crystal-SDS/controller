@@ -232,7 +232,7 @@ class Rule(object):
         elif self.action_list.action == "DELETE":
             logger.info("--> DELETE <--")
 
-            url = dynamic_filter["activation_url"] + "/" + self.target + "/undeploy/" + str(dynamic_filter["identifier"])
+            url = dynamic_filter["activation_url"] + "/" + self.target_id + "/undeploy/" + str(dynamic_filter["identifier"])
             response = requests.put(url, headers=headers)
 
             if 200 <= response.status_code < 300:

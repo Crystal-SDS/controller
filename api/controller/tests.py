@@ -9,10 +9,10 @@ from pyparsing import ParseException
 from rest_framework import status
 from rest_framework.test import APIRequestFactory
 
-from filters.views import storlet_list, filter_deploy, StorletData
+from filters.views import filter_list, filter_deploy, FilterData
 from .dsl_parser import parse
 from .views import object_type_list, object_type_detail, add_tenants_group, tenants_group_detail, gtenants_tenant_detail, \
-    add_metric, metric_detail, metric_module_list, metric_module_detail, MetricModuleData, list_storage_node, storage_node_detail, add_dynamic_filter, \
+    add_metric, metric_detail, metric_module_list, metric_module_detail, MetricModuleData, add_dynamic_filter, \
     dynamic_filter_detail, load_metrics, load_policies, static_policy_detail, dynamic_policy_detail, global_controller_list, global_controller_detail, \
     GlobalControllerData
 from .views import policy_list
@@ -68,50 +68,56 @@ class ControllerTestCase(TestCase):
         json_data = json.loads(response.content)
         self.assertEqual(len(json_data), 0)  # is empty
 
-    @mock.patch('controller.views.do_action')
-    def test_registry_static_policy_create_ok(self, mock_do_action):
+    @mock.patch('controller.views.deploy_static_policy')
+    def test_registry_static_policy_create_ok(self, mock_deploy_static_policy):
         self.setup_dsl_parser_data()
 
         # Create an instance of a POST request.
-        data = "FOR TENANT:1234567890abcdef DO SET compression"
+        data = "FOR TENANT:0123456789abcdef DO SET compression"
         request = self.factory.post('/controller/static_policy', data, content_type='text/plain')
         request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
         response = policy_list(request)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertTrue(mock_do_action.called)
+        self.assertTrue(mock_deploy_static_policy.called)
 
+    @mock.patch('controller.views.get_project_list')
     @mock.patch('controller.views.set_filter')
-    def test_registry_static_policy_create_set_filter_ok(self, mock_set_filter):
+    def test_registry_static_policy_create_set_filter_ok(self, mock_set_filter, mock_get_project_list):
         self.setup_dsl_parser_data()
 
+        mock_get_project_list.return_value = {'0123456789abcdef': 'tenantA', '2': 'tenantB'}
+
         # Create an instance of a POST request.
-        data = "FOR TENANT:1234567890abcdef DO SET compression WITH bw=2 ON PROXY TO OBJECT_TYPE=DOCS"
+        data = "FOR TENANT:0123456789abcdef DO SET compression WITH bw=2 ON PROXY TO OBJECT_TYPE=DOCS"
         request = self.factory.post('/controller/static_policy', data, content_type='text/plain')
         request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
         response = policy_list(request)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertTrue(mock_set_filter.called)
         expected_policy_data = {'object_size': '', 'execution_order': 2, 'object_type': 'DOCS', 'params': mock.ANY, 'policy_id': 2, 'execution_server': 'PROXY', 'callable': False}
-        mock_set_filter.assert_called_with(mock.ANY, '1234567890abcdef', mock.ANY, expected_policy_data, 'fake_token')
+        mock_set_filter.assert_called_with(mock.ANY, '0123456789abcdef', mock.ANY, expected_policy_data, 'fake_token')
 
-    @mock.patch('controller.views.deploy_policy')
-    def test_registry_dynamic_policy_create_ok(self, mock_deploy_policy):
+    @mock.patch('controller.views.deploy_dynamic_policy')
+    def test_registry_dynamic_policy_create_ok(self, mock_deploy_dynamic_policy):
         self.setup_dsl_parser_data()
 
         # Create an instance of a POST request.
-        data = "FOR TENANT:1234567890abcdef WHEN metric1 > 5 DO SET compression"
+        data = "FOR TENANT:0123456789abcdef WHEN metric1 > 5 DO SET compression"
         request = self.factory.post('/controller/dynamic_policy', data, content_type='text/plain')
         request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
         response = policy_list(request)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertTrue(mock_deploy_policy.called)
+        self.assertTrue(mock_deploy_dynamic_policy.called)
 
+    @mock.patch('controller.views.get_project_list')
     @mock.patch('controller.views.create_local_host')
-    def test_registry_dynamic_policy_create_spawn_ok(self, mock_create_local_host):
+    def test_registry_dynamic_policy_create_spawn_ok(self, mock_create_local_host, mock_get_project_list):
         self.setup_dsl_parser_data()
 
+        mock_get_project_list.return_value = {'0123456789abcdef': 'tenantA', '2': 'tenantB'}
+
         # Create an instance of a POST request.
-        data = "FOR TENANT:1234567890abcdef WHEN metric1 > 5 DO SET compression"
+        data = "FOR TENANT:0123456789abcdef WHEN metric1 > 5 DO SET compression"
         request = self.factory.post('/controller/dynamic_policy', data, content_type='text/plain')
         request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
         response = policy_list(request)
@@ -120,7 +126,7 @@ class ControllerTestCase(TestCase):
         self.assertTrue(mock_create_local_host.return_value.spawn.called)
         self.assertTrue(self.r.exists('policy:2'))
         policy_data = self.r.hgetall('policy:2')
-        self.assertEqual(policy_data['policy'], 'FOR TENANT:1234567890abcdef DO SET compression')
+        self.assertEqual(policy_data['policy'], 'FOR TENANT:0123456789abcdef DO SET compression')
         self.assertEqual(policy_data['condition'], 'metric1 > 5')
 
     # def test_registry_static_policy_create_with_inexistent_filter(self):
@@ -128,7 +134,7 @@ class ControllerTestCase(TestCase):
     #     self.r.delete("filter:1") # delete filter to cause an exception
     #
     #     # Create an instance of a POST request.
-    #     data = "FOR TENANT:1234567890abcdef DO SET compression"
+    #     data = "FOR TENANT:0123456789abcdef DO SET compression"
     #     request = self.factory.post('/controller/static_policy', data, content_type='text/plain')
     #     request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
     #     response = policy_list(request)
@@ -217,7 +223,7 @@ class ControllerTestCase(TestCase):
         self.assertEqual(metrics[0]['metric_name'], 'm1.py')
 
     def test_metric_module_detail_with_method_not_allowed(self):
-        request = self.factory.post('/controller/metric_module')
+        request = self.factory.put('/controller/metric_module')
         response = metric_module_list(request)
         self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
@@ -232,7 +238,7 @@ class ControllerTestCase(TestCase):
     def test_update_metric_module_detail_ok(self):
         metric_id = '1'
         data = {'execution_server': 'object', 'enabled': False}
-        request = self.factory.put('/controller/metric_module/' + metric_id, data, format='json')
+        request = self.factory.post('/controller/metric_module/' + metric_id, data, format='json')
         response = metric_module_detail(request, metric_id)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
@@ -257,8 +263,8 @@ class ControllerTestCase(TestCase):
         self.assertEqual(len(metrics), 0)
 
     def test_metric_module_data_view_with_method_not_allowed(self):
-        # No PUT method for this API call
-        request = self.factory.put('/controller/metric_module/data/')
+        # No POST method for this API call
+        request = self.factory.post('/controller/metric_module/data/')
         response = MetricModuleData.as_view()(request)
         self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
@@ -267,7 +273,7 @@ class ControllerTestCase(TestCase):
         with open('test_data/test.py', 'r') as fp:
             metadata = {'class_name': 'Metric1', 'execution_server': 'proxy', 'out_flow': False,
                         'in_flow': False, 'enabled': False}
-            request = self.factory.post('/controller/metric_module/data/', {'file': fp, 'metadata': json.dumps(metadata)})
+            request = self.factory.put('/controller/metric_module/data/', {'file': fp, 'metadata': json.dumps(metadata)})
             response = MetricModuleData.as_view()(request)
             mock_rsync_dir.assert_called_with(settings.WORKLOAD_METRICS_DIR)
 
@@ -380,99 +386,6 @@ class ControllerTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         dsl_filters = json.loads(response.content)
         self.assertEqual(len(dsl_filters), 1)
-
-    #
-    # Storage nodes tests
-    #
-
-    def test_list_storage_nodes_ok(self):
-        request = self.factory.get('/controller/snode')
-        response = list_storage_node(request)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        storage_nodes = json.loads(response.content)
-        self.assertEqual(len(storage_nodes), 1)
-
-    def test_create_storage_node_ok(self):
-        data = {'name': 'storagenode2', 'location': 'location2', 'type': 'type2'}
-        request = self.factory.post('/controller/snode', data, format='json')
-        response = list_storage_node(request)
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-
-        # Assert the storage node was created successfully
-        request = self.factory.get('/controller/snode')
-        response = list_storage_node(request)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        storage_nodes = json.loads(response.content)
-        self.assertEqual(len(storage_nodes), 2)
-
-    def test_list_storage_nodes_are_ordered_by_name(self):
-        # Register a new SN
-        data = {'name': 'storagenode3', 'location': 'location3', 'type': 'type3'}
-        request = self.factory.post('/controller/snode', data, format='json')
-        response = list_storage_node(request)
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-
-        # Register a new SN
-        data = {'name': 'storagenode2', 'location': 'location2', 'type': 'type2'}
-        request = self.factory.post('/controller/snode', data, format='json')
-        response = list_storage_node(request)
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-
-        # Register a new SN
-        data = {'name': 'storagenode4', 'location': 'location4', 'type': 'type4'}
-        request = self.factory.post('/controller/snode', data, format='json')
-        response = list_storage_node(request)
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-
-        # Assert the storage nodes are returned ordered by name
-        request = self.factory.get('/controller/snode')
-        response = list_storage_node(request)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        storage_nodes = json.loads(response.content)
-        self.assertEqual(len(storage_nodes), 4)
-        self.assertEqual(storage_nodes[0]['name'], 'storagenode1')
-        self.assertEqual(storage_nodes[1]['name'], 'storagenode2')
-        self.assertEqual(storage_nodes[2]['name'], 'storagenode3')
-        self.assertEqual(storage_nodes[3]['name'], 'storagenode4')
-
-    def test_get_storage_node_ok(self):
-        snode_id = 1
-        request = self.factory.get('/controller/snode/' + str(snode_id))
-        response = storage_node_detail(request, str(snode_id))
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        metric_data = json.loads(response.content)
-        self.assertEqual(metric_data['name'], 'storagenode1')
-        self.assertEqual(metric_data['location'], 'r1z1-192.168.1.5:6000/sdb1')
-        self.assertEqual(metric_data['type'], 'hdd')
-
-    def test_update_storage_node_ok(self):
-        snode_id = 1
-        data = {'name': 'storagenode1updated', 'location': 'r1z1-192.168.1.6:6000/sdb1', 'type': 'hddupdated'}
-        request = self.factory.put('/controller/snode/' + str(snode_id), data, format='json')
-        response = storage_node_detail(request, str(snode_id))
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-
-        # asserts it was modified successfully
-        request = self.factory.get('/controller/snode/' + str(snode_id))
-        response = storage_node_detail(request, str(snode_id))
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        metric_data = json.loads(response.content)
-        self.assertEqual(metric_data['name'], 'storagenode1updated')
-        self.assertEqual(metric_data['location'], 'r1z1-192.168.1.6:6000/sdb1')
-        self.assertEqual(metric_data['type'], 'hddupdated')
-
-    def test_delete_storage_node_ok(self):
-        snode_id = 1
-        request = self.factory.delete('/controller/snode/' + str(snode_id))
-        response = storage_node_detail(request, str(snode_id))
-        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-
-        # assert it was deleted successfully
-        request = self.factory.get('/controller/snode')
-        response = list_storage_node(request)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        storage_nodes = json.loads(response.content)
-        self.assertEqual(len(storage_nodes), 0)
 
     #
     # object_type tests
@@ -652,14 +565,14 @@ class ControllerTestCase(TestCase):
 
     def test_tenants_group_detail_with_method_not_allowed(self):
         gtenant_id = 1
-        tenants = ['1234567890abcdf', 'abcdef1234567890']
+        tenants = ['0123456789abcdf', 'abcdef0123456789']
         request = self.factory.post('/controller/gtenants/' + str(gtenant_id), tenants, format='json')
         response = tenants_group_detail(request, gtenant_id)
         self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
     def test_gtenants_tenant_detail_with_method_not_allowed(self):
         gtenant_id = '1'
-        tenant_id = '1234567890abcdef'
+        tenant_id = '0123456789abcdef'
         request = self.factory.get('/controller/gtenants/' + gtenant_id + '/tenants/' + tenant_id)
         response = gtenants_tenant_detail(request, gtenant_id, tenant_id)
         self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
@@ -671,8 +584,8 @@ class ControllerTestCase(TestCase):
         tenants_groups = json.loads(response.content)
         self.assertEqual(len(tenants_groups), 1)  # 1 group
         self.assertEqual(len(tenants_groups['1']), 2)  # 2 tenants in the group
-        self.assertTrue('1234567890abcdef' in tenants_groups['1'])
-        self.assertTrue('abcdef1234567890' in tenants_groups['1'])
+        self.assertTrue('0123456789abcdef' in tenants_groups['1'])
+        self.assertTrue('abcdef0123456789' in tenants_groups['1'])
 
     def test_create_tenant_group_ok(self):
         # Create a second tenant group
@@ -690,7 +603,7 @@ class ControllerTestCase(TestCase):
         self.assertTrue('tenant1_id' in tenants_groups['2'])
         self.assertTrue('tenant2_id' in tenants_groups['2'])
         self.assertTrue('tenant3_id' in tenants_groups['2'])
-        self.assertFalse('1234567890abcdef' in tenants_groups['2'])
+        self.assertFalse('0123456789abcdef' in tenants_groups['2'])
 
     def test_create_tenant_group_with_empty_data(self):
         # Create a second tenant group with empty data --> ERROR
@@ -706,8 +619,8 @@ class ControllerTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         tenant_list = json.loads(response.content)
         self.assertEqual(len(tenant_list), 2)
-        self.assertTrue('1234567890abcdef' in tenant_list)
-        self.assertTrue('abcdef1234567890' in tenant_list)
+        self.assertTrue('0123456789abcdef' in tenant_list)
+        self.assertTrue('abcdef0123456789' in tenant_list)
 
     def test_tenant_group_detail_with_non_existent_id(self):
         gtenant_id = '2'
@@ -745,7 +658,7 @@ class ControllerTestCase(TestCase):
 
     def test_update_tenant_group_ok(self):
         gtenant_id = '1'
-        data = ['1234567890abcdef', 'abcdef1234567890', '3333333333']
+        data = ['0123456789abcdef', 'abcdef0123456789', '3333333333']
         request = self.factory.put('/controller/gtenants/' + gtenant_id, data, format='json')
         response = tenants_group_detail(request, gtenant_id)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
@@ -757,13 +670,13 @@ class ControllerTestCase(TestCase):
         tenants_groups = json.loads(response.content)
         self.assertEqual(len(tenants_groups), 1)  # 1 group
         self.assertEqual(len(tenants_groups['1']), 3)  # 2 tenants in the group
-        self.assertTrue('1234567890abcdef' in tenants_groups['1'])
-        self.assertTrue('abcdef1234567890' in tenants_groups['1'])
+        self.assertTrue('0123456789abcdef' in tenants_groups['1'])
+        self.assertTrue('abcdef0123456789' in tenants_groups['1'])
         self.assertTrue('3333333333' in tenants_groups['1'])
 
     def test_update_tenant_group_with_non_existent_id(self):
         gtenant_id = '2'
-        data = ['1234567890abcdef', 'abcdef1234567890', '3333333333']
+        data = ['0123456789abcdef', 'abcdef0123456789', '3333333333']
         request = self.factory.put('/controller/gtenants/' + gtenant_id, data, format='json')
         response = tenants_group_detail(request, gtenant_id)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
@@ -777,7 +690,7 @@ class ControllerTestCase(TestCase):
 
     def test_delete_individual_tenant_from_group_ok(self):
         gtenant_id = '1'
-        tenant_id = '1234567890abcdef'
+        tenant_id = '0123456789abcdef'
         request = self.factory.delete('/controller/gtenants/' + gtenant_id + '/tenants/' + tenant_id)
         response = gtenants_tenant_detail(request, gtenant_id, tenant_id)
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
@@ -789,8 +702,8 @@ class ControllerTestCase(TestCase):
         tenants_groups = json.loads(response.content)
         self.assertEqual(len(tenants_groups), 1)
         self.assertEqual(len(tenants_groups['1']), 1)
-        self.assertFalse('1234567890abcdef' in tenants_groups['1'])
-        self.assertTrue('abcdef1234567890' in tenants_groups['1'])
+        self.assertFalse('0123456789abcdef' in tenants_groups['1'])
+        self.assertTrue('abcdef0123456789' in tenants_groups['1'])
 
     #
     # Parse tests
@@ -800,7 +713,7 @@ class ControllerTestCase(TestCase):
 
     def test_parse_target_tenant_ok(self):
         self.setup_dsl_parser_data()
-        has_condition_list, rule_parsed = parse('FOR TENANT:123456789abcdef DO SET compression')
+        has_condition_list, rule_parsed = parse('FOR TENANT:0123456789abcdef DO SET compression')
         self.assertFalse(has_condition_list)
         self.assertIsNotNone(rule_parsed)
         targets = rule_parsed.target
@@ -809,7 +722,7 @@ class ControllerTestCase(TestCase):
         self.assertEqual(len(action_list), 1)
         target = targets[0]
         self.assertEqual(target.type, 'TENANT')
-        self.assertEqual(target[1], '123456789abcdef')
+        self.assertEqual(target[1], '0123456789abcdef')
         action_info = action_list[0]
         self.assertEqual(action_info.action, 'SET')
         self.assertEqual(action_info.filter, 'compression')
@@ -818,27 +731,27 @@ class ControllerTestCase(TestCase):
 
     def test_parse_target_container_ok(self):
         self.setup_dsl_parser_data()
-        has_condition_list, rule_parsed = parse('FOR CONTAINER:123456789abcdef/container1 DO SET compression')
+        has_condition_list, rule_parsed = parse('FOR CONTAINER:0123456789abcdef/container1 DO SET compression')
         self.assertIsNotNone(rule_parsed)
         targets = rule_parsed.target
         self.assertEqual(len(targets), 1)
         target = targets[0]
         self.assertEqual(target.type, 'CONTAINER')
-        self.assertEqual(target[1], '123456789abcdef/container1')
+        self.assertEqual(target[1], '0123456789abcdef/container1')
 
     def test_parse_target_object_ok(self):
         self.setup_dsl_parser_data()
-        has_condition_list, rule_parsed = parse('FOR OBJECT:123456789abcdef/container1/object.txt DO SET compression')
+        has_condition_list, rule_parsed = parse('FOR OBJECT:0123456789abcdef/container1/object.txt DO SET compression')
         self.assertIsNotNone(rule_parsed)
         targets = rule_parsed.target
         self.assertEqual(len(targets), 1)
         target = targets[0]
         self.assertEqual(target.type, 'OBJECT')
-        self.assertEqual(target[1], '123456789abcdef/container1/object.txt')
+        self.assertEqual(target[1], '0123456789abcdef/container1/object.txt')
 
     def test_parse_target_tenant_2_actions_ok(self):
         self.setup_dsl_parser_data()
-        has_condition_list, rule_parsed = parse('FOR TENANT:123456789abcdef DO SET compression, SET encryption')
+        has_condition_list, rule_parsed = parse('FOR TENANT:0123456789abcdef DO SET compression, SET encryption')
         self.assertFalse(has_condition_list)
         self.assertIsNotNone(rule_parsed)
         targets = rule_parsed.target
@@ -858,7 +771,7 @@ class ControllerTestCase(TestCase):
 
     def test_parse_target_tenant_to_object_type_ok(self):
         self.setup_dsl_parser_data()
-        has_condition_list, rule_parsed = parse('FOR TENANT:123456789abcdef DO SET compression TO OBJECT_TYPE=DOCS')
+        has_condition_list, rule_parsed = parse('FOR TENANT:0123456789abcdef DO SET compression TO OBJECT_TYPE=DOCS')
         self.assertFalse(has_condition_list)
         self.assertIsNotNone(rule_parsed)
         object_list = rule_parsed.object_list
@@ -870,7 +783,7 @@ class ControllerTestCase(TestCase):
 
     def test_parse_target_tenant_with_parameters_ok(self):
         self.setup_dsl_parser_data()
-        has_condition_list, rule_parsed = parse('FOR TENANT:123456789abcdef DO SET compression WITH cparam1=11, cparam2=12, cparam3=13')
+        has_condition_list, rule_parsed = parse('FOR TENANT:0123456789abcdef DO SET compression WITH cparam1=11, cparam2=12, cparam3=13')
         self.assertFalse(has_condition_list)
         self.assertIsNotNone(rule_parsed)
         targets = rule_parsed.target
@@ -892,8 +805,8 @@ class ControllerTestCase(TestCase):
         action_list = rule_parsed.action_list
         self.assertEqual(len(targets), 2)
         self.assertEqual(len(action_list), 1)
-        self.assertEqual(targets[0], '1234567890abcdef')
-        self.assertEqual(targets[1], 'abcdef1234567890')
+        self.assertEqual(targets[0], 'abcdef0123456789')
+        self.assertEqual(targets[1], '0123456789abcdef')
 
     def test_parse_rule_not_starting_with_for(self):
         self.setup_dsl_parser_data()
@@ -907,7 +820,7 @@ class ControllerTestCase(TestCase):
 
     def test_parse_callable_ok(self):
         self.setup_dsl_parser_data()
-        has_condition_list, rule_parsed = parse('FOR TENANT:123456789abcdef DO SET compression CALLABLE')
+        has_condition_list, rule_parsed = parse('FOR TENANT:0123456789abcdef DO SET compression CALLABLE')
         self.assertFalse(has_condition_list)
         self.assertIsNotNone(rule_parsed)
         targets = rule_parsed.target
@@ -916,7 +829,7 @@ class ControllerTestCase(TestCase):
         self.assertEqual(len(action_list), 1)
         target = targets[0]
         self.assertEqual(target.type, 'TENANT')
-        self.assertEqual(target[1], '123456789abcdef')
+        self.assertEqual(target[1], '0123456789abcdef')
         action_info = action_list[0]
         self.assertEqual(action_info.action, 'SET')
         self.assertEqual(action_info.filter, 'compression')
@@ -926,7 +839,7 @@ class ControllerTestCase(TestCase):
 
     def test_parse_not_callable(self):
         self.setup_dsl_parser_data()
-        has_condition_list, rule_parsed = parse('FOR TENANT:123456789abcdef DO SET compression')
+        has_condition_list, rule_parsed = parse('FOR TENANT:0123456789abcdef DO SET compression')
         self.assertFalse(has_condition_list)
         self.assertIsNotNone(rule_parsed)
         action_list = rule_parsed.action_list
@@ -1139,14 +1052,14 @@ class ControllerTestCase(TestCase):
                        'is_post_put': 'False', 'is_pre_get': 'False',
                        'has_reverse': 'False', 'execution_server': 'proxy', 'execution_server_reverse': 'proxy'}
         request = self.factory.post('/filters/', filter_data, format='json')
-        response = storlet_list(request)
+        response = filter_list(request)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
     def upload_filter(self):
         # Upload a filter for the storlet 1
         with open('test_data/test-1.0.jar', 'r') as fp:
             request = self.factory.put('/filters/1/data', {'file': fp})
-            StorletData.as_view()(request, 1)
+            FilterData.as_view()(request, 1)
 
     def mock_put_object_status_created(url, token=None, container=None, name=None, contents=None,
                                        content_length=None, etag=None, chunk_size=None,
@@ -1188,11 +1101,11 @@ class ControllerTestCase(TestCase):
                                                'activation_url': 'http://10.30.1.6:9000/filters'})
         self.r.hmset('metric:metric1', {'network_location': '?', 'type': 'integer'})
         self.r.hmset('metric:metric2', {'network_location': '?', 'type': 'integer'})
-        self.r.rpush('G:1', '1234567890abcdef')
-        self.r.rpush('G:2', 'abcdef1234567890')
+        self.r.rpush('G:1', '0123456789abcdef')
+        self.r.rpush('G:2', 'abcdef0123456789')
 
     def create_tenant_group_1(self):
-        tenant_group_data = ['1234567890abcdef', 'abcdef1234567890']
+        tenant_group_data = ['0123456789abcdef', 'abcdef0123456789']
         request = self.factory.post('/controller/gtenants', tenant_group_data, format='json')
         response = add_tenants_group(request)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)

@@ -705,7 +705,7 @@ def policy_list(request):
                 return JSONResponse('Storlet not found.', status=status.HTTP_404_NOT_FOUND)
 
             except ProjectNotFound:
-                return JSONResponse('Invalid Project Name/ID or the project in not Crystal Enabled. Verify it in the Projects panel.',
+                return JSONResponse('Invalid Project Name/ID or the project is not Crystal Enabled. Verify it in the Projects panel.',
                                     status=status.HTTP_404_NOT_FOUND)
             except Exception:
                 # print("The rule: " + rule_string + " cannot be parsed")
