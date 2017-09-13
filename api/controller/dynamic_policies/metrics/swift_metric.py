@@ -34,10 +34,11 @@ class SwiftMetric(Metric):
         all the observers subscribed to this metric.
 
         {'container': 'crystal/data', 'metric_name': 'bandwidth', '@timestamp': '2017-09-09T18:00:18.331492+02:00',
-         'value': 16.4375, 'project': 'crystal', 'host': 'controller', 'method': 'GET'}
+         'value': 16.4375, 'project': 'crystal', 'host': 'controller', 'method': 'GET', 'server_type': 'proxy'}
         """
         metric = eval(body)
-        self.metrics.put(metric)
+        if metric['server_type'] == 'proxy':
+            self.metrics.put(metric)
         self._send_data_to_logstash(metric)
 
     def _send_data_to_logstash(self, metric):
