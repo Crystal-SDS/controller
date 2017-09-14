@@ -126,7 +126,7 @@ class ControllerTestCase(TestCase):
         self.assertTrue(mock_create_local_host.return_value.spawn.called)
         self.assertTrue(self.r.exists('policy:2'))
         policy_data = self.r.hgetall('policy:2')
-        self.assertEqual(policy_data['policy'], 'FOR TENANT:0123456789abcdef DO SET compression')
+        self.assertEqual(policy_data['policy'], 'FOR TENANT:0123456789abcdef WHEN metric1 > 5 DO SET compression')
         self.assertEqual(policy_data['condition'], 'metric1 > 5')
 
     # def test_registry_static_policy_create_with_inexistent_filter(self):
@@ -237,7 +237,7 @@ class ControllerTestCase(TestCase):
 
     def test_update_metric_module_detail_ok(self):
         metric_id = '1'
-        data = {'execution_server': 'object', 'enabled': False}
+        data = {'enabled': False}
         request = self.factory.post('/controller/metric_module/' + metric_id, data, format='json')
         response = metric_module_detail(request, metric_id)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -247,7 +247,7 @@ class ControllerTestCase(TestCase):
         response = metric_module_detail(request, metric_id)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         metric_data = json.loads(response.content)
-        self.assertEqual(metric_data['execution_server'], 'object')
+        self.assertEqual(metric_data['enabled'], False)
 
     def test_delete_metric_module_detail_ok(self):
         metric_id = '1'
