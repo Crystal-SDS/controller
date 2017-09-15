@@ -218,7 +218,6 @@ def regions(request):
     """
     GET: List all regions ordered by name
     """
-    print 'CONTROLLER'
     try:
         r = get_redis_connection()
     except RedisError:
@@ -250,6 +249,31 @@ def regions(request):
 
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
+
+@csrf_exempt
+def region_detail(request, region_id):
+    try:
+        r = get_redis_connection()
+    except RedisError:
+        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    key = 'region:' + str(region_id)
+    if request.method == 'DELETE':
+        # Deletes the key. If the node is alive, the metric middleware will recreate this key again.
+        if r.exists(key):
+            r.delete(key)
+            return JSONResponse('Node has been deleted', status=status.HTTP_204_NO_CONTENT)
+        else:
+            return JSONResponse('Node not found.', status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        if r.exists(key):
+            region = r.hgetall(key)
+            return JSONResponse(region, status=status.HTTP_200_OK)
+        else:
+            return JSONResponse('Region not found.', status=status.HTTP_404_NOT_FOUND)
+
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 #
 # PROXY SORTING NOT USED, TODO: Remove

@@ -13,11 +13,12 @@ urlpatterns = [
 
     # Nodes
     url(r'^nodes/?$', views.node_list),
-    url(r'^nodes/(?P<server_type>[^/]+)/(?P<node_id>[^/]+)/?$', views.node_detail),
+    url(r'^nodes/(?P<server_type>[^/]+)/(?P<node_id>[^/]+)/?$', views.region_detail),
     url(r'^nodes/(?P<server_type>[^/]+)/(?P<node_id>[^/]+)/restart/?$', views.node_restart),
 
     # Regions
     url(r'^regions/?$', views.regions),
+    url(r'^regions/(?P<region_id>[^/]+)/?$', views.region_detail),
     url(r'^zones/?$', views.regions),
 
 ]
