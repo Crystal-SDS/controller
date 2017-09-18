@@ -1,11 +1,10 @@
 import json
 from abstract_metric import Metric
 
+
 class ZoeMetric(Metric):
-    _sync = {}
-    _async = ['attach', 'detach', 'notify', 'start_consuming', 'stop_consuming', 'init_consum', 'stop_actor']
+    _tell = ['attach', 'detach', 'notify', 'start_consuming', 'stop_consuming', 'init_consum', 'stop_actor']
     _ref = ['attach', 'detach']
-    _parallel = []
 
     def __init__(self, name, exchange, queue, routing_key):
         Metric.__init__(self)
@@ -22,7 +21,7 @@ class ZoeMetric(Metric):
         all the observers subscribed to this metric.
 
         e.g.:
-            bd34c4073b65426894545b36f0d8dcce:gold
+            tenant1:gold
         """
 
         print "Zoe Metric - message received: " + body

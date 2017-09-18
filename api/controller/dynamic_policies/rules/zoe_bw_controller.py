@@ -1,21 +1,26 @@
 import json
 import redis
 
+print "ZoeBwController: in imports"
+
 from django.conf import settings
+from keystoneauth1.identity import v3
+from keystoneauth1 import session
+from keystoneclient.v3 import client
 from redis.exceptions import RedisError
-import keystoneclient.v2_0.client as keystone_client
+#import keystoneclient.v2_0.client as keystone_client
+#from api.common_utils import get_project_list
 
 
 class ZoeBwController(object):
 
-    _sync = {}
-    _async = ['update', 'run', 'stop_actor']
-    _ref = []
-    _parallel = []
+    _ask = []
+    _tell = ['update', 'run', 'stop_actor']
 
-    DISK_IO_BANDWIDTH = 70.  # MBps
+    DISK_IO_BANDWIDTH = 100.  # MBps
 
     def __init__(self, name):
+        print "ZoeBwController: in __init__()"
         try:
             self.r = redis.Redis(connection_pool=settings.REDIS_CON_POOL)
         except RedisError:
@@ -38,6 +43,7 @@ class ZoeBwController(object):
 
         """
         try:
+            print "ZoeBwController: in __run__()"
             self.workload_metric_id = workload_metric_id
             metric_actor = self.host.lookup(workload_metric_id)
             metric_actor.attach(self.proxy)
@@ -45,6 +51,7 @@ class ZoeBwController(object):
             raise Exception('Error attaching to metric bw_info: ' + str(e))
 
     def update(self, metric, info):
+        print "ZoeBwController: in update()"
 
         if metric == 'zoe_metric':
             info_dict = json.loads(info)
@@ -64,32 +71,36 @@ class ZoeBwController(object):
 
     @staticmethod
     def get_tenants_by_name():
-        keystone = ZoeBwController.get_keystone_admin_auth()
-        tenants = keystone.tenants.list()
+        keystone_cl = ZoeBwController.get_keystone_admin_auth()
+        projects = keystone_cl.projects.list()
 
-        tenant_list = {}
-        for tenant in tenants:
-            tenant_list[tenant.name] = tenant.id
+        tenants_by_name = {}
+        for project in projects:
+            tenants_by_name[project.name] = project.id
 
-        return tenant_list
+        return tenants_by_name
 
     @staticmethod
     def get_keystone_admin_auth():
         admin_project = settings.MANAGEMENT_ACCOUNT
         admin_user = settings.MANAGEMENT_ADMIN_USERNAME
         admin_passwd = settings.MANAGEMENT_ADMIN_PASSWORD
-        keystone_url = settings.KEYSTONE_URL
+        keystone_url = settings.KEYSTONE_ADMIN_URL
 
-        keystone = None
+        keystone_client = None
         try:
-            keystone = keystone_client.Client(auth_url=keystone_url,
-                                              username=admin_user,
-                                              password=admin_passwd,
-                                              tenant_name=admin_project)
+            auth = v3.Password(auth_url=keystone_url,
+                               username=admin_user,
+                               password=admin_passwd,
+                               project_name=admin_project,
+                               user_domain_id='default',
+                               project_domain_id='default')
+            sess = session.Session(auth=auth)
+            keystone_client = client.Client(session=sess)
         except Exception as exc:
             print(exc)
 
-        return keystone
+        return keystone_client
 
     # def stop_actor(self):
     #     """
