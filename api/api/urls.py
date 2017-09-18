@@ -18,8 +18,7 @@ from django.contrib import admin
 
 urlpatterns = [
     url(r'^admin/', include(admin.site.urls)),
-    url(r'^filters', include('filters.urls')),
-    # url(r'^bw', include('bw.urls')),
-    url(r'^swift', include('swift.urls')),
-    url(r'^controller', include('controller.urls'))
+    url(r'^filters/', include('filters.urls')),
+    url(r'^swift/', include('swift.urls')),
+    url(r'^controller/', include('controller.urls'))
 ]

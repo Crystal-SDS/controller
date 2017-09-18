@@ -7,7 +7,7 @@ from operator import itemgetter
 from eventlet import sleep
 
 from django.conf import settings
-from django.core.servers.basehttp import FileWrapper
+from wsgiref.util import FileWrapper
 from django.http import HttpResponse
 from django.http import StreamingHttpResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -18,9 +18,9 @@ from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
 from rest_framework.views import APIView
 
 import dsl_parser
-from api.common_utils import get_token_connection, rsync_dir_with_nodes, to_json_bools, remove_extra_whitespaces, JSONResponse, get_redis_connection, \
+from api.common_utils import get_token_connection, rsync_dir_with_nodes, to_json_bools, JSONResponse, get_redis_connection, \
     get_project_list, create_local_host
-from api.exceptions import SwiftClientError, StorletNotFoundException, FileSynchronizationException
+from api.exceptions import SwiftClientError, StorletNotFoundException, FileSynchronizationException, ProjectNotFound
 from filters.views import save_file, make_sure_path_exists
 from filters.views import set_filter, unset_filter
 
@@ -71,13 +71,17 @@ def load_policies():
             for action_info in rule_parsed.action_list:
                 if action_info.transient:
                     logger.info("Transient rule: " + policy_data['policy_description'])
-                    rule_actors[policy] = host.spawn_id(str(policy), settings.RULE_TRANSIENT_MODULE, settings.RULE_TRANSIENT_CLASS,
-                                                  [rule_parsed, action_info, target, host])
+                    rule_actors[policy] = host.spawn(str(policy),
+                                                     settings.RULE_TRANSIENT_MODULE +
+                                                     '/' + settings.RULE_TRANSIENT_CLASS,
+                                                     [rule_parsed, action_info, target])
                     rule_actors[policy].start_rule()
                 else:
                     logger.info("Rule: "+policy_data['policy_description'])
-                    rule_actors[policy] = host.spawn_id(str(policy), settings.RULE_MODULE, settings.RULE_CLASS,
-                                                  [rule_parsed, action_info, target, host])
+                    rule_actors[policy] = host.spawn(str(policy),
+                                                     settings.RULE_MODULE + '/' +
+                                                     settings.RULE_CLASS,
+                                                     [rule_parsed, action_info, target])
                     rule_actors[policy].start_rule()
 
 
@@ -213,7 +217,7 @@ def dynamic_filter_detail(request, name):
         filter_id = r.hget('dsl_filter:' + str(name), 'identifier')
         filter_name = r.hget('filter:' + str(filter_id), 'filter_name')
 
-        keys = r.keys("pipeline:AUTH_*")
+        keys = r.keys("pipeline:*")
         for it in keys:
             for value in r.hgetall(it).values():
                 json_value = json.loads(value)
@@ -251,24 +255,25 @@ def metric_module_list(request):
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
-def start_metric(metric_id, actor_id):
+def start_metric(actor_id):
     host = create_local_host()
-    logger.info("Metric, Starting workload metric actor " + str(metric_id) + " (" + str(actor_id) + ")")
+    logger.info("Metric, Starting workload metric actor: " + str(actor_id))
     try:
-        if metric_id not in metric_actors:
-            metric_actors[metric_id] = host.spawn_id(actor_id, settings.METRIC_MODULE, settings.METRIC_CLASS,
-                                               ["amq.topic", actor_id, "metrics." + actor_id])
-            metric_actors[metric_id].init_consum()
-    except Exception as e:
-        logger.error(str(e))
-        print e
+        if actor_id not in metric_actors:
+            metric_actors[actor_id] = host.spawn(actor_id, settings.METRIC_MODULE +
+                                                 '/' + settings.METRIC_CLASS,
+                                                 ["amq.topic", actor_id, "metric." + actor_id])
+            metric_actors[actor_id].init_consum()
+    except Exception:
+        logger.error("Metric, Error starting workload metric actor: " + str(actor_id))
+        raise Exception
 
 
-def stop_metric(metric_id):
-    if metric_id in metric_actors:
-        logger.info("Metric, Stopping workload metric actor " + str(metric_id))
-        metric_actors[metric_id].stop_actor()
-        del metric_actors[metric_id]
+def stop_metric(actor_id):
+    if actor_id in metric_actors:
+        logger.info("Metric, Stopping workload metric actor: " + str(actor_id))
+        metric_actors[actor_id].stop_actor()
+        del metric_actors[actor_id]
 
 
 @csrf_exempt
@@ -292,21 +297,33 @@ def metric_module_detail(request, metric_module_id):
         to_json_bools(metric, 'in_flow', 'out_flow', 'enabled')
         return JSONResponse(metric, status=status.HTTP_200_OK)
 
-    elif request.method == 'PUT':
+    elif request.method == 'POST':
         try:
             data = JSONParser().parse(request)
         except ParseError:
             return JSONResponse("Invalid format or empty request", status=status.HTTP_400_BAD_REQUEST)
 
-        if data['enabled']:
-            if 'metric_name' not in data:
-                wm_data = r.hgetall('workload_metric:' + str(metric_id))
-                data['metric_name'] = wm_data['metric_name']
+        if len(data) == 1:
+            # Enable/disable button
+            redis_data = r.hgetall('workload_metric:' + str(metric_id))
+            redis_data.update(data)
+            data = redis_data
 
-            actor_id = data['metric_name'].split('.')[0]
-            start_metric(metric_id, actor_id)
+        metric_name = data['metric_name'].split('.')[0]
+
+        if data['enabled']:
+            try:
+                if data['in_flow'] == 'True':
+                    start_metric('put_'+metric_name)
+                if data['out_flow'] == 'True':
+                    start_metric('get_'+metric_name)
+            except Exception:
+                data['enabled'] = False
         else:
-            stop_metric(metric_id)
+            if data['in_flow'] == 'True':
+                stop_metric('put_'+metric_name)
+            if data['out_flow'] == 'True':
+                stop_metric('get_'+metric_name)
 
         try:
             r.hmset('workload_metric:' + str(metric_id), data)
@@ -316,12 +333,23 @@ def metric_module_detail(request, metric_module_id):
 
     elif request.method == 'DELETE':
         try:
-            if metric_id in metric_actors:
-                stop_metric(metric_id)
+            wm_data = r.hgetall('workload_metric:' + str(metric_id))
+            metric_name = wm_data['metric_name'].split('.')[0]
 
-            r.delete("workload_metric:" + str(metric_id))
-            keys = len(r.keys("workload_metric:*"))
-            r.set('workload_metrics:id', keys)
+            if wm_data['in_flow'] == 'True':
+                actor_id = 'put_'+metric_name
+                if actor_id in metric_actors:
+                    stop_metric(actor_id)
+            if wm_data['out_flow'] == 'True':
+                actor_id = 'get_'+metric_name
+                if actor_id in metric_actors:
+                    stop_metric(actor_id)
+
+            r.delete('workload_metric:' + str(metric_id))
+
+            wm_ids = r.keys('workload_metric:*')
+            if len(wm_ids) == 0:
+                r.set('workload_metrics:id', 0)
 
             return JSONResponse('Workload metric has been deleted', status=status.HTTP_204_NO_CONTENT)
         except DataError:
@@ -336,7 +364,7 @@ class MetricModuleData(APIView):
     """
     parser_classes = (MultiPartParser, FormParser,)
 
-    def post(self, request):
+    def put(self, request):
         try:
             r = get_redis_connection()
         except RedisError:
@@ -366,8 +394,11 @@ class MetricModuleData(APIView):
             r.hmset('workload_metric:' + str(workload_metric_id), data)
 
             if data['enabled']:
-                actor_id = data['metric_name'].split('.')[0]
-                start_metric(workload_metric_id, actor_id)
+                metric_name = data['metric_name'].split('.')[0]
+                if data['in_flow']:
+                    start_metric('put_'+metric_name)
+                if data['out_flow']:
+                    start_metric('get_'+metric_name)
 
             return JSONResponse(data, status=status.HTTP_201_CREATED)
 
@@ -402,71 +433,6 @@ class MetricModuleData(APIView):
                 return HttpResponse(status=status.HTTP_404_NOT_FOUND)
         else:
             return HttpResponse(status=status.HTTP_404_NOT_FOUND)
-
-
-#
-# Storage nodes
-#
-
-@csrf_exempt
-def list_storage_node(request):
-    """
-    Add a storage node or list all the storage nodes saved in the registry.
-    :param request:
-    :return: JSONResponse
-    """
-
-    try:
-        r = get_redis_connection()
-    except RedisError:
-        return JSONResponse('Error connecting with DB', status=500)
-
-    if request.method == "GET":
-        keys = r.keys("SN:*")
-        storage_nodes = []
-        for k in keys:
-            sn = r.hgetall(k)
-            sn["id"] = k.split(":")[1]
-            storage_nodes.append(sn)
-        sorted_list = sorted(storage_nodes, key=itemgetter('name'))
-        return JSONResponse(sorted_list, status=200)
-
-    if request.method == "POST":
-        sn_id = r.incr("storage_nodes:id")
-        data = JSONParser().parse(request)
-        r.hmset('SN:' + str(sn_id), data)
-        return JSONResponse('Storage node has been added to the registry', status=201)
-    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
-
-
-@csrf_exempt
-def storage_node_detail(request, snode_id):
-    """
-    Get, update or delete a storage node from the registry.
-    """
-
-    try:
-        r = get_redis_connection()
-    except RedisError:
-        return JSONResponse('Error connecting with DB', status=500)
-
-    if request.method == 'GET':
-        storage_node = r.hgetall("SN:" + str(snode_id))
-        return JSONResponse(storage_node, status=200)
-
-    if request.method == 'PUT':
-        if not r.exists('SN:' + str(snode_id)):
-            return JSONResponse('Storage node with name:  ' + str(snode_id) + ' not exists.', status=404)
-        data = JSONParser().parse(request)
-        r.hmset('SN:' + str(snode_id), data)
-        return JSONResponse('The metadata of the storage node with name: ' + str(snode_id) + ' has been updated',
-                            status=201)
-
-    if request.method == 'DELETE':
-        r.delete("SN:" + str(snode_id))
-        return JSONResponse('Storage node has been deleted', status=204)
-    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
-
 
 #
 # Tenants group part
@@ -542,6 +508,9 @@ def tenants_group_detail(request, gtenant_id):
         key = 'G:' + str(gtenant_id)
         if r.exists(key):
             r.delete("G:" + str(gtenant_id))
+            gtenants_ids = r.keys('G:*')
+            if len(gtenants_ids) == 0:
+                r.set('gtenant:id', 0)
             return JSONResponse('Tenants group has been deleted', status=status.HTTP_204_NO_CONTENT)
         else:
             return JSONResponse('The tenant group with id:  ' + str(gtenant_id) + ' does not exist.', status=status.HTTP_404_NOT_FOUND)
@@ -672,8 +641,6 @@ def policy_list(request):
     """
     List all policies (sorted by execution_order). Deploy new policies.
     """
-    # token = get_token_connection(request)
-
     try:
         r = get_redis_connection()
     except RedisError:
@@ -682,18 +649,19 @@ def policy_list(request):
     if request.method == 'GET':
         if 'static' in str(request.path):
             project_list = get_project_list()
-            keys = r.keys("pipeline:AUTH_*")
+            keys = r.keys("pipeline:*")
             policies = []
             for it in keys:
                 for key, value in r.hgetall(it).items():
-                    json_value = json.loads(value)
-                    policies.append({'id': key, 'target_id': it.replace('pipeline:AUTH_', ''),
-                                     'target_name': project_list[it.replace('pipeline:AUTH_', '').split(':')[0]],
-                                     'filter_name': json_value['filter_name'], 'object_type': json_value['object_type'],
-                                     'object_size': json_value['object_size'],
-                                     'execution_server': json_value['execution_server'],
-                                     'execution_server_reverse': json_value['execution_server_reverse'],
-                                     'execution_order': json_value['execution_order'], 'params': json_value['params']})
+                    policy = json.loads(value)
+                    target_id = it.replace('pipeline:', '')
+                    policies.append({'id': key, 'target_id': target_id,
+                                     'target_name': project_list[target_id.split(':')[0]],
+                                     'filter_name': policy['filter_name'], 'object_type': policy['object_type'],
+                                     'object_size': policy['object_size'],
+                                     'execution_server': policy['execution_server'],
+                                     'execution_server_reverse': policy['execution_server_reverse'],
+                                     'execution_order': policy['execution_order'], 'params': policy['params']})
             sorted_policies = sorted(policies, key=lambda x: int(itemgetter('execution_order')(x)))
 
             return JSONResponse(sorted_policies, status=status.HTTP_200_OK)
@@ -710,7 +678,7 @@ def policy_list(request):
             return JSONResponse("Invalid request", status=status.HTTP_400_BAD_REQUEST)
 
     if request.method == 'POST':
-
+        # New Policy
         rules_string = request.body.splitlines()
 
         for rule_string in rules_string:
@@ -723,20 +691,22 @@ def policy_list(request):
             #
             try:
                 condition_list, rule_parsed = dsl_parser.parse(rule_string)
-
                 if condition_list:
                     # Dynamic Rule
-                    # print('Rule parsed:', rule_parsed)
-                    deploy_policy(r, rule_string, rule_parsed)
+                    deploy_dynamic_policy(r, rule_string, rule_parsed)
                 else:
                     # Static Rule
-                    response = do_action(request, r, rule_parsed)
-                    logger.info("RESPONSE: " + str(response))
+                    deploy_static_policy(request, r, rule_parsed)
 
             except SwiftClientError:
                 return JSONResponse('Error accessing Swift.', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
             except StorletNotFoundException:
                 return JSONResponse('Storlet not found.', status=status.HTTP_404_NOT_FOUND)
+
+            except ProjectNotFound:
+                return JSONResponse('Invalid Project Name/ID or the project is not Crystal Enabled. Verify it in the Projects panel.',
+                                    status=status.HTTP_404_NOT_FOUND)
             except Exception:
                 # print("The rule: " + rule_string + " cannot be parsed")
                 # print("Exception message", e)
@@ -753,8 +723,6 @@ def static_policy_detail(request, policy_id):
     """
     Retrieve, update or delete a static policy.
     """
-    # token = get_token_connection(request)
-
     try:
         r = get_redis_connection()
     except RedisError:
@@ -766,24 +734,34 @@ def static_policy_detail(request, policy_id):
 
     if request.method == 'GET':
         project_list = get_project_list()
-        policy_redis = r.hget("pipeline:AUTH_" + str(target), policy)
+        policy_redis = r.hget("pipeline:" + str(target), policy)
         data = json.loads(policy_redis)
         data["id"] = policy
         data["target_id"] = target
         data["target_name"] = project_list[target.split(':')[0]]
         return JSONResponse(data, status=200)
+
     elif request.method == 'PUT':
         data = JSONParser().parse(request)
         try:
-            policy_redis = r.hget("pipeline:AUTH_" + str(target), policy)
+            policy_redis = r.hget("pipeline:" + str(target), policy)
             json_data = json.loads(policy_redis)
             json_data.update(data)
-            r.hset("pipeline:AUTH_" + str(target), policy, json.dumps(json_data))
+            r.hset("pipeline:" + str(target), policy, json.dumps(json_data))
             return JSONResponse("Data updated", status=201)
         except DataError:
             return JSONResponse("Error updating data", status=400)
+
     elif request.method == 'DELETE':
-        r.hdel('pipeline:AUTH_' + target, policy)
+        r.hdel('pipeline:' + target, policy)
+
+        policies_ids = r.keys('policy:*')
+        pipelines_ids = r.keys('pipeline:*')
+        if len(policies_ids) == 0 and len(pipelines_ids) == 0:
+            r.set('policies:id', 0)
+        # token = get_token_connection(request)
+        # unset_filter(r, target, filter_data, token)
+
         return JSONResponse('Policy has been deleted', status=status.HTTP_204_NO_CONTENT)
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
@@ -803,27 +781,55 @@ def dynamic_policy_detail(request, policy_id):
         create_local_host()
 
         try:
-            rule_actors[int(policy_id)].stop_actor()
-            del rule_actors[int(policy_id)]
-        except Exception as e:
-            logger.error(str(e))
-            print e
+            policy_id = int(policy_id)
+            if policy_id in rule_actors:
+                rule_actors[int(policy_id)].stop_actor()
+                del rule_actors[int(policy_id)]
+        except:
+            logger.info("Error stopping the rule actor: "+str(policy_id))
 
-        r.delete('policy:' + policy_id)
+        r.delete('policy:' + str(policy_id))
         policies_ids = r.keys('policy:*')
-        if len(policies_ids) == 0:
+        pipelines_ids = r.keys('pipeline:*')
+        if len(policies_ids) == 0 and len(pipelines_ids) == 0:
             r.set('policies:id', 0)
         return JSONResponse('Policy has been deleted', status=204)
 
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
 
 
-def do_action(request, r, rule_parsed):
+def deploy_static_policy(request, r, parsed_rule):
     token = get_token_connection(request)
+    container = None
+    rules_to_parse = dict()
+    # TODO: get only the Crystal enabled projects
+    project_list = get_project_list()
 
-    for target in rule_parsed.target:
-        for action_info in rule_parsed.action_list:
-            logger.info("TARGET RULE: " + action_info)
+    for target in parsed_rule.target:
+        if target[0] == 'TENANT':
+            project = target[1]
+        elif target[0] == 'CONTAINER':
+            project, container = target[1].split('/')
+
+        if project in project_list:
+            # Project ID
+            project_id = project
+        elif project in project_list.values():
+            # Project name
+            project_id = project_list.keys()[project_list.values().index(project)]
+        else:
+            raise ProjectNotFound()
+
+        if container:
+            target = os.path.join(project_id, container)
+        else:
+            target = project_id
+
+        rules_to_parse[target] = parsed_rule
+
+    for target in rules_to_parse.keys():
+        for action_info in rules_to_parse[target].action_list:
+            logger.info("Static policy, target rule: " + str(action_info))
             dynamic_filter = r.hgetall("dsl_filter:" + str(action_info.filter))
             filter_data = r.hgetall("filter:" + dynamic_filter["identifier"])
 
@@ -846,12 +852,12 @@ def do_action(request, r, rule_parsed):
                 }
 
                 # Rewrite default values
-                if rule_parsed.object_list:
-                    if rule_parsed.object_list.object_type:
-                        policy_data["object_type"] = rule_parsed.object_list.object_type.object_value
-                    if rule_parsed.object_list.object_size:
-                        policy_data["object_size"] = [rule_parsed.object_list.object_size.operand,
-                                                      rule_parsed.object_list.object_size.object_value]
+                if parsed_rule.object_list:
+                    if parsed_rule.object_list.object_type:
+                        policy_data["object_type"] = parsed_rule.object_list.object_type.object_value
+                    if parsed_rule.object_list.object_size:
+                        policy_data["object_size"] = [parsed_rule.object_list.object_size.operand,
+                                                      parsed_rule.object_list.object_size.object_value]
                 if action_info.server_execution:
                     policy_data["execution_server"] = action_info.server_execution
                 if action_info.params:
@@ -860,36 +866,74 @@ def do_action(request, r, rule_parsed):
                     policy_data["callable"] = True
 
                 # Deploy (an exception is raised if something goes wrong)
-                set_filter(r, target[1], filter_data, policy_data, token)
+                set_filter(r, target, filter_data, policy_data, token)
 
             elif action_info.action == "DELETE":
-                undeploy_response = unset_filter(r, target[1], filter_data, token)
-                if undeploy_response != status.HTTP_204_NO_CONTENT:
-                    return undeploy_response
+                unset_filter(r, target, filter_data, token)
 
 
-def deploy_policy(r, rule_string, parsed_rule):
+def deploy_dynamic_policy(r, rule_string, parsed_rule):
     host = create_local_host()
     rules_to_parse = dict()
+    project = None
+    container = None
+    # TODO: get only the Crystal enabled projects
+    project_list = get_project_list()
 
     for target in parsed_rule.target:
-        rules_to_parse[target[1]] = parsed_rule
+        if target[0] == 'TENANT':
+            project = target[1]
+        elif target[0] == 'CONTAINER':
+            project, container = target[1].split('/')
 
-    for key in rules_to_parse.keys():
-        for action_info in rules_to_parse[key].action_list:
+        if project in project_list:
+            # Project ID
+            project_id = project
+            project_name = project_list[project_id]
+        elif project in project_list.values():
+            # Project name
+            project_name = project
+            project_id = project_list.keys()[project_list.values().index(project)]
+        else:
+            raise ProjectNotFound()
+
+        if container:
+            target = project_name+":"+os.path.join(project_id, container)
+            # target = crystal:f1bf1d778939445dbd20734cbd98de16/data
+        else:
+            target = project_name+":"+project_id
+            # target = crystal:f1bf1d778939445dbd20734cbd98de16
+
+        rules_to_parse[target] = parsed_rule
+
+    for target in rules_to_parse.keys():
+        for action_info in rules_to_parse[target].action_list:
+            container = None
+            if '/' in target:
+                # target includes a container
+                project, container = target.split('/')
+                project_name, project_id = project.split(':')
+                target_id = os.path.join(project_id, container)
+                target_name = os.path.join(project_name, container)
+            else:
+                target_name, target_id = target.split(':')
+
             policy_id = r.incr("policies:id")
             rule_id = 'policy:' + str(policy_id)
 
             if action_info.transient:
                 # print 'Transient rule:', parsed_rule
-                rule_actors[policy_id] = host.spawn_id(rule_id, settings.RULE_TRANSIENT_MODULE, settings.RULE_TRANSIENT_CLASS,
-                                                 [rules_to_parse[key], action_info, key, host])
+                rule_actors[policy_id] = host.spawn(rule_id,
+                                                    settings.RULE_TRANSIENT_MODULE +
+                                                    '/' + settings.RULE_TRANSIENT_CLASS,
+                                                    [rules_to_parse[target], action_info, target_id, target_name])
                 location = os.path.join(settings.RULE_TRANSIENT_MODULE, settings.RULE_TRANSIENT_CLASS)
                 is_transient = True
             else:
                 # print 'Rule:', parsed_rule
-                rule_actors[policy_id] = host.spawn_id(rule_id, settings.RULE_MODULE, settings.RULE_CLASS,
-                                                 [rules_to_parse[key], action_info, key, host])
+                rule_actors[policy_id] = host.spawn(rule_id, settings.RULE_MODULE +
+                                                    '/' + settings.RULE_CLASS,
+                                                    [rules_to_parse[target], action_info, target_id, target_name])
                 location = os.path.join(settings.RULE_MODULE, settings.RULE_CLASS)
                 is_transient = False
 
@@ -899,15 +943,24 @@ def deploy_policy(r, rule_string, parsed_rule):
             condition_re = re.compile(r'.* (WHEN .*) DO .*', re.M | re.I)
             condition_str = condition_re.match(rule_string).group(1)
 
-            tmp_rule_string = rule_string.replace(condition_str, '').replace('TRANSIENT', '')
-            static_policy_rule_string = remove_extra_whitespaces(tmp_rule_string)
+            object_type = ""
+            object_size = ""
+            if parsed_rule.object_list:
+                if parsed_rule.object_list.object_type:
+                    object_type = parsed_rule.object_list.object_type.object_value
+                if parsed_rule.object_list.object_size:
+                    object_size = [parsed_rule.object_list.object_size.operand,
+                                   parsed_rule.object_list.object_size.object_value]
 
-            # Add policy into redis
-            policy_location = os.path.join(settings.PYACTIVE_URL, location, str(rule_id))
+            # Add policy into Redis
+            policy_location = os.path.join(settings.PYACTOR_URL, location, str(rule_id))
             r.hmset('policy:' + str(policy_id), {"id": policy_id,
-                                                 "policy": static_policy_rule_string,
-                                                 "policy_description": rule_string,
+                                                 "policy": rule_string,
+                                                 "target": target_name,
+                                                 "filter": action_info[1],
                                                  "condition": condition_str.replace('WHEN ', ''),
+                                                 "object_type": object_type,
+                                                 "object_size": object_size,
                                                  "transient": is_transient,
                                                  "policy_location": policy_location,
                                                  "alive": True})
@@ -916,7 +969,6 @@ def deploy_policy(r, rule_string, parsed_rule):
 #
 # Global Controllers
 #
-
 
 @csrf_exempt
 def global_controller_list(request):
@@ -1071,8 +1123,8 @@ def start_global_controller(controller_id, actor_id, controller_class_name, meth
                         metric_module_name = ''.join([settings.METRICS_BASE_MODULE, '.', 'bw_info'])
                         metric_class_name = 'BwInfo'
                     logger.info("Controller, Starting metric actor " + metric_name)
-                    metric_actors[metric_name] = host.spawn_id(metric_name, metric_module_name, metric_class_name,
-                                                           ["amq.topic", metric_name, "bwdifferentiation."+metric_name+".#", method_type.upper()])
+                    metric_actors[metric_name] = host.spawn(metric_name, metric_module_name + '/' + metric_class_name,
+                                                            ["amq.topic", metric_name, "bwdifferentiation."+metric_name+".#", method_type.upper()])
 
                     try:
                         metric_actors[metric_name].init_consum()
@@ -1089,8 +1141,8 @@ def start_global_controller(controller_id, actor_id, controller_class_name, meth
             # 2) Spawn controller actor
             #module_name = ''.join([settings.GLOBAL_CONTROLLERS_BASE_MODULE, '.', actor_id])
             module_name = actor_id
-            controller_actors[controller_id] = host.spawn_id(actor_id, module_name, controller_class_name,
-                                                       ["bw_algorithm_" + method_type, method_type.upper()])
+            controller_actors[controller_id] = host.spawn(actor_id, module_name + '/' + controller_class_name,
+                                                          ["bw_algorithm_" + method_type, method_type.upper()])
             logger.info("Controller, Started controller actor " + str(controller_id) + " " + str(actor_id))
             # ["abstract_enforcement_algorithm_get", "GET"])
             # ["amq.topic", actor_id, "controllers." + actor_id])
@@ -1108,3 +1160,41 @@ def stop_global_controller(controller_id):
             print e.args
         del controller_actors[controller_id]
         logger.info("Controller, Stopped controller actor " + str(controller_id))
+
+
+#
+# Crystal Projects
+#
+@csrf_exempt
+def projects(request):
+    """
+    GET: List all projects ordered by name
+    """
+    try:
+        r = get_redis_connection()
+    except RedisError:
+        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    if request.method == 'GET':
+        projetcs = r.lrange('projects_crystal_enabled', 0, -1)
+        return JSONResponse(projetcs, status=status.HTTP_200_OK)
+
+    if request.method == 'PUT':
+        data = JSONParser().parse(request)
+        project_id = data['project_id']
+        try:
+            r.lpush('projects_crystal_enabled', project_id)
+            return JSONResponse("Data inserted correctly", status=status.HTTP_201_CREATED)
+        except RedisError:
+            return JSONResponse("Error inserting data", status=status.HTTP_400_BAD_REQUEST)
+
+    if request.method == 'Delete':
+        data = JSONParser().parse(request)
+        project_id = data['project_id']
+        try:
+            r.lrem('projects_crystal_enabled', project_id)
+            return JSONResponse("Data correctly removed", status=status.HTTP_201_CREATED)
+        except RedisError:
+            return JSONResponse("Error inserting data", status=status.HTTP_400_BAD_REQUEST)
+
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)

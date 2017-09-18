@@ -7,7 +7,7 @@ import os
 from operator import itemgetter
 
 from django.conf import settings
-from django.core.servers.basehttp import FileWrapper
+from wsgiref.util import FileWrapper
 from django.http import HttpResponse
 from django.http import StreamingHttpResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -42,9 +42,9 @@ def check_keys(data, keys):
 
 
 @csrf_exempt
-def storlet_list(request):
+def filter_list(request):
     """
-    List all storlets, or create a new storlet.
+    List all filters, or create a new one.
     """
 
     try:
@@ -53,11 +53,11 @@ def storlet_list(request):
         return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     if request.method == 'GET':
         keys = r.keys("filter:*")
-        storlets = []
+        filters = []
         for key in keys:
-            storlet = r.hgetall(key)
-            storlets.append(storlet)
-        sorted_list = sorted(storlets, key=lambda x: int(itemgetter('id')(x)))
+            flter = r.hgetall(key)
+            filters.append(flter)
+        sorted_list = sorted(filters, key=lambda x: int(itemgetter('id')(x)))
         return JSONResponse(sorted_list, status=status.HTTP_200_OK)
 
     if request.method == 'POST':
@@ -89,9 +89,9 @@ def storlet_list(request):
 
 
 @csrf_exempt
-def storlet_detail(request, storlet_id):
+def filter_detail(request, filter_id):
     """
-    Retrieve, update or delete a Storlet.
+    Retrieve, update or delete a Filter.
     """
 
     try:
@@ -99,11 +99,11 @@ def storlet_detail(request, storlet_id):
     except RedisError:
         return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    if not r.exists("filter:" + str(storlet_id)):
+    if not r.exists("filter:" + str(filter_id)):
         return JSONResponse('Object does not exist!', status=status.HTTP_404_NOT_FOUND)
 
     if request.method == 'GET':
-        my_filter = r.hgetall("filter:" + str(storlet_id))
+        my_filter = r.hgetall("filter:" + str(filter_id))
 
         to_json_bools(my_filter, 'has_reverse', 'is_pre_get', 'is_post_get', 'is_pre_put', 'is_post_put', 'enabled')
         return JSONResponse(my_filter, status=status.HTTP_200_OK)
@@ -114,21 +114,21 @@ def storlet_detail(request, storlet_id):
         except ParseError:
             return JSONResponse("Invalid format or empty request", status=status.HTTP_400_BAD_REQUEST)
 
-        my_filter = r.hgetall("filter:" + str(storlet_id))
+        my_filter = r.hgetall("filter:" + str(filter_id))
 
         if (((my_filter['filter_type'] == 'storlet' or my_filter['filter_type'] == 'native') and not check_keys(data.keys(), FILTER_KEYS[3:-1])) or
                 ((my_filter['filter_type'] == 'global') and not check_keys(data.keys(), GLOBAL_FILTER_KEYS[3:-1]))):
             return JSONResponse("Invalid parameters in request", status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            r.hmset('filter:' + str(storlet_id), data)
+            r.hmset('filter:' + str(filter_id), data)
             if my_filter['filter_type'] == 'global':
                 if data['enabled'] is True or data['enabled'] == 'True' or data['enabled'] == 'true':
                     to_json_bools(data, 'has_reverse', 'is_pre_get', 'is_post_get', 'is_pre_put', 'is_post_put', 'enabled')
                     data['filter_type'] = 'global'  # Adding filter type
-                    r.hset("global_filters", str(storlet_id), json.dumps(data))
+                    r.hset("global_filters", str(filter_id), json.dumps(data))
                 else:
-                    r.hdel("global_filters", str(storlet_id))
+                    r.hdel("global_filters", str(filter_id))
 
             return JSONResponse("Data updated", status=status.HTTP_200_OK)
         except DataError:
@@ -139,31 +139,31 @@ def storlet_detail(request, storlet_id):
             keys = r.keys('dsl_filter:*')
             for key in keys:
                 dsl_filter_id = r.hget(key, 'identifier')
-                if dsl_filter_id == storlet_id:
+                if dsl_filter_id == filter_id:
                     return JSONResponse('Unable to delete filter, is in use by the Registry DSL.', status=status.HTTP_403_FORBIDDEN)
 
-            my_filter = r.hgetall("filter:" + str(storlet_id))
-            r.delete("filter:" + str(storlet_id))
+            my_filter = r.hgetall("filter:" + str(filter_id))
+            r.delete("filter:" + str(filter_id))
             if my_filter['filter_type'] == 'global':
-                r.hdel("global_filters", str(storlet_id))
+                r.hdel("global_filters", str(filter_id))
             return JSONResponse('Filter has been deleted', status=status.HTTP_204_NO_CONTENT)
         except DataError:
             return JSONResponse("Error deleting filter", status=status.HTTP_408_REQUEST_TIMEOUT)
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
-class StorletData(APIView):
+class FilterData(APIView):
     """
-    Upload or get a storlet data.
+    Upload or get a filter data.
     """
     parser_classes = (MultiPartParser, FormParser,)
 
-    def put(self, request, storlet_id, format=None):
+    def put(self, request, filter_id, format=None):
         try:
             r = get_redis_connection()
         except RedisError:
             return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        filter_name = "filter:" + str(storlet_id)
+        filter_name = "filter:" + str(filter_id)
         if r.exists(filter_name):
             file_obj = request.FILES['file']
 
@@ -186,7 +186,6 @@ class StorletData(APIView):
             try:
                 r.hset(filter_name, "filter_name", os.path.basename(path))
                 r.hset(filter_name, "path", str(path))
-                #r.hset(filter_name, "content_length", str(request.META["CONTENT_LENGTH"]))
                 r.hset(filter_name, "content_length", os.stat(path).st_size)
                 r.hset(filter_name, "etag", str(md5_etag))
             except RedisError:
@@ -227,12 +226,10 @@ class StorletData(APIView):
 
 
 @csrf_exempt
-def filter_deploy(request, filter_id, account, container=None, swift_object=None):
+def filter_deploy(request, filter_id, project, container=None, swift_object=None):
     """
     Deploy a filter to a specific swift account.
     """
-    token = get_token_connection(request)
-
     if request.method == 'PUT':
         try:
             r = get_redis_connection()
@@ -275,15 +272,18 @@ def filter_deploy(request, filter_id, account, container=None, swift_object=None
 
         # TODO: Try to improve this part
         if container and swift_object:
-            target = account + "/" + container + "/" + swift_object
+            target = project + "/" + container + "/" + swift_object
         elif container:
-            target = account + "/" + container
+            target = project + "/" + container
         else:
-            target = account
+            target = project
 
         try:
+            token = get_token_connection(request)
             set_filter(r, target, filter_data, policy_data, token)
+
             return JSONResponse(policy_id, status=status.HTTP_201_CREATED)
+
         except SwiftClientError:
             return JSONResponse('Error accessing Swift.', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         except StorletNotFoundException:
@@ -293,34 +293,12 @@ def filter_deploy(request, filter_id, account, container=None, swift_object=None
 
 
 @csrf_exempt
-def storlet_list_deployed(request, account):
+def filter_undeploy(request, filter_id, project, container=None, swift_object=None):
     """
-    List all the storlets deployed.
+    Undeploy a filter from a specific swift project.
     """
-
-    if request.method == 'GET':
-        try:
-            r = get_redis_connection()
-        except RedisError:
-            return JSONResponse('Problems to connect with the DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-        result = r.lrange("AUTH_" + str(account), 0, -1)
-        if result:
-            return JSONResponse(result, status=status.HTTP_200_OK)
-        else:
-            return JSONResponse('Any Storlet deployed', status=status.HTTP_404_NOT_FOUND)
-
-    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
-
-
-@csrf_exempt
-def filter_undeploy(request, filter_id, account, container=None, swift_object=None):
-    """
-    Undeploy a filter from a specific swift account.
-    """
-    token = get_token_connection(request)
-
     if request.method == 'PUT':
+
         try:
             r = get_redis_connection()
         except RedisError:
@@ -331,18 +309,14 @@ def filter_undeploy(request, filter_id, account, container=None, swift_object=No
         if not filter_data:
             return JSONResponse('Filter does not exist', status=status.HTTP_404_NOT_FOUND)
 
-        if not r.exists("AUTH_" + str(account) + ":" + str(filter_data["filter_name"])):
-            return JSONResponse('Filter ' + str(filter_data["filter_name"]) + ' has not been deployed already', status=status.HTTP_404_NOT_FOUND)
-
         if container and swift_object:
-            target = account + "/" + container + "/" + swift_object
+            target = project + "/" + container + "/" + swift_object
         elif container:
-            target = account + "/" + container
+            target = project + "/" + container
         else:
-            target = account
+            target = project
 
-        # print target
-
+        token = get_token_connection(request)
         return unset_filter(r, target, filter_data, token)
 
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
@@ -434,8 +408,7 @@ class DependencyData(APIView):
 
 
 @csrf_exempt
-def dependency_deploy(request, dependency_id, account):
-    token = get_token_connection(request)
+def dependency_deploy(request, dependency_id, project_id):
 
     if request.method == 'PUT':
         try:
@@ -455,7 +428,8 @@ def dependency_deploy(request, dependency_id, account):
             dependency_file = open(dependency["path"], 'r')
             content_length = None
             response = dict()
-            url = settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/AUTH_" + str(account)
+            token = get_token_connection(request)
+            url = settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/AUTH_" + project_id
             swift_client.put_object(url, token, 'dependency', dependency["name"], dependency_file, content_length,
                                     None, None, "application/octet-stream", metadata, None, None, None, response)
         except ClientException:
@@ -465,10 +439,10 @@ def dependency_deploy(request, dependency_id, account):
 
         status = response.get('status')
         if status == 201:
-            if r.exists("AUTH_" + str(account) + ":dependency:" + str(dependency['name'])):
+            if r.exists(str(project_id) + ":dependency:" + str(dependency['name'])):
                 return JSONResponse("Already deployed", status=200)
 
-            if r.lpush("AUTH_" + str(account) + ":dependencies", str(dependency['name'])):
+            if r.lpush(str(project_id) + ":dependencies", str(dependency['name'])):
                 return JSONResponse("Deployed", status=201)
 
         return JSONResponse("error", status=400)
@@ -477,14 +451,14 @@ def dependency_deploy(request, dependency_id, account):
 
 
 @csrf_exempt
-def dependency_list_deployed(request, account):
+def dependency_list_deployed(request, project):
     if request.method == 'GET':
         try:
             r = get_redis_connection()
         except RedisError:
             return JSONResponse('Problems to connect with the DB', status=500)
 
-        result = r.lrange("AUTH_" + str(account) + ":dependencies", 0, -1)
+        result = r.lrange(str(project) + ":dependencies", 0, -1)
         if result:
             return JSONResponse(result, status=200)
         else:
@@ -494,8 +468,7 @@ def dependency_list_deployed(request, account):
 
 
 @csrf_exempt
-def dependency_undeploy(request, dependency_id, account):
-    token = get_token_connection(request)
+def dependency_undeploy(request, dependency_id, project_id):
 
     if request.method == 'PUT':
         try:
@@ -507,24 +480,26 @@ def dependency_undeploy(request, dependency_id, account):
 
         if not dependency:
             return JSONResponse('Dependency does not exist', status=404)
-        if not r.exists("AUTH_" + str(account) + ":dependency:" + str(dependency["name"])):
+        if not r.exists(str(project_id) + ":dependency:" + str(dependency["name"])):
             return JSONResponse('Dependency ' + str(dependency["name"]) + ' has not been deployed already', status=404)
 
         try:
-            response = dict()
-            url = settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/AUTH_" + str(account)
-            swift_client.delete_object(url, token, 'dependency', dependency["name"], None, None, None, None, response)
-        except ClientException:
-            return JSONResponse(response.get("reason"), status=response.get('status'))
+            token = get_token_connection(request)
+            url = settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/AUTH_" + project_id
+            swift_response = dict()
+            swift_client.delete_object(url, token, 'dependency', dependency["name"], None, None, None, None, swift_response)
 
-        swift_status = response.get('status')
+        except ClientException:
+            return JSONResponse(swift_response.get("reason"), status=swift_response.get('status'))
+
+        swift_status = swift_response.get('status')
 
         if 200 <= swift_status < 300:
-            r.delete("AUTH_" + str(account) + ":dependency:" + str(dependency["name"]))
-            r.lrem("AUTH_" + str(account) + ":dependencies", str(dependency["name"]), 1)
+            r.delete(str(project_id) + ":dependency:" + str(dependency["name"]))
+            r.lrem(str(project_id) + ":dependencies", str(dependency["name"]), 1)
             return JSONResponse('The dependency has been deleted', status=swift_status)
 
-        return JSONResponse(response.get("reason"), status=swift_status)
+        return JSONResponse(swift_response.get("reason"), status=swift_status)
 
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
 
@@ -599,6 +574,7 @@ def slo_detail(request, dsl_filter, slo_name, target):
 
 def set_filter(r, target, filter_data, parameters, token):
     if filter_data['filter_type'] == 'storlet':
+
         metadata = {"X-Object-Meta-Storlet-Language": 'java',
                     "X-Object-Meta-Storlet-Interface-Version": filter_data["interface_version"],
                     "X-Object-Meta-Storlet-Dependency": filter_data["dependencies"],
@@ -606,15 +582,18 @@ def set_filter(r, target, filter_data, parameters, token):
                     "X-Object-Meta-Storlet-Main": filter_data["main"]
                     }
 
-        target_list = target.split('/', 3)
-        url = settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/AUTH_" + str(target_list[0])
-        swift_response = dict()
-
         try:
+            project_id = target.split('/', 3)[0]
+            swift_response = dict()
+            url = settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/AUTH_" + project_id
             storlet_file = open(filter_data["path"], 'r')
-            swift_client.put_object(url, token, "storlet", filter_data["filter_name"], storlet_file, None,
-                                    None, None, "application/octet-stream", metadata, None, None, None, swift_response)
-        except ClientException as e:
+            swift_client.put_object(url, token, "storlet",
+                                    filter_data["filter_name"],
+                                    storlet_file, None,
+                                    None, None, "application/octet-stream",
+                                    metadata, None, None, None, swift_response)
+
+        except Exception as e:
             logging.error(str(e))
             raise SwiftClientError("A problem occurred accessing Swift")
 
@@ -643,26 +622,27 @@ def set_filter(r, target, filter_data, parameters, token):
 
     data_dumped = json.dumps(data).replace('"True"', 'true').replace('"False"', 'false')
 
-    r.hset("pipeline:AUTH_" + str(target), policy_id, data_dumped)
+    r.hset("pipeline:" + str(target), policy_id, data_dumped)
 
 
-# FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 DO DELETE compression
+# FOR TENANT:crystal DO DELETE compression
 def unset_filter(r, target, filter_data, token):
-    swift_response = dict()
     if filter_data['filter_type'] == 'storlet':
         try:
-            target_list = target.split('/', 3)
-            url = settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/AUTH_" + str(target_list[0])
+            project_id = target.split('/', 3)[0]
+            swift_response = dict()
+            url = settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/AUTH_" + project_id
             swift_client.delete_object(url, token, "storlet", filter_data["filter_name"], None, None, None, None, swift_response)
         except ClientException as e:
             print swift_response + str(e)
             return swift_response.get("status")
 
-    keys = r.hgetall("pipeline:AUTH_" + str(target))
+    target = target.replace('/', ':')
+    keys = r.hgetall("pipeline:" + str(target))
     for key, value in keys.items():
         json_value = json.loads(value)
         if json_value["filter_name"] == filter_data["filter_name"]:
-            r.hdel("pipeline:AUTH_" + str(target), key)
+            r.hdel("pipeline:" + str(target), key)
 
 
 def make_sure_path_exists(path):

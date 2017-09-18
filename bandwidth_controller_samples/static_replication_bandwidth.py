@@ -1,12 +1,12 @@
 from controller.dynamic_policies.rules.base_bw_controller import BaseBwController
 
 
-class SimpleProportionalReplicationBandwidth(BaseBwController):
+class StaticReplicationBandwidth(BaseBwController):
 
     def _get_redis_slos(self, slo_name):
         """
         Gets the bw assignation from the redis database
-        """            
+        """
         # return float(self.r.get("replication_bw"))
 
         # FIXME: Now getting the ssync_bw from an arbitrary key
@@ -14,7 +14,6 @@ class SimpleProportionalReplicationBandwidth(BaseBwController):
         key = keys[0]
         return float(self.r.get(key))
 
-    
     def compute_algorithm(self, info):
         """
         Simple compute algorithm for replication
@@ -30,22 +29,22 @@ class SimpleProportionalReplicationBandwidth(BaseBwController):
 
         for node in info:
             total_ssync_requests += len(info[node])
-        
+
         bw_x_request = bw/total_ssync_requests
 
         for node in info:
             bw_a[node] = dict()
             for source in info[node]:
                 bw_a[node][source] = bw_x_request
-                          
+
         return bw_a
-    
+
     def send_results(self, assign):
         """
         Sends the calculated BW to each Node that has active requests
         """
         for node in assign:
-            for source in assign[node]:        
+            for source in assign[node]:
                 new_flow = node not in self.last_bw or source not in self.last_bw[node]
                 if not new_flow and float(assign[node][source]) == float(self.last_bw[node][source]):
                     break

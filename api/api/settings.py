@@ -33,7 +33,7 @@ SECRET_KEY = '&yx_=2@s(evyq=l9t2efrgmgryz^ea85$csdb_rprvc-9b&#r8'  # noqa
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['controller', ]
 
 # Application definition
 
@@ -98,23 +98,37 @@ DATABASES = {
 LOGGING = {
     'version': 1,
     'formatters': {
-        'standard': {
-            '()': 'api.common_utils.LoggingColors',
+        'standard_django': {
+            '()': 'api.common_utils.LoggingColorsDjango',
+            'format': '[%(asctime)s]"%(levelname)s" %(message)s',
+            'datefmt': '%d/%b/%Y %H:%M:%S',
+        },
+        'standard_crystal': {
+            '()': 'api.common_utils.LoggingColorsCrystal',
             'format': '[%(asctime)s]"%(levelname)s" %(name)s: %(message)s',
             'datefmt': '%d/%b/%Y %H:%M:%S',
         },
     },
     'handlers': {
-        'console': {
+        'console_django': {
             'class': 'logging.StreamHandler',
-            'formatter': 'standard',
+            'formatter': 'standard_django',
+        },
+        'console_crystal': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'standard_crystal',
         }
     },
     'loggers': {
-        '': {
-            'handlers': ['console'],
+        'django': {
+            'handlers': ['console_django'],
             'level': 'INFO',
-            'propagate': True
+            'propagate': False
+        },
+        '': {
+            'handlers': ['console_crystal'],
+            'level': 'INFO',
+            'propagate': False
         }
     }
 }
@@ -128,8 +142,8 @@ USE_TZ = True
 STATIC_URL = '/static/'
 
 # Keystone
-KEYSTONE_ADMIN_URL = 'http://localhost:5000/v2.0'
-KEYSTONE_URL = 'http://localhost:35357/v2.0'
+KEYSTONE_ADMIN_URL = 'http://localhost:35357/v3'
+KEYSTONE_URL = 'http://localhost:5000/v3'
 
 # Swift
 SWIFT_URL = 'http://localhost:8080/'
@@ -151,11 +165,11 @@ MANAGEMENT_ACCOUNT = 'management'
 MANAGEMENT_ADMIN_USERNAME = 'manager'
 MANAGEMENT_ADMIN_PASSWORD = 'manager'  # noqa
 
-# pyactive
-PYACTIVE_TRANSPORT = 'tcp'
-PYACTIVE_IP = '127.0.0.1'
-PYACTIVE_PORT = 6899
-PYACTIVE_URL = PYACTIVE_TRANSPORT + '://' + PYACTIVE_IP + ':' + str(PYACTIVE_PORT)
+# pyactor
+PYACTOR_TRANSPORT = 'http'
+PYACTOR_IP = '127.0.0.1'
+PYACTOR_PORT = 6899
+PYACTOR_URL = PYACTOR_TRANSPORT + '://' + PYACTOR_IP + ':' + str(PYACTOR_PORT)
 
 # Metrics
 METRIC_MODULE = 'controller.dynamic_policies.metrics.swift_metric'

@@ -18,13 +18,11 @@ class AbstractEnforcementAlgorithm(object):
     i) obtain goal assignments from Redis,
     ii) subscribe to a relevant metric actor,
     iii) send computed assignments to a global filter via RabbitMQ.
-    
+
     Global controller algorithms (e.g.: Bandwidth controllers) must extend this class and implement the compute_algorithm method.
     """
-    _sync = {'get_tenant': '2'}
-    _async = ['update', 'run', 'stop_actor']
-    _ref = []
-    _parallel = []
+    _ask = ['get_tenant']
+    _tell = ['update', 'run', 'stop_actor']
 
     def __init__(self, name, method):
         """
@@ -149,7 +147,7 @@ class AbstractEnforcementAlgorithm(object):
                 metric_actor = self.host.lookup(self.workload_metric_id)
                 metric_actor.detach_global_obs()
 
-            self._atom.stop()
+            self.host.stop_actor(self.id)
 
         except Exception as e:
             logger.error(str(e))

@@ -16,21 +16,19 @@ class TransientRule(Rule):
     rule will execute the reverse action (if action is SET, the will execute
     DELETE)
     """
-    _sync = {'get_target': '2'}
+    _ask = ['get_target']
     _async = ['update', 'start_rule', 'stop_actor']
-    _ref = []
-    _parallel = []
 
-    def __init__(self, rule_parsed, action, target, host):
+    def __init__(self, rule_parsed, action, target_id, target_name):
         """
         Initialize all the variables needed for the rule.
 
         :param rule_parsed: The rule parsed by the dsl_parser.
         :type rule_parsed: **any** PyParsing type
-        :param target: The target assigned to this rule.
-        :type target: **any** String type
+        :param target_name: The target assigned to this rule.
+        :type target_name: **any** String type
         """
-        super(TransientRule, self).__init__(rule_parsed, action, target, host)
+        super(TransientRule, self).__init__(rule_parsed, action, target_id, target_name)
         logger.info("Transient Rule")
         self.execution_stat = False
         self.static_policy_id = None
@@ -71,7 +69,7 @@ class TransientRule(Rule):
             action = self.action_list.action
 
         if not self.token:
-            self._admin_login()
+            self._get_admin_token()
 
         headers = {"X-Auth-Token": self.token}
         dynamic_filter = self.redis.hgetall("dsl_filter:"+str(self.action_list.filter))
@@ -80,7 +78,7 @@ class TransientRule(Rule):
             # TODO Review if this tenant has already deployed this filter. Don't deploy the same filter more than one time.
             logger.info("Setting static policy")
             data = dict()
-            url = dynamic_filter["activation_url"]+"/"+self.target+"/deploy/"+str(dynamic_filter["identifier"])
+            url = dynamic_filter["activation_url"]+"/"+self.target_id+"/deploy/"+str(dynamic_filter["identifier"])
 
             if hasattr(self.rule_parsed.object_list, "object_type"):
                 data['object_type'] = self.rule_parsed.object_list.object_type.object_value
@@ -105,7 +103,7 @@ class TransientRule(Rule):
         elif action == "DELETE":
             logger.info("Deleting static policy " + str(self.static_policy_id))
 
-            url = dynamic_filter["activation_url"].rsplit("/",1)[0]+"/controller/static_policy/"+self.target+":"+str(self.static_policy_id)
+            url = dynamic_filter["activation_url"].rsplit("/",1)[0]+"/controller/static_policy/"+self.target_id+":"+str(self.static_policy_id)
             response = requests.delete(url, headers=headers)
 
             if 200 <= response.status_code < 300:

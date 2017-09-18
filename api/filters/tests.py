@@ -8,7 +8,7 @@ from django.test import TestCase, override_settings
 from rest_framework import status
 from rest_framework.test import APIRequestFactory
 
-from .views import dependency_list, dependency_detail, storlet_list, storlet_detail, storlet_list_deployed, filter_deploy, unset_filter, StorletData, \
+from .views import dependency_list, dependency_detail, filter_list, filter_detail, filter_deploy, unset_filter, FilterData, \
     slo_list, slo_detail
 
 
@@ -36,7 +36,7 @@ class FiltersTestCase(TestCase):
         """
         # Create an instance of a GET request.
         request = self.factory.get('/filters')
-        response = storlet_list(request)
+        response = filter_list(request)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertNotEqual(response.content, "[]")
@@ -49,11 +49,11 @@ class FiltersTestCase(TestCase):
         Delete a storlet
         """
         request = self.factory.delete('/filters/1')
-        response = storlet_detail(request, "1")
+        response = filter_detail(request, "1")
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
         request = self.factory.get('/filters')
-        response = storlet_list(request)
+        response = filter_list(request)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.content, "[]")
 
@@ -62,7 +62,7 @@ class FiltersTestCase(TestCase):
         Delete a non existent storlet
         """
         request = self.factory.delete('/filters/2')
-        response = storlet_detail(request, "2")
+        response = filter_detail(request, "2")
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_update_storlet_ok(self):
@@ -75,11 +75,11 @@ class FiltersTestCase(TestCase):
             'is_post_put': 'False', 'is_pre_get': 'False',
             'has_reverse': 'False', 'execution_server': 'proxy', 'execution_server_reverse': 'proxy'}
         request = self.factory.put('/filters/1', filter_updated_data, format='json')
-        response = storlet_detail(request, "1")
+        response = filter_detail(request, "1")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         request = self.factory.get('/filters')
-        response = storlet_list(request)
+        response = filter_list(request)
         storlets = json.loads(response.content)
         self.assertEqual(storlets[0]['main'], 'com.example.UpdatedFakeMain')
 
@@ -87,12 +87,12 @@ class FiltersTestCase(TestCase):
         # Invalid parameter
         filter_updated_data = {'wrongparam': 'dummy', 'filter_type': 'storlet'}
         request = self.factory.put('/filters/1', filter_updated_data, format='json')
-        response = storlet_detail(request, "1")
+        response = filter_detail(request, "1")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
         # Wrong content type
         request = self.factory.put('/filters/1', 'dummy test', content_type='text/plain')
-        response = storlet_detail(request, "1")
+        response = filter_detail(request, "1")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
         # With name missing
@@ -102,7 +102,7 @@ class FiltersTestCase(TestCase):
             'is_post_put': 'False', 'is_pre_get': 'False',
             'has_reverse': 'False', 'execution_server': 'proxy', 'execution_server_reverse': 'proxy'}
         request = self.factory.put('/filters/1', filter_updated_data, format='json')
-        response = storlet_detail(request, "1")
+        response = filter_detail(request, "1")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_create_storlet_ok(self):
@@ -115,11 +115,11 @@ class FiltersTestCase(TestCase):
                        'is_post_put': 'False', 'is_pre_get': 'False', 'has_reverse': 'False', 'execution_server': 'proxy',
                        'execution_server_reverse': 'proxy'}
         request = self.factory.post('/filters/', filter_data, format='json')
-        response = storlet_list(request)
+        response = filter_list(request)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         request = self.factory.get('/filters')
-        response = storlet_list(request)
+        response = filter_list(request)
         storlets = json.loads(response.content)
         self.assertEqual(len(storlets), 2)
         sorted_list = sorted(storlets, key=lambda st: st['id'])
@@ -136,7 +136,7 @@ class FiltersTestCase(TestCase):
                        'is_post_put': 'False', 'is_pre_get': 'False', 'has_reverse': 'False', 'execution_server': 'proxy',
                        'execution_server_reverse': 'proxy'}
         request = self.factory.post('/filters/', filter_data, format='json')
-        response = storlet_list(request)
+        response = filter_list(request)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         # Create a third storlet
@@ -145,7 +145,7 @@ class FiltersTestCase(TestCase):
                        'is_post_put': 'False', 'is_pre_get': 'False', 'has_reverse': 'False', 'execution_server': 'proxy',
                        'execution_server_reverse': 'proxy'}
         request = self.factory.post('/filters/', filter_data, format='json')
-        response = storlet_list(request)
+        response = filter_list(request)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         # Create a Fourth storlet
@@ -154,11 +154,11 @@ class FiltersTestCase(TestCase):
                        'is_post_put': 'False', 'is_pre_get': 'False', 'has_reverse': 'False', 'execution_server': 'proxy',
                        'execution_server_reverse': 'proxy'}
         request = self.factory.post('/filters/', filter_data, format='json')
-        response = storlet_list(request)
+        response = filter_list(request)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         request = self.factory.get('/filters')
-        response = storlet_list(request)
+        response = filter_list(request)
         storlets = json.loads(response.content)
         self.assertEqual(len(storlets), 4)
         self.assertEqual(storlets[0]['main'], 'com.example.FakeMain')
@@ -170,12 +170,12 @@ class FiltersTestCase(TestCase):
         # Invalid param
         filter_data = {'wrongparam': 'dummy', 'filter_type': 'storlet'}
         request = self.factory.post('/filters/', filter_data, format='json')
-        response = storlet_list(request)
+        response = filter_list(request)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
         # Wrong content type
         request = self.factory.post('/filters/', 'dummy_text', content_type='text/plain')
-        response = storlet_list(request)
+        response = filter_list(request)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
         # with name present
@@ -184,35 +184,30 @@ class FiltersTestCase(TestCase):
                        'is_post_put': 'False', 'is_pre_get': 'False',
                        'has_reverse': 'False', 'execution_server': 'proxy', 'execution_server_reverse': 'proxy'}
         request = self.factory.post('/filters/', filter_data, format='json')
-        response = storlet_list(request)
+        response = filter_list(request)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_upload_storlet_data_ok(self):
         with open('test_data/test-1.0.jar', 'r') as fp:
             request = self.factory.put('/filters/1/data', {'file': fp})
-            response = StorletData.as_view()(request, 1)
+            response = FilterData.as_view()(request, 1)
             self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         request = self.factory.get('/filters')
-        response = storlet_list(request)
+        response = filter_list(request)
         storlets = json.loads(response.content)
         self.assertTrue(len(storlets[0]['etag']) > 0)
 
     def test_upload_storlet_data_to_non_existent_storlet(self):
         with open('test_data/test-1.0.jar', 'r') as fp:
             request = self.factory.put('/filters/2/data', {'file': fp})
-            response = StorletData.as_view()(request, 2)
+            response = FilterData.as_view()(request, 2)
             self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-
-    def test_storlet_list_deployed_for_empty_tenant(self):
-        request = self.factory.get('/filters/0123456789abcdef/deploy')
-        response = storlet_list_deployed(request, '0123456789abcdef')
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_upload_storlet_with_wrong_extension(self):
         with open('test_data/test.txt', 'r') as fp:
             request = self.factory.put('/filters/1/data', {'file': fp})
-            response = StorletData.as_view()(request, 1)
+            response = FilterData.as_view()(request, 1)
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def mock_put_object_status_created(url, token=None, container=None, name=None, contents=None,
@@ -226,7 +221,7 @@ class FiltersTestCase(TestCase):
         # Upload a filter for the storlet 1
         with open('test_data/test-1.0.jar', 'r') as fp:
             request = self.factory.put('/filters/1/data', {'file': fp})
-            StorletData.as_view()(request, 1)
+            FilterData.as_view()(request, 1)
 
         # Call filter_deploy
         data = {"filter_id": "1", "target_id": "0123456789abcdef",
@@ -241,8 +236,8 @@ class FiltersTestCase(TestCase):
         mock_put_object.assert_called_with(settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/AUTH_0123456789abcdef",
                                            'fake_token', "storlet", "test-1.0.jar", mock.ANY, mock.ANY, mock.ANY,
                                            mock.ANY, mock.ANY, mock.ANY, mock.ANY, mock.ANY, mock.ANY, mock.ANY)
-        self.assertTrue(self.r.hexists("pipeline:AUTH_0123456789abcdef", "1"))
-        dumped_data = self.r.hget("pipeline:AUTH_0123456789abcdef", "1")
+        self.assertTrue(self.r.hexists("pipeline:0123456789abcdef", "1"))
+        dumped_data = self.r.hget("pipeline:0123456789abcdef", "1")
         json_data = json.loads(dumped_data)
         self.assertEqual(json_data["filter_name"], "test-1.0.jar")
 
@@ -251,7 +246,7 @@ class FiltersTestCase(TestCase):
         # Upload a filter for the storlet 1
         with open('test_data/test-1.0.jar', 'r') as fp:
             request = self.factory.put('/filters/1/data', {'file': fp})
-            StorletData.as_view()(request, 1)
+            FilterData.as_view()(request, 1)
 
         # Call filter_deploy
         data = {"filter_id": "1", "target_id": "0123456789abcdef",
@@ -266,8 +261,8 @@ class FiltersTestCase(TestCase):
         mock_put_object.assert_called_with(settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/AUTH_0123456789abcdef",
                                            'fake_token', "storlet", "test-1.0.jar", mock.ANY, mock.ANY, mock.ANY,
                                            mock.ANY, mock.ANY, mock.ANY, mock.ANY, mock.ANY, mock.ANY, mock.ANY)
-        self.assertTrue(self.r.hexists("pipeline:AUTH_0123456789abcdef:container1", "1"))
-        dumped_data = self.r.hget("pipeline:AUTH_0123456789abcdef:container1", "1")
+        self.assertTrue(self.r.hexists("pipeline:0123456789abcdef:container1", "1"))
+        dumped_data = self.r.hget("pipeline:0123456789abcdef:container1", "1")
         json_data = json.loads(dumped_data)
         self.assertEqual(json_data["filter_name"], "test-1.0.jar")
 
@@ -297,8 +292,8 @@ class FiltersTestCase(TestCase):
     #     mock_put_object.assert_called_with(settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/AUTH_0123456789abcdef",
     #                                        'fake_token', "storlet", "FakeFilter", mock.ANY, mock.ANY, mock.ANY,
     #                                        mock.ANY, mock.ANY, mock.ANY, mock.ANY, mock.ANY, mock.ANY, mock.ANY)
-    #     self.assertTrue(self.r.hexists("pipeline:AUTH_0123456789abcdef", "1"))
-    #     dumped_data = self.r.hget("pipeline:AUTH_0123456789abcdef", "1")
+    #     self.assertTrue(self.r.hexists("pipeline:0123456789abcdef", "1"))
+    #     dumped_data = self.r.hget("pipeline:0123456789abcdef", "1")
     #     json_data = json.loads(dumped_data)
     #     self.assertEqual(json_data["filter_name"], "FakeFilter")
     #
@@ -375,13 +370,13 @@ class FiltersTestCase(TestCase):
     def test_unset_filter_ok(self, mock_delete_object):
         data20 = {'filter_name': 'XXXXX'}
         data21 = {'filter_name': 'test-1.0.jar'}
-        self.r.hmset('pipeline:AUTH_0123456789abcdef', {'20': json.dumps(data20), '21': json.dumps(data21)})
+        self.r.hmset('pipeline:0123456789abcdef', {'20': json.dumps(data20), '21': json.dumps(data21)})
         unset_filter(self.r, '0123456789abcdef', {'filter_type': 'storlet', 'filter_name': 'test-1.0.jar'}, 'fake_token')
         mock_delete_object.assert_called_with(settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/AUTH_0123456789abcdef",
                                               'fake_token', "storlet", "test-1.0.jar", mock.ANY, mock.ANY, mock.ANY,
                                               mock.ANY, mock.ANY)
-        self.assertFalse(self.r.hexists("pipeline:AUTH_0123456789abcdef", "21"))  # 21 was deleted
-        self.assertTrue(self.r.hexists("pipeline:AUTH_0123456789abcdef", "20"))  # 20 was not deleted
+        self.assertFalse(self.r.hexists("pipeline:0123456789abcdef", "21"))  # 21 was deleted
+        self.assertTrue(self.r.hexists("pipeline:0123456789abcdef", "20"))  # 20 was not deleted
 
     # slo_list / slo_detail
 
@@ -510,7 +505,7 @@ class FiltersTestCase(TestCase):
                        'is_post_put': 'False', 'is_pre_get': 'False',
                        'has_reverse': 'False', 'execution_server': 'proxy', 'execution_server_reverse': 'proxy'}
         request = self.factory.post('/filters/', filter_data, format='json')
-        response = storlet_list(request)
+        response = filter_list(request)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
     def create_dependency(self):

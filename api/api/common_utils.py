@@ -4,26 +4,48 @@ import os
 import sys
 import time
 
-import keystoneclient.v2_0.client as keystone_client
+from keystoneauth1.identity import v3
+from keystoneauth1 import session
+from keystoneclient.v3 import client
 import redis
 from django.conf import settings
 from django.core.management.color import color_style
 from django.http import HttpResponse
 from rest_framework.renderers import JSONRenderer
-
 from api.exceptions import FileSynchronizationException
-from pyactive.controller import init_host, start_controller
-
-host = None
-# remote_host = None
+from pyactor.context import set_context, create_host
 
 logger = logging.getLogger(__name__)
-
+host = None
 NODE_STATUS_THRESHOLD = 15  # seconds
 
-class LoggingColors(logging.Formatter):
+
+class LoggingColorsDjango(logging.Formatter):
     def __init__(self, *args, **kwargs):
-        super(LoggingColors, self).__init__(*args, **kwargs)
+        super(LoggingColorsDjango, self).__init__(*args, **kwargs)
+        self.style = self.configure_style(color_style())
+
+    @staticmethod
+    def configure_style(style):
+        style.DEBUG = style.HTTP_NOT_MODIFIED
+        style.INFO = style.HTTP_SUCCESS
+        style.WARNING = style.HTTP_NOT_FOUND
+        style.ERROR = style.ERROR
+        style.CRITICAL = style.HTTP_SERVER_ERROR
+        return style
+
+    def format(self, record):
+        message = logging.Formatter.format(self, record)
+        if sys.version_info[0] < 3:
+            if isinstance(message, unicode):
+                message = message.encode('utf-8')
+        colorizer = getattr(self.style, record.levelname, self.style.HTTP_SUCCESS)
+        return colorizer(message)
+
+
+class LoggingColorsCrystal(logging.Formatter):
+    def __init__(self, *args, **kwargs):
+        super(LoggingColorsCrystal, self).__init__(*args, **kwargs)
         self.style = self.configure_style(color_style())
 
     @staticmethod
@@ -67,62 +89,31 @@ def get_keystone_admin_auth():
     admin_project = settings.MANAGEMENT_ACCOUNT
     admin_user = settings.MANAGEMENT_ADMIN_USERNAME
     admin_passwd = settings.MANAGEMENT_ADMIN_PASSWORD
-    keystone_url = settings.KEYSTONE_URL
+    keystone_url = settings.KEYSTONE_ADMIN_URL
 
-    keystone = None
+    keystone_client = None
     try:
-        keystone = keystone_client.Client(auth_url=keystone_url,
-                                          username=admin_user,
-                                          password=admin_passwd,
-                                          tenant_name=admin_project)
+        auth = v3.Password(auth_url=keystone_url,
+                           username=admin_user,
+                           password=admin_passwd,
+                           project_name=admin_project,
+                           user_domain_id='default',
+                           project_domain_id='default')
+        sess = session.Session(auth=auth)
+        keystone_client = client.Client(session=sess)
     except Exception as exc:
         print(exc)
 
-    return keystone
-
-
-# def is_valid_request(request):
-#     token = request.META['HTTP_X_AUTH_TOKEN']
-#     is_admin = False
-#     now = datetime.utcnow()
-#
-#     if token not in valid_tokens:
-#         keystone = get_keystone_admin_auth()
-#
-#         try:
-#             token_data = keystone.tokens.validate(token)
-#         except:
-#             return False
-#
-#         token_expiration = datetime.strptime(token_data.expires,
-#                                              '%Y-%m-%dT%H:%M:%SZ')
-#
-#         token_roles = token_data.user['roles']
-#         for role in token_roles:
-#             if role['name'] == 'admin':
-#                 is_admin = True
-#
-#         if token_expiration > now and is_admin:
-#             valid_tokens[token] = token_expiration
-#             return token
-#
-#     else:
-#         token_expiration = valid_tokens[token]
-#         if token_expiration > now:
-#             return token
-#         else:
-#             valid_tokens.pop(token, None)
-#
-#     return False
+    return keystone_client
 
 
 def get_project_list():
-    keystone = get_keystone_admin_auth()
-    tenants = keystone.tenants.list()
+    keystone_client = get_keystone_admin_auth()
+    projects = keystone_client.projects.list()
 
     project_list = {}
-    for tenant in tenants:
-        project_list[tenant.id] = tenant.name
+    for project in projects:
+        project_list[project.id] = project.name
 
     return project_list
 
@@ -131,8 +122,9 @@ def rsync_dir_with_nodes(directory):
     # retrieve nodes
     nodes = get_all_registered_nodes()
     for node in nodes:
+        logger.info("\nRsync - pushing to "+node['name'])
         if not node.viewkeys() & {'ssh_username', 'ssh_password'}:
-            raise FileSynchronizationException("SSH credentials missing for some Swift node. Please, set the credentials for all nodes.")
+            raise FileSynchronizationException("SSH credentials missing. Please, set the credentials for this "+node['type']+" node: "+node['name'])
 
         # Directory is only synchronized if node status is UP
         if calendar.timegm(time.gmtime()) - int(float(node['last_ping'])) <= NODE_STATUS_THRESHOLD:
@@ -144,7 +136,7 @@ def rsync_dir_with_nodes(directory):
             # print "System: %s" % rsync_command
             ret = os.system(rsync_command)
             if ret != 0:
-                raise FileSynchronizationException("An error occurred copying files to Swift nodes")
+                raise FileSynchronizationException("An error occurred copying files to Swift nodes. Please check the SSH credentials of this "+node['type']+" node: "+node['name'])
 
 
 def get_all_registered_nodes():
@@ -153,7 +145,7 @@ def get_all_registered_nodes():
     :return:
     """
     r = get_redis_connection()
-    keys = r.keys("node:*")
+    keys = r.keys("*_node:*")
     nodes = []
     for key in keys:
         node = r.hgetall(key)
@@ -175,12 +167,11 @@ def remove_extra_whitespaces(_str):
 
 
 def create_local_host():
-    tcpconf = ('tcp', (settings.PYACTIVE_IP, settings.PYACTIVE_PORT))
     global host
     try:
-        start_controller("pyactive_thread")
-        host = init_host(tcpconf)
-        logger.info("Controller PyActive host created")
+        set_context()
+        host = create_host(settings.PYACTOR_URL)
+        logger.info("Controller PyActor host created")
     except:
         pass
 
