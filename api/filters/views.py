@@ -25,9 +25,9 @@ from api.exceptions import SwiftClientError, StorletNotFoundException, FileSynch
 
 # TODO create a common file and put this into the new file
 # Start Common
-FILTER_KEYS = ('id', 'filter_name', 'filter_type', 'interface_version', 'dependencies', 'object_metadata', 'main', 'is_pre_put', 'is_post_put',
+FILTER_KEYS = ('id', 'filter_name', 'filter_type', 'object_metadata', 'main', 'is_pre_put', 'is_post_put',
                'is_pre_get', 'is_post_get', 'has_reverse', 'execution_server', 'execution_server_reverse', 'path')
-GLOBAL_FILTER_KEYS = ('id', 'filter_name', 'filter_type', 'interface_version', 'dependencies', 'object_metadata', 'main', 'is_pre_put', 'is_post_put',
+GLOBAL_FILTER_KEYS = ('id', 'filter_name', 'filter_type', 'object_metadata', 'main', 'is_pre_put', 'is_post_put',
                       'is_pre_get', 'is_post_get', 'has_reverse', 'execution_server', 'execution_server_reverse', 'execution_order', 'enabled', 'path')
 DEPENDENCY_KEYS = ('id', 'name', 'version', 'permissions', 'path')
 
