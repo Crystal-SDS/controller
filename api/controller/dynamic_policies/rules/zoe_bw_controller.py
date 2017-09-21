@@ -1,61 +1,73 @@
 import json
+import logging
 import redis
-
-print "ZoeBwController: in imports"
 
 from django.conf import settings
 from keystoneauth1.identity import v3
 from keystoneauth1 import session
 from keystoneclient.v3 import client
 from redis.exceptions import RedisError
-#import keystoneclient.v2_0.client as keystone_client
-#from api.common_utils import get_project_list
+
+logger = logging.getLogger(__name__)
 
 
 class ZoeBwController(object):
 
-    _ask = []
+    _ask = ['get_target']
     _tell = ['update', 'run', 'stop_actor']
 
     DISK_IO_BANDWIDTH = 100.  # MBps
 
     def __init__(self, name):
-        print "ZoeBwController: in __init__()"
         try:
             self.r = redis.Redis(connection_pool=settings.REDIS_CON_POOL)
         except RedisError:
             print "Error connecting with Redis DB"
 
         self.name = name
-        self.workload_metric_id = ''
+        self.zoe_metric_id = ''
         self.abstract_policies = {}
+        self.bw_control = {}
         self.slo_objectives = {'platinum': int(self.DISK_IO_BANDWIDTH * 0.9),
                                'gold': int(self.DISK_IO_BANDWIDTH * 0.8),
                                'silver': int(self.DISK_IO_BANDWIDTH * 0.4),
                                'bronze': int(self.DISK_IO_BANDWIDTH * 0.2)}
 
-    def run(self, workload_metric_id):
+    def run(self, zoe_metric_id):
         """
         The `run()` method subscribes the controller to the Zoe metric
 
-        :param workload_metric_id: The name that identifies the workload metric.
-        :type workload_metric_id: **any** String type
+        :param zoe_metric_id: The name that identifies the Zoe metric.
+        :type zoe_metric_id: **any** String type
 
         """
         try:
-            print "ZoeBwController: in __run__()"
-            self.workload_metric_id = workload_metric_id
-            metric_actor = self.host.lookup(workload_metric_id)
-            metric_actor.attach(self.proxy)
-        except Exception as e:
-            raise Exception('Error attaching to metric bw_info: ' + str(e))
+            self.zoe_metric_id = zoe_metric_id
+            zoe_metric_actor = self.host.lookup(zoe_metric_id)
+            zoe_metric_actor.attach(self.proxy)
 
-    def update(self, metric, info):
-        print "ZoeBwController: in update()"
+            #remote_host = self.host.lookup_url(settings.PYACTOR_URL, Host)  # looking up for Crystal controller existing host
+
+            #bw_metric_actor = remote_host.lookup('get_bandwidth')
+            bw_metric_actor = self.host.lookup('get_bandwidth')
+            print 'bw_metric:' + str(bw_metric_actor)
+            logger.info('bw_metric:' + str(bw_metric_actor))
+            bw_metric_actor.attach(self.proxy)
+
+        except Exception as e:
+            raise Exception('Error attaching to metric: ' + str(e))
+
+    @staticmethod
+    def get_target():
+        return '*';  # Wildcard: all targets
+
+    def update(self, metric, target, info):
+
+        logger.info(str(metric) + " - " + str(target) + " - " + str(info))
 
         if metric == 'zoe_metric':
             info_dict = json.loads(info)
-            print("Zoe controller - Update rcvd: " + str(info_dict))
+            logger.info("Zoe controller - Update rcvd: " + str(info_dict))
             tenant_name = info_dict['tenant']
 
             tenant_list = ZoeBwController.get_tenants_by_name()
@@ -68,6 +80,44 @@ class ZoeBwController(object):
             self.r.set('SLO:bandwidth:get_bw:AUTH_' + tenant_id + '#0', slo_objective)
             self.r.set('SLO:bandwidth:put_bw:AUTH_' + tenant_id + '#0', slo_objective)
             self.r.set('SLO:bandwidth:ssync_bw:AUTH_' + tenant_id + '#0', slo_objective)  # not used
+        elif metric == 'get_bandwidth':
+            # e.g. target = 'test' or 'test/container' - info = '20.3'
+
+            if '/' not in target:
+                if target not in self.bw_control:
+                    self.bw_control[target] = {'active_for': 0, 'inactive_for': 0}
+                if float(info) == 0.0:
+                    self.bw_control[target]['inactive_for'] += 1
+                    self.bw_control[target]['active_for'] = 0
+                else:
+                    self.bw_control[target]['inactive_for'] = 0
+                    self.bw_control[target]['active_for'] += 1
+                active_tenants = self.active_tenants()
+                if self.bw_control[target]['inactive_for'] == 2 and len(active_tenants) == 1:
+                    # 4 seconds without requests in this tenant and there's only 1 tenant active -->
+                    # disable policy
+
+                    tenant_list = ZoeBwController.get_tenants_by_name()
+                    tenant_id = tenant_list[active_tenants[0]]
+
+                    # Obtain active policies for this tenant
+                    # If there is an active bw policy --> undeploy it
+                    pipeline_name = 'pipeline:' + tenant_id
+                    if self.r.exists(pipeline_name):
+                        pipeline_contents = self.r.hgetall(pipeline_name)
+                        for key, value in pipeline_contents.items():
+                            policy = json.loads(value)
+                            if policy['filter_name'] == 'crystal_bandwidth_control.py':
+                                logger.info("Deleting bw policy...")
+                                self.r.hdel(pipeline_name, key)
+                                break
+
+    def active_tenants(self):
+        active = []
+        for tenant in self.bw_control.keys():
+            if self.bw_control[tenant]['active_for'] > 0:
+                active.append(tenant)
+        return active
 
     @staticmethod
     def get_tenants_by_name():
@@ -102,18 +152,12 @@ class ZoeBwController(object):
 
         return keystone_client
 
-    # def stop_actor(self):
-    #     """
-    #     Asynchronous method. This method can be called remotely.
-    #     This method ends the controller execution and kills the actor.
-    #     """
-    #     try:
-    #         if self.workload_metric_id:
-    #             metric_actor = self.host.lookup(self.workload_metric_id)
-    #             metric_actor.detach_global_obs()
-    #
-    #         self._atom.stop()
-    #
-    #     except Exception as e:
-    #         logger.error(str(e))
-    #         print e
+    def stop_actor(self):
+        """
+        Asynchronous method. This method can be called remotely.
+        This method ends the controller execution and kills the actor.
+        """
+        try:
+            self.host.stop_actor(self.id)
+        except Exception as e:
+            print e

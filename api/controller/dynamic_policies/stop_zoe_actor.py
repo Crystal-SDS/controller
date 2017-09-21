@@ -12,36 +12,34 @@ from eventlet import sleep
 from django.conf import settings
 from api import settings as crystal_settings
 
-def start_actors():
-    #host = create_host(crystal_settings.PYACTOR_URL)
+def stop_actors():
     host = create_host('http://127.0.0.1:6375')  # creating a local host
+
+    print 'Before remote_host lookup'
 
     remote_host = host.lookup_url(crystal_settings.PYACTOR_URL, Host)  # looking up for Crystal controller existing host
 
-    zoe_metric = remote_host.spawn("zoe_metric", 'controller.dynamic_policies.metrics.zoe_metric/ZoeMetric', ["zoe_metric", "amq.topic", "zoe_queue", "zoe"])
+    print 'After remote_host lookup'
 
-    try:
-        zoe_metric.init_consum()
-        sleep(0.1)
-    except Exception as e:
-        print e.args
-        zoe_metric.stop_actor()
+    zoe_bw_controller = remote_host.lookup("zoe_bw_controller")
 
-    zoe_bw_controller = remote_host.spawn("zoe_bw_controller", 'controller.dynamic_policies.rules.zoe_bw_controller/ZoeBwController', ["zoe_bw_controller"])
-    zoe_bw_controller.run("zoe_metric")
+    print 'After zoe_bw_controller lookup'
 
+    zoe_bw_controller.stop_actor()
+
+    zoe_metric = remote_host.lookup("zoe_metric")
+    zoe_metric.stop_actor()
 
 def main():
     print "-- Settings configuration --"
     settings.configure(default_settings=crystal_settings)
 
-    print "-- Starting Zoe actors --"
+    print "-- Stopping Zoe actors --"
     set_context()
-    start_actors()
+    stop_actors()
 
     sleep(1)
     shutdown()
-    #serve_forever()
 
 
 if __name__ == "__main__":

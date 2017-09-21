@@ -7,6 +7,7 @@ import time
 import Queue
 
 AGGREGATION_INTERVAL = 1
+ALL_TARGETS = '*'
 logger = logging.getLogger(__name__)
 
 
@@ -76,5 +77,8 @@ class SwiftMetric(Metric):
                     if target in self._observers:
                         for observer in self._observers[target].values():
                             observer.update(self.name, aggregate[target])
+                    if ALL_TARGETS in self._observers:
+                        for observer in self._observers[ALL_TARGETS].values():
+                            observer.update(self.name, target, aggregate[target])
             except Exception as e:
                 logger.info("Swift Metric: Error sending monitoring data to observer: "+str(e))

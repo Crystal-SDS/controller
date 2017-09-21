@@ -31,7 +31,7 @@ class ZoeMetric(Metric):
 
         try:
             for observer in self._observers:
-                observer.update(self.name, json.dumps(zoe_data))
+                observer.update(self.name, None, json.dumps(zoe_data))
 
         except Exception as e:
             print "Fail sending monitoring data to observer: ", e
@@ -52,3 +52,16 @@ class ZoeMetric(Metric):
             self._observers = set()
         if observer not in self._observers:
             self._observers.add(observer)
+
+    def stop_actor(self):
+        """
+        Asynchronous method. This method allows to be called remotely.
+        This method ends the workload execution and kills the actor.
+        """
+        try:
+            self.redis.delete("metric:" + self.name)
+            self.stop_consuming()
+            self.host.stop_actor(self.id)
+
+        except Exception as e:
+            print e
