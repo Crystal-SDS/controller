@@ -1,8 +1,3 @@
-import json
-import logging
-import redis
-import requests
-import paramiko
 from paramiko.ssh_exception import SSHException, AuthenticationException
 from django.conf import settings
 from django.http import HttpResponse
@@ -12,7 +7,11 @@ from rest_framework import status
 from rest_framework.exceptions import ParseError
 from rest_framework.parsers import JSONParser
 from operator import itemgetter
-
+import json
+import logging
+import redis
+import requests
+import paramiko
 import sds_project
 import storage_policies_utils
 from api.common_utils import JSONResponse, get_redis_connection, get_token_connection
@@ -22,36 +21,29 @@ logger = logging.getLogger(__name__)
 
 
 #
-# Storage Policy
+# Storage Policies
 #
-
-@csrf_exempt
-def storage_policy_list(request):
-    """
-    List all storage policies.
-    """
-
-    try:
-        r = get_redis_connection()
-    except RedisError:
-        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    if request.method == 'GET':
-        keys = r.keys("storage-policy:*")
-        storage_policy_list = []
-        for key in keys:
-            storage_policy = r.hgetall(key)
-            storage_policy['id'] = str(key).split(':')[-1]
-            storage_policy_list.append(storage_policy)
-        return JSONResponse(storage_policy_list, status=status.HTTP_200_OK)
-    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
-
-
 @csrf_exempt
 def storage_policies(request):
     """
     Creates a storage policy to swift with an specific ring.
     Allows create replication storage policies and erasure code storage policies
     """
+
+    if request.method == "GET":
+        try:
+            r = get_redis_connection()
+        except RedisError:
+            return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        if request.method == 'GET':
+            keys = r.keys("storage-policy:*")
+            storage_policy_list = []
+            for key in keys:
+                storage_policy = r.hgetall(key)
+                storage_policy['id'] = str(key).split(':')[-1]
+                storage_policy_list.append(storage_policy)
+            return JSONResponse(storage_policy_list, status=status.HTTP_200_OK)
+        return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
     if request.method == "POST":
         data = JSONParser().parse(request)
@@ -266,7 +258,7 @@ def region_detail(request, region_id):
             return JSONResponse(region, status=status.HTTP_200_OK)
         else:
             return JSONResponse('Region not found.', status=status.HTTP_404_NOT_FOUND)
-    
+
     if request.method == 'DELETE':
         # Deletes the key. If the node is alive, the metric middleware will recreate this key again.
         if r.exists(key):
@@ -340,7 +332,7 @@ def zone_detail(request, zone_id):
             return JSONResponse(zone, status=status.HTTP_200_OK)
         else:
             return JSONResponse('Zone not found.', status=status.HTTP_404_NOT_FOUND)
-    
+
     if request.method == 'DELETE':
         # Deletes the key. If the node is alive, the metric middleware will recreate this key again.
         if r.exists(key):
@@ -361,11 +353,9 @@ def zone_detail(request, zone_id):
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
-
 #
 # PROXY SORTING NOT USED, TODO: Remove
 #
-
 @csrf_exempt
 def sort_list(request):
     """
@@ -430,4 +420,3 @@ def sort_detail(request, sort_id):
         r.delete("proxy_sorting:" + str(sort_id))
         return JSONResponse('Proxy sorting has been deleted', status=status.HTTP_204_NO_CONTENT)
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
-
