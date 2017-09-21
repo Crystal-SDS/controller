@@ -19,6 +19,7 @@ urlpatterns = [
     # Regions
     url(r'^regions/?$', views.regions),
     url(r'^regions/(?P<region_id>[^/]+)/?$', views.region_detail),
-    url(r'^zones/?$', views.regions),
+    url(r'^zones/?$', views.zones),
+    url(r'^zones/(?P<zone_id>[^/]+)/?$', views.zone_detail),
 
 ]

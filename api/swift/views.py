@@ -61,6 +61,7 @@ def storage_policies(request):
                 storage_nodes_list.extend([k, v])
             data["storage_node"] = ','.join(map(str, storage_nodes_list))
             try:
+                print data
                 storage_policies_utils.create(data)
             except Exception as e:
                 return JSONResponse('Error creating the Storage Policy: ' + e, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -258,6 +259,14 @@ def region_detail(request, region_id):
         return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     key = 'region:' + str(region_id)
+
+    if request.method == 'GET':
+        if r.exists(key):
+            region = r.hgetall(key)
+            return JSONResponse(region, status=status.HTTP_200_OK)
+        else:
+            return JSONResponse('Region not found.', status=status.HTTP_404_NOT_FOUND)
+    
     if request.method == 'DELETE':
         # Deletes the key. If the node is alive, the metric middleware will recreate this key again.
         if r.exists(key):
@@ -266,14 +275,92 @@ def region_detail(request, region_id):
         else:
             return JSONResponse('Node not found.', status=status.HTTP_404_NOT_FOUND)
 
-    if request.method == 'GET':
-        if r.exists(key):
-            region = r.hgetall(key)
-            return JSONResponse(region, status=status.HTTP_200_OK)
-        else:
-            return JSONResponse('Region not found.', status=status.HTTP_404_NOT_FOUND)
+    if request.method == 'PUT':
+        data = JSONParser().parse(request)
+        key = "region:" + str(data['region_id'])
+        try:
+            r.hmset(key, data)
+            return JSONResponse("Data updated correctly", status=status.HTTP_201_CREATED)
+        except RedisError:
+            return JSONResponse("Error updating data", status=status.HTTP_400_BAD_REQUEST)
 
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+
+# Zones
+@csrf_exempt
+def zones(request):
+    """
+    GET: List all zones ordered by name
+    """
+    try:
+        r = get_redis_connection()
+    except RedisError:
+        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    if request.method == 'GET':
+        keys = r.keys("zone:*")
+        if 'zone:id' in keys:
+            keys.remove('zone:id')
+
+        zone_items = []
+
+        for key in keys:
+            zone = r.hgetall(key)
+            zone['id'] = key.split(':')[1]
+            zone_items.append(zone)
+
+        sorted_list = sorted(zone_items, key=itemgetter('name'))
+        return JSONResponse(sorted_list, status=status.HTTP_200_OK)
+
+    if request.method == 'POST':
+        key = "zone:" + str(r.incr('zone:id'))
+        data = JSONParser().parse(request)
+        try:
+            r.hmset(key, data)
+            return JSONResponse("Data inserted correctly", status=status.HTTP_201_CREATED)
+        except RedisError:
+            return JSONResponse("Error inserting data", status=status.HTTP_400_BAD_REQUEST)
+
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+
+@csrf_exempt
+def zone_detail(request, zone_id):
+    try:
+        r = get_redis_connection()
+    except RedisError:
+        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    key = 'zone:' + str(zone_id)
+
+    if request.method == 'GET':
+        if r.exists(key):
+            zone = r.hgetall(key)
+            return JSONResponse(zone, status=status.HTTP_200_OK)
+        else:
+            return JSONResponse('Zone not found.', status=status.HTTP_404_NOT_FOUND)
+    
+    if request.method == 'DELETE':
+        # Deletes the key. If the node is alive, the metric middleware will recreate this key again.
+        if r.exists(key):
+            r.delete(key)
+            return JSONResponse('Node has been deleted', status=status.HTTP_204_NO_CONTENT)
+        else:
+            return JSONResponse('Node not found.', status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'PUT':
+        data = JSONParser().parse(request)
+        key = "zone:" + str(data['zone_id'])
+        try:
+            r.hmset(key, data)
+            return JSONResponse("Data updated correctly", status=status.HTTP_201_CREATED)
+        except RedisError:
+            return JSONResponse("Error updating data", status=status.HTTP_400_BAD_REQUEST)
+
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+
 
 #
 # PROXY SORTING NOT USED, TODO: Remove
