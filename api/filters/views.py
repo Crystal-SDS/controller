@@ -25,8 +25,10 @@ from api.exceptions import SwiftClientError, StorletNotFoundException, FileSynch
 
 # TODO create a common file and put this into the new file
 # Start Common
-FILTER_KEYS = ('id', 'filter_name', 'filter_type', 'object_metadata', 'main', 'is_pre_put', 'is_post_put',
-               'is_pre_get', 'is_post_get', 'has_reverse', 'execution_server', 'execution_server_reverse', 'path')
+NATIVE_FILTER_KEYS = ('id', 'filter_name', 'filter_type', 'object_metadata', 'main', 'is_pre_put', 'is_post_put',
+                      'is_pre_get', 'is_post_get', 'has_reverse', 'execution_server', 'execution_server_reverse', 'path')
+STORLET_FILTER_KEYS = ('id', 'filter_name', 'filter_type', 'interface_version', 'object_metadata', 'main', 'is_pre_put', 'is_post_put',
+                       'is_pre_get', 'is_post_get', 'has_reverse', 'execution_server', 'execution_server_reverse', 'path')
 GLOBAL_FILTER_KEYS = ('id', 'filter_name', 'filter_type', 'object_metadata', 'main', 'is_pre_put', 'is_post_put',
                       'is_pre_get', 'is_post_get', 'has_reverse', 'execution_server', 'execution_server_reverse', 'execution_order', 'enabled', 'path')
 DEPENDENCY_KEYS = ('id', 'name', 'version', 'permissions', 'path')
@@ -67,8 +69,9 @@ def filter_list(request):
             return JSONResponse("Invalid format or empty request", status=status.HTTP_400_BAD_REQUEST)
 
         if (('filter_type' not in data) or
-                ((data['filter_type'] == 'storlet' or data['filter_type'] == 'native') and not check_keys(data.keys(), FILTER_KEYS[2:-1])) or
-                ((data['filter_type'] == 'global') and not check_keys(data.keys(), GLOBAL_FILTER_KEYS[2:-1]))):
+                (data['filter_type'] == 'native' and not check_keys(data.keys(), NATIVE_FILTER_KEYS[2:-1])) or
+                (data['filter_type'] == 'storlet' and not check_keys(data.keys(), STORLET_FILTER_KEYS[2:-1])) or
+                (data['filter_type'] == 'global' and not check_keys(data.keys(), GLOBAL_FILTER_KEYS[2:-1]))):
             return JSONResponse("Invalid parameters in request", status=status.HTTP_400_BAD_REQUEST)
 
         storlet_id = r.incr("filters:id")
@@ -116,8 +119,9 @@ def filter_detail(request, filter_id):
 
         my_filter = r.hgetall("filter:" + str(filter_id))
 
-        if (((my_filter['filter_type'] == 'storlet' or my_filter['filter_type'] == 'native') and not check_keys(data.keys(), FILTER_KEYS[3:-1])) or
-                ((my_filter['filter_type'] == 'global') and not check_keys(data.keys(), GLOBAL_FILTER_KEYS[3:-1]))):
+        if ((my_filter['filter_type'] == 'native' and not check_keys(data.keys(), NATIVE_FILTER_KEYS[3:-1])) or
+                (my_filter['filter_type'] == 'storlet' and not check_keys(data.keys(), STORLET_FILTER_KEYS[3:-1])) or
+                (my_filter['filter_type'] == 'global' and not check_keys(data.keys(), GLOBAL_FILTER_KEYS[3:-1]))):
             return JSONResponse("Invalid parameters in request", status=status.HTTP_400_BAD_REQUEST)
 
         try:
@@ -577,7 +581,7 @@ def set_filter(r, target, filter_data, parameters, token):
 
         metadata = {"X-Object-Meta-Storlet-Language": 'java',
                     "X-Object-Meta-Storlet-Interface-Version": filter_data["interface_version"],
-                    "X-Object-Meta-Storlet-Dependency": filter_data["dependencies"],
+                    "X-Object-Meta-Storlet-Dependency": '',
                     "X-Object-Meta-Storlet-Object-Metadata": filter_data["object_metadata"],
                     "X-Object-Meta-Storlet-Main": filter_data["main"]
                     }

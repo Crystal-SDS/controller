@@ -70,7 +70,7 @@ class FiltersTestCase(TestCase):
         Update a storlet
         """
         filter_updated_data = {
-            'interface_version': '', 'dependencies': '',
+            'interface_version': '',
             'object_metadata': '', 'main': 'com.example.UpdatedFakeMain', 'is_pre_put': 'False', 'is_post_get': 'False',
             'is_post_put': 'False', 'is_pre_get': 'False',
             'has_reverse': 'False', 'execution_server': 'proxy', 'execution_server_reverse': 'proxy'}
@@ -97,7 +97,7 @@ class FiltersTestCase(TestCase):
 
         # With name missing
         filter_updated_data = {
-            'filter_name': 'FakeFilter', 'filter_type': 'storlet', 'interface_version': '', 'dependencies': '',
+            'filter_name': 'FakeFilter', 'filter_type': 'storlet', 'interface_version': '',
             'object_metadata': '', 'main': 'com.example.UpdatedFakeMain', 'is_pre_put': 'False', 'is_post_get': 'False',
             'is_post_put': 'False', 'is_pre_get': 'False',
             'has_reverse': 'False', 'execution_server': 'proxy', 'execution_server_reverse': 'proxy'}
@@ -110,7 +110,7 @@ class FiltersTestCase(TestCase):
         Create 2 storlets
         """
         # Create a second storlet
-        filter_data = {'filter_type': 'storlet', 'interface_version': '', 'dependencies': '',
+        filter_data = {'filter_type': 'storlet', 'interface_version': '',
                        'object_metadata': '', 'main': 'com.example.SecondMain', 'is_pre_put': 'False', 'is_post_get': 'False',
                        'is_post_put': 'False', 'is_pre_get': 'False', 'has_reverse': 'False', 'execution_server': 'proxy',
                        'execution_server_reverse': 'proxy'}
@@ -131,7 +131,7 @@ class FiltersTestCase(TestCase):
         Create several storlets and check they are returned as a sorted list by identifier
         """
         # Create a second storlet
-        filter_data = {'filter_type': 'storlet', 'interface_version': '', 'dependencies': '',
+        filter_data = {'filter_type': 'storlet', 'interface_version': '',
                        'object_metadata': '', 'main': 'com.example.SecondMain', 'is_pre_put': 'False', 'is_post_get': 'False',
                        'is_post_put': 'False', 'is_pre_get': 'False', 'has_reverse': 'False', 'execution_server': 'proxy',
                        'execution_server_reverse': 'proxy'}
@@ -140,7 +140,7 @@ class FiltersTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         # Create a third storlet
-        filter_data = {'filter_type': 'storlet', 'interface_version': '', 'dependencies': '',
+        filter_data = {'filter_type': 'storlet', 'interface_version': '',
                        'object_metadata': '', 'main': 'com.example.ThirdMain', 'is_pre_put': 'False', 'is_post_get': 'False',
                        'is_post_put': 'False', 'is_pre_get': 'False', 'has_reverse': 'False', 'execution_server': 'proxy',
                        'execution_server_reverse': 'proxy'}
@@ -149,7 +149,7 @@ class FiltersTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         # Create a Fourth storlet
-        filter_data = {'filter_type': 'storlet', 'interface_version': '', 'dependencies': '',
+        filter_data = {'filter_type': 'storlet', 'interface_version': '',
                        'object_metadata': '', 'main': 'com.example.FourthMain', 'is_pre_put': 'False', 'is_post_get': 'False',
                        'is_post_put': 'False', 'is_pre_get': 'False', 'has_reverse': 'False', 'execution_server': 'proxy',
                        'execution_server_reverse': 'proxy'}
@@ -179,7 +179,7 @@ class FiltersTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
         # with name present
-        filter_data = {'filter_name': 'secondFilter', 'filter_type': 'storlet', 'interface_version': '', 'dependencies': '',
+        filter_data = {'filter_name': 'secondFilter', 'filter_type': 'storlet', 'interface_version': '',
                        'object_metadata': '', 'main': 'com.example.FakeMain', 'is_pre_put': 'False', 'is_post_get': 'False',
                        'is_post_put': 'False', 'is_pre_get': 'False',
                        'has_reverse': 'False', 'execution_server': 'proxy', 'execution_server_reverse': 'proxy'}
@@ -500,7 +500,7 @@ class FiltersTestCase(TestCase):
     #
 
     def create_storlet(self):
-        filter_data = {'filter_type': 'storlet', 'interface_version': '', 'dependencies': '',
+        filter_data = {'filter_type': 'storlet', 'interface_version': '',
                        'object_metadata': '', 'main': 'com.example.FakeMain', 'is_pre_put': 'False', 'is_post_get': 'False',
                        'is_post_put': 'False', 'is_pre_get': 'False',
                        'has_reverse': 'False', 'execution_server': 'proxy', 'execution_server_reverse': 'proxy'}

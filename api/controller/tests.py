@@ -1047,7 +1047,7 @@ class ControllerTestCase(TestCase):
     #
 
     def create_storlet(self):
-        filter_data = {'filter_type': 'storlet', 'interface_version': '', 'dependencies': '',
+        filter_data = {'filter_type': 'storlet', 'interface_version': '',
                        'object_metadata': '', 'main': 'com.example.FakeMain', 'is_pre_put': 'False', 'is_post_get': 'False',
                        'is_post_put': 'False', 'is_pre_get': 'False',
                        'has_reverse': 'False', 'execution_server': 'proxy', 'execution_server_reverse': 'proxy'}
