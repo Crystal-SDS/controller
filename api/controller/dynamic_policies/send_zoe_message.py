@@ -7,6 +7,7 @@ Simple script to send a message to the zoe queue
 import pika
 import sys
 
+
 def main(argv):
     credentials = pika.PlainCredentials('guest', 'guest')
     parameters = pika.ConnectionParameters(host='localhost', port=5672, credentials=credentials)
