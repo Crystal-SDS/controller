@@ -35,15 +35,14 @@ def storage_policies(request):
             r = get_redis_connection()
         except RedisError:
             return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        if request.method == 'GET':
-            keys = r.keys("storage-policy:*")
-            storage_policy_list = []
-            for key in keys:
-                storage_policy = r.hgetall(key)
-                storage_policy['id'] = str(key).split(':')[-1]
-                storage_policy_list.append(storage_policy)
-            return JSONResponse(storage_policy_list, status=status.HTTP_200_OK)
-        return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+        keys = r.keys("storage-policy:*")
+        storage_policy_list = []
+        for key in keys:
+            storage_policy = r.hgetall(key)
+            storage_policy['id'] = str(key).split(':')[-1]
+            storage_policy_list.append(storage_policy)
+        return JSONResponse(storage_policy_list, status=status.HTTP_200_OK)
 
     if request.method == "POST":
         data = JSONParser().parse(request)
@@ -59,6 +58,7 @@ def storage_policies(request):
                 return JSONResponse('Error creating the Storage Policy: ' + e, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         return JSONResponse('Account created successfully', status=status.HTTP_201_CREATED)
+
     return JSONResponse('Only HTTP POST requests allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
