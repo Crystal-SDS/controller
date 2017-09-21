@@ -201,14 +201,14 @@ class FilterData(APIView):
             return JSONResponse('Filter has been updated', status=status.HTTP_201_CREATED)
         return JSONResponse('Filter does not exist', status=status.HTTP_404_NOT_FOUND)
 
-    def get(self, request, storlet_id, format=None):
+    def get(self, request, filter_id, format=None):
         try:
             r = get_redis_connection()
         except RedisError:
             return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        if r.exists('filter:' + str(storlet_id)):
-            filter_path = r.hget('filter:' + str(storlet_id), 'path')
+        if r.exists('filter:' + str(filter_id)):
+            filter_path = r.hget('filter:' + str(filter_id), 'path')
             if os.path.exists(filter_path):
                 filter_name = os.path.basename(filter_path)
                 filter_size = os.stat(filter_path).st_size
