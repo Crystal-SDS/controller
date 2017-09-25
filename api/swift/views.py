@@ -104,8 +104,20 @@ def node_list(request):
             node.pop("ssh_username", None)  # username & password are not returned in the list
             node.pop("ssh_password", None)
             node['devices'] = json.loads(node['devices'])
-            node['region_name'] = r.hgetall('region:' + node['region_id'])['name']
-            node['zone_name'] = r.hgetall('zone:' + node['zone_id'])['name']
+
+            r_id = node['region_id']
+            z_id = node['zone_id']
+
+            if r.exists('region:' + r_id):
+                node['region_name'] = r.hgetall('region:' + r_id)['name']
+            else:
+                node['region_name'] = r_id
+
+            if r.exists('zone:' + z_id):
+                node['zone_name'] = r.hgetall('zone:' + z_id)['name']
+            else:
+                node['zone_name'] = z_id
+
             if 'ssh_access' not in node:
                 node['ssh_access'] = False
             nodes.append(node)
@@ -158,9 +170,9 @@ def node_detail(request, server_type, node_id):
                     data['ssh_access'] = False
 
                 r.hmset(key, data)
-                return JSONResponse("Data updated", status=status.HTTP_201_CREATED)
+                return JSONResponse("Node Data updated", status=status.HTTP_201_CREATED)
             except RedisError:
-                return JSONResponse("Error updating data", status=status.HTTP_400_BAD_REQUEST)
+                return JSONResponse("Error updating node data", status=status.HTTP_400_BAD_REQUEST)
         else:
             return JSONResponse('Node not found.', status=status.HTTP_404_NOT_FOUND)
 
@@ -211,7 +223,7 @@ def node_restart(request, server_type, node_id):
 @csrf_exempt
 def regions(request):
     """
-    GET: List all regions ordered by name
+    GET: List all regions
     """
     try:
         r = get_redis_connection()
@@ -230,8 +242,7 @@ def regions(request):
             region['id'] = key.split(':')[1]
             region_items.append(region)
 
-        sorted_list = sorted(region_items, key=itemgetter('name'))
-        return JSONResponse(sorted_list, status=status.HTTP_200_OK)
+        return JSONResponse(region_items, status=status.HTTP_200_OK)
 
     if request.method == 'POST':
         key = "region:" + str(r.incr('region:id'))
@@ -255,7 +266,7 @@ def region_detail(request, region_id):
     regionKey = 'region:' + str(region_id)
 
     if request.method == 'GET':
-        if r.exists(regionKey):   
+        if r.exists(regionKey):
             region = r.hgetall(regionKey)
             return JSONResponse(region, status=status.HTTP_200_OK)
         else:
@@ -264,25 +275,19 @@ def region_detail(request, region_id):
     if request.method == 'DELETE':
         # Deletes the key. If the node is alive, the metric middleware will recreate this key again.
         if r.exists(regionKey):
-            
-            keys = r.keys("*_node:*")
-            for key in keys:
-                node = r.hgetall(key)
-                if node['region_id'] == region_id:
-                    return JSONResponse("Region couldn't be deleted because the node with ip " + node['ip'] + ' has this region assigned', status=status.HTTP_400_BAD_REQUEST)
-            
             keys = r.keys("zone:*")
             if 'zone:id' in keys:
                 keys.remove('zone:id')
             for key in keys:
                 zone = r.hgetall(key)
                 if zone['region'] == region_id:
-                    return JSONResponse("Region couldn't be deleted because the zone with id " + key.split(':')[1] + ' has this region assigned', status=status.HTTP_400_BAD_REQUEST)
-             
+                    return JSONResponse("Region couldn't be deleted because the zone with id: " +
+                                        region_id + ' has this region assigned.', status=status.HTTP_400_BAD_REQUEST)
+
             r.delete(regionKey)
-            return JSONResponse('Node has been deleted', status=status.HTTP_204_NO_CONTENT)
+            return JSONResponse('Region has been deleted', status=status.HTTP_204_NO_CONTENT)
         else:
-            return JSONResponse('Node not found.', status=status.HTTP_404_NOT_FOUND)
+            return JSONResponse('Region not found.', status=status.HTTP_404_NOT_FOUND)
 
     if request.method == 'PUT':
         data = JSONParser().parse(request)
@@ -300,7 +305,7 @@ def region_detail(request, region_id):
 @csrf_exempt
 def zones(request):
     """
-    GET: List all zones ordered by name
+    GET: List all zones
     """
     try:
         r = get_redis_connection()
@@ -320,8 +325,7 @@ def zones(request):
             zone['region_name'] = r.hgetall('region:' + zone['region'])['name']
             zone_items.append(zone)
 
-        sorted_list = sorted(zone_items, key=itemgetter('name'))
-        return JSONResponse(sorted_list, status=status.HTTP_200_OK)
+        return JSONResponse(zone_items, status=status.HTTP_200_OK)
 
     if request.method == 'POST':
         key = "zone:" + str(r.incr('zone:id'))
@@ -354,25 +358,19 @@ def zone_detail(request, zone_id):
     if request.method == 'DELETE':
         # Deletes the key. If the node is alive, the metric middleware will recreate this key again.
         if r.exists(key):
-            keys = r.keys("*_node:*")
-            for key in keys:
-                node = r.hgetall(key)
-                if node['zone_id'] == zone_id:
-                    return JSONResponse("Zone couldn't be deleted because the node with ip " + node['ip'] + ' has this zone assigned', status=status.HTTP_400_BAD_REQUEST)
-            
             r.delete(key)
-            return JSONResponse('Node has been deleted', status=status.HTTP_204_NO_CONTENT)
+            return JSONResponse('Zone has been deleted', status=status.HTTP_204_NO_CONTENT)
         else:
-            return JSONResponse('Node not found.', status=status.HTTP_404_NOT_FOUND)
+            return JSONResponse('Zone not found.', status=status.HTTP_404_NOT_FOUND)
 
     if request.method == 'PUT':
         data = JSONParser().parse(request)
         key = "zone:" + str(data['zone_id'])
         try:
             r.hmset(key, data)
-            return JSONResponse("Data updated correctly", status=status.HTTP_201_CREATED)
+            return JSONResponse("Zone Data updated correctly", status=status.HTTP_201_CREATED)
         except RedisError:
-            return JSONResponse("Error updating data", status=status.HTTP_400_BAD_REQUEST)
+            return JSONResponse("Error updating zone data", status=status.HTTP_400_BAD_REQUEST)
 
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
