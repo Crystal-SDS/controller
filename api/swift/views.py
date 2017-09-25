@@ -104,6 +104,8 @@ def node_list(request):
             node.pop("ssh_username", None)  # username & password are not returned in the list
             node.pop("ssh_password", None)
             node['devices'] = json.loads(node['devices'])
+            node['region_name'] = r.hgetall('region:' + node['region_id'])['name']
+            node['zone_name'] = r.hgetall('zone:' + node['zone_id'])['name']
             if 'ssh_access' not in node:
                 node['ssh_access'] = False
             nodes.append(node)
@@ -250,19 +252,34 @@ def region_detail(request, region_id):
     except RedisError:
         return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    key = 'region:' + str(region_id)
+    regionKey = 'region:' + str(region_id)
 
     if request.method == 'GET':
-        if r.exists(key):
-            region = r.hgetall(key)
+        if r.exists(regionKey):   
+            region = r.hgetall(regionKey)
             return JSONResponse(region, status=status.HTTP_200_OK)
         else:
             return JSONResponse('Region not found.', status=status.HTTP_404_NOT_FOUND)
 
     if request.method == 'DELETE':
         # Deletes the key. If the node is alive, the metric middleware will recreate this key again.
-        if r.exists(key):
-            r.delete(key)
+        if r.exists(regionKey):
+            
+            keys = r.keys("*_node:*")
+            for key in keys:
+                node = r.hgetall(key)
+                if node['region_id'] == region_id:
+                    return JSONResponse("Region couldn't be deleted because the node with ip " + node['ip'] + ' has this region assigned', status=status.HTTP_400_BAD_REQUEST)
+            
+            keys = r.keys("zone:*")
+            if 'zone:id' in keys:
+                keys.remove('zone:id')
+            for key in keys:
+                zone = r.hgetall(key)
+                if zone['region'] == region_id:
+                    return JSONResponse("Region couldn't be deleted because the zone with id " + key.split(':')[1] + ' has this region assigned', status=status.HTTP_400_BAD_REQUEST)
+             
+            r.delete(regionKey)
             return JSONResponse('Node has been deleted', status=status.HTTP_204_NO_CONTENT)
         else:
             return JSONResponse('Node not found.', status=status.HTTP_404_NOT_FOUND)
@@ -300,6 +317,7 @@ def zones(request):
         for key in keys:
             zone = r.hgetall(key)
             zone['id'] = key.split(':')[1]
+            zone['region_name'] = r.hgetall('region:' + zone['region'])['name']
             zone_items.append(zone)
 
         sorted_list = sorted(zone_items, key=itemgetter('name'))
@@ -336,6 +354,12 @@ def zone_detail(request, zone_id):
     if request.method == 'DELETE':
         # Deletes the key. If the node is alive, the metric middleware will recreate this key again.
         if r.exists(key):
+            keys = r.keys("*_node:*")
+            for key in keys:
+                node = r.hgetall(key)
+                if node['zone_id'] == zone_id:
+                    return JSONResponse("Zone couldn't be deleted because the node with ip " + node['ip'] + ' has this zone assigned', status=status.HTTP_400_BAD_REQUEST)
+            
             r.delete(key)
             return JSONResponse('Node has been deleted', status=status.HTTP_204_NO_CONTENT)
         else:
