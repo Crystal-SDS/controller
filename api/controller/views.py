@@ -1166,9 +1166,12 @@ def stop_global_controller(controller_id):
 # Crystal Projects
 #
 @csrf_exempt
-def projects(request):
+def projects(request, project_id=None):
     """
     GET: List all projects ordered by name
+    PUT: Save a project (enable)
+    DELETE: Delete a project (disable)
+    POST: Check if a project exist or is enabled
     """
     try:
         r = get_redis_connection()
@@ -1180,20 +1183,26 @@ def projects(request):
         return JSONResponse(projetcs, status=status.HTTP_200_OK)
 
     if request.method == 'PUT':
-        data = JSONParser().parse(request)
-        project_id = data['project_id']
         try:
             r.lpush('projects_crystal_enabled', project_id)
             return JSONResponse("Data inserted correctly", status=status.HTTP_201_CREATED)
         except RedisError:
             return JSONResponse("Error inserting data", status=status.HTTP_400_BAD_REQUEST)
 
-    if request.method == 'Delete':
-        data = JSONParser().parse(request)
-        project_id = data['project_id']
+    if request.method == 'DELETE':
         try:
             r.lrem('projects_crystal_enabled', project_id)
             return JSONResponse("Data correctly removed", status=status.HTTP_201_CREATED)
+        except RedisError:
+            return JSONResponse("Error inserting data", status=status.HTTP_400_BAD_REQUEST)
+
+    if request.method == 'POST':
+        try:
+            projects = r.lrange('projects_crystal_enabled', 0, -1)
+            if project_id in projects:
+                return JSONResponse(project_id, status=status.HTTP_200_OK)
+            return JSONResponse('The project with id:  ' + str(project_id) + ' does not exist.',
+                                status=status.HTTP_404_NOT_FOUND)
         except RedisError:
             return JSONResponse("Error inserting data", status=status.HTTP_400_BAD_REQUEST)
 

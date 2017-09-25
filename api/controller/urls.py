@@ -5,6 +5,7 @@ urlpatterns = [
 
     # Crystal Projects
     url(r'^projects/?$', views.projects),
+    url(r'^projects/(?P<project_id>\w+)/?$', views.projects),
 
     # Metrics
     url(r'^metrics/?$', views.add_metric),
