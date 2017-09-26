@@ -25,11 +25,11 @@ from api.exceptions import SwiftClientError, StorletNotFoundException, FileSynch
 
 # TODO create a common file and put this into the new file
 # Start Common
-NATIVE_FILTER_KEYS = ('id', 'filter_name', 'filter_type', 'object_metadata', 'main', 'is_pre_put', 'is_post_put',
+NATIVE_FILTER_KEYS = ('id', 'filter_name', 'filter_type', 'language', 'object_metadata', 'main', 'is_pre_put', 'is_post_put',
                       'is_pre_get', 'is_post_get', 'has_reverse', 'execution_server', 'execution_server_reverse', 'path')
-STORLET_FILTER_KEYS = ('id', 'filter_name', 'filter_type', 'interface_version', 'object_metadata', 'main', 'is_pre_put', 'is_post_put',
+STORLET_FILTER_KEYS = ('id', 'filter_name', 'filter_type', 'language', 'interface_version', 'object_metadata', 'main', 'is_pre_put', 'is_post_put',
                        'is_pre_get', 'is_post_get', 'has_reverse', 'execution_server', 'execution_server_reverse', 'path')
-GLOBAL_FILTER_KEYS = ('id', 'filter_name', 'filter_type', 'object_metadata', 'main', 'is_pre_put', 'is_post_put',
+GLOBAL_FILTER_KEYS = ('id', 'filter_name', 'filter_type', 'language', 'object_metadata', 'main', 'is_pre_put', 'is_post_put',
                       'is_pre_get', 'is_post_get', 'has_reverse', 'execution_server', 'execution_server_reverse', 'execution_order', 'enabled', 'path')
 DEPENDENCY_KEYS = ('id', 'name', 'version', 'permissions', 'path')
 
@@ -67,6 +67,7 @@ def filter_list(request):
             data = JSONParser().parse(request)
         except ParseError:
             return JSONResponse("Invalid format or empty request", status=status.HTTP_400_BAD_REQUEST)
+        print data
 
         if (('filter_type' not in data) or
                 (data['filter_type'] == 'native' and not check_keys(data.keys(), NATIVE_FILTER_KEYS[2:-1])) or
@@ -133,7 +134,6 @@ def filter_detail(request, filter_id):
                     r.hset("global_filters", str(filter_id), json.dumps(data))
                 else:
                     r.hdel("global_filters", str(filter_id))
-
             return JSONResponse("Data updated", status=status.HTTP_200_OK)
         except DataError:
             return JSONResponse("Error updating data", status=status.HTTP_408_REQUEST_TIMEOUT)
@@ -172,7 +172,7 @@ class FilterData(APIView):
             file_obj = request.FILES['file']
 
             filter_type = r.hget(filter_name, 'filter_type')
-            if (filter_type == 'storlet' and not file_obj.name.endswith('.jar')) or \
+            if (filter_type == 'storlet' and not (file_obj.name.endswith('.jar') or file_obj.name.endswith('.py'))) or \
                     (filter_type == 'native' and not file_obj.name.endswith('.py')) or \
                     (filter_type == 'global' and not file_obj.name.endswith('.py')):
                 return JSONResponse('Uploaded file is incompatible with filter type', status=status.HTTP_400_BAD_REQUEST)
