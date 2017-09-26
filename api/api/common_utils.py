@@ -14,6 +14,7 @@ from django.http import HttpResponse
 from rest_framework.renderers import JSONRenderer
 from api.exceptions import FileSynchronizationException
 from pyactor.context import set_context, create_host
+from swiftclient import client as swift_client
 
 logger = logging.getLogger(__name__)
 host = None
@@ -105,6 +106,30 @@ def get_keystone_admin_auth():
         print(exc)
 
     return keystone_client
+
+
+def get_swift_url_and_token(project_name):
+    admin_user = settings.MANAGEMENT_ADMIN_USERNAME
+    admin_passwd = settings.MANAGEMENT_ADMIN_PASSWORD
+    keystone_url = settings.KEYSTONE_ADMIN_URL
+
+    return swift_client.get_auth(keystone_url,
+                                 project_name + ":"+admin_user,
+                                 admin_passwd, auth_version="3")
+
+
+def get_admin_role_user_ids():
+    keystone_client = get_keystone_admin_auth()
+    roles = keystone_client.roles.list()
+    for role in roles:
+        if role.name == 'admin':
+            admin_role_id = role.id
+    users = keystone_client.users.list()
+    for user in users:
+        if user.name == settings.MANAGEMENT_ADMIN_USERNAME:
+            admin_user_id = user.id
+
+    return admin_role_id, admin_user_id
 
 
 def get_project_list():

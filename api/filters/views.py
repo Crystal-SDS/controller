@@ -230,7 +230,7 @@ class FilterData(APIView):
 
 
 @csrf_exempt
-def filter_deploy(request, filter_id, project, container=None, swift_object=None):
+def filter_deploy(request, filter_id, project_id, container=None, swift_object=None):
     """
     Deploy a filter to a specific swift account.
     """
@@ -276,11 +276,11 @@ def filter_deploy(request, filter_id, project, container=None, swift_object=None
 
         # TODO: Try to improve this part
         if container and swift_object:
-            target = project + "/" + container + "/" + swift_object
+            target = project_id + "/" + container + "/" + swift_object
         elif container:
-            target = project + "/" + container
+            target = project_id + "/" + container
         else:
-            target = project
+            target = project_id
 
         try:
             token = get_token_connection(request)
@@ -297,7 +297,7 @@ def filter_deploy(request, filter_id, project, container=None, swift_object=None
 
 
 @csrf_exempt
-def filter_undeploy(request, filter_id, project, container=None, swift_object=None):
+def filter_undeploy(request, filter_id, project_id, container=None, swift_object=None):
     """
     Undeploy a filter from a specific swift project.
     """
@@ -314,11 +314,11 @@ def filter_undeploy(request, filter_id, project, container=None, swift_object=No
             return JSONResponse('Filter does not exist', status=status.HTTP_404_NOT_FOUND)
 
         if container and swift_object:
-            target = project + "/" + container + "/" + swift_object
+            target = project_id + "/" + container + "/" + swift_object
         elif container:
-            target = project + "/" + container
+            target = project_id + "/" + container
         else:
-            target = project
+            target = project_id
 
         token = get_token_connection(request)
         return unset_filter(r, target, filter_data, token)
@@ -455,14 +455,14 @@ def dependency_deploy(request, dependency_id, project_id):
 
 
 @csrf_exempt
-def dependency_list_deployed(request, project):
+def dependency_list_deployed(request, project_id):
     if request.method == 'GET':
         try:
             r = get_redis_connection()
         except RedisError:
             return JSONResponse('Problems to connect with the DB', status=500)
 
-        result = r.lrange(str(project) + ":dependencies", 0, -1)
+        result = r.lrange(str(project_id) + ":dependencies", 0, -1)
         if result:
             return JSONResponse(result, status=200)
         else:

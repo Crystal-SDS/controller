@@ -155,10 +155,8 @@ REDIS_PORT = 6379
 REDIS_DATABASE = 0
 REDIS_CON_POOL = redis.ConnectionPool(host=REDIS_HOST, port=REDIS_PORT, db=REDIS_DATABASE)
 
-# SDS Project
-STORLET_BIN_DIR = '/opt/ibm'
-STORLET_DOCKER_IMAGE = '192.168.2.1:5001/ubuntu_14.04_jre8_storlets'
-STORLET_TAR_FILE = 'ubuntu_14.04_jre8_storlets.tar'
+# Storlet docker image
+STORLET_DOCKER_IMAGE = '192.168.2.1:5001/ubuntu_16.04_jre8_storlets'
 
 # Openstack Admin
 MANAGEMENT_ACCOUNT = 'management'

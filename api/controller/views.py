@@ -16,11 +16,12 @@ from rest_framework import status
 from rest_framework.exceptions import ParseError
 from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
 from rest_framework.views import APIView
+from swiftclient import client as swift_client
 
 import dsl_parser
 from api.common_utils import get_token_connection, rsync_dir_with_nodes, to_json_bools, JSONResponse, get_redis_connection, \
-    get_project_list, create_local_host
-from api.exceptions import SwiftClientError, StorletNotFoundException, FileSynchronizationException, ProjectNotFound
+    get_project_list, create_local_host, get_keystone_admin_auth, get_admin_role_user_ids, get_swift_url_and_token
+from api.exceptions import SwiftClientError, StorletNotFoundException, FileSynchronizationException, ProjectNotFound, ProjectNotCrystalEnabled
 from filters.views import save_file, make_sure_path_exists
 from filters.views import set_filter, unset_filter
 
@@ -705,7 +706,9 @@ def policy_list(request):
                 return JSONResponse('Storlet not found.', status=status.HTTP_404_NOT_FOUND)
 
             except ProjectNotFound:
-                return JSONResponse('Invalid Project Name/ID or the project is not Crystal Enabled. Verify it in the Projects panel.',
+                return JSONResponse('Invalid Project Name/ID. The Project does not exist.', status=status.HTTP_404_NOT_FOUND)
+            except ProjectNotCrystalEnabled:
+                return JSONResponse('The project is not Crystal Enabled. Verify it in the Projects panel.',
                                     status=status.HTTP_404_NOT_FOUND)
             except Exception:
                 # print("The rule: " + rule_string + " cannot be parsed")
@@ -803,6 +806,7 @@ def deploy_static_policy(request, r, parsed_rule):
     container = None
     rules_to_parse = dict()
     # TODO: get only the Crystal enabled projects
+    projects_crystal_enabled = r.lrange('projects_crystal_enabled', 0, -1)
     project_list = get_project_list()
 
     for target in parsed_rule.target:
@@ -819,6 +823,9 @@ def deploy_static_policy(request, r, parsed_rule):
             project_id = project_list.keys()[project_list.values().index(project)]
         else:
             raise ProjectNotFound()
+
+        if project_id not in projects_crystal_enabled:
+            raise ProjectNotCrystalEnabled()
 
         if container:
             target = os.path.join(project_id, container)
@@ -878,6 +885,7 @@ def deploy_dynamic_policy(r, rule_string, parsed_rule):
     project = None
     container = None
     # TODO: get only the Crystal enabled projects
+    projects_crystal_enabled = r.lrange('projects_crystal_enabled', 0, -1)
     project_list = get_project_list()
 
     for target in parsed_rule.target:
@@ -896,6 +904,9 @@ def deploy_dynamic_policy(r, rule_string, parsed_rule):
             project_id = project_list.keys()[project_list.values().index(project)]
         else:
             raise ProjectNotFound()
+
+        if project_id not in projects_crystal_enabled:
+            raise ProjectNotCrystalEnabled()
 
         if container:
             target = project_name+":"+os.path.join(project_id, container)
@@ -1139,7 +1150,7 @@ def start_global_controller(controller_id, actor_id, controller_class_name, meth
                 metric_name = 'dummy'
 
             # 2) Spawn controller actor
-            #module_name = ''.join([settings.GLOBAL_CONTROLLERS_BASE_MODULE, '.', actor_id])
+            # module_name = ''.join([settings.GLOBAL_CONTROLLERS_BASE_MODULE, '.', actor_id])
             module_name = actor_id
             controller_actors[controller_id] = host.spawn(actor_id, module_name + '/' + controller_class_name,
                                                           ["bw_algorithm_" + method_type, method_type.upper()])
@@ -1184,6 +1195,24 @@ def projects(request, project_id=None):
 
     if request.method == 'PUT':
         try:
+            project_list = get_project_list()
+            project_name = project_list[project_id]
+            if project_name == settings.MANAGEMENT_ACCOUNT:
+                return JSONResponse("Management project could not be set as Crystal project",
+                                    status=status.HTTP_400_BAD_REQUEST)
+
+            # Set Manager as admin of the Crystal Project
+            keystone_client = get_keystone_admin_auth()
+            admin_role_id, admin_user_id = get_admin_role_user_ids()
+            keystone_client.roles.grant(role=admin_role_id, user=admin_user_id, project=project_id)
+
+            # Post Storlet and Dependency containers
+            admin_user = settings.MANAGEMENT_ADMIN_USERNAME
+            headers = {'X-Container-Read': '*:' + admin_user, 'X-Container-Write': '*:' + admin_user}
+            url, token = get_swift_url_and_token(project_name)
+            swift_client.put_container(url, token, "storlet", headers)
+            swift_client.put_container(url, token, "dependency", headers)
+
             r.lpush('projects_crystal_enabled', project_id)
             return JSONResponse("Data inserted correctly", status=status.HTTP_201_CREATED)
         except RedisError:
@@ -1191,8 +1220,21 @@ def projects(request, project_id=None):
 
     if request.method == 'DELETE':
         try:
+            project_list = get_project_list()
+            project_name = project_list[project_id]
+
+            # Delete Storlet and Dependency containers
+            url, token = get_swift_url_and_token(project_name)
+            swift_client.delete_container(url, token, "storlet")
+            swift_client.delete_container(url, token, "dependency")
+
+            # Delete Manager as admin of the Crystal Project
+            keystone_client = get_keystone_admin_auth()
+            admin_role_id, admin_user_id = get_admin_role_user_ids()
+            keystone_client.roles.revoke(role=admin_role_id, user=admin_user_id, project=project_id)
+
             r.lrem('projects_crystal_enabled', project_id)
-            return JSONResponse("Data correctly removed", status=status.HTTP_201_CREATED)
+            return JSONResponse("Crystal project correctly disabled.", status=status.HTTP_201_CREATED)
         except RedisError:
             return JSONResponse("Error inserting data", status=status.HTTP_400_BAD_REQUEST)
 
