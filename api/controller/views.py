@@ -19,9 +19,14 @@ from rest_framework.views import APIView
 from swiftclient import client as swift_client
 
 import dsl_parser
-from api.common_utils import get_token_connection, rsync_dir_with_nodes, to_json_bools, JSONResponse, get_redis_connection, \
-    get_project_list, create_local_host, get_keystone_admin_auth, get_admin_role_user_ids, get_swift_url_and_token
-from api.exceptions import SwiftClientError, StorletNotFoundException, FileSynchronizationException, ProjectNotFound, ProjectNotCrystalEnabled
+from api.common_utils import get_token_connection, rsync_dir_with_nodes, \
+    to_json_bools, JSONResponse, get_redis_connection, \
+    get_project_list, create_local_host, get_keystone_admin_auth, \
+    get_admin_role_user_ids, get_swift_url_and_token, create_docker_image, \
+    delete_docker_image
+
+from api.exceptions import SwiftClientError, StorletNotFoundException, \ 
+    FileSynchronizationException, ProjectNotFound, ProjectNotCrystalEnabled
 from filters.views import save_file, make_sure_path_exists
 from filters.views import set_filter, unset_filter
 
@@ -1212,6 +1217,8 @@ def projects(request, project_id=None):
             url, token = get_swift_url_and_token(project_name)
             swift_client.put_container(url, token, "storlet", headers)
             swift_client.put_container(url, token, "dependency", headers)
+            # Create project docker image
+            create_docker_image(project_id)
 
             r.lpush('projects_crystal_enabled', project_id)
             return JSONResponse("Data inserted correctly", status=status.HTTP_201_CREATED)
@@ -1232,6 +1239,9 @@ def projects(request, project_id=None):
             keystone_client = get_keystone_admin_auth()
             admin_role_id, admin_user_id = get_admin_role_user_ids()
             keystone_client.roles.revoke(role=admin_role_id, user=admin_user_id, project=project_id)
+
+            # Delete project docker image
+            delete_docker_image(project_id)
 
             r.lrem('projects_crystal_enabled', project_id)
             return JSONResponse("Crystal project correctly disabled.", status=status.HTTP_201_CREATED)

@@ -201,3 +201,11 @@ def create_local_host():
         pass
 
     return host
+
+
+def create_docker_image(project_id):
+    pass
+
+
+def delete_docker_image(project_id):
+    pass
