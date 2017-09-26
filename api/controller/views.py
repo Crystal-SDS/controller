@@ -25,7 +25,7 @@ from api.common_utils import get_token_connection, rsync_dir_with_nodes, \
     get_admin_role_user_ids, get_swift_url_and_token, create_docker_image, \
     delete_docker_image
 
-from api.exceptions import SwiftClientError, StorletNotFoundException, \ 
+from api.exceptions import SwiftClientError, StorletNotFoundException, \
     FileSynchronizationException, ProjectNotFound, ProjectNotCrystalEnabled
 from filters.views import save_file, make_sure_path_exists
 from filters.views import set_filter, unset_filter
