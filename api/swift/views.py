@@ -12,7 +12,6 @@ import logging
 import redis
 import requests
 import paramiko
-import sds_project
 import storage_policies_utils
 from api.common_utils import JSONResponse, get_redis_connection, get_token_connection
 from api.exceptions import FileSynchronizationException
@@ -232,9 +231,6 @@ def regions(request):
 
     if request.method == 'GET':
         keys = r.keys("region:*")
-        if 'region:id' in keys:
-            keys.remove('region:id')
-
         region_items = []
 
         for key in keys:
@@ -245,7 +241,7 @@ def regions(request):
         return JSONResponse(region_items, status=status.HTTP_200_OK)
 
     if request.method == 'POST':
-        key = "region:" + str(r.incr('region:id'))
+        key = "region:" + str(r.incr('regions:id'))
         data = JSONParser().parse(request)
         try:
             r.hmset(key, data)
@@ -314,9 +310,6 @@ def zones(request):
 
     if request.method == 'GET':
         keys = r.keys("zone:*")
-        if 'zone:id' in keys:
-            keys.remove('zone:id')
-
         zone_items = []
 
         for key in keys:
@@ -328,7 +321,7 @@ def zones(request):
         return JSONResponse(zone_items, status=status.HTTP_200_OK)
 
     if request.method == 'POST':
-        key = "zone:" + str(r.incr('zone:id'))
+        key = "zone:" + str(r.incr('zones:id'))
         data = JSONParser().parse(request)
         try:
             r.hmset(key, data)

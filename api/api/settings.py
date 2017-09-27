@@ -20,10 +20,14 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WORKLOAD_METRICS_DIR = os.path.join('/opt', 'crystal', 'workload_metrics')
 NATIVE_FILTERS_DIR = os.path.join('/opt', 'crystal', 'native_filters')
 STORLET_FILTERS_DIR = os.path.join('/opt', 'crystal', 'storlet_filters')
-GLOBAL_NATIVE_FILTERS_DIR = os.path.join('/opt', 'crystal', 'global_native_filters')
 DEPENDENCY_DIR = os.path.join('/opt', 'crystal', 'dependencies')
 GLOBAL_CONTROLLERS_DIR = os.path.join('/opt', 'crystal', 'global_controllers')
-ANSIBLE_DIR = os.path.join(BASE_DIR, 'swift', 'ansible')
+
+NATIVE_FILTER_KEYS = ('id', 'filter_name', 'filter_type', 'language', 'main', 'is_pre_put', 'is_post_put',
+                      'is_pre_get', 'is_post_get', 'has_reverse', 'execution_server', 'execution_server_reverse', 'path')
+STORLET_FILTER_KEYS = ('id', 'filter_name', 'filter_type', 'language', 'interface_version', 'dependencies', 'main', 'is_pre_put', 'is_post_put',
+                       'is_pre_get', 'is_post_get', 'has_reverse', 'execution_server', 'execution_server_reverse', 'path')
+DEPENDENCY_KEYS = ('id', 'name', 'version', 'permissions', 'path')
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.8/howto/deployment/checklist/
 

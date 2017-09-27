@@ -23,16 +23,6 @@ from swiftclient.exceptions import ClientException
 from api.common_utils import rsync_dir_with_nodes, to_json_bools, JSONResponse, get_redis_connection, get_token_connection
 from api.exceptions import SwiftClientError, StorletNotFoundException, FileSynchronizationException
 
-# TODO create a common file and put this into the new file
-# Start Common
-NATIVE_FILTER_KEYS = ('id', 'filter_name', 'filter_type', 'language', 'object_metadata', 'main', 'is_pre_put', 'is_post_put',
-                      'is_pre_get', 'is_post_get', 'has_reverse', 'execution_server', 'execution_server_reverse', 'path')
-STORLET_FILTER_KEYS = ('id', 'filter_name', 'filter_type', 'language', 'interface_version', 'object_metadata', 'main', 'is_pre_put', 'is_post_put',
-                       'is_pre_get', 'is_post_get', 'has_reverse', 'execution_server', 'execution_server_reverse', 'path')
-GLOBAL_FILTER_KEYS = ('id', 'filter_name', 'filter_type', 'language', 'object_metadata', 'main', 'is_pre_put', 'is_post_put',
-                      'is_pre_get', 'is_post_get', 'has_reverse', 'execution_server', 'execution_server_reverse', 'execution_order', 'enabled', 'path')
-DEPENDENCY_KEYS = ('id', 'name', 'version', 'permissions', 'path')
-
 logger = logging.getLogger(__name__)
 
 
@@ -67,23 +57,16 @@ def filter_list(request):
             data = JSONParser().parse(request)
         except ParseError:
             return JSONResponse("Invalid format or empty request", status=status.HTTP_400_BAD_REQUEST)
-        print data
 
         if (('filter_type' not in data) or
-                (data['filter_type'] == 'native' and not check_keys(data.keys(), NATIVE_FILTER_KEYS[2:-1])) or
-                (data['filter_type'] == 'storlet' and not check_keys(data.keys(), STORLET_FILTER_KEYS[2:-1])) or
-                (data['filter_type'] == 'global' and not check_keys(data.keys(), GLOBAL_FILTER_KEYS[2:-1]))):
+           (data['filter_type'] == 'native' and not check_keys(data.keys(), settings.NATIVE_FILTER_KEYS[2:-1])) or
+           (data['filter_type'] == 'storlet' and not check_keys(data.keys(), settings.STORLET_FILTER_KEYS[2:-1]))):
             return JSONResponse("Invalid parameters in request", status=status.HTTP_400_BAD_REQUEST)
 
         storlet_id = r.incr("filters:id")
         try:
             data['id'] = storlet_id
             r.hmset('filter:' + str(storlet_id), data)
-
-            if data['filter_type'] == 'global':
-                if data['enabled'] is True or data['enabled'] == 'True' or data['enabled'] == 'true':
-                    to_json_bools(data, 'has_reverse', 'is_pre_get', 'is_post_get', 'is_pre_put', 'is_post_put', 'enabled')
-                    r.hset("global_filters", str(storlet_id), json.dumps(data))
 
             return JSONResponse(data, status=status.HTTP_201_CREATED)
 
@@ -118,22 +101,9 @@ def filter_detail(request, filter_id):
         except ParseError:
             return JSONResponse("Invalid format or empty request", status=status.HTTP_400_BAD_REQUEST)
 
-        my_filter = r.hgetall("filter:" + str(filter_id))
-
-        if ((my_filter['filter_type'] == 'native' and not check_keys(data.keys(), NATIVE_FILTER_KEYS[3:-1])) or
-                (my_filter['filter_type'] == 'storlet' and not check_keys(data.keys(), STORLET_FILTER_KEYS[3:-1])) or
-                (my_filter['filter_type'] == 'global' and not check_keys(data.keys(), GLOBAL_FILTER_KEYS[3:-1]))):
-            return JSONResponse("Invalid parameters in request", status=status.HTTP_400_BAD_REQUEST)
-
         try:
             r.hmset('filter:' + str(filter_id), data)
-            if my_filter['filter_type'] == 'global':
-                if data['enabled'] is True or data['enabled'] == 'True' or data['enabled'] == 'true':
-                    to_json_bools(data, 'has_reverse', 'is_pre_get', 'is_post_get', 'is_pre_put', 'is_post_put', 'enabled')
-                    data['filter_type'] = 'global'  # Adding filter type
-                    r.hset("global_filters", str(filter_id), json.dumps(data))
-                else:
-                    r.hdel("global_filters", str(filter_id))
+
             return JSONResponse("Data updated", status=status.HTTP_200_OK)
         except DataError:
             return JSONResponse("Error updating data", status=status.HTTP_408_REQUEST_TIMEOUT)
@@ -148,8 +118,7 @@ def filter_detail(request, filter_id):
 
             my_filter = r.hgetall("filter:" + str(filter_id))
             r.delete("filter:" + str(filter_id))
-            if my_filter['filter_type'] == 'global':
-                r.hdel("global_filters", str(filter_id))
+
             return JSONResponse('Filter has been deleted', status=status.HTTP_204_NO_CONTENT)
         except DataError:
             return JSONResponse("Error deleting filter", status=status.HTTP_408_REQUEST_TIMEOUT)
@@ -173,15 +142,12 @@ class FilterData(APIView):
 
             filter_type = r.hget(filter_name, 'filter_type')
             if (filter_type == 'storlet' and not (file_obj.name.endswith('.jar') or file_obj.name.endswith('.py'))) or \
-                    (filter_type == 'native' and not file_obj.name.endswith('.py')) or \
-                    (filter_type == 'global' and not file_obj.name.endswith('.py')):
+                    (filter_type == 'native' and not file_obj.name.endswith('.py')):
                 return JSONResponse('Uploaded file is incompatible with filter type', status=status.HTTP_400_BAD_REQUEST)
             if filter_type == 'storlet':
                 filter_dir = settings.STORLET_FILTERS_DIR
             elif filter_type == 'native':
                 filter_dir = settings.NATIVE_FILTERS_DIR
-            else:  # global
-                filter_dir = settings.GLOBAL_NATIVE_FILTERS_DIR
 
             make_sure_path_exists(filter_dir)
             path = save_file(file_obj, filter_dir)
@@ -195,7 +161,7 @@ class FilterData(APIView):
             except RedisError:
                 return JSONResponse('Problems connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-            if filter_type == 'native' or filter_type == 'global':
+            if filter_type == 'native':
                 # synchronize metrics directory with all nodes
                 try:
                     rsync_dir_with_nodes(filter_dir)
