@@ -45,8 +45,11 @@ class AbstractController(object):
         self._channel = self._connection.channel()
 
     def _disconnect_rmq(self):
-        self._channel.close()
-        self._connection.close()
+        try:
+            self._channel.close()
+            self._connection.close()
+        except:
+            pass
 
     def _send_message_rmq(self, routing_key, message):
         self._channel.basic_publish(exchange=self.rmq_exchange,

@@ -173,6 +173,6 @@ def stop_controller(controller_id):
         try:
             controller_actors[controller_id].stop_actor()
         except Exception as e:
-            print e.args
+            print e.message
         del controller_actors[controller_id]
         logger.info("Controller, Stopped controller actor: " + str(controller_id))

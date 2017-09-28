@@ -1,4 +1,5 @@
 from controllers.actors.abstract_controller import AbstractController
+import os
 
 
 class StaticBandwidthPerProject(AbstractController):
@@ -22,16 +23,16 @@ class StaticBandwidthPerProject(AbstractController):
     def compute_data(self, metric_data):
         bw_slos = self._get_redis_slos("get_bw")
 
-        print bw_slos, metric_data
+        for metric in metric_data:
+            host = metric['host']
+            project = metric['project']
+            method = metric['method']
+            # storage_policy = metric['storage_policy']
+            calculated_bw = metric['value']
+            bw = str(round(calculated_bw, 1))
 
-        """
-        host = metric['host']
-        project = metric['project']
-        method = metric['method']
-        storage_policy = metric['storage_policy']
-        calculated_bw = 0
-        bw = str(round(calculated_bw, 1))
+            print host, project, method, calculated_bw
 
-        assignation = os.path.join(project, method, storage_policy, bw)
-        self._send_message_rmq(host, assignation)
-        """
+            #assignation = os.path.join(project, method, storage_policy, bw)
+            #self._send_message_rmq(host, assignation)
+

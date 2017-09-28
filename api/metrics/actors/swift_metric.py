@@ -168,10 +168,11 @@ class SwiftMetric(object):
         while True:
             time.sleep(AGGREGATION_INTERVAL)
             aggregate = dict()
-            aggregate["ALL"] = 0
+            metric_list = list()
 
             while not self.metrics.empty():
                 metric = self.metrics.get()
+                metric_list.append(metric)
                 try:
                     project = metric['project']
                     container = metric['container']
@@ -184,7 +185,7 @@ class SwiftMetric(object):
 
                     aggregate[project] += value
                     aggregate[container] += value
-                    aggregate["ALL"] += value
+
                 except:
                     logger.info("Swift Metric, Error parsing metric: " + str(metric))
 
@@ -193,5 +194,10 @@ class SwiftMetric(object):
                     if target in self._observers:
                         for observer in self._observers[target].values():
                             observer.update(self.name, aggregate[target])
+
+                if "ALL" in self._observers:
+                    for observer in self._observers["ALL"].values():
+                        observer.update(self.name, metric_list)
+
             except Exception as e:
                 logger.info("Swift Metric: Error sending monitoring data to observer: "+str(e))
