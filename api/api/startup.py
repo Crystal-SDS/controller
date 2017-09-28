@@ -10,7 +10,7 @@ def run():
     """
 
     # Add source directories to sys path
-    sys.path.insert(0, settings.GLOBAL_CONTROLLERS_DIR)
+    sys.path.insert(0, settings.CONTROLLERS_DIR)
 
     r = redis.Redis(connection_pool=settings.REDIS_CON_POOL)
 
@@ -26,6 +26,6 @@ def run():
     for key in r.keys('policy:*'):
         r.hset(key, 'alive', 'False')
 
-    # Global controllers
+    # Controllers
     for key in r.keys('controller:*'):
         r.hset(key, 'enabled', 'False')
