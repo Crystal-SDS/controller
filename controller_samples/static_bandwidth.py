@@ -25,14 +25,20 @@ class StaticBandwidthPerProject(AbstractController):
 
         for metric in metric_data:
             host = metric['host']
-            project = metric['project']
+            project_id = metric['project_id']
             method = metric['method']
-            # storage_policy = metric['storage_policy']
-            calculated_bw = metric['value']
-            bw = str(round(calculated_bw, 1))
+            storage_policy = metric['storage_policy']
 
-            print host, project, method, calculated_bw
 
-            #assignation = os.path.join(project, method, storage_policy, bw)
-            #self._send_message_rmq(host, assignation)
+            if project_id in bw_slos and storage_policy in bw_slos[project_id]:
+                bw = bw_slos[project_id][storage_policy]
 
+            
+            
+            
+            #bw = str(round(calculated_bw, 1))
+
+            bw = bw_slos[project_id][storage_policy]
+
+            assignation = os.path.join(project_id, method, storage_policy, bw)
+            self._send_message_rmq(host, assignation)

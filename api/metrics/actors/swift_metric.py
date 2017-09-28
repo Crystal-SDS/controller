@@ -56,7 +56,7 @@ class SwiftMetric(object):
         key will be the tenant assigned in the observer, and the value will be
         the PyActor proxy to connect to the observer.
 
-        :param observer: The PyActor proxy of the oberver rule that calls this method.
+        :param observer: The PyActor proxy of the observer rule that calls this method.
         :type observer: **any** PyActor Proxy type
         """
 
@@ -72,15 +72,17 @@ class SwiftMetric(object):
     def detach(self, observer, target):
         """
         Asynchronous method. This method allows to be called remotely.
-        It is called from observers in order to unsubscribe from this workload
+        It is called from observers in order to unsuscribe from this workload
         metric.
 
-        :param observer: The PyActor actor id of the oberver rule that calls this method.
+        :param observer: The PyActor actor id of the observer rule that calls this method.
         :type observer: String
         """
-        logger.info('Metric, Detaching observer: ' + str(observer))
         try:
             del self._observers[target][observer]
+            if len(self._observers[target]) == 0:
+                del self._observers[target]
+            logger.info('Metric, observer detached: ' + str(observer))
         except KeyError:
             pass
 
@@ -195,7 +197,7 @@ class SwiftMetric(object):
                         for observer in self._observers[target].values():
                             observer.update(self.name, aggregate[target])
 
-                if "ALL" in self._observers:
+                if "ALL" in self._observers and len(metric_list) > 0:
                     for observer in self._observers["ALL"].values():
                         observer.update(self.name, metric_list)
 

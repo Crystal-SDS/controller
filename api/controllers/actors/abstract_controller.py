@@ -52,9 +52,13 @@ class AbstractController(object):
             pass
 
     def _send_message_rmq(self, routing_key, message):
-        self._channel.basic_publish(exchange=self.rmq_exchange,
-                                    routing_key=routing_key,
-                                    body=str(message))
+        self._connect_rmq()
+        params = dict(exchange=self.rmq_exchange, routing_key=routing_key, body=str(message))
+        try:
+            self._channel.basic_publish(**params)
+        except Exception as e:
+            logger.error(e.message)
+        self.__disconnect_rmq()
 
     def _init_consum(self, queue, routing_key):
         try:
@@ -89,7 +93,7 @@ class AbstractController(object):
         Entry Method
         """
         self._subscribe_metrics()
-        self._connect_rmq()
+        # self._connect_rmq()
 
     def stop_actor(self):
         """
@@ -100,8 +104,8 @@ class AbstractController(object):
             if self.metrics:
                 for metric in self.metrics:
                     metric_actor = self.host.lookup(metric)
-                    metric_actor.detach(self.proxy, self.get_target())
-            self._disconnect_rmq()
+                    metric_actor.detach(self.id, self.get_target())
+            # self._disconnect_rmq()
             self.host.stop_actor(self.id)
         except Exception as e:
             logger.error(str(e.message))
