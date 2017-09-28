@@ -11,26 +11,20 @@ class BwInfo(Metric):
              'stop_actor', 'get_redis_bw', 'compute_assignations', 'parse_osinfo', 'send_bw', 'detach_global_obs']
     _ref = ['attach']
 
-    def __init__(self, exchange, queue, routing_key, method):
+    def __init__(self, queue, routing_key, method):
         Metric.__init__(self)
 
         self.queue = queue
         self.routing_key = routing_key
         self.name = queue
-        self.exchange = exchange
         self.method = method
-        print '{0} initialized'.format(queue)
+
         self.count = {}
         self.last_bw = {}
         self.bw_observer = None
 
-        # Log for experimental purposes
-        # self.output = open("/home/lab144/bw_experiment_"+method+".dat", "w")
         self.last_bw_info = list()
         self.bw_info_to_average = int(1/AGGREGATION_INTERVAL)
-
-        # TODELETE:
-        # self.oh = open("/home/lab144/oh_"+method+".dat", "w")
 
         # Subprocess to aggregate collected metrics every time interval
         self.notifier = Thread(target=self.aggregate_and_send_info)
@@ -64,8 +58,6 @@ class BwInfo(Metric):
         self.bw_observer = None
 
     def notify(self, body):
-        # self.oh.write(str(time.time())+" "+str(len(body))+'\n')
-        # self.oh.flush()
         self.parse_osinfo(body)
 
     def aggregate_and_send_info(self):

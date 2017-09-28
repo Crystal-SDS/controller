@@ -1,11 +1,3 @@
-import errno
-import hashlib
-import json
-import logging
-import mimetypes
-import os
-from operator import itemgetter
-
 from django.conf import settings
 from wsgiref.util import FileWrapper
 from django.http import HttpResponse
@@ -19,8 +11,15 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from swiftclient import client as swift_client
 from swiftclient.exceptions import ClientException
+from operator import itemgetter
+import errno
+import hashlib
+import json
+import logging
+import mimetypes
+import os
 
-from api.common_utils import rsync_dir_with_nodes, to_json_bools, JSONResponse, get_redis_connection, get_token_connection
+from api.common import rsync_dir_with_nodes, to_json_bools, JSONResponse, get_redis_connection, get_token_connection
 from api.exceptions import SwiftClientError, StorletNotFoundException, FileSynchronizationException
 
 logger = logging.getLogger(__name__)
@@ -28,9 +27,6 @@ logger = logging.getLogger(__name__)
 
 def check_keys(data, keys):
     return sorted(list(data)) == sorted(list(keys))
-
-
-# End Common
 
 
 @csrf_exempt
@@ -292,11 +288,9 @@ def filter_undeploy(request, filter_id, project_id, container=None, swift_object
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
-# ------------------------------
-# DEPENDENCY PART
-# ------------------------------
-
-
+#
+# Dependencies
+#
 @csrf_exempt
 def dependency_list(request):
     """
@@ -474,74 +468,6 @@ def dependency_undeploy(request, dependency_id, project_id):
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
 
 
-@csrf_exempt
-def slo_list(request):
-    """
-    List all SLOs, or create an SLO.
-    """
-
-    try:
-        r = get_redis_connection()
-    except RedisError:
-        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-    if request.method == 'GET':
-        slos = []
-        keys = r.keys('SLO:*')
-        for key in keys:
-            _, dsl_filter, slo_name, target = key.split(':')
-            value = r.get(key)
-            slos.append({'dsl_filter': dsl_filter, 'slo_name': slo_name, 'target': target, 'value': value})
-        return JSONResponse(slos, status=status.HTTP_200_OK)
-
-    elif request.method == 'POST':
-        data = JSONParser().parse(request)
-        try:
-            slo_key = ':'.join(['SLO', data['dsl_filter'], data['slo_name'], data['target']])
-            r.set(slo_key, data['value'])
-
-            return JSONResponse(data, status=status.HTTP_201_CREATED)
-        except DataError:
-            return JSONResponse('Error saving SLA.', status=status.HTTP_400_BAD_REQUEST)
-
-    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
-
-
-@csrf_exempt
-def slo_detail(request, dsl_filter, slo_name, target):
-    """
-    Retrieve, update or delete SLO.
-    """
-
-    try:
-        r = get_redis_connection()
-    except RedisError:
-        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-    slo_key = ':'.join(['SLO', dsl_filter, slo_name, target])
-
-    if request.method == 'GET':
-        if r.exists(slo_key):
-            value = r.get(slo_key)
-            slo = {'dsl_filter': dsl_filter, 'slo_name': slo_name, 'target': target, 'value': value}
-            return JSONResponse(slo, status=status.HTTP_200_OK)
-        else:
-            return JSONResponse("SLO not found.", status=status.HTTP_404_NOT_FOUND)
-
-    elif request.method == 'PUT':
-        data = JSONParser().parse(request)
-        try:
-            r.set(slo_key, data['value'])
-            return JSONResponse('Data updated', status=status.HTTP_201_CREATED)
-        except DataError:
-            return JSONResponse('Error updating data', status=status.HTTP_400_BAD_REQUEST)
-
-    elif request.method == 'DELETE':
-        r.delete(slo_key)
-        return JSONResponse('SLA has been deleted', status=status.HTTP_204_NO_CONTENT)
-    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
-
-
 def set_filter(r, target, filter_data, parameters, token):
     if filter_data['filter_type'] == 'storlet':
 
@@ -641,3 +567,77 @@ def md5(fname):
         for chunk in iter(lambda: f.read(4096), b""):
             hash_md5.update(chunk)
     return hash_md5.hexdigest()
+
+
+#
+# DSL Mappings
+#
+@csrf_exempt
+def add_dsl_filter(request):
+    """
+    Add a filter with its default parameters in the registry (redis).
+    List all the dynamic filters registered.
+    """
+
+    try:
+        r = get_redis_connection()
+    except RedisError:
+        return JSONResponse('Error connecting with DB', status=500)
+    if request.method == 'GET':
+        keys = r.keys("dsl_filter:*")
+        dynamic_filters = []
+        for key in keys:
+            dynamic_filter = r.hgetall(key)
+            dynamic_filter["name"] = key.split(":")[1]
+            dynamic_filters.append(dynamic_filter)
+        return JSONResponse(dynamic_filters, status=200)
+
+    if request.method == 'POST':
+        data = JSONParser().parse(request)
+        name = data.pop("name", None)
+        if not name:
+            return JSONResponse('Filter must have a name', status=400)
+        r.hmset('dsl_filter:' + str(name), data)
+        return JSONResponse('Filter has been added to the registy', status=201)
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
+
+
+@csrf_exempt
+def dsl_filter_detail(request, name):
+    """
+    Get, update or delete a dynamic filter from the registry.
+    """
+
+    try:
+        r = get_redis_connection()
+    except RedisError:
+        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    if request.method == 'GET':
+        dynamic_filter = r.hgetall("dsl_filter:" + str(name))
+        return JSONResponse(dynamic_filter, status=status.HTTP_200_OK)
+
+    if request.method == 'PUT':
+        if not r.exists('dsl_filter:' + str(name)):
+            return JSONResponse('Dynamic filter with name:  ' + str(name) + ' does not exist.', status=status.HTTP_404_NOT_FOUND)
+        data = JSONParser().parse(request)
+        if 'name' in data:
+            del data['name']
+        r.hmset('dsl_filter:' + str(name), data)
+        return JSONResponse('The metadata of the dynamic filter with name: ' + str(name) + ' has been updated',
+                            status=status.HTTP_201_CREATED)
+
+    if request.method == 'DELETE':
+        filter_id = r.hget('dsl_filter:' + str(name), 'identifier')
+        filter_name = r.hget('filter:' + str(filter_id), 'filter_name')
+
+        keys = r.keys("pipeline:*")
+        for it in keys:
+            for value in r.hgetall(it).values():
+                json_value = json.loads(value)
+                if json_value['filter_name'] == filter_name:
+                    return JSONResponse('Unable to delete Registry DSL, is in use by some policy.', status=status.HTTP_403_FORBIDDEN)
+
+        r.delete("dsl_filter:" + str(name))
+        return JSONResponse('Dynamic filter has been deleted', status=status.HTTP_204_NO_CONTENT)
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)

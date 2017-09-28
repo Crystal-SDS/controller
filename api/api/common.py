@@ -20,6 +20,10 @@ logger = logging.getLogger(__name__)
 host = None
 NODE_STATUS_THRESHOLD = 15  # seconds
 
+controller_actors = dict()
+metric_actors = dict()
+rule_actors = dict()
+
 
 class LoggingColorsDjango(logging.Formatter):
     def __init__(self, *args, **kwargs):
@@ -201,11 +205,3 @@ def create_local_host():
         pass
 
     return host
-
-
-def create_docker_image(project_id):
-    pass
-
-
-def delete_docker_image(project_id):
-    pass

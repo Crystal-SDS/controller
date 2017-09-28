@@ -9,11 +9,10 @@ from rest_framework.parsers import JSONParser
 from operator import itemgetter
 import json
 import logging
-import redis
 import requests
 import paramiko
 import storage_policies_utils
-from api.common_utils import JSONResponse, get_redis_connection, get_token_connection
+from api.common_utils import JSONResponse, get_redis_connection
 from api.exceptions import FileSynchronizationException
 
 logger = logging.getLogger(__name__)
@@ -368,70 +367,4 @@ def zone_detail(request, zone_id):
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
-#
-# PROXY SORTING NOT USED, TODO: Remove
-#
-@csrf_exempt
-def sort_list(request):
-    """
-    List all proxy sortings, or create a proxy sortings.
-    """
 
-    try:
-        r = get_redis_connection()
-    except RedisError:
-        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-    if request.method == 'GET':
-        keys = r.keys("proxy_sorting:*")
-        proxy_sortings = []
-        for key in keys:
-            proxy_sortings.append(r.hgetall(key))
-        return JSONResponse(proxy_sortings, status=status.HTTP_200_OK)
-
-    elif request.method == 'POST':
-        try:
-            data = JSONParser().parse(request)
-            if not data:
-                return JSONResponse("Empty request", status=status.HTTP_400_BAD_REQUEST)
-
-            proxy_sorting_id = r.incr("proxies_sorting:id")
-            data["id"] = proxy_sorting_id
-            r.hmset('proxy_sorting:' + str(proxy_sorting_id), data)
-            return JSONResponse(data, status=status.HTTP_201_CREATED)
-        except redis.exceptions.DataError:
-            return JSONResponse("Error to save the proxy sorting", status=status.HTTP_400_BAD_REQUEST)
-        except ParseError:
-            return JSONResponse("Invalid format or empty request", status=status.HTTP_400_BAD_REQUEST)
-    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
-
-
-@csrf_exempt
-def sort_detail(request, sort_id):
-    """
-    Retrieve, update or delete a Proxy Sorting.
-    """
-
-    try:
-        r = get_redis_connection()
-    except RedisError:
-        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-    if request.method == 'GET':
-        proxy_sorting = r.hgetall("proxy_sorting:" + str(sort_id))
-        return JSONResponse(proxy_sorting, status=status.HTTP_200_OK)
-
-    elif request.method == 'PUT':
-        try:
-            data = JSONParser().parse(request)
-            r.hmset('proxy_sorting:' + str(sort_id), data)
-            return JSONResponse("Data updated", status=status.HTTP_201_CREATED)
-        except redis.exceptions.DataError:
-            return JSONResponse("Error updating data", status=status.HTTP_400_BAD_REQUEST)
-        except ParseError:
-            return JSONResponse("Invalid format or empty request", status=status.HTTP_400_BAD_REQUEST)
-
-    elif request.method == 'DELETE':
-        r.delete("proxy_sorting:" + str(sort_id))
-        return JSONResponse('Proxy sorting has been deleted', status=status.HTTP_204_NO_CONTENT)
-    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)

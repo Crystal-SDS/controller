@@ -173,15 +173,18 @@ PYACTOR_IP = '127.0.0.1'
 PYACTOR_PORT = 6899
 PYACTOR_URL = PYACTOR_TRANSPORT + '://' + PYACTOR_IP + ':' + str(PYACTOR_PORT)
 
-# Metrics
-METRIC_MODULE = 'controller.dynamic_policies.metrics.swift_metric'
-METRIC_CLASS = 'SwiftMetric'
 
-# Rules
-RULE_MODULE = 'controller.dynamic_policies.rules.rule'
-RULE_CLASS = 'Rule'
-RULE_TRANSIENT_MODULE = 'controller.dynamic_policies.rules.rule_transient'
-RULE_TRANSIENT_CLASS = 'TransientRule'
+# Generic Consumer Actor
+CONSUMER_MODULE = 'api.actors.consumer/Consumer'
+
+# Swift Metric Actor
+METRIC_MODULE = 'metrics.actors.swift_metric/SwiftMetric'
+
+# Rule Actor
+RULE_MODULE = 'policies.actors.rule/Rule'
+
+# Transient Rule Actor
+RULE_TRANSIENT_MODULE = 'policies.actors.rule_transient/TransientRule'
 
 # Global controllers
 GLOBAL_CONTROLLERS_BASE_MODULE = 'controller.dynamic_policies.rules'

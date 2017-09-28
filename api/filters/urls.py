@@ -2,6 +2,7 @@ from django.conf.urls import url
 import views
 
 urlpatterns = [
+
     url(r'^$', views.filter_list),
     url(r'^(?P<filter_id>[0-9]+)/?$', views.filter_detail),
     url(r'^(?P<filter_id>[0-9]+)/data/?$', views.FilterData.as_view()),
@@ -23,6 +24,8 @@ urlpatterns = [
     url(r'^dependencies/(?P<project_id>\w+)/deploy/(?P<dependency_id>\w+)/?$', views.dependency_deploy),
     url(r'^dependencies/(?P<project_id>\w+)/undeploy/(?P<dependency_id>\w+)/?$', views.dependency_undeploy),
 
-    url(r'^slos/?$', views.slo_list),
-    url(r'^slo/(?P<dsl_filter>[^/]+)/(?P<slo_name>[^/]+)/(?P<target>[^/]+)/?$', views.slo_detail)
+    # Filters DSL Mapping
+    url(r'^dsl/?$', views.add_dsl_filter),
+    url(r'^dsl/(?P<name>\w+)/?$', views.dsl_filter_detail),
+
 ]
