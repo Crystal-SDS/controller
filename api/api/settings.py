@@ -21,14 +21,10 @@ WORKLOAD_METRICS_DIR = os.path.join('/opt', 'crystal', 'workload_metrics')
 NATIVE_FILTERS_DIR = os.path.join('/opt', 'crystal', 'native_filters')
 STORLET_FILTERS_DIR = os.path.join('/opt', 'crystal', 'storlet_filters')
 DEPENDENCY_DIR = os.path.join('/opt', 'crystal', 'dependencies')
-<<<<<<< HEAD
-GLOBAL_CONTROLLERS_DIR = os.path.join('/opt', 'crystal', 'global_controllers')
 ANALYZERS_DIR = os.path.join('/opt', 'crystal', 'job_analyzers')
 JOBS_DIR = os.path.join('/opt', 'crystal', 'jobs')
-ANSIBLE_DIR = os.path.join(BASE_DIR, 'swift', 'ansible')
-=======
 CONTROLLERS_DIR = os.path.join('/opt', 'crystal', 'controllers')
->>>>>>> refs/heads/dev
+
 
 NATIVE_FILTER_KEYS = ('id', 'filter_name', 'filter_type', 'language', 'dependencies', 'main', 'is_pre_put', 'is_post_put',
                       'is_pre_get', 'is_post_get', 'has_reverse', 'execution_server', 'execution_server_reverse', 'path')
