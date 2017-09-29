@@ -1,6 +1,7 @@
-from api.common_utils import get_redis_connection
+import redis
 import sys
 import settings
+
 
 def run():
     """
@@ -11,7 +12,7 @@ def run():
     # Add source directories to sys path
     sys.path.insert(0, settings.GLOBAL_CONTROLLERS_DIR)
 
-    r = get_redis_connection()
+    r = redis.Redis(connection_pool=settings.REDIS_CON_POOL)
 
     # Workload metric definitions
     for key in r.keys('workload_metric:*'):

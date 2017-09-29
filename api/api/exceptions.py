@@ -22,7 +22,17 @@ class FileSynchronizationException(CrystalControllerException):
     """Exception to be raised when a file synchronization between controller and Swift nodes fails."""
     pass
 
+
 class AnalyticsJobSubmissionException(CrystalControllerException):
     """Exception to be raised when something goes wrong in job submission."""
     pass
 
+
+class ProjectNotFound(CrystalControllerException):
+    """Exception to be raised when a dynamic policy is created with a Non-existing project."""
+    pass
+
+
+class ProjectNotCrystalEnabled(CrystalControllerException):
+    """Exception to be raised when a dynamic policy is created with a Non-crystal-enabled project."""
+    pass

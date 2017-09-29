@@ -1,6 +1,9 @@
+import sys
+# Adding a path to be able to import bandwidth_controller_samples
+sys.path.insert(0, '../')
+
 import json
 import os
-
 import mock
 import redis
 from django.conf import settings
@@ -12,11 +15,11 @@ from controller.dynamic_policies.metrics.bw_info_ssync import BwInfoSSYNC
 from controller.dynamic_policies.metrics.swift_metric import SwiftMetric
 from controller.dynamic_policies.rules.rule import Rule
 from controller.dynamic_policies.rules.rule_transient import TransientRule
-from controller.dynamic_policies.rules.sample_bw_controllers.simple_proportional_bandwidth import SimpleProportionalBandwidthPerTenant
-from controller.dynamic_policies.rules.sample_bw_controllers.simple_proportional_replication_bandwidth import SimpleProportionalReplicationBandwidth
-from controller.dynamic_policies.rules.sample_bw_controllers.min_bandwidth_per_tenant import SimpleMinBandwidthPerTenant
-from controller.dynamic_policies.rules.sample_bw_controllers.min_slo_tenant_global_share_spare_bw import MinTenantSLOGlobalSpareBWShare
-from controller.dynamic_policies.rules.sample_bw_controllers.min_slo_tenant_global_share_spare_bw_v2 import MinTenantSLOGlobalSpareBWShare as MinTenantSLOGlobalSpareBWShareV2
+from bandwidth_controller_samples.static_bandwidth import StaticBandwidthPerTenant
+from bandwidth_controller_samples.static_replication_bandwidth import StaticReplicationBandwidth
+from bandwidth_controller_samples.min_bandwidth_per_tenant import SimpleMinBandwidthPerTenant
+from bandwidth_controller_samples.min_slo_tenant_global_share_spare_bw import MinTenantSLOGlobalSpareBWShare
+from bandwidth_controller_samples.min_slo_tenant_global_share_spare_bw_v2 import MinTenantSLOGlobalSpareBWShare as MinTenantSLOGlobalSpareBWShareV2
 from .dsl_parser import parse
 
 
@@ -48,18 +51,18 @@ class DynamicPoliciesTestCase(TestCase):
     def test_get_target_ok(self):
         self.setup_dsl_parser_data()
         _, parsed_rule = parse('FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 WHEN metric1 > 5 DO SET compression')
-        target = '4f0279da74ef4584a29dc72c835fe2c9'
-        host = None
-        rule = Rule(parsed_rule, parsed_rule.action_list[0], target, host)
-        self.assertEqual(rule.get_target(), '4f0279da74ef4584a29dc72c835fe2c9')
+        target_id = '4f0279da74ef4584a29dc72c835fe2c9'
+        target_name = 'tenant1'
+        rule = Rule(parsed_rule, parsed_rule.action_list[0], target_id, target_name)
+        self.assertEqual(rule.get_target(), target_name)
 
     @mock.patch('controller.dynamic_policies.rules.rule.Rule._do_action')
     def test_action_is_not_triggered(self, mock_do_action):
         self.setup_dsl_parser_data()
         _, parsed_rule = parse('FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 WHEN metric1 > 5 DO SET compression')
-        target = '4f0279da74ef4584a29dc72c835fe2c9'
-        host = None
-        rule = Rule(parsed_rule, parsed_rule.action_list[0], target, host)
+        target_id = '4f0279da74ef4584a29dc72c835fe2c9'
+        target_name = 'tenant1'
+        rule = Rule(parsed_rule, parsed_rule.action_list[0], target_id, target_name)
         rule.update('metric1', 3)
         self.assertFalse(mock_do_action.called)
 
@@ -67,67 +70,67 @@ class DynamicPoliciesTestCase(TestCase):
     def test_action_is_triggered(self, mock_do_action):
         self.setup_dsl_parser_data()
         _, parsed_rule = parse('FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 WHEN metric1 > 5 DO SET compression')
-        target = '4f0279da74ef4584a29dc72c835fe2c9'
-        host = None
-        rule = Rule(parsed_rule, parsed_rule.action_list[0], target, host)
+        target_id = '4f0279da74ef4584a29dc72c835fe2c9'
+        target_name = 'tenant1'
+        rule = Rule(parsed_rule, parsed_rule.action_list[0], target_id, target_name)
         rule.update('metric1', 6)
         self.assertTrue(mock_do_action.called)
 
     @mock.patch('controller.dynamic_policies.rules.rule.redis.StrictRedis.hgetall')
     @mock.patch('controller.dynamic_policies.rules.rule.redis.StrictRedis.hset')
-    @mock.patch('controller.dynamic_policies.rules.rule.Rule._admin_login')
-    def test_action_set_is_triggered_deploy_200(self, mock_admin_login, mock_redis_hset, mock_redis_hgetall):
+    @mock.patch('controller.dynamic_policies.rules.rule.Rule._get_admin_token')
+    def test_action_set_is_triggered_deploy_200(self, mock_admin_token, mock_redis_hset, mock_redis_hgetall):
         mock_redis_hgetall.return_value = {'activation_url': 'http://example.com/filters',
                                            'identifier': '1',
                                            'valid_parameters': '{"cparam1": "integer", "cparam2": "integer", "cparam3": "integer"}'}
         self.setup_dsl_parser_data()
         _, parsed_rule = parse('FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 WHEN metric1 > 5 DO SET compression')
-        target = '4f0279da74ef4584a29dc72c835fe2c9'
-        host = None
-        rule = Rule(parsed_rule, parsed_rule.action_list[0], target, host)
+        target_id = '4f0279da74ef4584a29dc72c835fe2c9'
+        target_name = 'tenant1'
+        rule = Rule(parsed_rule, parsed_rule.action_list[0], target_id, target_name)
         rule.id = '10'
         with HTTMock(example_mock_200):
             rule.update('metric1', 6)
-        self.assertTrue(mock_admin_login.called)
+        self.assertTrue(mock_admin_token.called)
         self.assertTrue(mock_redis_hset.called)
         mock_redis_hset.assert_called_with('10', 'alive', False)
 
     @mock.patch('controller.dynamic_policies.rules.rule.redis.StrictRedis.hgetall')
     @mock.patch('controller.dynamic_policies.rules.rule.redis.StrictRedis.hset')
-    @mock.patch('controller.dynamic_policies.rules.rule.Rule._admin_login')
-    def test_action_set_is_triggered_deploy_400(self, mock_admin_login, mock_redis_hset, mock_redis_hgetall):
+    @mock.patch('controller.dynamic_policies.rules.rule.Rule._get_admin_token')
+    def test_action_set_is_triggered_deploy_400(self, mock_admin_token, mock_redis_hset, mock_redis_hgetall):
         mock_redis_hgetall.return_value = {'activation_url': 'http://example.com/filters',
                                            'identifier': '1',
                                            'valid_parameters': '{"cparam1": "integer", "cparam2": "integer", "cparam3": "integer"}'}
         self.setup_dsl_parser_data()
         _, parsed_rule = parse('FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 WHEN metric1 > 5 DO SET compression')
-        target = '4f0279da74ef4584a29dc72c835fe2c9'
-        host = None
-        rule = Rule(parsed_rule, parsed_rule.action_list[0], target, host)
+        target_id = '4f0279da74ef4584a29dc72c835fe2c9'
+        target_name = 'tenant1'
+        rule = Rule(parsed_rule, parsed_rule.action_list[0], target_id, target_name)
         rule.id = '10'
         with HTTMock(example_mock_400):
             rule.update('metric1', 6)
-        self.assertTrue(mock_admin_login.called)
+        self.assertTrue(mock_admin_token.called)
         self.assertFalse(mock_redis_hset.called)
 
     @mock.patch('controller.dynamic_policies.rules.rule.redis.StrictRedis.hgetall')
-    @mock.patch('controller.dynamic_policies.rules.rule.Rule._admin_login')
+    @mock.patch('controller.dynamic_policies.rules.rule.Rule._get_admin_token')
     @mock.patch('controller.dynamic_policies.rules.rule.Rule.stop_actor')
-    def test_action_delete_is_triggered_undeploy_200(self, mock_stop_actor, mock_admin_login, mock_redis_hgetall):
+    def test_action_delete_is_triggered_undeploy_200(self, mock_stop_actor, mock_admin_token, mock_redis_hgetall):
         mock_redis_hgetall.return_value = {'activation_url': 'http://example.com/filters',
                                            'identifier': '1',
                                            'valid_parameters': '{"cparam1": "integer", "cparam2": "integer", "cparam3": "integer"}'}
         self.setup_dsl_parser_data()
         _, parsed_rule = parse('FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 WHEN metric1 > 5 DO SET compression')
-        target = '4f0279da74ef4584a29dc72c835fe2c9'
-        host = None
+        target_id = '4f0279da74ef4584a29dc72c835fe2c9'
+        target_name = 'tenant1'
         action = parsed_rule.action_list[0]
         action.action = 'DELETE'
-        rule = Rule(parsed_rule, action, target, host)
+        rule = Rule(parsed_rule, action, target_id, target_name)
         rule.id = '10'
         with HTTMock(example_mock_200):
             rule.update('metric1', 6)
-        self.assertTrue(mock_admin_login.called)
+        self.assertTrue(mock_admin_token.called)
         self.assertTrue(mock_stop_actor.called)
 
     #
@@ -138,25 +141,25 @@ class DynamicPoliciesTestCase(TestCase):
     def test_transient_action_is_triggered(self, mock_do_action):
         self.setup_dsl_parser_data()
         _, parsed_rule = parse('FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 WHEN metric1 > 5 DO SET compression TRANSIENT')
-        target = '4f0279da74ef4584a29dc72c835fe2c9'
-        host = None
-        rule = TransientRule(parsed_rule, parsed_rule.action_list[0], target, host)
+        target_id = '4f0279da74ef4584a29dc72c835fe2c9'
+        target_name = 'tenant1'
+        rule = TransientRule(parsed_rule, parsed_rule.action_list[0], target_id, target_name)
         rule.update('metric1', 6)
         self.assertTrue(mock_do_action.called)
 
     @mock.patch('controller.dynamic_policies.rules.rule.redis.StrictRedis.hgetall')
-    @mock.patch('controller.dynamic_policies.rules.rule_transient.TransientRule._admin_login')
+    @mock.patch('controller.dynamic_policies.rules.rule_transient.TransientRule._get_admin_token')
     @mock.patch('controller.dynamic_policies.rules.rule_transient.requests.put')
     @mock.patch('controller.dynamic_policies.rules.rule_transient.requests.delete')
-    def test_transient_action_set_is_triggered_200(self, mock_requests_delete, mock_requests_put, mock_admin_login, mock_redis_hgetall):
+    def test_transient_action_set_is_triggered_200(self, mock_requests_delete, mock_requests_put, mock_admin_token, mock_redis_hgetall):
         mock_redis_hgetall.return_value = {'activation_url': 'http://example.com/filters',
                                            'identifier': '1',
                                            'valid_parameters': '{"cparam1": "integer", "cparam2": "integer", "cparam3": "integer"}'}
         self.setup_dsl_parser_data()
         _, parsed_rule = parse('FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 WHEN metric1 > 5 DO SET compression TRANSIENT')
-        target = '4f0279da74ef4584a29dc72c835fe2c9'
-        host = None
-        rule = TransientRule(parsed_rule, parsed_rule.action_list[0], target, host)
+        target_id = '4f0279da74ef4584a29dc72c835fe2c9'
+        target_name = 'tenant1'
+        rule = TransientRule(parsed_rule, parsed_rule.action_list[0], target_id, target_name)
 
         rule.update('metric1', 6)
         self.assertTrue(mock_requests_put.called)
@@ -232,19 +235,15 @@ class DynamicPoliciesTestCase(TestCase):
     #
 
     @mock.patch('controller.dynamic_policies.metrics.swift_metric.Thread')
-    def test_metrics_swift_metric(self, mock_thread):
+    @mock.patch('controller.dynamic_policies.metrics.swift_metric.socket.socket')
+    def test_metrics_swift_metric(self, mock_socket, mock_thread):
         swift_metric = SwiftMetric('exchange', 'metric_id', 'routing_key')
-        data = {"controller": {"@timestamp": 123456789, "AUTH_bd34c4073b65426894545b36f0d8dcce": 3}}
+        #data = {"controller": {"@timestamp": 123456789, "AUTH_bd34c4073b65426894545b36f0d8dcce": 3}}
+        data = {'container': 'crystal/data', 'metric_name': 'bandwidth', '@timestamp': '2017-09-09T18:00:18.331492+02:00',
+                'value': 16.4375, 'project': 'crystal', 'host': 'controller', 'method': 'GET', 'server_type': 'proxy'}
         body = json.dumps(data)
         swift_metric.notify(body)
         self.assertTrue(mock_thread.called)
-        self.assertIsNone(swift_metric.get_value())
-
-    @mock.patch('controller.dynamic_policies.metrics.swift_metric.socket.socket')
-    def test_metrics_swift_metric_send_data_to_logstash(self, mock_socket):
-        swift_metric = SwiftMetric('exchange', 'metric_id', 'routing_key')
-        data = {"controller": {"@timestamp": 123456789, "AUTH_bd34c4073b65426894545b36f0d8dcce": 3}}
-        swift_metric._send_data_to_logstash(data)
         self.assertTrue(mock_socket.called)
         self.assertTrue(mock_socket.return_value.sendto.called)
 
@@ -324,7 +323,7 @@ class DynamicPoliciesTestCase(TestCase):
     def test_simple_proportional_bandwidth_per_tenant(self, mock_pika):
         self.r.set('SLO:bandwidth:put_bw:AUTH_1234567890abcdef#0', 80)
 
-        smin = SimpleProportionalBandwidthPerTenant('the_name', 'PUT')
+        smin = StaticBandwidthPerTenant('the_name', 'PUT')
         self.assertTrue(mock_pika.PlainCredentials.called)
         info = {'AUTH_1234567890abcdef': {'192.168.2.21': {'0': {u'sdb1': 655350.0}}}}
         computed = smin.compute_algorithm(info)
@@ -338,7 +337,7 @@ class DynamicPoliciesTestCase(TestCase):
     def test_simple_proportional_replication_bandwidth(self, mock_pika):
         self.r.set('SLO:bandwidth:ssync_bw:AUTH_1234567890abcdef#0', 80)
 
-        smin = SimpleProportionalReplicationBandwidth('the_name', 'the_method')
+        smin = StaticReplicationBandwidth('the_name', 'the_method')
         self.assertTrue(mock_pika.PlainCredentials.called)
         info = {'AUTH_1234567890abcdef': {'192.168.2.21': {'1': {u'sdb1': 655350.0}}}}
         computed = smin.compute_algorithm(info)
