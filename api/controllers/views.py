@@ -14,8 +14,7 @@ import mimetypes
 import os
 
 from api.common import to_json_bools, JSONResponse, get_redis_connection, \
-    create_local_host, controller_actors
-from filters.views import save_file, make_sure_path_exists
+    create_local_host, controller_actors, make_sure_path_exists, save_file, delete_file
 
 logger = logging.getLogger(__name__)
 
@@ -76,10 +75,18 @@ def controller_detail(request, controller_id):
             return JSONResponse("Data updated", status=status.HTTP_201_CREATED)
         except DataError:
             return JSONResponse("Error updating data", status=status.HTTP_400_BAD_REQUEST)
+        except ValueError:
+            return JSONResponse("Error starting controller", status=status.HTTP_400_BAD_REQUEST)
 
     elif request.method == 'DELETE':
         stop_controller(controller_id)
-        r.delete("controller:" + str(controller_id))
+        try:
+            controller = r.hgetall('controller:' + str(controller_id))
+            delete_file(controller['controller_name'], settings.CONTROLLERS_DIR)
+            r.delete("controller:" + str(controller_id))
+        except:
+            return JSONResponse("Error deleting controller", status=status.HTTP_400_BAD_REQUEST)
+
         # If this is the last controller, the counter is reset
         keys = r.keys('controller:*')
         if not keys:
@@ -107,9 +114,9 @@ class ControllerData(APIView):
             return JSONResponse("Invalid format or empty request", status=status.HTTP_400_BAD_REQUEST)
 
         controller_id = r.incr("controllers:id")
+
         try:
             data['id'] = controller_id
-
             file_obj = request.FILES['file']
 
             make_sure_path_exists(settings.CONTROLLERS_DIR)
@@ -126,8 +133,9 @@ class ControllerData(APIView):
 
         except DataError:
             return JSONResponse("Error to save the object", status=status.HTTP_400_BAD_REQUEST)
-        except Exception as e:
-            print e
+        except ValueError:
+            return JSONResponse("Error starting/stoping controller", status=status.HTTP_400_BAD_REQUEST)
+        except Exception:
             return JSONResponse("Error uploading file", status=status.HTTP_400_BAD_REQUEST)
 
     def get(self, request, controller_id):
@@ -158,21 +166,22 @@ class ControllerData(APIView):
 
 def start_controller(controller_id, controller_name, controller_class_name):
     host = create_local_host()
+
     controller_location = os.path.join(controller_name, controller_class_name)
     try:
         if controller_id not in controller_actors:
             controller_actors[controller_id] = host.spawn(controller_name, controller_location)
             controller_actors[controller_id].run()
             logger.info("Controller, Started controller actor: "+controller_location)
-    except Exception as e:
-        logger.error(e.message)
+    except:
+        raise ValueError
 
 
 def stop_controller(controller_id):
     if controller_id in controller_actors:
         try:
             controller_actors[controller_id].stop_actor()
-        except Exception as e:
-            print e.message
-        del controller_actors[controller_id]
-        logger.info("Controller, Stopped controller actor: " + str(controller_id))
+            del controller_actors[controller_id]
+            logger.info("Controller, Stopped controller actor: " + str(controller_id))
+        except:
+            raise ValueError

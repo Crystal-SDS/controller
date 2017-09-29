@@ -12,14 +12,13 @@ from rest_framework.views import APIView
 from swiftclient import client as swift_client
 from swiftclient.exceptions import ClientException
 from operator import itemgetter
-import errno
-import hashlib
 import json
 import logging
 import mimetypes
 import os
 
-from api.common import rsync_dir_with_nodes, to_json_bools, JSONResponse, get_redis_connection, get_token_connection
+from api.common import rsync_dir_with_nodes, to_json_bools, JSONResponse, \
+    get_redis_connection, get_token_connection, make_sure_path_exists, save_file, md5
 from api.exceptions import SwiftClientError, StorletNotFoundException, FileSynchronizationException
 
 logger = logging.getLogger(__name__)
@@ -539,34 +538,6 @@ def unset_filter(r, target, filter_data, token):
         json_value = json.loads(value)
         if json_value["filter_name"] == filter_data["filter_name"]:
             r.hdel("pipeline:" + str(target), key)
-
-
-def make_sure_path_exists(path):
-    try:
-        os.makedirs(path)
-    except OSError as exception:
-        if exception.errno != errno.EEXIST:
-            raise
-
-
-def save_file(file_, path=''):
-    """
-    Little helper to save a file
-    """
-    filename = file_.name
-    fd = open(str(path) + "/" + str(filename), 'wb')
-    for chunk in file_.chunks():
-        fd.write(chunk)
-    fd.close()
-    return str(path) + "/" + str(filename)
-
-
-def md5(fname):
-    hash_md5 = hashlib.md5()
-    with open(fname, "rb") as f:
-        for chunk in iter(lambda: f.read(4096), b""):
-            hash_md5.update(chunk)
-    return hash_md5.hexdigest()
 
 
 #

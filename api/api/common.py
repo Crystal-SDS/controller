@@ -1,13 +1,6 @@
-import calendar
-import logging
-import os
-import sys
-import time
-
 from keystoneauth1.identity import v3
 from keystoneauth1 import session
 from keystoneclient.v3 import client
-import redis
 from django.conf import settings
 from django.core.management.color import color_style
 from django.http import HttpResponse
@@ -15,6 +8,15 @@ from rest_framework.renderers import JSONRenderer
 from api.exceptions import FileSynchronizationException
 from pyactor.context import set_context, create_host
 from swiftclient import client as swift_client
+
+import errno
+import hashlib
+import calendar
+import logging
+import redis
+import os
+import sys
+import time
 
 logger = logging.getLogger(__name__)
 host = None
@@ -205,3 +207,46 @@ def create_local_host():
         pass
 
     return host
+
+
+def make_sure_path_exists(path):
+    try:
+        os.makedirs(path)
+    except OSError as exception:
+        if exception.errno != errno.EEXIST:
+            raise
+
+
+def save_file(file_, path=''):
+    """
+    Helper to save a file
+    """
+    filename = file_.name
+    file_path = os.path.join(path, filename)
+    if os.path.isfile(file_path):
+        os.remove(file_path)
+    fd = open(str(path) + "/" + str(filename), 'wb')
+    for chunk in file_.chunks():
+        fd.write(chunk)
+    fd.close()
+    return str(path) + "/" + str(filename)
+
+
+def delete_file(filename, path):
+    """
+    Helper to save a file
+    """
+    file_path = os.path.join(path, filename)
+    if os.path.isfile(file_path):
+        os.remove(file_path)
+    pyc = file_path+"c"
+    if os.path.isfile(pyc):
+        os.remove(pyc)
+
+
+def md5(fname):
+    hash_md5 = hashlib.md5()
+    with open(fname, "rb") as f:
+        for chunk in iter(lambda: f.read(4096), b""):
+            hash_md5.update(chunk)
+    return hash_md5.hexdigest()

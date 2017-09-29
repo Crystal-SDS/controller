@@ -1,10 +1,12 @@
 from redis.exceptions import RedisError
+from pyactor.exceptions import NotFoundError
 from django.conf import settings
 import logging
 import Queue
 import pika
 import redis
 
+logging.getLogger("pika").propagate = False
 logger = logging.getLogger(__name__)
 
 
@@ -12,8 +14,6 @@ class AbstractController(object):
 
     _ask = ['get_target']
     _tell = ['update', 'run', 'stop_actor', 'notify']
-
-    metrics = []
 
     def __init__(self):
         self.rmq_user = settings.RABBITMQ_USERNAME
@@ -28,15 +28,19 @@ class AbstractController(object):
         try:
             self.redis = redis.Redis(connection_pool=settings.REDIS_CON_POOL)
         except RedisError:
-            logger.info('"Error connecting with Redis DB"')
+            logger.error('"Error connecting with Redis DB"')
 
+        self.metrics = dict()
         self.metric_data = Queue.Queue()
         self.rmq_messages = Queue.Queue()
 
     def _subscribe_metrics(self):
-        for metric in self.metrics:
-            metric_actor = self.host.lookup(metric)
-            metric_actor.attach(self.proxy)
+        try:
+            for metric in self.metrics:
+                metric_actor = self.host.lookup(metric)
+                metric_actor.attach(self.proxy)
+        except NotFoundError as e:
+            logger.error(e)
 
     def _connect_rmq(self):
         parameters = pika.ConnectionParameters(host=self.rmq_host,
@@ -58,7 +62,7 @@ class AbstractController(object):
             self._channel.basic_publish(**params)
         except Exception as e:
             logger.error(e.message)
-        self.__disconnect_rmq()
+        self._disconnect_rmq()
 
     def _init_consum(self, queue, routing_key):
         try:
@@ -71,7 +75,7 @@ class AbstractController(object):
     def notify(self, body):
         """
         Method called from the consumer to indicate the value consumed from the
-        rabbitmq queue. After receive the value, this value is communicated to
+        RabbitMQ queue. After receive the value, this value is communicated to
         all the observers subscribed to this metric.
         """
         self.rmq_messages.put(body)
@@ -84,7 +88,7 @@ class AbstractController(object):
 
     def update(self, metric_name, metric_data):
         """
-        Method called from the Swift Metric to indicate the new metric dada
+        Method called from the Swift Metric to indicate the new metric data
         """
         self.compute_data(metric_data)
 
@@ -105,7 +109,6 @@ class AbstractController(object):
                 for metric in self.metrics:
                     metric_actor = self.host.lookup(metric)
                     metric_actor.detach(self.id, self.get_target())
-            # self._disconnect_rmq()
-            self.host.stop_actor(self.id)
-        except Exception as e:
-            logger.error(str(e.message))
+        except NotFoundError as e:
+            logger.error(e)
+        self.host.stop_actor(self.id)
