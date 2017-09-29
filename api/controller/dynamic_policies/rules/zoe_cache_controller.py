@@ -1,15 +1,18 @@
 import json
 import logging
 import redis
+import requests
 
 from django.conf import settings
 from keystoneauth1.identity import v3
 from keystoneauth1 import session
 from keystoneclient.v3 import client
 from redis.exceptions import RedisError
+import swiftclient
 
 logger = logging.getLogger(__name__)
 
+CACHE_SIZE = 900 * 1024 * 1024
 
 class ZoeCacheController(object):
 
@@ -57,20 +60,39 @@ class ZoeCacheController(object):
             tenant_id = tenant_list[tenant_name]
             self.abstract_policies[tenant_id] = info_dict['abstract_policy']
 
-            # Naive approach: apply cache to tenant >= gold
-            # If caching policy is not active, the controller activates it
-            caching_policy_active = False
-            pipeline_name = 'pipeline:' + tenant_id
-            if self.r.exists(pipeline_name):
-                pipeline_contents = self.r.hgetall(pipeline_name)
-                for key, value in pipeline_contents.items():
-                    policy = json.loads(value)
-                    if policy['filter_name'] == 'crystal_cache_control.py':
-                        caching_policy_active = True
+            # Provisional approach:
+            # gold = iterative
+            # silver = iterative
+            # bronze = not iterative
 
-            if not caching_policy_active:
-                # TODO Create a caching policy for this tenant
+            # Only apply cache/prefetching for iterative approaches (apps that use the same data at every run)
+            if self.abstract_policies[tenant_id] in ['platinum', 'gold', 'silver']:
+                # Let's see dataset size
+                container = "ebooks" # TODO hardcoded
 
+                container_size = self.obtain_container_size(tenant_id, container)
+                logger.info("container_size is " + str(container_size))
+                logger.info("CACHE_SIZE is " + str(container_size))
+                if container_size < CACHE_SIZE:
+                    # If caching policy is not active, the controller activates it
+                    caching_policy_active = False
+                    pipeline_name = 'pipeline:' + tenant_id
+                    if self.r.exists(pipeline_name):
+                        pipeline_contents = self.r.hgetall(pipeline_name)
+                        for key, value in pipeline_contents.items():
+                            policy = json.loads(value)
+                            if policy['filter_name'] == 'crystal_cache_control.py':
+                                caching_policy_active = True
+
+                    if not caching_policy_active:
+                        # TODO Create a caching policy for this tenant
+                        # container size may be passed as parameter to the filter. Then cache could balance the available space.
+                        dynamic_filter = self.redis.hgetall("dsl_filter:caching")
+                        self.activate_policy('caching', str(dynamic_filter["identifier"]))
+
+                else:
+                    # Enable prefetching
+                    pass
 
     def stop_actor(self):
         """
@@ -114,3 +136,55 @@ class ZoeCacheController(object):
             print(exc)
 
         return keystone_client
+
+    def obtain_container_size(self, tenant_id, container_name):
+        # Swift request to obtain container size
+        admin_user = settings.MANAGEMENT_ADMIN_USERNAME
+        admin_passwd = settings.MANAGEMENT_ADMIN_PASSWORD
+        keystone_url = settings.KEYSTONE_ADMIN_URL
+
+        swift = swiftclient.client.Connection(authurl=keystone_url,
+                                                   user=admin_user,
+                                                   key=admin_passwd,
+                                                   tenant_name=tenant_id,
+                                                   auth_version="3.0")
+        container = swift.get_container(container_name, limit=1)
+        container_size = int(container[0]['x-container-bytes-used'])
+        swift.close()
+        return container_size
+
+    def activate_policy(self, filter_identifier, tenant_id):
+        if not self.token:
+            self._get_admin_token()
+
+        headers = {"X-Auth-Token": self.token}
+
+        #url = dynamic_filter["activation_url"] + "/" + self.target_id + "/deploy/" + str(dynamic_filter["identifier"])
+        url = "http://controller:9000/filters/" + tenant_id + "/deploy/" + str(filter_identifier)
+
+        data = dict()
+        data['object_type'] = ''
+        data['object_size'] = ''
+        data['params'] = ''
+
+        response = requests.put(url, json.dumps(data), headers=headers)
+
+        if 200 <= response.status_code < 300:
+            logger.info('Policy ' + str(self.id) + ' applied')
+
+
+    def _get_admin_token(self):
+        """
+        Method called to obtain the admin credentials, which we need to made requests to controller
+        """
+        admin_project = settings.MANAGEMENT_ACCOUNT
+        admin_user = settings.MANAGEMENT_ADMIN_USERNAME
+        admin_passwd = settings.MANAGEMENT_ADMIN_PASSWORD
+        keystone_url = settings.KEYSTONE_ADMIN_URL
+        try:
+            _, self.token = c.get_auth(keystone_url,
+                                       admin_project + ":" + admin_user,
+                                       admin_passwd, auth_version="3")
+        except:
+            logger.error("Zoe_controller, There was an error gettting a token from keystone")
+            raise Exception()
