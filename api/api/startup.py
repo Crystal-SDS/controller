@@ -9,9 +9,6 @@ def run():
     are stopped, so we need to ensure the correct values in redis.
     """
 
-    # Add source directories to sys path
-    sys.path.insert(0, settings.GLOBAL_CONTROLLERS_DIR)
-
     r = redis.Redis(connection_pool=settings.REDIS_CON_POOL)
 
     # Workload metric definitions
@@ -26,6 +23,6 @@ def run():
     for key in r.keys('policy:*'):
         r.hset(key, 'alive', 'False')
 
-    # Global controllers
+    # Controllers
     for key in r.keys('controller:*'):
         r.hset(key, 'enabled', 'False')

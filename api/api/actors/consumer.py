@@ -3,6 +3,7 @@ from threading import Thread
 import logging
 import pika
 
+logging.getLogger("pika").propagate = False
 logger = logging.getLogger(__name__)
 
 

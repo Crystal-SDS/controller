@@ -15,10 +15,9 @@ import mimetypes
 import os
 
 from api.common import to_json_bools, JSONResponse, get_redis_connection, \
-    rsync_dir_with_nodes, create_local_host, metric_actors
+    rsync_dir_with_nodes, create_local_host, metric_actors, make_sure_path_exists, save_file
 
 from api.exceptions import FileSynchronizationException
-from filters.views import save_file, make_sure_path_exists
 
 
 logger = logging.getLogger(__name__)

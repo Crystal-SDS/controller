@@ -8,16 +8,13 @@ from rest_framework import status
 from rest_framework.exceptions import ParseError
 from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
 from rest_framework.views import APIView
-from eventlet import sleep
 import json
 import logging
 import mimetypes
 import os
 
 from api.common import to_json_bools, JSONResponse, get_redis_connection, \
-    create_local_host, controller_actors, metric_actors
-
-from filters.views import save_file, make_sure_path_exists
+    create_local_host, controller_actors, make_sure_path_exists, save_file, delete_file
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +23,7 @@ logger = logging.getLogger(__name__)
 # Global Controllers
 #
 @csrf_exempt
-def global_controller_list(request):
+def controller_list(request):
     """
     List all global controllers.
     """
@@ -48,7 +45,7 @@ def global_controller_list(request):
 
 
 @csrf_exempt
-def global_controller_detail(request, controller_id):
+def controller_detail(request, controller_id):
     """
     Retrieve, update or delete a global controller.
     """
@@ -65,22 +62,30 @@ def global_controller_detail(request, controller_id):
     elif request.method == 'PUT':
         data = JSONParser().parse(request)
         try:
-            r.hmset('controller:' + str(controller_id), data)
             controller_data = r.hgetall('controller:' + str(controller_id))
-            to_json_bools(controller_data, 'enabled')
-
-            if controller_data['enabled']:
-                actor_id = controller_data['controller_name'].split('.')[0]
-                start_global_controller(str(controller_id), actor_id, controller_data['class_name'], controller_data['type'], controller_data['dsl_filter'])
+            to_json_bools(data, 'enabled')
+            if data['enabled']:
+                controller_name = controller_data['controller_name'].split('.')[0]
+                controller_class_name = controller_data['class_name']
+                start_controller(str(controller_id), controller_name, controller_class_name)
             else:
-                stop_global_controller(str(controller_id))
+                stop_controller(str(controller_id))
 
+            r.hmset('controller:' + str(controller_id), data)
             return JSONResponse("Data updated", status=status.HTTP_201_CREATED)
         except DataError:
             return JSONResponse("Error updating data", status=status.HTTP_400_BAD_REQUEST)
+        except ValueError:
+            return JSONResponse("Error starting controller", status=status.HTTP_400_BAD_REQUEST)
 
     elif request.method == 'DELETE':
-        r.delete("controller:" + str(controller_id))
+        stop_controller(controller_id)
+        try:
+            controller = r.hgetall('controller:' + str(controller_id))
+            delete_file(controller['controller_name'], settings.CONTROLLERS_DIR)
+            r.delete("controller:" + str(controller_id))
+        except:
+            return JSONResponse("Error deleting controller", status=status.HTTP_400_BAD_REQUEST)
 
         # If this is the last controller, the counter is reset
         keys = r.keys('controller:*')
@@ -92,7 +97,7 @@ def global_controller_detail(request, controller_id):
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
-class GlobalControllerData(APIView):
+class ControllerData(APIView):
     """
     Upload or download a global controller.
     """
@@ -109,27 +114,28 @@ class GlobalControllerData(APIView):
             return JSONResponse("Invalid format or empty request", status=status.HTTP_400_BAD_REQUEST)
 
         controller_id = r.incr("controllers:id")
+
         try:
             data['id'] = controller_id
-
             file_obj = request.FILES['file']
 
-            make_sure_path_exists(settings.GLOBAL_CONTROLLERS_DIR)
-            path = save_file(file_obj, settings.GLOBAL_CONTROLLERS_DIR)
+            make_sure_path_exists(settings.CONTROLLERS_DIR)
+            path = save_file(file_obj, settings.CONTROLLERS_DIR)
             data['controller_name'] = os.path.basename(path)
 
             r.hmset('controller:' + str(controller_id), data)
 
             if data['enabled']:
-                actor_id = data['controller_name'].split('.')[0]
-                start_global_controller(str(controller_id), actor_id, data['class_name'], data['type'], data['dsl_filter'])
+                controller_name = data['controller_name'].split('.')[0]
+                start_controller(str(controller_id), controller_name, data['class_name'])
 
             return JSONResponse(data, status=status.HTTP_201_CREATED)
 
         except DataError:
             return JSONResponse("Error to save the object", status=status.HTTP_400_BAD_REQUEST)
-        except Exception as e:
-            print e
+        except ValueError:
+            return JSONResponse("Error starting/stoping controller", status=status.HTTP_400_BAD_REQUEST)
+        except Exception:
             return JSONResponse("Error uploading file", status=status.HTTP_400_BAD_REQUEST)
 
     def get(self, request, controller_id):
@@ -139,7 +145,7 @@ class GlobalControllerData(APIView):
             return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         if r.exists('controller:' + str(controller_id)):
-            global_controller_path = os.path.join(settings.GLOBAL_CONTROLLERS_DIR,
+            global_controller_path = os.path.join(settings.CONTROLLERS_DIR,
                                                   str(r.hget('controller:' + str(controller_id), 'controller_name')))
             if os.path.exists(global_controller_path):
                 global_controller_name = os.path.basename(global_controller_path)
@@ -158,60 +164,24 @@ class GlobalControllerData(APIView):
             return HttpResponse(status=status.HTTP_404_NOT_FOUND)
 
 
-def start_global_controller(controller_id, actor_id, controller_class_name, method_type, dsl_filter):
-
+def start_controller(controller_id, controller_name, controller_class_name):
     host = create_local_host()
-    logger.info("Controller, Starting controller actor " + str(controller_id) + " " + str(actor_id))
 
-    # FIXME: Decouple global controllers and their related metrics
+    controller_location = os.path.join(controller_name, controller_class_name)
     try:
         if controller_id not in controller_actors:
-
-            if dsl_filter == 'bandwidth':
-                # 1) Spawn metric actor if not already spawned
-                metric_name = method_type + "_bw_info"  # get_bw_info, put_bw_info, ssync_bw_info
-                if metric_name not in metric_actors:
-                    if method_type == 'ssync':
-                        metric_module_name = 'controller.dynamic_policies.metrics.bw_info_ssync'
-                        metric_class_name = 'BwInfoSSYNC'
-                    else:
-                        metric_module_name = 'controller.dynamic_policies.metrics.bw_info'
-                        metric_class_name = 'BwInfo'
-                    logger.info("Controller, Starting metric actor " + metric_name)
-                    metric_actors[metric_name] = host.spawn(metric_name, metric_module_name + '/' + metric_class_name,
-                                                            [metric_name, "bwdifferentiation."+metric_name+".#", method_type.upper()])
-
-                    try:
-                        metric_actors[metric_name].init_consum()
-                        logger.info("Controller, Started metric actor " + metric_name)
-                        sleep(0.1)
-                    except Exception as e:
-                        logger.error(e.args)
-                        logger.info("Controller, Failed to start metric actor " + metric_name)
-                        metric_actors[metric_name].stop_actor()
-            else:
-                # FIXME: Obtain the related metric_name that the global controller must observe
-                metric_name = 'dummy'
-
-            # 2) Spawn controller actor
-            # module_name = ''.join([settings.GLOBAL_CONTROLLERS_BASE_MODULE, '.', actor_id])
-            module_name = actor_id
-            controller_actors[controller_id] = host.spawn(actor_id, module_name + '/' + controller_class_name,
-                                                          ["bw_algorithm_" + method_type, method_type.upper()])
-            logger.info("Controller, Started controller actor " + str(controller_id) + " " + str(actor_id))
-            # ["abstract_enforcement_algorithm_get", "GET"])
-            # ["amq.topic", actor_id, "controllers." + actor_id])
-
-            controller_actors[controller_id].run(metric_name)
-    except Exception as e:
-        print e
+            controller_actors[controller_id] = host.spawn(controller_name, controller_location)
+            controller_actors[controller_id].run()
+            logger.info("Controller, Started controller actor: "+controller_location)
+    except:
+        raise ValueError
 
 
-def stop_global_controller(controller_id):
+def stop_controller(controller_id):
     if controller_id in controller_actors:
         try:
             controller_actors[controller_id].stop_actor()
-        except Exception as e:
-            print e.args
-        del controller_actors[controller_id]
-        logger.info("Controller, Stopped controller actor " + str(controller_id))
+            del controller_actors[controller_id]
+            logger.info("Controller, Stopped controller actor: " + str(controller_id))
+        except:
+            raise ValueError
