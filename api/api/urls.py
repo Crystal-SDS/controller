@@ -9,5 +9,4 @@ urlpatterns = [
     url(r'^policies/', include('policies.urls')),
     url(r'^controllers/', include('controllers.urls')),
     url(r'^analytics/', include('analytics.urls')),
-
 ]
