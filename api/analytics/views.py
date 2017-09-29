@@ -6,7 +6,7 @@ import os
 
 
 from django.conf import settings
-from django.core.servers.basehttp import FileWrapper
+from wsgiref.util import FileWrapper
 from django.http import HttpResponse
 from django.http import StreamingHttpResponse
 from django.views.decorators.csrf import csrf_exempt
