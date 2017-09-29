@@ -9,6 +9,9 @@ def run():
     are stopped, so we need to ensure the correct values in redis.
     """
 
+    # Add source directories to sys path
+    sys.path.insert(0, settings.CONTROLLERS_DIR)
+
     r = redis.Redis(connection_pool=settings.REDIS_CON_POOL)
 
     # Workload metric definitions
