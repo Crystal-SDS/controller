@@ -133,9 +133,14 @@ class MainTestCase(TestCase):
     @override_settings(MANAGEMENT_ACCOUNT='mng_account', MANAGEMENT_ADMIN_USERNAME='mng_username', MANAGEMENT_ADMIN_PASSWORD='mng_pw',
                        KEYSTONE_ADMIN_URL='http://localhost:35357/v3')
     @mock.patch('api.common_utils.client.Client')
-    def test_get_keystone_admin_auth_ok(self, mock_keystone_client):
+    @mock.patch('api.common_utils.session.Session')
+    @mock.patch('api.common_utils.v3.Password')
+    def test_get_keystone_admin_auth_ok(self, mock_password, mock_session, mock_keystone_client):
         get_keystone_admin_auth()
-        mock_keystone_client.assert_called_with(username='mng_username', tenant_name='mng_account', password='mng_pw', auth_url='http://localhost:35357/v3')
+        mock_password.assert_called_with(auth_url='http://localhost:35357/v3', username='mng_username', password='mng_pw',
+                                         project_name='mng_account', user_domain_id='default', project_domain_id='default')
+        mock_session.assert_called()
+        mock_keystone_client.assert_called()
 
     @mock.patch('api.startup.redis.Redis')
     def test_startup_run_ok(self, mock_startup_redis):
@@ -156,15 +161,15 @@ class MainTestCase(TestCase):
 
     def test_urls(self):
         resolver = resolve('/filters/')
-        self.assertEqual(resolver.view_name, 'filters.views.storlet_list')
+        self.assertEqual(resolver.view_name, 'filters.views.filter_list')
 
         resolver = resolve('/filters/123')
-        self.assertEqual(resolver.view_name, 'filters.views.storlet_detail')
-        self.assertEqual(resolver.kwargs, {'storlet_id': '123'})
+        self.assertEqual(resolver.view_name, 'filters.views.filter_detail')
+        self.assertEqual(resolver.kwargs, {'filter_id': '123'})
 
         resolver = resolve('/filters/123/data')
-        self.assertEqual(resolver.view_name, 'filters.views.StorletData')
-        self.assertEqual(resolver.kwargs, {'storlet_id': '123'})
+        self.assertEqual(resolver.view_name, 'filters.views.FilterData')
+        self.assertEqual(resolver.kwargs, {'filter_id': '123'})
 
         resolver = resolve('/swift/nodes/')
         self.assertEqual(resolver.view_name, 'swift.views.node_list')

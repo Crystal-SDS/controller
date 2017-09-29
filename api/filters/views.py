@@ -1,11 +1,3 @@
-import errno
-import hashlib
-import json
-import logging
-import mimetypes
-import os
-from operator import itemgetter
-
 from django.conf import settings
 from wsgiref.util import FileWrapper
 from django.http import HttpResponse
@@ -19,26 +11,21 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from swiftclient import client as swift_client
 from swiftclient.exceptions import ClientException
+from operator import itemgetter
+import json
+import logging
+import mimetypes
+import os
 
-from api.common_utils import rsync_dir_with_nodes, to_json_bools, JSONResponse, get_redis_connection, get_token_connection
+from api.common import rsync_dir_with_nodes, to_json_bools, JSONResponse, \
+    get_redis_connection, get_token_connection, make_sure_path_exists, save_file, md5
 from api.exceptions import SwiftClientError, StorletNotFoundException, FileSynchronizationException
-
-# TODO create a common file and put this into the new file
-# Start Common
-FILTER_KEYS = ('id', 'filter_name', 'filter_type', 'interface_version', 'dependencies', 'object_metadata', 'main', 'is_pre_put', 'is_post_put',
-               'is_pre_get', 'is_post_get', 'has_reverse', 'execution_server', 'execution_server_reverse', 'path')
-GLOBAL_FILTER_KEYS = ('id', 'filter_name', 'filter_type', 'interface_version', 'dependencies', 'object_metadata', 'main', 'is_pre_put', 'is_post_put',
-                      'is_pre_get', 'is_post_get', 'has_reverse', 'execution_server', 'execution_server_reverse', 'execution_order', 'enabled', 'path')
-DEPENDENCY_KEYS = ('id', 'name', 'version', 'permissions', 'path')
 
 logger = logging.getLogger(__name__)
 
 
 def check_keys(data, keys):
     return sorted(list(data)) == sorted(list(keys))
-
-
-# End Common
 
 
 @csrf_exempt
@@ -67,19 +54,14 @@ def filter_list(request):
             return JSONResponse("Invalid format or empty request", status=status.HTTP_400_BAD_REQUEST)
 
         if (('filter_type' not in data) or
-                ((data['filter_type'] == 'storlet' or data['filter_type'] == 'native') and not check_keys(data.keys(), FILTER_KEYS[2:-1])) or
-                ((data['filter_type'] == 'global') and not check_keys(data.keys(), GLOBAL_FILTER_KEYS[2:-1]))):
+           (data['filter_type'] == 'native' and not check_keys(data.keys(), settings.NATIVE_FILTER_KEYS[2:-1])) or
+           (data['filter_type'] == 'storlet' and not check_keys(data.keys(), settings.STORLET_FILTER_KEYS[2:-1]))):
             return JSONResponse("Invalid parameters in request", status=status.HTTP_400_BAD_REQUEST)
 
         storlet_id = r.incr("filters:id")
         try:
             data['id'] = storlet_id
             r.hmset('filter:' + str(storlet_id), data)
-
-            if data['filter_type'] == 'global':
-                if data['enabled'] is True or data['enabled'] == 'True' or data['enabled'] == 'true':
-                    to_json_bools(data, 'has_reverse', 'is_pre_get', 'is_post_get', 'is_pre_put', 'is_post_put', 'enabled')
-                    r.hset("global_filters", str(storlet_id), json.dumps(data))
 
             return JSONResponse(data, status=status.HTTP_201_CREATED)
 
@@ -114,21 +96,8 @@ def filter_detail(request, filter_id):
         except ParseError:
             return JSONResponse("Invalid format or empty request", status=status.HTTP_400_BAD_REQUEST)
 
-        my_filter = r.hgetall("filter:" + str(filter_id))
-
-        if (((my_filter['filter_type'] == 'storlet' or my_filter['filter_type'] == 'native') and not check_keys(data.keys(), FILTER_KEYS[3:-1])) or
-                ((my_filter['filter_type'] == 'global') and not check_keys(data.keys(), GLOBAL_FILTER_KEYS[3:-1]))):
-            return JSONResponse("Invalid parameters in request", status=status.HTTP_400_BAD_REQUEST)
-
         try:
             r.hmset('filter:' + str(filter_id), data)
-            if my_filter['filter_type'] == 'global':
-                if data['enabled'] is True or data['enabled'] == 'True' or data['enabled'] == 'true':
-                    to_json_bools(data, 'has_reverse', 'is_pre_get', 'is_post_get', 'is_pre_put', 'is_post_put', 'enabled')
-                    data['filter_type'] = 'global'  # Adding filter type
-                    r.hset("global_filters", str(filter_id), json.dumps(data))
-                else:
-                    r.hdel("global_filters", str(filter_id))
 
             return JSONResponse("Data updated", status=status.HTTP_200_OK)
         except DataError:
@@ -144,8 +113,7 @@ def filter_detail(request, filter_id):
 
             my_filter = r.hgetall("filter:" + str(filter_id))
             r.delete("filter:" + str(filter_id))
-            if my_filter['filter_type'] == 'global':
-                r.hdel("global_filters", str(filter_id))
+
             return JSONResponse('Filter has been deleted', status=status.HTTP_204_NO_CONTENT)
         except DataError:
             return JSONResponse("Error deleting filter", status=status.HTTP_408_REQUEST_TIMEOUT)
@@ -168,16 +136,13 @@ class FilterData(APIView):
             file_obj = request.FILES['file']
 
             filter_type = r.hget(filter_name, 'filter_type')
-            if (filter_type == 'storlet' and not file_obj.name.endswith('.jar')) or \
-                    (filter_type == 'native' and not file_obj.name.endswith('.py')) or \
-                    (filter_type == 'global' and not file_obj.name.endswith('.py')):
+            if (filter_type == 'storlet' and not (file_obj.name.endswith('.jar') or file_obj.name.endswith('.py'))) or \
+                    (filter_type == 'native' and not file_obj.name.endswith('.py')):
                 return JSONResponse('Uploaded file is incompatible with filter type', status=status.HTTP_400_BAD_REQUEST)
             if filter_type == 'storlet':
                 filter_dir = settings.STORLET_FILTERS_DIR
             elif filter_type == 'native':
                 filter_dir = settings.NATIVE_FILTERS_DIR
-            else:  # global
-                filter_dir = settings.GLOBAL_NATIVE_FILTERS_DIR
 
             make_sure_path_exists(filter_dir)
             path = save_file(file_obj, filter_dir)
@@ -191,7 +156,7 @@ class FilterData(APIView):
             except RedisError:
                 return JSONResponse('Problems connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-            if filter_type == 'native' or filter_type == 'global':
+            if filter_type == 'native':
                 # synchronize metrics directory with all nodes
                 try:
                     rsync_dir_with_nodes(filter_dir)
@@ -201,14 +166,14 @@ class FilterData(APIView):
             return JSONResponse('Filter has been updated', status=status.HTTP_201_CREATED)
         return JSONResponse('Filter does not exist', status=status.HTTP_404_NOT_FOUND)
 
-    def get(self, request, storlet_id, format=None):
+    def get(self, request, filter_id, format=None):
         try:
             r = get_redis_connection()
         except RedisError:
             return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        if r.exists('filter:' + str(storlet_id)):
-            filter_path = r.hget('filter:' + str(storlet_id), 'path')
+        if r.exists('filter:' + str(filter_id)):
+            filter_path = r.hget('filter:' + str(filter_id), 'path')
             if os.path.exists(filter_path):
                 filter_name = os.path.basename(filter_path)
                 filter_size = os.stat(filter_path).st_size
@@ -226,7 +191,7 @@ class FilterData(APIView):
 
 
 @csrf_exempt
-def filter_deploy(request, filter_id, project, container=None, swift_object=None):
+def filter_deploy(request, filter_id, project_id, container=None, swift_object=None):
     """
     Deploy a filter to a specific swift account.
     """
@@ -272,11 +237,11 @@ def filter_deploy(request, filter_id, project, container=None, swift_object=None
 
         # TODO: Try to improve this part
         if container and swift_object:
-            target = project + "/" + container + "/" + swift_object
+            target = project_id + "/" + container + "/" + swift_object
         elif container:
-            target = project + "/" + container
+            target = project_id + "/" + container
         else:
-            target = project
+            target = project_id
 
         try:
             token = get_token_connection(request)
@@ -293,7 +258,7 @@ def filter_deploy(request, filter_id, project, container=None, swift_object=None
 
 
 @csrf_exempt
-def filter_undeploy(request, filter_id, project, container=None, swift_object=None):
+def filter_undeploy(request, filter_id, project_id, container=None, swift_object=None):
     """
     Undeploy a filter from a specific swift project.
     """
@@ -310,11 +275,11 @@ def filter_undeploy(request, filter_id, project, container=None, swift_object=No
             return JSONResponse('Filter does not exist', status=status.HTTP_404_NOT_FOUND)
 
         if container and swift_object:
-            target = project + "/" + container + "/" + swift_object
+            target = project_id + "/" + container + "/" + swift_object
         elif container:
-            target = project + "/" + container
+            target = project_id + "/" + container
         else:
-            target = project
+            target = project_id
 
         token = get_token_connection(request)
         return unset_filter(r, target, filter_data, token)
@@ -322,11 +287,9 @@ def filter_undeploy(request, filter_id, project, container=None, swift_object=No
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
-# ------------------------------
-# DEPENDENCY PART
-# ------------------------------
-
-
+#
+# Dependencies
+#
 @csrf_exempt
 def dependency_list(request):
     """
@@ -451,14 +414,14 @@ def dependency_deploy(request, dependency_id, project_id):
 
 
 @csrf_exempt
-def dependency_list_deployed(request, project):
+def dependency_list_deployed(request, project_id):
     if request.method == 'GET':
         try:
             r = get_redis_connection()
         except RedisError:
             return JSONResponse('Problems to connect with the DB', status=500)
 
-        result = r.lrange(str(project) + ":dependencies", 0, -1)
+        result = r.lrange(str(project_id) + ":dependencies", 0, -1)
         if result:
             return JSONResponse(result, status=200)
         else:
@@ -504,80 +467,12 @@ def dependency_undeploy(request, dependency_id, project_id):
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
 
 
-@csrf_exempt
-def slo_list(request):
-    """
-    List all SLOs, or create an SLO.
-    """
-
-    try:
-        r = get_redis_connection()
-    except RedisError:
-        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-    if request.method == 'GET':
-        slos = []
-        keys = r.keys('SLO:*')
-        for key in keys:
-            _, dsl_filter, slo_name, target = key.split(':')
-            value = r.get(key)
-            slos.append({'dsl_filter': dsl_filter, 'slo_name': slo_name, 'target': target, 'value': value})
-        return JSONResponse(slos, status=status.HTTP_200_OK)
-
-    elif request.method == 'POST':
-        data = JSONParser().parse(request)
-        try:
-            slo_key = ':'.join(['SLO', data['dsl_filter'], data['slo_name'], data['target']])
-            r.set(slo_key, data['value'])
-
-            return JSONResponse(data, status=status.HTTP_201_CREATED)
-        except DataError:
-            return JSONResponse('Error saving SLA.', status=status.HTTP_400_BAD_REQUEST)
-
-    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
-
-
-@csrf_exempt
-def slo_detail(request, dsl_filter, slo_name, target):
-    """
-    Retrieve, update or delete SLO.
-    """
-
-    try:
-        r = get_redis_connection()
-    except RedisError:
-        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-    slo_key = ':'.join(['SLO', dsl_filter, slo_name, target])
-
-    if request.method == 'GET':
-        if r.exists(slo_key):
-            value = r.get(slo_key)
-            slo = {'dsl_filter': dsl_filter, 'slo_name': slo_name, 'target': target, 'value': value}
-            return JSONResponse(slo, status=status.HTTP_200_OK)
-        else:
-            return JSONResponse("SLO not found.", status=status.HTTP_404_NOT_FOUND)
-
-    elif request.method == 'PUT':
-        data = JSONParser().parse(request)
-        try:
-            r.set(slo_key, data['value'])
-            return JSONResponse('Data updated', status=status.HTTP_201_CREATED)
-        except DataError:
-            return JSONResponse('Error updating data', status=status.HTTP_400_BAD_REQUEST)
-
-    elif request.method == 'DELETE':
-        r.delete(slo_key)
-        return JSONResponse('SLA has been deleted', status=status.HTTP_204_NO_CONTENT)
-    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
-
-
 def set_filter(r, target, filter_data, parameters, token):
     if filter_data['filter_type'] == 'storlet':
 
         metadata = {"X-Object-Meta-Storlet-Language": 'java',
                     "X-Object-Meta-Storlet-Interface-Version": filter_data["interface_version"],
-                    "X-Object-Meta-Storlet-Dependency": filter_data["dependencies"],
+                    "X-Object-Meta-Storlet-Dependency": '',
                     "X-Object-Meta-Storlet-Object-Metadata": filter_data["object_metadata"],
                     "X-Object-Meta-Storlet-Main": filter_data["main"]
                     }
@@ -645,29 +540,75 @@ def unset_filter(r, target, filter_data, token):
             r.hdel("pipeline:" + str(target), key)
 
 
-def make_sure_path_exists(path):
+#
+# DSL Mappings
+#
+@csrf_exempt
+def add_dsl_filter(request):
+    """
+    Add a filter with its default parameters in the registry (redis).
+    List all the dynamic filters registered.
+    """
+
     try:
-        os.makedirs(path)
-    except OSError as exception:
-        if exception.errno != errno.EEXIST:
-            raise
+        r = get_redis_connection()
+    except RedisError:
+        return JSONResponse('Error connecting with DB', status=500)
+    if request.method == 'GET':
+        keys = r.keys("dsl_filter:*")
+        dynamic_filters = []
+        for key in keys:
+            dynamic_filter = r.hgetall(key)
+            dynamic_filter["name"] = key.split(":")[1]
+            dynamic_filters.append(dynamic_filter)
+        return JSONResponse(dynamic_filters, status=200)
+
+    if request.method == 'POST':
+        data = JSONParser().parse(request)
+        name = data.pop("name", None)
+        if not name:
+            return JSONResponse('Filter must have a name', status=400)
+        r.hmset('dsl_filter:' + str(name), data)
+        return JSONResponse('Filter has been added to the registy', status=201)
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
 
 
-def save_file(file_, path=''):
+@csrf_exempt
+def dsl_filter_detail(request, name):
     """
-    Little helper to save a file
+    Get, update or delete a dynamic filter from the registry.
     """
-    filename = file_.name
-    fd = open(str(path) + "/" + str(filename), 'wb')
-    for chunk in file_.chunks():
-        fd.write(chunk)
-    fd.close()
-    return str(path) + "/" + str(filename)
 
+    try:
+        r = get_redis_connection()
+    except RedisError:
+        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-def md5(fname):
-    hash_md5 = hashlib.md5()
-    with open(fname, "rb") as f:
-        for chunk in iter(lambda: f.read(4096), b""):
-            hash_md5.update(chunk)
-    return hash_md5.hexdigest()
+    if request.method == 'GET':
+        dynamic_filter = r.hgetall("dsl_filter:" + str(name))
+        return JSONResponse(dynamic_filter, status=status.HTTP_200_OK)
+
+    if request.method == 'PUT':
+        if not r.exists('dsl_filter:' + str(name)):
+            return JSONResponse('Dynamic filter with name:  ' + str(name) + ' does not exist.', status=status.HTTP_404_NOT_FOUND)
+        data = JSONParser().parse(request)
+        if 'name' in data:
+            del data['name']
+        r.hmset('dsl_filter:' + str(name), data)
+        return JSONResponse('The metadata of the dynamic filter with name: ' + str(name) + ' has been updated',
+                            status=status.HTTP_201_CREATED)
+
+    if request.method == 'DELETE':
+        filter_id = r.hget('dsl_filter:' + str(name), 'identifier')
+        filter_name = r.hget('filter:' + str(filter_id), 'filter_name')
+
+        keys = r.keys("pipeline:*")
+        for it in keys:
+            for value in r.hgetall(it).values():
+                json_value = json.loads(value)
+                if json_value['filter_name'] == filter_name:
+                    return JSONResponse('Unable to delete Registry DSL, is in use by some policy.', status=status.HTTP_403_FORBIDDEN)
+
+        r.delete("dsl_filter:" + str(name))
+        return JSONResponse('Dynamic filter has been deleted', status=status.HTTP_204_NO_CONTENT)
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)

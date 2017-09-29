@@ -4,7 +4,6 @@ import operator
 import logging
 import redis
 import requests
-import os
 
 from api.settings import MANAGEMENT_ACCOUNT, MANAGEMENT_ADMIN_USERNAME, \
     MANAGEMENT_ADMIN_PASSWORD, KEYSTONE_ADMIN_URL, REDIS_HOST, REDIS_PORT, REDIS_DATABASE
@@ -232,7 +231,7 @@ class Rule(object):
         elif self.action_list.action == "DELETE":
             logger.info("--> DELETE <--")
 
-            url = dynamic_filter["activation_url"] + "/" + self.target + "/undeploy/" + str(dynamic_filter["identifier"])
+            url = dynamic_filter["activation_url"] + "/" + self.target_id + "/undeploy/" + str(dynamic_filter["identifier"])
             response = requests.put(url, headers=headers)
 
             if 200 <= response.status_code < 300:

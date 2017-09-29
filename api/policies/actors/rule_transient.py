@@ -69,7 +69,7 @@ class TransientRule(Rule):
             action = self.action_list.action
 
         if not self.token:
-            self._admin_login()
+            self._get_admin_token()
 
         headers = {"X-Auth-Token": self.token}
         dynamic_filter = self.redis.hgetall("dsl_filter:"+str(self.action_list.filter))

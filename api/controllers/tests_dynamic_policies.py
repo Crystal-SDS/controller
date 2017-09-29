@@ -4,7 +4,6 @@ sys.path.insert(0, '../')
 
 import json
 import os
-
 import mock
 import redis
 from django.conf import settings
@@ -52,16 +51,18 @@ class DynamicPoliciesTestCase(TestCase):
     def test_get_target_ok(self):
         self.setup_dsl_parser_data()
         _, parsed_rule = parse('FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 WHEN metric1 > 5 DO SET compression')
-        target = '4f0279da74ef4584a29dc72c835fe2c9'
-        rule = Rule(parsed_rule, parsed_rule.action_list[0], target)
-        self.assertEqual(rule.get_target(), '4f0279da74ef4584a29dc72c835fe2c9')
+        target_id = '4f0279da74ef4584a29dc72c835fe2c9'
+        target_name = 'tenant1'
+        rule = Rule(parsed_rule, parsed_rule.action_list[0], target_id, target_name)
+        self.assertEqual(rule.get_target(), target_name)
 
     @mock.patch('controller.dynamic_policies.rules.rule.Rule._do_action')
     def test_action_is_not_triggered(self, mock_do_action):
         self.setup_dsl_parser_data()
         _, parsed_rule = parse('FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 WHEN metric1 > 5 DO SET compression')
-        target = '4f0279da74ef4584a29dc72c835fe2c9'
-        rule = Rule(parsed_rule, parsed_rule.action_list[0], target)
+        target_id = '4f0279da74ef4584a29dc72c835fe2c9'
+        target_name = 'tenant1'
+        rule = Rule(parsed_rule, parsed_rule.action_list[0], target_id, target_name)
         rule.update('metric1', 3)
         self.assertFalse(mock_do_action.called)
 
@@ -69,8 +70,9 @@ class DynamicPoliciesTestCase(TestCase):
     def test_action_is_triggered(self, mock_do_action):
         self.setup_dsl_parser_data()
         _, parsed_rule = parse('FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 WHEN metric1 > 5 DO SET compression')
-        target = '4f0279da74ef4584a29dc72c835fe2c9'
-        rule = Rule(parsed_rule, parsed_rule.action_list[0], target)
+        target_id = '4f0279da74ef4584a29dc72c835fe2c9'
+        target_name = 'tenant1'
+        rule = Rule(parsed_rule, parsed_rule.action_list[0], target_id, target_name)
         rule.update('metric1', 6)
         self.assertTrue(mock_do_action.called)
 
@@ -83,8 +85,9 @@ class DynamicPoliciesTestCase(TestCase):
                                            'valid_parameters': '{"cparam1": "integer", "cparam2": "integer", "cparam3": "integer"}'}
         self.setup_dsl_parser_data()
         _, parsed_rule = parse('FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 WHEN metric1 > 5 DO SET compression')
-        target = '4f0279da74ef4584a29dc72c835fe2c9'
-        rule = Rule(parsed_rule, parsed_rule.action_list[0], target)
+        target_id = '4f0279da74ef4584a29dc72c835fe2c9'
+        target_name = 'tenant1'
+        rule = Rule(parsed_rule, parsed_rule.action_list[0], target_id, target_name)
         rule.id = '10'
         with HTTMock(example_mock_200):
             rule.update('metric1', 6)
@@ -101,8 +104,9 @@ class DynamicPoliciesTestCase(TestCase):
                                            'valid_parameters': '{"cparam1": "integer", "cparam2": "integer", "cparam3": "integer"}'}
         self.setup_dsl_parser_data()
         _, parsed_rule = parse('FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 WHEN metric1 > 5 DO SET compression')
-        target = '4f0279da74ef4584a29dc72c835fe2c9'
-        rule = Rule(parsed_rule, parsed_rule.action_list[0], target)
+        target_id = '4f0279da74ef4584a29dc72c835fe2c9'
+        target_name = 'tenant1'
+        rule = Rule(parsed_rule, parsed_rule.action_list[0], target_id, target_name)
         rule.id = '10'
         with HTTMock(example_mock_400):
             rule.update('metric1', 6)
@@ -118,10 +122,11 @@ class DynamicPoliciesTestCase(TestCase):
                                            'valid_parameters': '{"cparam1": "integer", "cparam2": "integer", "cparam3": "integer"}'}
         self.setup_dsl_parser_data()
         _, parsed_rule = parse('FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 WHEN metric1 > 5 DO SET compression')
-        target = '4f0279da74ef4584a29dc72c835fe2c9'
+        target_id = '4f0279da74ef4584a29dc72c835fe2c9'
+        target_name = 'tenant1'
         action = parsed_rule.action_list[0]
         action.action = 'DELETE'
-        rule = Rule(parsed_rule, action, target)
+        rule = Rule(parsed_rule, action, target_id, target_name)
         rule.id = '10'
         with HTTMock(example_mock_200):
             rule.update('metric1', 6)
@@ -136,8 +141,9 @@ class DynamicPoliciesTestCase(TestCase):
     def test_transient_action_is_triggered(self, mock_do_action):
         self.setup_dsl_parser_data()
         _, parsed_rule = parse('FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 WHEN metric1 > 5 DO SET compression TRANSIENT')
-        target = '4f0279da74ef4584a29dc72c835fe2c9'
-        rule = TransientRule(parsed_rule, parsed_rule.action_list[0], target)
+        target_id = '4f0279da74ef4584a29dc72c835fe2c9'
+        target_name = 'tenant1'
+        rule = TransientRule(parsed_rule, parsed_rule.action_list[0], target_id, target_name)
         rule.update('metric1', 6)
         self.assertTrue(mock_do_action.called)
 
@@ -151,8 +157,9 @@ class DynamicPoliciesTestCase(TestCase):
                                            'valid_parameters': '{"cparam1": "integer", "cparam2": "integer", "cparam3": "integer"}'}
         self.setup_dsl_parser_data()
         _, parsed_rule = parse('FOR TENANT:4f0279da74ef4584a29dc72c835fe2c9 WHEN metric1 > 5 DO SET compression TRANSIENT')
-        target = '4f0279da74ef4584a29dc72c835fe2c9'
-        rule = TransientRule(parsed_rule, parsed_rule.action_list[0], target)
+        target_id = '4f0279da74ef4584a29dc72c835fe2c9'
+        target_name = 'tenant1'
+        rule = TransientRule(parsed_rule, parsed_rule.action_list[0], target_id, target_name)
 
         rule.update('metric1', 6)
         self.assertTrue(mock_requests_put.called)
@@ -228,19 +235,15 @@ class DynamicPoliciesTestCase(TestCase):
     #
 
     @mock.patch('controller.dynamic_policies.metrics.swift_metric.Thread')
-    def test_metrics_swift_metric(self, mock_thread):
+    @mock.patch('controller.dynamic_policies.metrics.swift_metric.socket.socket')
+    def test_metrics_swift_metric(self, mock_socket, mock_thread):
         swift_metric = SwiftMetric('exchange', 'metric_id', 'routing_key')
-        data = {"controller": {"@timestamp": 123456789, "AUTH_bd34c4073b65426894545b36f0d8dcce": 3}}
+        #data = {"controller": {"@timestamp": 123456789, "AUTH_bd34c4073b65426894545b36f0d8dcce": 3}}
+        data = {'container': 'crystal/data', 'metric_name': 'bandwidth', '@timestamp': '2017-09-09T18:00:18.331492+02:00',
+                'value': 16.4375, 'project': 'crystal', 'host': 'controller', 'method': 'GET', 'server_type': 'proxy'}
         body = json.dumps(data)
         swift_metric.notify(body)
         self.assertTrue(mock_thread.called)
-        self.assertIsNone(swift_metric.get_value())
-
-    @mock.patch('controller.dynamic_policies.metrics.swift_metric.socket.socket')
-    def test_metrics_swift_metric_send_data_to_logstash(self, mock_socket):
-        swift_metric = SwiftMetric('exchange', 'metric_id', 'routing_key')
-        data = {"controller": {"@timestamp": 123456789, "AUTH_bd34c4073b65426894545b36f0d8dcce": 3}}
-        swift_metric._send_data_to_logstash(data)
         self.assertTrue(mock_socket.called)
         self.assertTrue(mock_socket.return_value.sendto.called)
 

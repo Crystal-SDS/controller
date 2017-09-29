@@ -1,23 +1,30 @@
-import calendar
-import logging
-import os
-import sys
-import time
-
 from keystoneauth1.identity import v3
 from keystoneauth1 import session
 from keystoneclient.v3 import client
-import redis
 from django.conf import settings
 from django.core.management.color import color_style
 from django.http import HttpResponse
 from rest_framework.renderers import JSONRenderer
 from api.exceptions import FileSynchronizationException
 from pyactor.context import set_context, create_host
+from swiftclient import client as swift_client
+
+import errno
+import hashlib
+import calendar
+import logging
+import redis
+import os
+import sys
+import time
 
 logger = logging.getLogger(__name__)
 host = None
 NODE_STATUS_THRESHOLD = 15  # seconds
+
+controller_actors = dict()
+metric_actors = dict()
+rule_actors = dict()
 
 
 class LoggingColorsDjango(logging.Formatter):
@@ -107,6 +114,30 @@ def get_keystone_admin_auth():
     return keystone_client
 
 
+def get_swift_url_and_token(project_name):
+    admin_user = settings.MANAGEMENT_ADMIN_USERNAME
+    admin_passwd = settings.MANAGEMENT_ADMIN_PASSWORD
+    keystone_url = settings.KEYSTONE_ADMIN_URL
+
+    return swift_client.get_auth(keystone_url,
+                                 project_name + ":"+admin_user,
+                                 admin_passwd, auth_version="3")
+
+
+def get_admin_role_user_ids():
+    keystone_client = get_keystone_admin_auth()
+    roles = keystone_client.roles.list()
+    for role in roles:
+        if role.name == 'admin':
+            admin_role_id = role.id
+    users = keystone_client.users.list()
+    for user in users:
+        if user.name == settings.MANAGEMENT_ADMIN_USERNAME:
+            admin_user_id = user.id
+
+    return admin_role_id, admin_user_id
+
+
 def get_project_list():
     keystone_client = get_keystone_admin_auth()
     projects = keystone_client.projects.list()
@@ -176,3 +207,46 @@ def create_local_host():
         pass
 
     return host
+
+
+def make_sure_path_exists(path):
+    try:
+        os.makedirs(path)
+    except OSError as exception:
+        if exception.errno != errno.EEXIST:
+            raise
+
+
+def save_file(file_, path=''):
+    """
+    Helper to save a file
+    """
+    filename = file_.name
+    file_path = os.path.join(path, filename)
+    if os.path.isfile(file_path):
+        os.remove(file_path)
+    fd = open(str(path) + "/" + str(filename), 'wb')
+    for chunk in file_.chunks():
+        fd.write(chunk)
+    fd.close()
+    return str(path) + "/" + str(filename)
+
+
+def delete_file(filename, path):
+    """
+    Helper to save a file
+    """
+    file_path = os.path.join(path, filename)
+    if os.path.isfile(file_path):
+        os.remove(file_path)
+    pyc = file_path+"c"
+    if os.path.isfile(pyc):
+        os.remove(pyc)
+
+
+def md5(fname):
+    hash_md5 = hashlib.md5()
+    with open(fname, "rb") as f:
+        for chunk in iter(lambda: f.read(4096), b""):
+            hash_md5.update(chunk)
+    return hash_md5.hexdigest()
