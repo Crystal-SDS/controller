@@ -208,7 +208,6 @@ def filter_deploy(request, filter_id, project_id, container=None, swift_object=N
 
         try:
             params = JSONParser().parse(request)
-            logger.debug(str(params))
         except ParseError:
             return JSONResponse("Invalid format or empty request params", status=status.HTTP_400_BAD_REQUEST)
 
@@ -232,8 +231,6 @@ def filter_deploy(request, filter_id, project_id, container=None, swift_object=N
         if 'execution_server_reverse' in params:
             if params['execution_server_reverse'] != 'default':
                 policy_data['execution_server_reverse'] = params['execution_server_reverse']
-
-        logger.debug(str(policy_data))
 
         # TODO: Try to improve this part
         if container and swift_object:
