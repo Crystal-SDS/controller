@@ -28,16 +28,12 @@ def executeJavaAnalyzer(pathToJAR, pathToJobFile):
     return json.load(io)
 
 
-def get_current_lambda_pushdown_policy(tenant_id, container_id):
+def get_current_lambda_pushdown_policy(target_id):
     r = get_redis_connection()
 
-    # Trying 1st the target with tenant+container
-    target_id = tenant_id+":"+container_id
-    pipeline = r.hgetall("pipeline:AUTH_" + target_id)
+    pipeline = r.hgetall("pipeline:" + target_id)
     if not pipeline:
-        # ...else target with only tenant
-        target_id = tenant_id
-        pipeline = r.hgetall("pipeline:AUTH_" + target_id)
+        raise AnalyticsJobSubmissionException("There is no filter configured for this tenant and container.")
 
     # for each policy in the pipeline
     lambda_policy_id = None
@@ -49,7 +45,7 @@ def get_current_lambda_pushdown_policy(tenant_id, container_id):
 
     # We assume that a single tenant/container only has one pushdown filter
     if lambda_policy_id:
-        return target_id, lambda_policy_id
+        return lambda_policy_id
     else:
         raise AnalyticsJobSubmissionException("There is no lambda pushdown filter configured for this tenant and container.")
 
@@ -57,23 +53,25 @@ def get_current_lambda_pushdown_policy(tenant_id, container_id):
 def update_lambda_params(target_id, policy_id, lambdas_to_migrate):
     r = get_redis_connection()
 
-    logger.debug("Lamdas to migrate:" + str(lambdas_to_migrate))
+    logger.debug("Lambdas to migrate:" + str(lambdas_to_migrate) + " for target: " + str(target_id))
     lambdas_as_string = ''
     index = 0
     for x in lambdas_to_migrate:
         lambdas_as_string += str(index) + "-lambda=" + str(x['lambda-type-and-body']) + ","
         index += 1
 
-    policy_redis = r.hget("pipeline:AUTH_" + str(target_id), policy_id)
+    policy_redis = r.hget("pipeline:" + str(target_id), policy_id)
     json_data = json.loads(policy_redis)
     json_data.update({'params': lambdas_as_string[:-1]})
-    r.hset("pipeline:AUTH_" + str(target_id), policy_id, json.dumps(json_data))
+    r.hset("pipeline:" + str(target_id), policy_id, json.dumps(json_data))
 
 
 def update_filter_params(lambdas_to_migrate, job_execution_data):
-    target_id, policy_id = get_current_lambda_pushdown_policy(job_execution_data['tenant_id'], job_execution_data['container_id'])
 
-    update_lambda_params(target_id, policy_id, lambdas_to_migrate)
+    #We require all the containers involved in the pushdown process to have the filter
+    for container in lambdas_to_migrate:
+        policy_id = get_current_lambda_pushdown_policy(container)
+        update_lambda_params(container, policy_id, lambdas_to_migrate.get(container))
 
 
 def init_job_submission(job_execution_data):
