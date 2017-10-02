@@ -1,12 +1,11 @@
 import logging
 import subprocess
-import time
 import json
 import os
 import re
 
 from api.exceptions import AnalyticsJobSubmissionException
-from api.common_utils import get_redis_connection
+from api.common import get_redis_connection
 
 from django.conf import settings
 from StringIO import StringIO
