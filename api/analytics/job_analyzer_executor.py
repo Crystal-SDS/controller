@@ -69,8 +69,9 @@ def update_filter_params(lambdas_to_migrate, job_execution_data):
 
     #We require all the containers involved in the pushdown process to have the filter
     for container in lambdas_to_migrate:
-        policy_id = get_current_lambda_pushdown_policy(container)
-        update_lambda_params(container, policy_id, lambdas_to_migrate.get(container))
+        target_id = str(job_execution_data['tenant_id']) + ':' + container
+        policy_id = get_current_lambda_pushdown_policy(target_id)
+        update_lambda_params(target_id, policy_id, lambdas_to_migrate.get(container))
 
 
 def init_job_submission(job_execution_data):
