@@ -1,33 +1,46 @@
 from django.conf import settings
 from redis.exceptions import RedisError
+from threading import Thread
 import logging
 import redis
+import json
+import socket
+import time
+import Queue
 
+AGGREGATION_INTERVAL = 1
 logger = logging.getLogger(__name__)
 
 
-class Metric(object):
+class SwiftMetric(object):
     """
-    Metric: This is an abstract class. This class is the responsible to consume
+    Metric: This class is the responsible to consume
     messages from RabbitMQ and send the data to each observer subscribed to it.
     This class also treats each tenant as a topic, so it is able to distinguish
     for each observer in that tenant is subscribed. In this way, the metric
     actor only sends the necessary information to each observer.
     """
+    _tell = ['get_value', 'attach', 'detach', 'notify', 'start_consuming', 'stop_consuming', 'init_consum', 'stop_actor']
+    _ref = ['attach']
 
-    def __init__(self):
+    def __init__(self, metric_id, routing_key):
         self._observers = {}
         self.value = None
         self.name = None
         self.consumer = None
 
-        self.rmq_user = settings.RABBITMQ_USERNAME
-        self.rmq_pass = settings.RABBITMQ_PASSWORD
-        self.rmq_host = settings.RABBITMQ_HOST
-        self.rmq_port = settings.RABBITMQ_PORT
-
         self.logstash_host = settings.LOGSTASH_HOST
         self.logstash_port = settings.LOGSTASH_PORT
+
+        self.queue = metric_id
+        self.name = metric_id
+        self.routing_key = routing_key
+        self.logstash_server = (self.logstash_host, self.logstash_port)
+        self.metrics = Queue.Queue()
+
+        # Subprocess to aggregate collected metrics every time interval
+        self.notifier = Thread(target=self._aggregate_and_send_info)
+        self.notifier.start()
 
         try:
             self.redis = redis.Redis(connection_pool=settings.REDIS_CON_POOL)
@@ -43,7 +56,7 @@ class Metric(object):
         key will be the tenant assigned in the observer, and the value will be
         the PyActor proxy to connect to the observer.
 
-        :param observer: The PyActor proxy of the oberver rule that calls this method.
+        :param observer: The PyActor proxy of the observer rule that calls this method.
         :type observer: **any** PyActor Proxy type
         """
 
@@ -61,15 +74,17 @@ class Metric(object):
     def detach(self, observer, target):
         """
         Asynchronous method. This method allows to be called remotely.
-        It is called from observers in order to unsubscribe from this workload
+        It is called from observers in order to unsuscribe from this workload
         metric.
 
-        :param observer: The PyActor actor id of the oberver rule that calls this method.
+        :param observer: The PyActor actor id of the observer rule that calls this method.
         :type observer: String
         """
-        logger.info('Metric, Detaching observer: ' + str(observer))
         try:
             del self._observers[target][observer]
+            if len(self._observers[target]) == 0:
+                del self._observers[target]
+            logger.info('Metric, observer detached: ' + str(observer))
         except KeyError:
             pass
 
@@ -87,17 +102,8 @@ class Metric(object):
             self.redis.hmset("metric:" + self.name, {"network_location": self.proxy.actor.url,
                                                      "type": "integer"})
 
-            self.consumer = self.host.spawn(self.id + "_consumer",
-                                            "controller.dynamic_policies.metrics.consumer" +
-                                            "/Consumer",
-                                            [str(self.rmq_host),
-                                             int(self.rmq_port),
-                                             str(self.rmq_user),
-                                             str(self.rmq_pass),
-                                             self.exchange,
-                                             self.queue,
-                                             self.routing_key,
-                                             self.proxy])
+            self.consumer = self.host.spawn(self.id + "_consumer", settings.CONSUMER_MODULE,
+                                            [self.queue, self.routing_key, self.proxy])
             self.start_consuming()
         except Exception, e:
             print e
@@ -139,3 +145,63 @@ class Metric(object):
             self.consumer.stop_consuming()
         else:
             logger.info('Metric, No consumer available to stop')
+
+    def notify(self, body):
+        """
+        Method called from the consumer to indicate the value consumed from the
+        rabbitmq queue. After receive the value, this value is communicated to
+        all the observers subscribed to this metric.
+
+        {'container': 'crystal/data', 'metric_name': 'bandwidth', '@timestamp': '2017-09-09T18:00:18.331492+02:00',
+         'value': 16.4375, 'project': 'crystal', 'host': 'controller', 'method': 'GET', 'server_type': 'proxy'}
+        """
+        metric = eval(body)
+        if metric['server_type'] == 'proxy':
+            self.metrics.put(metric)
+        self._send_data_to_logstash(metric)
+
+    def _send_data_to_logstash(self, metric):
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            message = json.dumps(metric)+'\n'
+            sock.sendto(message, self.logstash_server)
+        except socket.error:
+            logger.info("Swift Metric: Error sending monitoring data to logstash.")
+
+    def _aggregate_and_send_info(self):
+        while True:
+            time.sleep(AGGREGATION_INTERVAL)
+            aggregate = dict()
+            metric_list = list()
+
+            while not self.metrics.empty():
+                metric = self.metrics.get()
+                metric_list.append(metric)
+                try:
+                    project = metric['project']
+                    container = metric['container']
+                    value = metric['value']
+
+                    if project not in aggregate:
+                        aggregate[project] = 0
+                    if container not in aggregate:
+                        aggregate[container] = 0
+
+                    aggregate[project] += value
+                    aggregate[container] += value
+
+                except:
+                    logger.info("Swift Metric, Error parsing metric: " + str(metric))
+
+            try:
+                for target in aggregate:
+                    if target in self._observers:
+                        for observer in self._observers[target].values():
+                            observer.update(self.name, aggregate[target])
+
+                if "ALL" in self._observers and len(metric_list) > 0:
+                    for observer in self._observers["ALL"].values():
+                        observer.update(self.name, metric_list)
+
+            except Exception as e:
+                logger.info("Swift Metric: Error sending monitoring data to observer: "+str(e))

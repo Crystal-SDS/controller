@@ -20,10 +20,14 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WORKLOAD_METRICS_DIR = os.path.join('/opt', 'crystal', 'workload_metrics')
 NATIVE_FILTERS_DIR = os.path.join('/opt', 'crystal', 'native_filters')
 STORLET_FILTERS_DIR = os.path.join('/opt', 'crystal', 'storlet_filters')
-GLOBAL_NATIVE_FILTERS_DIR = os.path.join('/opt', 'crystal', 'global_native_filters')
 DEPENDENCY_DIR = os.path.join('/opt', 'crystal', 'dependencies')
-GLOBAL_CONTROLLERS_DIR = os.path.join('/opt', 'crystal', 'global_controllers')
-ANSIBLE_DIR = os.path.join(BASE_DIR, 'swift', 'ansible')
+CONTROLLERS_DIR = os.path.join('/opt', 'crystal', 'controllers')
+
+NATIVE_FILTER_KEYS = ('id', 'filter_name', 'filter_type', 'language', 'dependencies', 'main', 'is_pre_put', 'is_post_put',
+                      'is_pre_get', 'is_post_get', 'has_reverse', 'execution_server', 'execution_server_reverse', 'path')
+STORLET_FILTER_KEYS = ('id', 'filter_name', 'filter_type', 'language', 'interface_version', 'dependencies', 'main', 'is_pre_put', 'is_post_put',
+                       'is_pre_get', 'is_post_get', 'has_reverse', 'execution_server', 'execution_server_reverse', 'path')
+DEPENDENCY_KEYS = ('id', 'name', 'version', 'permissions', 'path')
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.8/howto/deployment/checklist/
 
@@ -155,10 +159,8 @@ REDIS_PORT = 6379
 REDIS_DATABASE = 0
 REDIS_CON_POOL = redis.ConnectionPool(host=REDIS_HOST, port=REDIS_PORT, db=REDIS_DATABASE)
 
-# SDS Project
-STORLET_BIN_DIR = '/opt/ibm'
-STORLET_DOCKER_IMAGE = '192.168.2.1:5001/ubuntu_14.04_jre8_storlets'
-STORLET_TAR_FILE = 'ubuntu_14.04_jre8_storlets.tar'
+# Storlet docker image
+STORLET_DOCKER_IMAGE = '192.168.2.1:5001/ubuntu_16.04_jre8_storlets'
 
 # Openstack Admin
 MANAGEMENT_ACCOUNT = 'management'
@@ -171,15 +173,18 @@ PYACTOR_IP = '127.0.0.1'
 PYACTOR_PORT = 6899
 PYACTOR_URL = PYACTOR_TRANSPORT + '://' + PYACTOR_IP + ':' + str(PYACTOR_PORT)
 
-# Metrics
-METRIC_MODULE = 'controller.dynamic_policies.metrics.swift_metric'
-METRIC_CLASS = 'SwiftMetric'
 
-# Rules
-RULE_MODULE = 'controller.dynamic_policies.rules.rule'
-RULE_CLASS = 'Rule'
-RULE_TRANSIENT_MODULE = 'controller.dynamic_policies.rules.rule_transient'
-RULE_TRANSIENT_CLASS = 'TransientRule'
+# Generic Consumer Actor
+CONSUMER_MODULE = 'api.actors.consumer/Consumer'
+
+# Swift Metric Actor
+METRIC_MODULE = 'metrics.actors.swift_metric/SwiftMetric'
+
+# Rule Actor
+RULE_MODULE = 'policies.actors.rule/Rule'
+
+# Transient Rule Actor
+RULE_TRANSIENT_MODULE = 'policies.actors.rule_transient/TransientRule'
 
 # Global controllers
 GLOBAL_CONTROLLERS_BASE_MODULE = 'controller.dynamic_policies.rules'

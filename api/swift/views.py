@@ -1,8 +1,3 @@
-import json
-import logging
-import redis
-import requests
-import paramiko
 from paramiko.ssh_exception import SSHException, AuthenticationException
 from django.conf import settings
 from django.http import HttpResponse
@@ -12,30 +7,33 @@ from rest_framework import status
 from rest_framework.exceptions import ParseError
 from rest_framework.parsers import JSONParser
 from operator import itemgetter
-
-import sds_project
+import json
+import logging
+import requests
+import paramiko
 import storage_policies_utils
-from api.common_utils import JSONResponse, get_redis_connection, get_token_connection
+from api.common_utils import JSONResponse, get_redis_connection
 from api.exceptions import FileSynchronizationException
 
 logger = logging.getLogger(__name__)
 
 
 #
-# Storage Policy
+# Storage Policies
 #
-
 @csrf_exempt
-def storage_policy_list(request):
+def storage_policies(request):
     """
-    List all storage policies.
+    Creates a storage policy to swift with an specific ring.
+    Allows create replication storage policies and erasure code storage policies
     """
 
-    try:
-        r = get_redis_connection()
-    except RedisError:
-        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    if request.method == 'GET':
+    if request.method == "GET":
+        try:
+            r = get_redis_connection()
+        except RedisError:
+            return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
         keys = r.keys("storage-policy:*")
         storage_policy_list = []
         for key in keys:
@@ -43,15 +41,6 @@ def storage_policy_list(request):
             storage_policy['id'] = str(key).split(':')[-1]
             storage_policy_list.append(storage_policy)
         return JSONResponse(storage_policy_list, status=status.HTTP_200_OK)
-    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
-
-
-@csrf_exempt
-def storage_policies(request):
-    """
-    Creates a storage policy to swift with an specific ring.
-    Allows create replication storage policies and erasure code storage policies
-    """
 
     if request.method == "POST":
         data = JSONParser().parse(request)
@@ -61,11 +50,13 @@ def storage_policies(request):
                 storage_nodes_list.extend([k, v])
             data["storage_node"] = ','.join(map(str, storage_nodes_list))
             try:
+                print data
                 storage_policies_utils.create(data)
             except Exception as e:
                 return JSONResponse('Error creating the Storage Policy: ' + e, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         return JSONResponse('Account created successfully', status=status.HTTP_201_CREATED)
+
     return JSONResponse('Only HTTP POST requests allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
@@ -111,6 +102,20 @@ def node_list(request):
             node.pop("ssh_username", None)  # username & password are not returned in the list
             node.pop("ssh_password", None)
             node['devices'] = json.loads(node['devices'])
+
+            r_id = node['region_id']
+            z_id = node['zone_id']
+
+            if r.exists('region:' + r_id):
+                node['region_name'] = r.hgetall('region:' + r_id)['name']
+            else:
+                node['region_name'] = r_id
+
+            if r.exists('zone:' + z_id):
+                node['zone_name'] = r.hgetall('zone:' + z_id)['name']
+            else:
+                node['zone_name'] = z_id
+
             if 'ssh_access' not in node:
                 node['ssh_access'] = False
             nodes.append(node)
@@ -163,9 +168,9 @@ def node_detail(request, server_type, node_id):
                     data['ssh_access'] = False
 
                 r.hmset(key, data)
-                return JSONResponse("Data updated", status=status.HTTP_201_CREATED)
+                return JSONResponse("Node Data updated", status=status.HTTP_201_CREATED)
             except RedisError:
-                return JSONResponse("Error updating data", status=status.HTTP_400_BAD_REQUEST)
+                return JSONResponse("Error updating node data", status=status.HTTP_400_BAD_REQUEST)
         else:
             return JSONResponse('Node not found.', status=status.HTTP_404_NOT_FOUND)
 
@@ -216,7 +221,7 @@ def node_restart(request, server_type, node_id):
 @csrf_exempt
 def regions(request):
     """
-    GET: List all regions ordered by name
+    GET: List all regions
     """
     try:
         r = get_redis_connection()
@@ -225,9 +230,6 @@ def regions(request):
 
     if request.method == 'GET':
         keys = r.keys("region:*")
-        if 'region:id' in keys:
-            keys.remove('region:id')
-
         region_items = []
 
         for key in keys:
@@ -235,11 +237,10 @@ def regions(request):
             region['id'] = key.split(':')[1]
             region_items.append(region)
 
-        sorted_list = sorted(region_items, key=itemgetter('name'))
-        return JSONResponse(sorted_list, status=status.HTTP_200_OK)
+        return JSONResponse(region_items, status=status.HTTP_200_OK)
 
     if request.method == 'POST':
-        key = "region:" + str(r.incr('region:id'))
+        key = "region:" + str(r.incr('regions:id'))
         data = JSONParser().parse(request)
         try:
             r.hmset(key, data)
@@ -257,90 +258,113 @@ def region_detail(request, region_id):
     except RedisError:
         return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    key = 'region:' + str(region_id)
-    if request.method == 'DELETE':
-        # Deletes the key. If the node is alive, the metric middleware will recreate this key again.
-        if r.exists(key):
-            r.delete(key)
-            return JSONResponse('Node has been deleted', status=status.HTTP_204_NO_CONTENT)
-        else:
-            return JSONResponse('Node not found.', status=status.HTTP_404_NOT_FOUND)
+    regionKey = 'region:' + str(region_id)
 
     if request.method == 'GET':
-        if r.exists(key):
-            region = r.hgetall(key)
+        if r.exists(regionKey):
+            region = r.hgetall(regionKey)
             return JSONResponse(region, status=status.HTTP_200_OK)
         else:
             return JSONResponse('Region not found.', status=status.HTTP_404_NOT_FOUND)
 
-    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
+    if request.method == 'DELETE':
+        # Deletes the key. If the node is alive, the metric middleware will recreate this key again.
+        if r.exists(regionKey):
+            keys = r.keys("zone:*")
+            if 'zone:id' in keys:
+                keys.remove('zone:id')
+            for key in keys:
+                zone = r.hgetall(key)
+                if zone['region'] == region_id:
+                    return JSONResponse("Region couldn't be deleted because the zone with id: " +
+                                        region_id + ' has this region assigned.', status=status.HTTP_400_BAD_REQUEST)
 
-#
-# PROXY SORTING NOT USED, TODO: Remove
-#
+            r.delete(regionKey)
+            return JSONResponse('Region has been deleted', status=status.HTTP_204_NO_CONTENT)
+        else:
+            return JSONResponse('Region not found.', status=status.HTTP_404_NOT_FOUND)
 
-@csrf_exempt
-def sort_list(request):
-    """
-    List all proxy sortings, or create a proxy sortings.
-    """
-
-    try:
-        r = get_redis_connection()
-    except RedisError:
-        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-    if request.method == 'GET':
-        keys = r.keys("proxy_sorting:*")
-        proxy_sortings = []
-        for key in keys:
-            proxy_sortings.append(r.hgetall(key))
-        return JSONResponse(proxy_sortings, status=status.HTTP_200_OK)
-
-    elif request.method == 'POST':
+    if request.method == 'PUT':
+        data = JSONParser().parse(request)
+        key = "region:" + str(data['region_id'])
         try:
-            data = JSONParser().parse(request)
-            if not data:
-                return JSONResponse("Empty request", status=status.HTTP_400_BAD_REQUEST)
-
-            proxy_sorting_id = r.incr("proxies_sorting:id")
-            data["id"] = proxy_sorting_id
-            r.hmset('proxy_sorting:' + str(proxy_sorting_id), data)
-            return JSONResponse(data, status=status.HTTP_201_CREATED)
-        except redis.exceptions.DataError:
-            return JSONResponse("Error to save the proxy sorting", status=status.HTTP_400_BAD_REQUEST)
-        except ParseError:
-            return JSONResponse("Invalid format or empty request", status=status.HTTP_400_BAD_REQUEST)
-    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
-
-
-@csrf_exempt
-def sort_detail(request, sort_id):
-    """
-    Retrieve, update or delete a Proxy Sorting.
-    """
-
-    try:
-        r = get_redis_connection()
-    except RedisError:
-        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-    if request.method == 'GET':
-        proxy_sorting = r.hgetall("proxy_sorting:" + str(sort_id))
-        return JSONResponse(proxy_sorting, status=status.HTTP_200_OK)
-
-    elif request.method == 'PUT':
-        try:
-            data = JSONParser().parse(request)
-            r.hmset('proxy_sorting:' + str(sort_id), data)
-            return JSONResponse("Data updated", status=status.HTTP_201_CREATED)
-        except redis.exceptions.DataError:
+            r.hmset(key, data)
+            return JSONResponse("Data updated correctly", status=status.HTTP_201_CREATED)
+        except RedisError:
             return JSONResponse("Error updating data", status=status.HTTP_400_BAD_REQUEST)
-        except ParseError:
-            return JSONResponse("Invalid format or empty request", status=status.HTTP_400_BAD_REQUEST)
 
-    elif request.method == 'DELETE':
-        r.delete("proxy_sorting:" + str(sort_id))
-        return JSONResponse('Proxy sorting has been deleted', status=status.HTTP_204_NO_CONTENT)
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+
+# Zones
+@csrf_exempt
+def zones(request):
+    """
+    GET: List all zones
+    """
+    try:
+        r = get_redis_connection()
+    except RedisError:
+        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    if request.method == 'GET':
+        keys = r.keys("zone:*")
+        zone_items = []
+
+        for key in keys:
+            zone = r.hgetall(key)
+            zone['id'] = key.split(':')[1]
+            zone['region_name'] = r.hgetall('region:' + zone['region'])['name']
+            zone_items.append(zone)
+
+        return JSONResponse(zone_items, status=status.HTTP_200_OK)
+
+    if request.method == 'POST':
+        key = "zone:" + str(r.incr('zones:id'))
+        data = JSONParser().parse(request)
+        try:
+            r.hmset(key, data)
+            return JSONResponse("Data inserted correctly", status=status.HTTP_201_CREATED)
+        except RedisError:
+            return JSONResponse("Error inserting data", status=status.HTTP_400_BAD_REQUEST)
+
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+
+@csrf_exempt
+def zone_detail(request, zone_id):
+    try:
+        r = get_redis_connection()
+    except RedisError:
+        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    key = 'zone:' + str(zone_id)
+
+    if request.method == 'GET':
+        if r.exists(key):
+            zone = r.hgetall(key)
+            return JSONResponse(zone, status=status.HTTP_200_OK)
+        else:
+            return JSONResponse('Zone not found.', status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'DELETE':
+        # Deletes the key. If the node is alive, the metric middleware will recreate this key again.
+        if r.exists(key):
+            r.delete(key)
+            return JSONResponse('Zone has been deleted', status=status.HTTP_204_NO_CONTENT)
+        else:
+            return JSONResponse('Zone not found.', status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'PUT':
+        data = JSONParser().parse(request)
+        key = "zone:" + str(data['zone_id'])
+        try:
+            r.hmset(key, data)
+            return JSONResponse("Zone Data updated correctly", status=status.HTTP_201_CREATED)
+        except RedisError:
+            return JSONResponse("Error updating zone data", status=status.HTTP_400_BAD_REQUEST)
+
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+
 

@@ -1,26 +1,32 @@
+from django.conf import settings
 from threading import Thread
 import logging
 import pika
 
+logging.getLogger("pika").propagate = False
 logger = logging.getLogger(__name__)
 
 
 class Consumer(object):
     _tell = ['start_consuming', 'stop_consuming']
 
-    def __init__(self, host, port, username, password, exchange, queue, routing_key, obj):
+    def __init__(self, queue, routing_key, parent):
 
-        credentials = pika.PlainCredentials(username, password)
-        parameters = pika.ConnectionParameters(host=host,
-                                               port=port,
+        rmq_user = settings.RABBITMQ_USERNAME
+        rmq_pass = settings.RABBITMQ_PASSWORD
+        rmq_host = settings.RABBITMQ_HOST
+        rmq_port = settings.RABBITMQ_PORT
+        exchange = settings.RABBITMQ_EXCHANGE
+
+        credentials = pika.PlainCredentials(rmq_user, rmq_pass)
+        parameters = pika.ConnectionParameters(host=rmq_host,
+                                               port=rmq_port,
                                                credentials=credentials)
         self._channel = pika.BlockingConnection(parameters).channel()
 
-        self.obj = obj
+        self.parent = parent
         self.queue = queue
-
-        logger.info('Metric, Exchange: ' + exchange)
-        logger.info('Metric, Routing_key: ' + routing_key)
+        self.routing_key = routing_key
 
         self._channel.queue_declare(queue=queue)
 
@@ -36,15 +42,15 @@ class Consumer(object):
             print "You must entry a routing key"
 
     def callback(self, ch, method, properties, body):
-        self.obj.notify(body)
+        self.parent.notify(body)
 
     def start_consuming(self):
-        logger.info('Metric, Start to consume from rabbitmq')
+        logger.info('Start to consume from RabbitMQ: '+self.routing_key)
         self.thread = Thread(target=self._channel.start_consuming)
         self.thread.start()
 
     def stop_consuming(self):
-        logger.info('Metric, Stopping to consume from rabbitmq')
+        logger.info('Stopping to consume from RabbitMQ: '+self.routing_key)
         self.host.stop_actor(self.id)
         self._channel.stop_consuming()
         self._channel.close()

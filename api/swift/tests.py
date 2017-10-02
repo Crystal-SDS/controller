@@ -7,7 +7,7 @@ from django.test.client import RequestFactory
 from rest_framework import status
 from rest_framework.test import APIRequestFactory
 
-from .views import storage_policy_list, storage_policies, locality_list, sort_list, sort_detail, node_list, node_detail
+from .views import storage_policies, locality_list, sort_list, sort_detail, node_list, node_detail
 
 
 # Tests use database=10 instead of 0.
@@ -35,17 +35,10 @@ class SwiftTestCase(TestCase):
     #     response = tenants_list(request)
     #     self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
-    def test_storage_policy_list_with_method_not_allowed(self):
-        """ Test that DELETE requests to storage_policy_list() return METHOD_NOT_ALLOWED """
-
-        request = self.api_factory.delete('/swift/storage_policies')
-        response = storage_policy_list(request)
-        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
-
     def test_storage_policies_with_method_not_allowed(self):
-        """ Test that GET requests to storage_policies() return METHOD_NOT_ALLOWED """
+        """ Test that PUT requests to storage_policies() return METHOD_NOT_ALLOWED """
 
-        request = self.api_factory.get('/swift/spolicies')
+        request = self.api_factory.put('/swift/storage_policies')
         response = storage_policies(request)
         self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
@@ -169,7 +162,7 @@ class SwiftTestCase(TestCase):
         """ Test that GET requests to storage_policy_list() return METHOD_NOT_ALLOWED """
 
         request = self.api_factory.get('/swift/storage_policies')
-        response = storage_policy_list(request)
+        response = storage_policies(request)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         storage_policies_json = json.loads(response.content)
         self.assertEqual(len(storage_policies_json), 5)
