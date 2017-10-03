@@ -94,7 +94,7 @@ def filter_detail(request, filter_id):
             return JSONResponse("Invalid format or empty request", status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            if str(filter_id) != data['dsl_name']:
+            if 'dsl_name' in data and str(filter_id) != data['dsl_name']:
                 # Check for possible activated policies
                 policies = r.keys('policy:*')
                 for policy_key in policies:
@@ -474,7 +474,7 @@ def set_filter(r, target, filter_data, parameters, token):
         metadata = {"X-Object-Meta-Storlet-Language": filter_data["language"],
                     "X-Object-Meta-Storlet-Interface-Version": filter_data["interface_version"],
                     "X-Object-Meta-Storlet-Dependency": '',
-                    "X-Object-Meta-Storlet-Object-Metadata": filter_data["object_metadata"],
+                    "X-Object-Meta-Storlet-Object-Metadata": '',
                     "X-Object-Meta-Storlet-Main": filter_data["main"]
                     }
 
