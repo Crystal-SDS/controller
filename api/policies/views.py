@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 @csrf_exempt
 def policy_list(request):
     """
-    List all policies (sorted by execution_order). Deploy new policies.
+    List all policies (sorted by execution_order). Deploy new policies via DSL.
     """
     try:
         r = get_redis_connection()
@@ -44,11 +44,13 @@ def policy_list(request):
                     target_id = it.replace('pipeline:', '')
                     policies.append({'id': key, 'target_id': target_id,
                                      'target_name': project_list[target_id.split(':')[0]],
-                                     'filter_name': policy['filter_name'], 'object_type': policy['object_type'],
+                                     'filter_name': policy['filter_name'],
+                                     'object_type': policy['object_type'],
                                      'object_size': policy['object_size'],
                                      'execution_server': policy['execution_server'],
-                                     'execution_server_reverse': policy['execution_server_reverse'],
-                                     'execution_order': policy['execution_order'], 'params': policy['params']})
+                                     'reverse': policy['reverse'],
+                                     'execution_order': policy['execution_order'],
+                                     'params': policy['params']})
             sorted_policies = sorted(policies, key=lambda x: int(itemgetter('execution_order')(x)))
 
             return JSONResponse(sorted_policies, status=status.HTTP_200_OK)
@@ -80,7 +82,8 @@ def policy_list(request):
                 condition_list, rule_parsed = dsl_parser.parse(rule_string)
                 if condition_list:
                     # Dynamic Rule
-                    deploy_dynamic_policy(r, rule_string, rule_parsed)
+                    http_host = request.META['HTTP_HOST']
+                    deploy_dynamic_policy(r, rule_string, rule_parsed, http_host)
                 else:
                     # Static Rule
                     deploy_static_policy(request, r, rule_parsed)
@@ -97,9 +100,7 @@ def policy_list(request):
                 return JSONResponse('The project is not Crystal Enabled. Verify it in the Projects panel.',
                                     status=status.HTTP_404_NOT_FOUND)
             except Exception:
-                # print("The rule: " + rule_string + " cannot be parsed")
-                # print("Exception message", e)
-                return JSONResponse('Please, review the rule, register the dsl filter and start the workload '
+                return JSONResponse('Please, review the rule, and start the related workload '
                                     'metric before creating a new policy', status=status.HTTP_401_UNAUTHORIZED)
 
         return JSONResponse('Policies added successfully!', status=status.HTTP_201_CREATED)
@@ -195,10 +196,10 @@ def deploy_static_policy(request, r, parsed_rule):
     for target in rules_to_parse.keys():
         for action_info in rules_to_parse[target].action_list:
             logger.info("Static policy, target rule: " + str(action_info))
-            dynamic_filter = r.hgetall("dsl_filter:" + str(action_info.filter))
-            filter_data = r.hgetall("filter:" + dynamic_filter["identifier"])
 
-            if not filter_data:
+            cfilter = r.hgetall("filter:"+str(action_info.filter))
+
+            if not cfilter:
                 return JSONResponse("Filter does not exist", status=status.HTTP_404_NOT_FOUND)
 
             if action_info.action == "SET":
@@ -231,10 +232,10 @@ def deploy_static_policy(request, r, parsed_rule):
                     policy_data["callable"] = True
 
                 # Deploy (an exception is raised if something goes wrong)
-                set_filter(r, target, filter_data, policy_data, token)
+                set_filter(r, target, cfilter, policy_data, token)
 
             elif action_info.action == "DELETE":
-                unset_filter(r, target, filter_data, token)
+                unset_filter(r, target, cfilter, token)
 
 
 #
@@ -305,7 +306,7 @@ def dynamic_policy_detail(request, policy_id):
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
 
 
-def deploy_dynamic_policy(r, rule_string, parsed_rule):
+def deploy_dynamic_policy(r, rule_string, parsed_rule, http_host):
     host = create_local_host()
     rules_to_parse = dict()
     project = None
@@ -362,13 +363,15 @@ def deploy_dynamic_policy(r, rule_string, parsed_rule):
                 # print 'Transient rule:', parsed_rule
                 rule_actors[policy_id] = host.spawn(rule_id,
                                                     settings.RULE_TRANSIENT_MODULE,
-                                                    [rules_to_parse[target], action_info, target_id, target_name])
+                                                    [rules_to_parse[target], action_info,
+                                                     target_id, target_name, http_host])
                 location = settings.RULE_TRANSIENT_MODULE
                 is_transient = True
             else:
                 # print 'Rule:', parsed_rule
                 rule_actors[policy_id] = host.spawn(rule_id, settings.RULE_MODULE,
-                                                    [rules_to_parse[target], action_info, target_id, target_name])
+                                                    [rules_to_parse[target], action_info,
+                                                     target_id, target_name, http_host])
                 location = settings.RULE_MODULE
                 is_transient = False
 

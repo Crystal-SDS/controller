@@ -4,6 +4,7 @@ import operator
 import logging
 import redis
 import requests
+import os
 
 from api.settings import MANAGEMENT_ACCOUNT, MANAGEMENT_ADMIN_USERNAME, \
     MANAGEMENT_ADMIN_PASSWORD, KEYSTONE_ADMIN_URL, REDIS_HOST, REDIS_PORT, REDIS_DATABASE
@@ -25,7 +26,7 @@ class Rule(object):
     _ask = ['get_target']
     _tell = ['update', 'start_rule', 'stop_actor']
 
-    def __init__(self, rule_parsed, action, target_id, target_name):
+    def __init__(self, rule_parsed, action, target_id, target_name, controller_server):
         """
         Initialize all the variables needed for the rule.
 
@@ -56,6 +57,7 @@ class Rule(object):
         self.action_list = action
         self.target_id = target_id
         self.target_name = target_name
+        self.controller_server = controller_server
 
         self.conditions = rule_parsed.condition_list.asList()
         self.observers_values = dict()
@@ -194,12 +196,11 @@ class Rule(object):
             self._get_admin_token()
 
         headers = {"X-Auth-Token": self.token}
-        dynamic_filter = self.redis.hgetall("dsl_filter:" + str(self.action_list.filter))
 
         if self.action_list.action == "SET":
             # TODO Review if this tenant has already deployed this filter. Not deploy the same filter more than one time.
 
-            url = dynamic_filter["activation_url"] + "/" + self.target_id + "/deploy/" + str(dynamic_filter["identifier"])
+            url = os.path.join(self.controller_server, 'filters', self.target_id, "deploy", str(self.action_list.filter))
 
             data = dict()
 
@@ -229,9 +230,8 @@ class Rule(object):
                 logger.error('Error setting policy')
 
         elif self.action_list.action == "DELETE":
-            logger.info("--> DELETE <--")
 
-            url = dynamic_filter["activation_url"] + "/" + self.target_id + "/undeploy/" + str(dynamic_filter["identifier"])
+            url = os.path.join(self.controller_server, 'filters', self.target_id, "undeploy", str(self.action_list.filter))
             response = requests.put(url, headers=headers)
 
             if 200 <= response.status_code < 300:
