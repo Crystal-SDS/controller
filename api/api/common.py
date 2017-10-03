@@ -153,7 +153,7 @@ def rsync_dir_with_nodes(directory):
     # retrieve nodes
     nodes = get_all_registered_nodes()
     for node in nodes:
-        logger.info("\nRsync - pushing to "+node['name'])
+        logger.info("Rsync - pushing to "+node['type']+":"+node['name'])
         if not node.viewkeys() & {'ssh_username', 'ssh_password'}:
             raise FileSynchronizationException("SSH credentials missing. Please, set the credentials for this "+node['type']+" node: "+node['name'])
 
@@ -164,7 +164,7 @@ def rsync_dir_with_nodes(directory):
             data = {'directory': directory, 'dest_directory': dest_directory, 'node_ip': node['ip'],
                     'ssh_username': node['ssh_username'], 'ssh_password': node['ssh_password']}
             rsync_command = 'sshpass -p {ssh_password} rsync --progress --delete -avrz -e ssh {directory} {ssh_username}@{node_ip}:{dest_directory}'.format(**data)
-            # print "System: %s" % rsync_command
+
             ret = os.system(rsync_command)
             if ret != 0:
                 raise FileSynchronizationException("An error occurred copying files to Swift nodes. Please check the SSH credentials of this "+node['type']+" node: "+node['name'])

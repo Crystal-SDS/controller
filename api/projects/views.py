@@ -119,29 +119,27 @@ def add_projects_group(request):
     """
     Add a tenant group or list all the tenants groups saved in the registry.
     """
-
     try:
         r = get_redis_connection()
     except RedisError:
         return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     if request.method == 'GET':
-        keys = r.keys("G:*")
-        gtenants = {}
+        keys = r.keys("project_group:*")
+        project_groups = {}
         for key in keys:
             group = r.lrange(key, 0, -1)
             group_id = key.split(":")[1]
-            gtenants[group_id] = group
-
-        return JSONResponse(gtenants, status=status.HTTP_200_OK)
+            project_groups[group_id] = group
+        return JSONResponse(project_groups, status=status.HTTP_200_OK)
 
     if request.method == 'POST':
         data = JSONParser().parse(request)
         if not data:
             return JSONResponse('Tenant group cannot be empty',
                                 status=status.HTTP_400_BAD_REQUEST)
-        gtenant_id = r.incr("gtenant:id")
-        r.rpush('G:' + str(gtenant_id), *data)
+        gtenant_id = r.incr("project_groups:id")
+        r.rpush('project_group:' + str(gtenant_id), *data)
         return JSONResponse('Tenant group has been added to the registry', status=status.HTTP_201_CREATED)
 
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
@@ -159,7 +157,7 @@ def projects_group_detail(request, group_id):
         return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     if request.method == 'GET':
-        key = 'G:' + str(group_id)
+        key = 'project_group:' + str(group_id)
         if r.exists(key):
             group = r.lrange(key, 0, -1)
             return JSONResponse(group, status=status.HTTP_200_OK)
@@ -167,7 +165,7 @@ def projects_group_detail(request, group_id):
             return JSONResponse('The tenant group with id:  ' + str(group_id) + ' does not exist.', status=status.HTTP_404_NOT_FOUND)
 
     if request.method == 'PUT':
-        key = 'G:' + str(group_id)
+        key = 'project_group:' + str(group_id)
         if r.exists(key):
             data = JSONParser().parse(request)
             if not data:
@@ -182,12 +180,12 @@ def projects_group_detail(request, group_id):
             return JSONResponse('The tenant group with id:  ' + str(group_id) + ' does not exist.', status=status.HTTP_404_NOT_FOUND)
 
     if request.method == 'DELETE':
-        key = 'G:' + str(group_id)
+        key = 'project_group:' + str(group_id)
         if r.exists(key):
-            r.delete("G:" + str(group_id))
+            r.delete("project_group:" + str(group_id))
             gtenants_ids = r.keys('G:*')
             if len(gtenants_ids) == 0:
-                r.set('gtenant:id', 0)
+                r.set('project_groups:id', 0)
             return JSONResponse('Tenants group has been deleted', status=status.HTTP_204_NO_CONTENT)
         else:
             return JSONResponse('The tenant group with id:  ' + str(group_id) + ' does not exist.', status=status.HTTP_404_NOT_FOUND)
@@ -204,7 +202,7 @@ def projects_groups_detail(request, group_id, project_id):
     except RedisError:
         return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     if request.method == 'DELETE':
-        r.lrem("G:" + str(group_id), str(project_id), 1)
+        r.lrem("project_group:" + str(group_id), str(project_id), 1)
         return JSONResponse('Tenant ' + str(project_id) + ' has been deleted from group with the id: ' + str(group_id),
                             status=status.HTTP_204_NO_CONTENT)
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)

@@ -2,6 +2,7 @@ from rule import Rule
 import requests
 import logging
 import json
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +20,7 @@ class TransientRule(Rule):
     _ask = ['get_target']
     _async = ['update', 'start_rule', 'stop_actor']
 
-    def __init__(self, rule_parsed, action, target_id, target_name):
+    def __init__(self, rule_parsed, action, target_id, target_name, controller_server):
         """
         Initialize all the variables needed for the rule.
 
@@ -28,7 +29,8 @@ class TransientRule(Rule):
         :param target_name: The target assigned to this rule.
         :type target_name: **any** String type
         """
-        super(TransientRule, self).__init__(rule_parsed, action, target_id, target_name)
+        super(TransientRule, self).__init__(rule_parsed, action, target_id,
+                                            target_name, controller_server)
         logger.info("Transient Rule")
         self.execution_stat = False
         self.static_policy_id = None
@@ -72,13 +74,12 @@ class TransientRule(Rule):
             self._get_admin_token()
 
         headers = {"X-Auth-Token": self.token}
-        dynamic_filter = self.redis.hgetall("dsl_filter:"+str(self.action_list.filter))
 
         if action == "SET":
             # TODO Review if this tenant has already deployed this filter. Don't deploy the same filter more than one time.
             logger.info("Setting static policy")
             data = dict()
-            url = dynamic_filter["activation_url"]+"/"+self.target_id+"/deploy/"+str(dynamic_filter["identifier"])
+            url = os.path.join(self.controller_server, 'filters', self.target_id, "deploy", str(self.action_list.filter))
 
             if hasattr(self.rule_parsed.object_list, "object_type"):
                 data['object_type'] = self.rule_parsed.object_list.object_type.object_value
@@ -102,8 +103,7 @@ class TransientRule(Rule):
 
         elif action == "DELETE":
             logger.info("Deleting static policy " + str(self.static_policy_id))
-
-            url = dynamic_filter["activation_url"].rsplit("/",1)[0]+"/controller/static_policy/"+self.target_id+":"+str(self.static_policy_id)
+            url = os.path.join(self.controller_server, "policies/static", self.target_id+":"+str(self.static_policy_id))
             response = requests.delete(url, headers=headers)
 
             if 200 <= response.status_code < 300:
