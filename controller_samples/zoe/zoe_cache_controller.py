@@ -1,6 +1,5 @@
 import json
 import logging
-import redis
 import requests
 
 from django.conf import settings
@@ -10,99 +9,105 @@ from keystoneclient.v3 import client
 from redis.exceptions import RedisError
 import swiftclient
 
+from controllers.actors.abstract_controller import AbstractController
+
 logger = logging.getLogger(__name__)
 
 CACHE_SIZE = 900 * 1024 * 1024
 
-class ZoeCacheController(object):
+
+class ZoeCacheController(AbstractController):
 
     _ask = []
-    _tell = ['update', 'run', 'stop_actor']
+    _tell = ['run', 'stop_actor', 'notify']
 
-    DISK_IO_BANDWIDTH = 100.  # MBps
-
-    def __init__(self, name):
-        try:
-            self.r = redis.Redis(connection_pool=settings.REDIS_CON_POOL)
-        except RedisError:
-            print "Error connecting with Redis DB"
-
-        self.name = name
-        self.zoe_metric_id = ''
+    def __init__(self):
+        super(ZoeCacheController, self).__init__()
         self.abstract_policies = {}
 
-    def run(self, zoe_metric_id):
+    def run(self):
         """
-        The `run()` method subscribes the controller to the Zoe metric
-
-        :param zoe_metric_id: The name that identifies the Zoe metric.
-        :type zoe_metric_id: **any** String type
-
+        Entry Method
         """
-        try:
-            self.zoe_metric_id = zoe_metric_id
-            zoe_metric_actor = self.host.lookup(zoe_metric_id)
-            zoe_metric_actor.attach(self.proxy)
+        self._init_consum("zoe_queue", "zoe")
 
-        except Exception as e:
-            raise Exception('Error attaching to metric: ' + str(e))
+    # def run(self, zoe_metric_id):
+    #     """
+    #     The `run()` method subscribes the controller to the Zoe metric
+    #
+    #     :param zoe_metric_id: The name that identifies the Zoe metric.
+    #     :type zoe_metric_id: **any** String type
+    #
+    #     """
+    #     try:
+    #         self.zoe_metric_id = zoe_metric_id
+    #         zoe_metric_actor = self.host.lookup(zoe_metric_id)
+    #         zoe_metric_actor.attach(self.proxy)
+    #
+    #     except Exception as e:
+    #         raise Exception('Error attaching to metric: ' + str(e))
 
-    def update(self, metric, target, info):
+    def compute_rmq_message(self, body):
+        logger.info('Zoe_cache... in notify body='+str(body))
 
-        logger.info(str(metric) + " - " + str(target) + " - " + str(info))
 
-        if metric == 'zoe_metric':
-            info_dict = json.loads(info)
-            logger.info("Zoe controller - Update rcvd: " + str(info_dict))
-            tenant_name = info_dict['tenant']
+    # def update(self, metric, target, info):
+    #
+    #
+    #     logger.info(str(metric) + " - " + str(target) + " - " + str(info))
+    #
+    #     if metric == 'zoe_metric':
+    #         info_dict = json.loads(info)
+    #         logger.info("Zoe controller - Update rcvd: " + str(info_dict))
+    #         tenant_name = info_dict['tenant']
+    #
+    #         tenant_list = ZoeCacheController.get_tenants_by_name()
+    #         tenant_id = tenant_list[tenant_name]
+    #         self.abstract_policies[tenant_id] = info_dict['abstract_policy']
+    #
+    #         # Provisional approach:
+    #         # gold = iterative
+    #         # silver = iterative
+    #         # bronze = not iterative
+    #
+    #         # Only apply cache/prefetching for iterative approaches (apps that use the same data at every run)
+    #         if self.abstract_policies[tenant_id] in ['platinum', 'gold', 'silver']:
+    #             # Let's see dataset size
+    #             container = "ebooks" # TODO hardcoded
+    #
+    #             container_size = self.obtain_container_size(tenant_id, container)
+    #             logger.info("container_size is " + str(container_size))
+    #             logger.info("CACHE_SIZE is " + str(container_size))
+    #             if container_size < CACHE_SIZE:
+    #                 # If caching policy is not active, the controller activates it
+    #                 caching_policy_active = False
+    #                 pipeline_name = 'pipeline:' + tenant_id
+    #                 if self.redis.exists(pipeline_name):
+    #                     pipeline_contents = self.redis.hgetall(pipeline_name)
+    #                     for key, value in pipeline_contents.items():
+    #                         policy = json.loads(value)
+    #                         if policy['filter_name'] == 'crystal_cache_control.py':
+    #                             caching_policy_active = True
+    #
+    #                 if not caching_policy_active:
+    #                     # TODO Create a caching policy for this tenant
+    #                     # container size may be passed as parameter to the filter. Then cache could balance the available space.
+    #                     dynamic_filter = self.redis.hgetall("dsl_filter:caching")
+    #                     self.activate_policy('caching', str(dynamic_filter["identifier"]))
+    #
+    #             else:
+    #                 # Enable prefetching
+    #                 pass
 
-            tenant_list = ZoeCacheController.get_tenants_by_name()
-            tenant_id = tenant_list[tenant_name]
-            self.abstract_policies[tenant_id] = info_dict['abstract_policy']
-
-            # Provisional approach:
-            # gold = iterative
-            # silver = iterative
-            # bronze = not iterative
-
-            # Only apply cache/prefetching for iterative approaches (apps that use the same data at every run)
-            if self.abstract_policies[tenant_id] in ['platinum', 'gold', 'silver']:
-                # Let's see dataset size
-                container = "ebooks" # TODO hardcoded
-
-                container_size = self.obtain_container_size(tenant_id, container)
-                logger.info("container_size is " + str(container_size))
-                logger.info("CACHE_SIZE is " + str(container_size))
-                if container_size < CACHE_SIZE:
-                    # If caching policy is not active, the controller activates it
-                    caching_policy_active = False
-                    pipeline_name = 'pipeline:' + tenant_id
-                    if self.r.exists(pipeline_name):
-                        pipeline_contents = self.r.hgetall(pipeline_name)
-                        for key, value in pipeline_contents.items():
-                            policy = json.loads(value)
-                            if policy['filter_name'] == 'crystal_cache_control.py':
-                                caching_policy_active = True
-
-                    if not caching_policy_active:
-                        # TODO Create a caching policy for this tenant
-                        # container size may be passed as parameter to the filter. Then cache could balance the available space.
-                        dynamic_filter = self.redis.hgetall("dsl_filter:caching")
-                        self.activate_policy('caching', str(dynamic_filter["identifier"]))
-
-                else:
-                    # Enable prefetching
-                    pass
-
-    def stop_actor(self):
-        """
-        Asynchronous method. This method can be called remotely.
-        This method ends the controller execution and kills the actor.
-        """
-        try:
-            self.host.stop_actor(self.id)
-        except Exception as e:
-            print e
+    # def stop_actor(self):
+    #     """
+    #     Asynchronous method. This method can be called remotely.
+    #     This method ends the controller execution and kills the actor.
+    #     """
+    #     try:
+    #         self.host.stop_actor(self.id)
+    #     except Exception as e:
+    #         print e
 
     @staticmethod
     def get_tenants_by_name():

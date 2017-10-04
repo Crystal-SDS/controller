@@ -8,58 +8,72 @@ from keystoneauth1 import session
 from keystoneclient.v3 import client
 from redis.exceptions import RedisError
 
+from controllers.actors.abstract_controller import AbstractController
+
 logger = logging.getLogger(__name__)
 
 
-class ZoeBwController(object):
+class ZoeBwController(AbstractController):
 
     _ask = ['get_target']
     _tell = ['update', 'run', 'stop_actor']
 
     DISK_IO_BANDWIDTH = 100.  # MBps
 
-    def __init__(self, name):
-        try:
-            self.r = redis.Redis(connection_pool=settings.REDIS_CON_POOL)
-        except RedisError:
-            print "Error connecting with Redis DB"
-
-        self.name = name
-        self.zoe_metric_id = ''
+    def __init__(self):
+        super(ZoeBwController, self).__init__()
+        self.metrics = ['get_bandwidth']
         self.abstract_policies = {}
         self.bw_control = {}
         self.slo_objectives = {'platinum': int(self.DISK_IO_BANDWIDTH * 0.9),
                                'gold': int(self.DISK_IO_BANDWIDTH * 0.8),
                                'silver': int(self.DISK_IO_BANDWIDTH * 0.4),
                                'bronze': int(self.DISK_IO_BANDWIDTH * 0.2)}
+        self._init_consum("zoe_queue", "zoe")
+        # TODO Listen to the queue: rmq_messages to receive zoe messages --> test this in s2caio...
 
-    def run(self, zoe_metric_id):
-        """
-        The `run()` method subscribes the controller to the Zoe metric
+    # def __init__(self, name):
+    #     try:
+    #         self.r = redis.Redis(connection_pool=settings.REDIS_CON_POOL)
+    #     except RedisError:
+    #         print "Error connecting with Redis DB"
+    #
+    #     self.name = name
+    #     self.zoe_metric_id = ''
+    #     self.abstract_policies = {}
+    #     self.bw_control = {}
+    #     self.slo_objectives = {'platinum': int(self.DISK_IO_BANDWIDTH * 0.9),
+    #                            'gold': int(self.DISK_IO_BANDWIDTH * 0.8),
+    #                            'silver': int(self.DISK_IO_BANDWIDTH * 0.4),
+    #                            'bronze': int(self.DISK_IO_BANDWIDTH * 0.2)}
 
-        :param zoe_metric_id: The name that identifies the Zoe metric.
-        :type zoe_metric_id: **any** String type
-
-        """
-        try:
-            self.zoe_metric_id = zoe_metric_id
-            zoe_metric_actor = self.host.lookup(zoe_metric_id)
-            zoe_metric_actor.attach(self.proxy)
-
-            #remote_host = self.host.lookup_url(settings.PYACTOR_URL, Host)  # looking up for Crystal controller existing host
-
-            #bw_metric_actor = remote_host.lookup('get_bandwidth')
-            bw_metric_actor = self.host.lookup('get_bandwidth')
-            print 'bw_metric:' + str(bw_metric_actor)
-            logger.info('bw_metric:' + str(bw_metric_actor))
-            bw_metric_actor.attach(self.proxy)
-
-        except Exception as e:
-            raise Exception('Error attaching to metric: ' + str(e))
+    # def run(self, zoe_metric_id):
+    #     """
+    #     The `run()` method subscribes the controller to the Zoe metric
+    #
+    #     :param zoe_metric_id: The name that identifies the Zoe metric.
+    #     :type zoe_metric_id: **any** String type
+    #
+    #     """
+    #     try:
+    #         self.zoe_metric_id = zoe_metric_id
+    #         zoe_metric_actor = self.host.lookup(zoe_metric_id)
+    #         zoe_metric_actor.attach(self.proxy)
+    #
+    #         #remote_host = self.host.lookup_url(settings.PYACTOR_URL, Host)  # looking up for Crystal controller existing host
+    #
+    #         #bw_metric_actor = remote_host.lookup('get_bandwidth')
+    #         bw_metric_actor = self.host.lookup('get_bandwidth')
+    #         print 'bw_metric:' + str(bw_metric_actor)
+    #         logger.info('bw_metric:' + str(bw_metric_actor))
+    #         bw_metric_actor.attach(self.proxy)
+    #
+    #     except Exception as e:
+    #         raise Exception('Error attaching to metric: ' + str(e))
 
     @staticmethod
     def get_target():
-        return '*';  # Wildcard: all targets
+        return 'ALL';  # Wildcard: all targets
 
     def update(self, metric, target, info):
 
