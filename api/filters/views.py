@@ -18,7 +18,8 @@ import mimetypes
 import os
 
 from api.common import rsync_dir_with_nodes, JSONResponse, \
-    get_redis_connection, get_token_connection, make_sure_path_exists, save_file, md5
+    get_redis_connection, get_token_connection, make_sure_path_exists, save_file, md5,\
+    to_json_bools
 from api.exceptions import SwiftClientError, StorletNotFoundException, FileSynchronizationException
 
 logger = logging.getLogger(__name__)
@@ -85,6 +86,7 @@ def filter_detail(request, filter_id):
 
     if request.method == 'GET':
         my_filter = r.hgetall("filter:" + str(filter_id))
+        to_json_bools(my_filter, 'put', 'get')
         return JSONResponse(my_filter, status=status.HTTP_200_OK)
 
     elif request.method == 'PUT':

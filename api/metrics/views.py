@@ -149,7 +149,10 @@ def metric_module_detail(request, metric_module_id):
             redis_data.update(data)
             data = redis_data
 
-        metric_name = data['metric_name'].split('.')[0]
+        if 'metric_name' not in data:
+            metric_name = r.hget('workload_metric:' + str(metric_id), 'metric_name').split('.')[0]
+        else:
+            metric_name = data['metric_name'].split('.')[0]
 
         if data['enabled']:
             try:
