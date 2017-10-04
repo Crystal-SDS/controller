@@ -173,7 +173,8 @@ def start_controller(controller_id, controller_name, controller_class_name):
             controller_actors[controller_id] = host.spawn(controller_name, controller_location)
             controller_actors[controller_id].run()
             logger.info("Controller, Started controller actor: "+controller_location)
-    except:
+    except Exception as e:
+        logger.error(str(e))
         raise ValueError
 
 
@@ -183,5 +184,6 @@ def stop_controller(controller_id):
             controller_actors[controller_id].stop_actor()
             del controller_actors[controller_id]
             logger.info("Controller, Stopped controller actor: " + str(controller_id))
-        except:
+        except Exception as e:
+            logger.error(str(e))
             raise ValueError
