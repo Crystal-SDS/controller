@@ -67,7 +67,7 @@ def parse(input_string):
     # Group(tenant_list ^ tenant_group_list ^ container_list ^ obj_list)
     # Action part
     action = oneOf("SET DELETE")
-    sfilters_list = r.keys("dsl_filter:*")
+    sfilters_list = r.keys("filter:*")
     sfilter = map(lambda x: "".join(x.split(":")[1]), sfilters_list)
     with_params = Suppress(Literal("WITH"))
     do = Suppress(Literal("DO"))

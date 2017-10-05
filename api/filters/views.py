@@ -17,8 +17,9 @@ import logging
 import mimetypes
 import os
 
-from api.common import rsync_dir_with_nodes, to_json_bools, JSONResponse, \
-    get_redis_connection, get_token_connection, make_sure_path_exists, save_file, md5
+from api.common import rsync_dir_with_nodes, JSONResponse, \
+    get_redis_connection, get_token_connection, make_sure_path_exists, save_file, md5,\
+    to_json_bools
 from api.exceptions import SwiftClientError, StorletNotFoundException, FileSynchronizationException
 
 logger = logging.getLogger(__name__)
@@ -58,10 +59,10 @@ def filter_list(request):
            (data['filter_type'] == 'storlet' and not check_keys(data.keys(), settings.STORLET_FILTER_KEYS[2:-1]))):
             return JSONResponse("Invalid parameters in request", status=status.HTTP_400_BAD_REQUEST)
 
-        storlet_id = r.incr("filters:id")
         try:
-            data['id'] = storlet_id
-            r.hmset('filter:' + str(storlet_id), data)
+            filter_id = r.incr("filters:id")
+            data['id'] = filter_id
+            r.hmset('filter:' + str(data['dsl_name']), data)
 
             return JSONResponse(data, status=status.HTTP_201_CREATED)
 
@@ -75,7 +76,6 @@ def filter_detail(request, filter_id):
     """
     Retrieve, update or delete a Filter.
     """
-
     try:
         r = get_redis_connection()
     except RedisError:
@@ -86,8 +86,7 @@ def filter_detail(request, filter_id):
 
     if request.method == 'GET':
         my_filter = r.hgetall("filter:" + str(filter_id))
-
-        to_json_bools(my_filter, 'has_reverse', 'is_pre_get', 'is_post_get', 'is_pre_put', 'is_post_put', 'enabled')
+        to_json_bools(my_filter, 'put', 'get')
         return JSONResponse(my_filter, status=status.HTTP_200_OK)
 
     elif request.method == 'PUT':
@@ -97,7 +96,21 @@ def filter_detail(request, filter_id):
             return JSONResponse("Invalid format or empty request", status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            r.hmset('filter:' + str(filter_id), data)
+            if 'dsl_name' in data and str(filter_id) != data['dsl_name']:
+                # Check for possible activated policies
+                policies = r.keys('policy:*')
+                for policy_key in policies:
+                    policy = r.hgetall(policy_key)
+                    dsl_filter = policy['filter']
+                    if dsl_filter == str(filter_id):
+                        return JSONResponse("It is not possible to change the DSL Name, "+str(filter_id)+
+                                            " is associated with some Dynamic Policy", status=status.HTTP_400_BAD_REQUEST)
+                filter_data = r.hgetall("filter:" + str(filter_id))
+                r.hmset('filter:' + str(data['dsl_name']), filter_data)
+                r.delete("filter:" + str(filter_id))
+                r.hmset('filter:' + str(data['dsl_name']), data)
+            else:
+                r.hmset('filter:' + str(filter_id), data)
 
             return JSONResponse("Data updated", status=status.HTTP_200_OK)
         except DataError:
@@ -105,13 +118,6 @@ def filter_detail(request, filter_id):
 
     elif request.method == 'DELETE':
         try:
-            keys = r.keys('dsl_filter:*')
-            for key in keys:
-                dsl_filter_id = r.hget(key, 'identifier')
-                if dsl_filter_id == filter_id:
-                    return JSONResponse('Unable to delete filter, is in use by the Registry DSL.', status=status.HTTP_403_FORBIDDEN)
-
-            my_filter = r.hgetall("filter:" + str(filter_id))
             r.delete("filter:" + str(filter_id))
 
             return JSONResponse('Filter has been deleted', status=status.HTTP_204_NO_CONTENT)
@@ -467,10 +473,10 @@ def dependency_undeploy(request, dependency_id, project_id):
 def set_filter(r, target, filter_data, parameters, token):
     if filter_data['filter_type'] == 'storlet':
 
-        metadata = {"X-Object-Meta-Storlet-Language": 'java',
+        metadata = {"X-Object-Meta-Storlet-Language": filter_data["language"],
                     "X-Object-Meta-Storlet-Interface-Version": filter_data["interface_version"],
                     "X-Object-Meta-Storlet-Dependency": '',
-                    "X-Object-Meta-Storlet-Object-Metadata": filter_data["object_metadata"],
+                    "X-Object-Meta-Storlet-Object-Metadata": '',
                     "X-Object-Meta-Storlet-Main": filter_data["main"]
                     }
 
@@ -535,77 +541,3 @@ def unset_filter(r, target, filter_data, token):
         json_value = json.loads(value)
         if json_value["filter_name"] == filter_data["filter_name"]:
             r.hdel("pipeline:" + str(target), key)
-
-
-#
-# DSL Mappings
-#
-@csrf_exempt
-def add_dsl_filter(request):
-    """
-    Add a filter with its default parameters in the registry (redis).
-    List all the dynamic filters registered.
-    """
-
-    try:
-        r = get_redis_connection()
-    except RedisError:
-        return JSONResponse('Error connecting with DB', status=500)
-    if request.method == 'GET':
-        keys = r.keys("dsl_filter:*")
-        dynamic_filters = []
-        for key in keys:
-            dynamic_filter = r.hgetall(key)
-            dynamic_filter["name"] = key.split(":")[1]
-            dynamic_filters.append(dynamic_filter)
-        return JSONResponse(dynamic_filters, status=200)
-
-    if request.method == 'POST':
-        data = JSONParser().parse(request)
-        name = data.pop("name", None)
-        if not name:
-            return JSONResponse('Filter must have a name', status=400)
-        r.hmset('dsl_filter:' + str(name), data)
-        return JSONResponse('Filter has been added to the registy', status=201)
-    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
-
-
-@csrf_exempt
-def dsl_filter_detail(request, name):
-    """
-    Get, update or delete a dynamic filter from the registry.
-    """
-
-    try:
-        r = get_redis_connection()
-    except RedisError:
-        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-    if request.method == 'GET':
-        dynamic_filter = r.hgetall("dsl_filter:" + str(name))
-        return JSONResponse(dynamic_filter, status=status.HTTP_200_OK)
-
-    if request.method == 'PUT':
-        if not r.exists('dsl_filter:' + str(name)):
-            return JSONResponse('Dynamic filter with name:  ' + str(name) + ' does not exist.', status=status.HTTP_404_NOT_FOUND)
-        data = JSONParser().parse(request)
-        if 'name' in data:
-            del data['name']
-        r.hmset('dsl_filter:' + str(name), data)
-        return JSONResponse('The metadata of the dynamic filter with name: ' + str(name) + ' has been updated',
-                            status=status.HTTP_201_CREATED)
-
-    if request.method == 'DELETE':
-        filter_id = r.hget('dsl_filter:' + str(name), 'identifier')
-        filter_name = r.hget('filter:' + str(filter_id), 'filter_name')
-
-        keys = r.keys("pipeline:*")
-        for it in keys:
-            for value in r.hgetall(it).values():
-                json_value = json.loads(value)
-                if json_value['filter_name'] == filter_name:
-                    return JSONResponse('Unable to delete Registry DSL, is in use by some policy.', status=status.HTTP_403_FORBIDDEN)
-
-        r.delete("dsl_filter:" + str(name))
-        return JSONResponse('Dynamic filter has been deleted', status=status.HTTP_204_NO_CONTENT)
-    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
