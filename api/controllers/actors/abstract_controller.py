@@ -31,8 +31,6 @@ class AbstractController(object):
             logger.error('"Error connecting with Redis DB"')
 
         self.metrics = dict()
-        self.metric_data = Queue.Queue()
-        self.rmq_messages = Queue.Queue()
 
     def _subscribe_metrics(self):
         try:
@@ -67,10 +65,10 @@ class AbstractController(object):
     def _init_consum(self, queue, routing_key):
         try:
             self.consumer = self.host.spawn(self.id + "_consumer", settings.CONSUMER_MODULE,
-                                            [self.queue, self.routing_key, self.proxy])
-            self.start_consuming()
+                                            [queue, routing_key, self.proxy])
+            self.consumer.start_consuming()
         except Exception as e:
-            print e
+            logger.error(str(e))
 
     def notify(self, body):
         """
@@ -78,7 +76,7 @@ class AbstractController(object):
         RabbitMQ queue. After receive the value, this value is communicated to
         all the observers subscribed to this metric.
         """
-        self.rmq_messages.put(body)
+        self.compute_rmq_message(body)
 
     def get_target(self):
         """
@@ -109,6 +107,14 @@ class AbstractController(object):
                 for metric in self.metrics:
                     metric_actor = self.host.lookup(metric)
                     metric_actor.detach(self.id, self.get_target())
+            if self.consumer:
+                self.consumer.stop_consuming()
         except NotFoundError as e:
             logger.error(e)
         self.host.stop_actor(self.id)
+
+    def compute_data(self, metric_data):
+        raise NotImplementedError()
+
+    def compute_rmq_message(self, body):
+        raise NotImplementedError()
