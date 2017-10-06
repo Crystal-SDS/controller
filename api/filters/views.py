@@ -482,15 +482,27 @@ def set_filter(r, target, filter_data, parameters, token):
 
         try:
             project_id = target.split('/', 3)[0]
-            swift_response = dict()
-            url = settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/AUTH_" + project_id
-            storlet_file = open(filter_data["path"], 'r')
-            swift_client.put_object(url, token, "storlet",
-                                    filter_data["filter_name"],
-                                    storlet_file, None,
-                                    None, None, "application/octet-stream",
-                                    metadata, None, None, None, swift_response)
 
+            if project_id == 'global':
+                projects_crystal_enabled = r.lrange('projects_crystal_enabled', 0, -1)
+                for project_id in projects_crystal_enabled:
+                    swift_response = dict()
+                    url = settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/AUTH_" + project_id
+                    storlet_file = open(filter_data["path"], 'r')
+                    swift_client.put_object(url, token, "storlet",
+                                            filter_data["filter_name"],
+                                            storlet_file, None,
+                                            None, None, "application/octet-stream",
+                                            metadata, None, None, None, swift_response)
+            else:
+                swift_response = dict()
+                url = settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/AUTH_" + project_id
+                storlet_file = open(filter_data["path"], 'r')
+                swift_client.put_object(url, token, "storlet",
+                                        filter_data["filter_name"],
+                                        storlet_file, None,
+                                        None, None, "application/octet-stream",
+                                        metadata, None, None, None, swift_response)
         except Exception as e:
             logging.error(str(e))
             raise SwiftClientError("A problem occurred accessing Swift")
