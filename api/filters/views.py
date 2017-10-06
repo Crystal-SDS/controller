@@ -155,12 +155,37 @@ class FilterData(APIView):
             md5_etag = md5(path)
 
             try:
-                r.hset(filter_name, "filter_name", os.path.basename(path))
-                r.hset(filter_name, "path", str(path))
-                r.hset(filter_name, "content_length", os.stat(path).st_size)
-                r.hset(filter_name, "etag", str(md5_etag))
+                filter_basename = os.path.basename(path)
+                content_length = os.stat(path).st_size
+                etag = str(md5_etag)
+                path = str(path)
+                r.hset(filter_name, "filter_name", filter_basename)
+                r.hset(filter_name, "path", path)
+                r.hset(filter_name, "content_length", content_length)
+                r.hset(filter_name, "etag", etag)
             except RedisError:
                 return JSONResponse('Problems connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+            if filter_type == 'storlet':
+                # Redeploy already deployed storlet filters
+                filter_data = r.hgetall(filter_name)
+                main = filter_data['main']
+                token = get_token_connection(request)
+                pipelines = r.keys('pipeline:*')
+                for pipeline in pipelines:
+                    target = pipeline.replace('pipeline:', '')
+                    filters_data = r.hgetall(pipeline)
+                    for policy_id in filters_data:
+                        parameters = {}
+                        parameters["policy_id"] = policy_id
+                        cfilter = eval(filters_data[policy_id].replace('true', '"True"').replace('false', '"False"'))
+                        if cfilter['dsl_name'] == filter_id:
+                            cfilter['filter_name'] = filter_basename
+                            cfilter['content_length'] = content_length
+                            cfilter['etag'] = etag
+                            cfilter['path'] = path
+                            cfilter['main'] = main
+                            set_filter(r, target, cfilter, parameters, token)
 
             if filter_type == 'native':
                 # synchronize metrics directory with all nodes
@@ -503,12 +528,11 @@ def set_filter(r, target, filter_data, parameters, token):
                                         storlet_file, None,
                                         None, None, "application/octet-stream",
                                         metadata, None, None, None, swift_response)
+            storlet_file.close()
+
         except Exception as e:
             logging.error(str(e))
             raise SwiftClientError("A problem occurred accessing Swift")
-
-        finally:
-            storlet_file.close()
 
         swift_status = swift_response.get("status")
 
@@ -520,7 +544,8 @@ def set_filter(r, target, filter_data, parameters, token):
 
     target = str(target).replace('/', ':')
     # Change 'id' key of filter
-    filter_data["filter_id"] = filter_data.pop("id")
+    if 'filter_id' not in filter_data:
+        filter_data["filter_id"] = filter_data.pop("id")
     # Get policy id
     policy_id = parameters["policy_id"]
 
