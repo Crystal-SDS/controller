@@ -54,11 +54,9 @@ def projects(request, project_id=None):
             keystone_client.roles.grant(role=admin_role_id, user=admin_user_id, project=project_id)
 
             # Post Storlet and Dependency containers
-            admin_user = settings.MANAGEMENT_ADMIN_USERNAME
-            headers = {'X-Container-Read': '*:' + admin_user, 'X-Container-Write': '*:' + admin_user}
             url, token = get_swift_url_and_token(project_name)
-            swift_client.put_container(url, token, "storlet", headers)
-            swift_client.put_container(url, token, "dependency", headers)
+            swift_client.put_container(url, token, "storlet")
+            swift_client.put_container(url, token, "dependency")
             # Create project docker image
             create_docker_image(project_id)
 
@@ -74,8 +72,11 @@ def projects(request, project_id=None):
 
             # Delete Storlet and Dependency containers
             url, token = get_swift_url_and_token(project_name)
-            swift_client.delete_container(url, token, "storlet")
-            swift_client.delete_container(url, token, "dependency")
+            try:
+                swift_client.delete_container(url, token, "storlet")
+                swift_client.delete_container(url, token, "dependency")
+            except:
+                pass
 
             # Delete Manager as admin of the Crystal Project
             keystone_client = get_keystone_admin_auth()
