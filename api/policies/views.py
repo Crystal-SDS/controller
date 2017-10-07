@@ -164,7 +164,6 @@ def deploy_static_policy(request, r, parsed_rule):
     token = get_token_connection(request)
     container = None
     rules_to_parse = dict()
-    # TODO: get only the Crystal enabled projects
     projects_crystal_enabled = r.lrange('projects_crystal_enabled', 0, -1)
     project_list = get_project_list()
 
