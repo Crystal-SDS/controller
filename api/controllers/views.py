@@ -118,16 +118,15 @@ class ControllerData(APIView):
         try:
             data['id'] = controller_id
             file_obj = request.FILES['file']
-
+    
             make_sure_path_exists(settings.CONTROLLERS_DIR)
             path = save_file(file_obj, settings.CONTROLLERS_DIR)
             data['controller_name'] = os.path.basename(path)
-
+    
             r.hmset('controller:' + str(controller_id), data)
-
-            if data['enabled']:
-                controller_name = data['controller_name'].split('.')[0]
-                start_controller(str(controller_id), controller_name, data['class_name'])
+    
+            controller_name = data['controller_name'].split('.')[0]
+            start_controller(str(controller_id), controller_name, data['class_name'])
 
             return JSONResponse(data, status=status.HTTP_201_CREATED)
 

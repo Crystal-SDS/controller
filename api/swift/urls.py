@@ -4,6 +4,7 @@ from . import views
 urlpatterns = [
     # Storages Policies
     url(r'^storage_policies/?$', views.storage_policies),
+    url(r'^storage_policy/(?P<storage_policy_id>[^/]+)/?$', views.storage_policy_detail),
 
     # Object Placement
     url(r'^locality/(?P<account>\w+)(?:/(?P<container>[-\w]+))(?:/(?P<swift_object>[-\w]+))?/$', views.locality_list),
@@ -21,5 +22,5 @@ urlpatterns = [
     url(r'^regions/(?P<region_id>[^/]+)/?$', views.region_detail),
     url(r'^zones/?$', views.zones),
     url(r'^zones/(?P<zone_id>[^/]+)/?$', views.zone_detail),
-
+    
 ]
