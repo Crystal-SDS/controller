@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 #
-# Global Controllers
+# Controllers
 #
 @csrf_exempt
 def controller_list(request):
@@ -62,15 +62,6 @@ def controller_detail(request, controller_id):
     elif request.method == 'PUT':
         data = JSONParser().parse(request)
         try:
-            controller_data = r.hgetall('controller:' + str(controller_id))
-            to_json_bools(data, 'enabled')
-            if data['enabled']:
-                controller_name = controller_data['controller_name'].split('.')[0]
-                controller_class_name = controller_data['class_name']
-                start_controller(str(controller_id), controller_name, controller_class_name)
-            else:
-                stop_controller(str(controller_id))
-
             r.hmset('controller:' + str(controller_id), data)
             return JSONResponse("Data updated", status=status.HTTP_201_CREATED)
         except DataError:
@@ -79,7 +70,6 @@ def controller_detail(request, controller_id):
             return JSONResponse("Error starting controller", status=status.HTTP_400_BAD_REQUEST)
 
     elif request.method == 'DELETE':
-        stop_controller(controller_id)
         try:
             controller = r.hgetall('controller:' + str(controller_id))
             delete_file(controller['controller_name'], settings.CONTROLLERS_DIR)
@@ -118,15 +108,12 @@ class ControllerData(APIView):
         try:
             data['id'] = controller_id
             file_obj = request.FILES['file']
-    
+
             make_sure_path_exists(settings.CONTROLLERS_DIR)
             path = save_file(file_obj, settings.CONTROLLERS_DIR)
             data['controller_name'] = os.path.basename(path)
-    
+
             r.hmset('controller:' + str(controller_id), data)
-    
-            controller_name = data['controller_name'].split('.')[0]
-            start_controller(str(controller_id), controller_name, data['class_name'])
 
             return JSONResponse(data, status=status.HTTP_201_CREATED)
 
@@ -163,26 +150,29 @@ class ControllerData(APIView):
             return HttpResponse(status=status.HTTP_404_NOT_FOUND)
 
 
-def start_controller(controller_id, controller_name, controller_class_name):
+#
+# Instances
+#
+def start_controller_instance(instance_id, controller_name, controller_class_name):
     host = create_local_host()
 
     controller_location = os.path.join(controller_name, controller_class_name)
     try:
-        if controller_id not in controller_actors:
-            controller_actors[controller_id] = host.spawn(controller_name, controller_location)
-            controller_actors[controller_id].run()
+        if instance_id not in controller_actors:
+            controller_actors[instance_id] = host.spawn(controller_name, controller_location)
+            controller_actors[instance_id].run()
             logger.info("Controller, Started controller actor: "+controller_location)
     except Exception as e:
         logger.error(str(e))
         raise ValueError
 
 
-def stop_controller(controller_id):
-    if controller_id in controller_actors:
+def stop_controller_instance(instance_id):
+    if instance_id in controller_actors:
         try:
-            controller_actors[controller_id].stop_actor()
-            del controller_actors[controller_id]
-            logger.info("Controller, Stopped controller actor: " + str(controller_id))
+            controller_actors[instance_id].stop_actor()
+            del controller_actors[instance_id]
+            logger.info("Controller, Stopped controller actor: " + str(instance_id))
         except Exception as e:
             logger.error(str(e))
             raise ValueError
