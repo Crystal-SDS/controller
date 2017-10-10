@@ -59,9 +59,18 @@ def controller_detail(request, controller_id):
         to_json_bools(controller, 'enabled')
         return JSONResponse(controller, status=status.HTTP_200_OK)
 
-    elif request.method == 'PUT':
-        data = JSONParser().parse(request)
+    elif request.method == 'POST':
+        print dir(request)
+        data = json.loads(request.POST['metadata'])
         try:
+            controller_data = r.hgetall('controller:' + str(controller_id))
+            
+            if request.FILES['file']:
+                file_obj = request.FILES['file']
+                make_sure_path_exists(settings.CONTROLLERS_DIR)
+                path = save_file(file_obj, settings.CONTROLLERS_DIR)
+                data['controller_name'] = os.path.basename(path)
+                
             r.hmset('controller:' + str(controller_id), data)
             return JSONResponse("Data updated", status=status.HTTP_201_CREATED)
         except DataError:
@@ -176,3 +185,86 @@ def stop_controller_instance(instance_id):
         except Exception as e:
             logger.error(str(e))
             raise ValueError
+        
+        
+@csrf_exempt
+def instences_list(request):
+    """
+    List all global controllers.
+    """
+    try:
+        r = get_redis_connection()
+    except RedisError:
+        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    if request.method == 'GET':
+        keys = r.keys('instance:*')
+        controller_list = []
+        for key in keys:
+            controller = r.hgetall(key)
+            controller['id'] = key.split(':')[1]
+            controller['controller'] = r.hgetall('controller:' + controller['controller'])['controller_name']
+            controller_list.append(controller)
+        return JSONResponse(controller_list, status=status.HTTP_200_OK)
+
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+
+@csrf_exempt
+def create_instance(request):
+
+    try:
+        r = get_redis_connection()
+    except RedisError:
+        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    if request.method == 'POST':
+        data = JSONParser().parse(request)
+        try:
+            r.hincrby('controller:' + data['controller'], 'instances', 1)
+            controller_data = r.hmset('instance:' + str(r.incr('instances:id')), data)
+            return JSONResponse("Instance created", status=status.HTTP_201_CREATED)
+        except Exception:
+            return JSONResponse("Error creating instance", status=status.HTTP_400_BAD_REQUEST)
+
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+
+
+@csrf_exempt
+def instance_detail(request, instance_id):
+
+    try:
+        r = get_redis_connection()
+    except RedisError:
+        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    if request.method == 'GET':
+        controller = r.hgetall('instance:' + str(instance_id))
+        return JSONResponse(controller, status=status.HTTP_200_OK)
+
+    elif request.method == 'PUT':
+        data = JSONParser().parse(request)
+        try:
+            controller_data = r.hgetall('instance:' + str(instance_id))
+            r.hmset('instance:' + str(controller_id), data)
+            return JSONResponse("Data updated", status=status.HTTP_201_CREATED)
+        except DataError:
+            return JSONResponse("Error updating data", status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        try:
+            controller_id = 'controller:' + r.hgetall('instance:' + instance_id)['controller']
+            r.hincrby(controller_id, 'instances', -1)
+            r.delete("instance:" + str(instance_id))
+        except:
+            return JSONResponse("Error deleting controller", status=status.HTTP_400_BAD_REQUEST)
+
+        # If this is the last controller, the counter is reset
+        keys = r.keys('instance:*')
+        if not keys:
+            r.delete('instances:id')
+
+        return JSONResponse('Instance has been deleted', status=status.HTTP_204_NO_CONTENT)
+
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
