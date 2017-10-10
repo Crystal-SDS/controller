@@ -55,10 +55,15 @@ def projects(request, project_id=None):
 
             # Post Storlet and Dependency containers
             url, token = get_swift_url_and_token(project_name)
-            swift_client.put_container(url, token, "storlet")
-            swift_client.put_container(url, token, "dependency")
+            try:
+                swift_client.put_container(url, token, "storlet")
+                swift_client.put_container(url, token, "dependency")
+                headers = {'X-Account-Meta-Crystal-Enabled': True, 'X-Account-Meta-Storlet-Enabled': True}
+                swift_client.post_account(url, token, headers)
+            except:
+                pass
             # Create project docker image
-            create_docker_image(project_id)
+            create_docker_image(r, project_id)
 
             r.lpush('projects_crystal_enabled', project_id)
             return JSONResponse("Data inserted correctly", status=status.HTTP_201_CREATED)
@@ -75,16 +80,17 @@ def projects(request, project_id=None):
             try:
                 swift_client.delete_container(url, token, "storlet")
                 swift_client.delete_container(url, token, "dependency")
+                headers = {'X-Account-Meta-Crystal-Enabled': '', 'X-Account-Meta-Storlet-Enabled': ''}
+                swift_client.post_account(url, token, headers)
             except:
                 pass
-
             # Delete Manager as admin of the Crystal Project
             keystone_client = get_keystone_admin_auth()
             admin_role_id, admin_user_id = get_admin_role_user_ids()
             keystone_client.roles.revoke(role=admin_role_id, user=admin_user_id, project=project_id)
 
             # Delete project docker image
-            delete_docker_image(project_id)
+            delete_docker_image(r, project_id)
 
             r.lrem('projects_crystal_enabled', project_id)
             return JSONResponse("Crystal project correctly disabled.", status=status.HTTP_201_CREATED)
@@ -104,12 +110,16 @@ def projects(request, project_id=None):
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
-def create_docker_image(project_id):
-    pass
+def create_docker_image(r, project_id):
+    nodes = r.keys('*_node:*')
+    for node in nodes:
+        node_data = r.hgetall(node)
 
 
-def delete_docker_image(project_id):
-    pass
+def delete_docker_image(r, project_id):
+    nodes = r.keys('*_node:*')
+    for node in nodes:
+        node_data = r.hgetall(node)
 
 
 #
