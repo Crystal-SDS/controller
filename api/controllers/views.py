@@ -198,7 +198,7 @@ def instences_list(request):
         return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     if request.method == 'GET':
-        keys = r.keys('instance:*')
+        keys = r.keys('controller_instance:*')
         controller_list = []
         for key in keys:
             controller = r.hgetall(key)
@@ -222,7 +222,7 @@ def create_instance(request):
         data = JSONParser().parse(request)
         try:
             r.hincrby('controller:' + data['controller'], 'instances', 1)
-            controller_data = r.hmset('instance:' + str(r.incr('instances:id')), data)
+            controller_data = r.hmset('controller_instance:' + str(r.incr('controller_instances:id')), data)
             return JSONResponse("Instance created", status=status.HTTP_201_CREATED)
         except Exception:
             return JSONResponse("Error creating instance", status=status.HTTP_400_BAD_REQUEST)
@@ -240,30 +240,33 @@ def instance_detail(request, instance_id):
         return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     if request.method == 'GET':
-        controller = r.hgetall('instance:' + str(instance_id))
-        return JSONResponse(controller, status=status.HTTP_200_OK)
+        try:
+            controller = r.hgetall('controller_instance:' + str(instance_id))
+            return JSONResponse(controller, status=status.HTTP_200_OK)
+        except Exception:
+            return JSONResponse("Error retrieving data", status=status.HTTP_400_BAD_REQUEST)
 
     elif request.method == 'PUT':
         data = JSONParser().parse(request)
         try:
-            controller_data = r.hgetall('instance:' + str(instance_id))
-            r.hmset('instance:' + str(controller_id), data)
+            controller_data = r.hgetall('controller_instance:' + str(instance_id))
+            r.hmset('controller_instance:' + str(instance_id), data)
             return JSONResponse("Data updated", status=status.HTTP_201_CREATED)
         except DataError:
             return JSONResponse("Error updating data", status=status.HTTP_400_BAD_REQUEST)
 
     elif request.method == 'DELETE':
         try:
-            controller_id = 'controller:' + r.hgetall('instance:' + instance_id)['controller']
+            controller_id = 'controller:' + r.hgetall('controller_instance:' + instance_id)['controller']
             r.hincrby(controller_id, 'instances', -1)
-            r.delete("instance:" + str(instance_id))
+            r.delete("controller_instance:" + str(instance_id))
         except:
             return JSONResponse("Error deleting controller", status=status.HTTP_400_BAD_REQUEST)
 
         # If this is the last controller, the counter is reset
-        keys = r.keys('instance:*')
+        keys = r.keys('controller_instance:*')
         if not keys:
-            r.delete('instances:id')
+            r.delete('controller_instances:id')
 
         return JSONResponse('Instance has been deleted', status=status.HTTP_204_NO_CONTENT)
 
