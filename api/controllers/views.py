@@ -63,14 +63,12 @@ def controller_detail(request, controller_id):
         print dir(request)
         data = json.loads(request.POST['metadata'])
         try:
-            controller_data = r.hgetall('controller:' + str(controller_id))
-            
             if request.FILES['file']:
                 file_obj = request.FILES['file']
                 make_sure_path_exists(settings.CONTROLLERS_DIR)
                 path = save_file(file_obj, settings.CONTROLLERS_DIR)
                 data['controller_name'] = os.path.basename(path)
-                
+
             r.hmset('controller:' + str(controller_id), data)
             return JSONResponse("Data updated", status=status.HTTP_201_CREATED)
         except DataError:
@@ -162,31 +160,6 @@ class ControllerData(APIView):
 #
 # Instances
 #
-def start_controller_instance(instance_id, controller_name, controller_class_name):
-    host = create_local_host()
-
-    controller_location = os.path.join(controller_name, controller_class_name)
-    try:
-        if instance_id not in controller_actors:
-            controller_actors[instance_id] = host.spawn(controller_name, controller_location)
-            controller_actors[instance_id].run()
-            logger.info("Controller, Started controller actor: "+controller_location)
-    except Exception as e:
-        logger.error(str(e))
-        raise ValueError
-
-
-def stop_controller_instance(instance_id):
-    if instance_id in controller_actors:
-        try:
-            controller_actors[instance_id].stop_actor()
-            del controller_actors[instance_id]
-            logger.info("Controller, Stopped controller actor: " + str(instance_id))
-        except Exception as e:
-            logger.error(str(e))
-            raise ValueError
-        
-        
 @csrf_exempt
 def instences_list(request):
     """
@@ -222,13 +195,12 @@ def create_instance(request):
         data = JSONParser().parse(request)
         try:
             r.hincrby('controller:' + data['controller'], 'instances', 1)
-            controller_data = r.hmset('controller_instance:' + str(r.incr('controller_instances:id')), data)
+            r.hmset('controller_instance:' + str(r.incr('controller_instances:id')), data)
             return JSONResponse("Instance created", status=status.HTTP_201_CREATED)
         except Exception:
             return JSONResponse("Error creating instance", status=status.HTTP_400_BAD_REQUEST)
 
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
-
 
 
 @csrf_exempt
@@ -249,7 +221,17 @@ def instance_detail(request, instance_id):
     elif request.method == 'PUT':
         data = JSONParser().parse(request)
         try:
-            controller_data = r.hgetall('controller_instance:' + str(instance_id))
+            if 'status' in data and data['status'] == 'Running':
+                instance_data = r.hgetall('controller_instance:' + str(instance_id))
+                controller_data = r.hgetall('controller:' + str(instance_data['controller']))
+                controller_name = controller_data['controller_name'].split('.')[0]
+                class_name = controller_data['class_name']
+                parameters = instance_data['parameters']
+
+                start_controller_instance(instance_id, controller_name, class_name, parameters)
+            else:
+                stop_controller_instance(instance_id)
+
             r.hmset('controller_instance:' + str(instance_id), data)
             return JSONResponse("Data updated", status=status.HTTP_201_CREATED)
         except DataError:
@@ -271,3 +253,36 @@ def instance_detail(request, instance_id):
         return JSONResponse('Instance has been deleted', status=status.HTTP_204_NO_CONTENT)
 
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+
+def start_controller_instance(instance_id, controller_name, controller_class_name, parameters):
+    host = create_local_host()
+
+    controller_location = os.path.join(controller_name, controller_class_name)
+    parameters = parameters.strip().split(',')
+    # params = {}
+    params = list()
+    for parameter in parameters:
+        param_name, value = parameter.split('=')
+        # params[param_name] = value
+        params.append(value)
+
+    try:
+        if instance_id not in controller_actors:
+            controller_actors[instance_id] = host.spawn(controller_name, controller_location, params)
+            controller_actors[instance_id].run()
+            logger.info("Controller, Started controller actor: "+controller_location)
+    except Exception as e:
+        logger.error(str(e.message))
+        raise ValueError
+
+
+def stop_controller_instance(instance_id):
+    if instance_id in controller_actors:
+        try:
+            controller_actors[instance_id].stop_actor()
+            del controller_actors[instance_id]
+            logger.info("Controller, Stopped controller actor: " + str(instance_id))
+        except Exception as e:
+            logger.error(str(e))
+            raise ValueError

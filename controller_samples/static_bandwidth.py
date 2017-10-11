@@ -4,9 +4,9 @@ import os
 
 class StaticBandwidthPerProject(AbstractController):
 
-    def __init__(self):
+    def __init__(self, method):
         super(StaticBandwidthPerProject, self).__init__()
-        self.method = "get"
+        self.method = method
         self.metrics = [self.method+'_bandwidth']
         self.prev_assignations = dict()
 
