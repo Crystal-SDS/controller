@@ -46,11 +46,11 @@ def storage_policies(request):
         data = JSONParser().parse(request)
         storage_nodes_list = []
         if isinstance(data["storage_node"], dict):
+            data['storage_node']['policy_id'] = r.incr('storage-policies:id')
             for k, v in data["storage_node"].items():
                 storage_nodes_list.extend([k, v])
             data["storage_node"] = ','.join(map(str, storage_nodes_list))
             try:
-                print data
                 storage_policies_utils.create(data)
             except Exception as e:
                 return JSONResponse('Error creating the Storage Policy: ' + e, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -58,6 +58,37 @@ def storage_policies(request):
         return JSONResponse('Account created successfully', status=status.HTTP_201_CREATED)
 
     return JSONResponse('Only HTTP POST requests allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+
+@csrf_exempt
+def storage_policy_detail(request, storage_policy_id):
+
+    try:
+        r = get_redis_connection()
+    except RedisError:
+        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    key = "storage-policy:" + storage_policy_id
+    if request.method == 'GET':
+        if r.exists(key):
+            storage_policy = r.hgetall(key)
+            storage_policy['devices'] = json.loads(storage_policy['devices'])
+            return JSONResponse(storage_policy, status=status.HTTP_200_OK)
+        else:
+            return JSONResponse('Storage policy not found.', status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'PUT':
+        if r.exists(key):
+            data = JSONParser().parse(request)
+            try:
+                r.hmset(key, data)
+                return JSONResponse("Storage Policy updated", status=status.HTTP_201_CREATED)
+            except RedisError:
+                return JSONResponse("Error updating storage policy", status=status.HTTP_400_BAD_REQUEST)
+        else:
+            return JSONResponse('Storage policy not found.', status=status.HTTP_404_NOT_FOUND)
+
+    return JSONResponse('Method not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
 @csrf_exempt
@@ -81,8 +112,6 @@ def locality_list(request, account, container=None, swift_object=None):
 #
 # Node part
 #
-
-
 @csrf_exempt
 def node_list(request):
     """
@@ -365,6 +394,3 @@ def zone_detail(request, zone_id):
             return JSONResponse("Error updating zone data", status=status.HTTP_400_BAD_REQUEST)
 
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
-
-
-

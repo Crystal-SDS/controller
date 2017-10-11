@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 #
-# Global Controllers
+# Controllers
 #
 @csrf_exempt
 def controller_list(request):
@@ -59,17 +59,15 @@ def controller_detail(request, controller_id):
         to_json_bools(controller, 'enabled')
         return JSONResponse(controller, status=status.HTTP_200_OK)
 
-    elif request.method == 'PUT':
-        data = JSONParser().parse(request)
+    elif request.method == 'POST':
+        print dir(request)
+        data = json.loads(request.POST['metadata'])
         try:
-            controller_data = r.hgetall('controller:' + str(controller_id))
-            to_json_bools(data, 'enabled')
-            if data['enabled']:
-                controller_name = controller_data['controller_name'].split('.')[0]
-                controller_class_name = controller_data['class_name']
-                start_controller(str(controller_id), controller_name, controller_class_name)
-            else:
-                stop_controller(str(controller_id))
+            if request.FILES['file']:
+                file_obj = request.FILES['file']
+                make_sure_path_exists(settings.CONTROLLERS_DIR)
+                path = save_file(file_obj, settings.CONTROLLERS_DIR)
+                data['controller_name'] = os.path.basename(path)
 
             r.hmset('controller:' + str(controller_id), data)
             return JSONResponse("Data updated", status=status.HTTP_201_CREATED)
@@ -79,7 +77,6 @@ def controller_detail(request, controller_id):
             return JSONResponse("Error starting controller", status=status.HTTP_400_BAD_REQUEST)
 
     elif request.method == 'DELETE':
-        stop_controller(controller_id)
         try:
             controller = r.hgetall('controller:' + str(controller_id))
             delete_file(controller['controller_name'], settings.CONTROLLERS_DIR)
@@ -125,10 +122,6 @@ class ControllerData(APIView):
 
             r.hmset('controller:' + str(controller_id), data)
 
-            if data['enabled']:
-                controller_name = data['controller_name'].split('.')[0]
-                start_controller(str(controller_id), controller_name, data['class_name'])
-
             return JSONResponse(data, status=status.HTTP_201_CREATED)
 
         except DataError:
@@ -164,26 +157,132 @@ class ControllerData(APIView):
             return HttpResponse(status=status.HTTP_404_NOT_FOUND)
 
 
-def start_controller(controller_id, controller_name, controller_class_name):
+#
+# Instances
+#
+@csrf_exempt
+def instences_list(request):
+    """
+    List all global controllers.
+    """
+    try:
+        r = get_redis_connection()
+    except RedisError:
+        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    if request.method == 'GET':
+        keys = r.keys('controller_instance:*')
+        controller_list = []
+        for key in keys:
+            controller = r.hgetall(key)
+            controller['id'] = key.split(':')[1]
+            controller['controller'] = r.hgetall('controller:' + controller['controller'])['controller_name']
+            controller_list.append(controller)
+        return JSONResponse(controller_list, status=status.HTTP_200_OK)
+
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+
+@csrf_exempt
+def create_instance(request):
+
+    try:
+        r = get_redis_connection()
+    except RedisError:
+        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    if request.method == 'POST':
+        data = JSONParser().parse(request)
+        try:
+            r.hincrby('controller:' + data['controller'], 'instances', 1)
+            r.hmset('controller_instance:' + str(r.incr('controller_instances:id')), data)
+            return JSONResponse("Instance created", status=status.HTTP_201_CREATED)
+        except Exception:
+            return JSONResponse("Error creating instance", status=status.HTTP_400_BAD_REQUEST)
+
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+
+@csrf_exempt
+def instance_detail(request, instance_id):
+
+    try:
+        r = get_redis_connection()
+    except RedisError:
+        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    if request.method == 'GET':
+        try:
+            controller = r.hgetall('controller_instance:' + str(instance_id))
+            return JSONResponse(controller, status=status.HTTP_200_OK)
+        except Exception:
+            return JSONResponse("Error retrieving data", status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'PUT':
+        data = JSONParser().parse(request)
+        try:
+            if 'status' in data and data['status'] == 'Running':
+                instance_data = r.hgetall('controller_instance:' + str(instance_id))
+                controller_data = r.hgetall('controller:' + str(instance_data['controller']))
+                controller_name = controller_data['controller_name'].split('.')[0]
+                class_name = controller_data['class_name']
+                parameters = instance_data['parameters']
+
+                start_controller_instance(instance_id, controller_name, class_name, parameters)
+            else:
+                stop_controller_instance(instance_id)
+
+            r.hmset('controller_instance:' + str(instance_id), data)
+            return JSONResponse("Data updated", status=status.HTTP_201_CREATED)
+        except DataError:
+            return JSONResponse("Error updating data", status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        try:
+            controller_id = 'controller:' + r.hgetall('controller_instance:' + instance_id)['controller']
+            r.hincrby(controller_id, 'instances', -1)
+            r.delete("controller_instance:" + str(instance_id))
+        except:
+            return JSONResponse("Error deleting controller", status=status.HTTP_400_BAD_REQUEST)
+
+        # If this is the last controller, the counter is reset
+        keys = r.keys('controller_instance:*')
+        if not keys:
+            r.delete('controller_instances:id')
+
+        return JSONResponse('Instance has been deleted', status=status.HTTP_204_NO_CONTENT)
+
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+
+def start_controller_instance(instance_id, controller_name, controller_class_name, parameters):
     host = create_local_host()
 
     controller_location = os.path.join(controller_name, controller_class_name)
+    parameters = parameters.strip().split(',')
+    # params = {}
+    params = list()
+    for parameter in parameters:
+        param_name, value = parameter.split('=')
+        # params[param_name] = value
+        params.append(value)
+
     try:
-        if controller_id not in controller_actors:
-            controller_actors[controller_id] = host.spawn(controller_name, controller_location)
-            controller_actors[controller_id].run()
+        if instance_id not in controller_actors:
+            controller_actors[instance_id] = host.spawn(controller_name, controller_location, params)
+            controller_actors[instance_id].run()
             logger.info("Controller, Started controller actor: "+controller_location)
     except Exception as e:
-        logger.error(str(e))
+        logger.error(str(e.message))
         raise ValueError
 
 
-def stop_controller(controller_id):
-    if controller_id in controller_actors:
+def stop_controller_instance(instance_id):
+    if instance_id in controller_actors:
         try:
-            controller_actors[controller_id].stop_actor()
-            del controller_actors[controller_id]
-            logger.info("Controller, Stopped controller actor: " + str(controller_id))
+            controller_actors[instance_id].stop_actor()
+            del controller_actors[instance_id]
+            logger.info("Controller, Stopped controller actor: " + str(instance_id))
         except Exception as e:
             logger.error(str(e))
             raise ValueError

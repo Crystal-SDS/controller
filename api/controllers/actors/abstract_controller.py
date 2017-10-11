@@ -24,6 +24,7 @@ class AbstractController(object):
 
         self.rmq_credentials = pika.PlainCredentials(self.rmq_user,
                                                      self.rmq_pass)
+        self.consumer = None
 
         try:
             self.redis = redis.Redis(connection_pool=settings.REDIS_CON_POOL)
