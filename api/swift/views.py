@@ -60,7 +60,6 @@ def storage_policies(request):
     return JSONResponse('Only HTTP POST requests allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
-
 @csrf_exempt
 def storage_policy_detail(request, storage_policy_id):
 
@@ -77,7 +76,7 @@ def storage_policy_detail(request, storage_policy_id):
             return JSONResponse(storage_policy, status=status.HTTP_200_OK)
         else:
             return JSONResponse('Storage policy not found.', status=status.HTTP_404_NOT_FOUND)
-        
+
     if request.method == 'PUT':
         if r.exists(key):
             data = JSONParser().parse(request)
@@ -88,7 +87,7 @@ def storage_policy_detail(request, storage_policy_id):
                 return JSONResponse("Error updating storage policy", status=status.HTTP_400_BAD_REQUEST)
         else:
             return JSONResponse('Storage policy not found.', status=status.HTTP_404_NOT_FOUND)
-    
+
     return JSONResponse('Method not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
@@ -113,8 +112,6 @@ def locality_list(request, account, container=None, swift_object=None):
 #
 # Node part
 #
-
-
 @csrf_exempt
 def node_list(request):
     """
@@ -397,6 +394,3 @@ def zone_detail(request, zone_id):
             return JSONResponse("Error updating zone data", status=status.HTTP_400_BAD_REQUEST)
 
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
-
-
-
