@@ -39,6 +39,7 @@ def storage_policies(request):
         for key in keys:
             storage_policy = r.hgetall(key)
             storage_policy['id'] = str(key).split(':')[-1]
+            storage_policy['devices'] = json.loads(storage_policy['devices']) 
             storage_policy_list.append(storage_policy)
         return JSONResponse(storage_policy_list, status=status.HTTP_200_OK)
 
@@ -73,6 +74,15 @@ def storage_policy_detail(request, storage_policy_id):
         if r.exists(key):
             storage_policy = r.hgetall(key)
             storage_policy['devices'] = json.loads(storage_policy['devices'])
+            devices = []
+            for device in storage_policy['devices']:
+                object_node_id, device_id = device.split(':') 
+                object_node = r.hgetall('object_node:' + object_node_id)
+                object_node_devices = json.loads(object_node['devices'])
+                device_detail = object_node_devices[device_id]
+                device_detail['id'] = device
+                devices.append(device_detail)
+            storage_policy['devices'] = devices
             return JSONResponse(storage_policy, status=status.HTTP_200_OK)
         else:
             return JSONResponse('Storage policy not found.', status=status.HTTP_404_NOT_FOUND)
@@ -90,6 +100,80 @@ def storage_policy_detail(request, storage_policy_id):
 
     return JSONResponse('Method not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
+
+@csrf_exempt
+def storage_policy_disks(request, storage_policy_id):
+
+    try:
+        r = get_redis_connection()
+    except RedisError:
+        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    key = "storage-policy:" + storage_policy_id
+    
+    if request.method == 'GET':
+        if r.exists(key):
+            storage_policy = r.hgetall(key)
+            storage_policy['devices'] = json.loads(storage_policy['devices'])
+            all_devices = []
+            for node_key in r.keys('object_node:*'):
+                node = r.hgetall(node_key)
+                all_devices += [node_key.split(':')[1] + ':' + device for device in json.loads(node['devices']).keys()]
+                
+            available_devices = [device for device in all_devices if device not in storage_policy['devices']]
+            available_devices_detail = []
+            for device in available_devices:
+                object_node_id, device_id = device.split(':') 
+                object_node = r.hgetall('object_node:' + object_node_id)
+                device_detail = json.loads(object_node['devices'])[device_id]
+                device_detail['id'] = device
+                available_devices_detail.append(device_detail)
+            return JSONResponse(available_devices_detail, status=status.HTTP_200_OK)
+        else:
+            return JSONResponse('Storage policy not found.', status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'PUT':
+        if r.exists(key):
+            disk = JSONParser().parse(request)
+            storage_policy = r.hgetall(key)
+            storage_policy['devices'] = json.loads(storage_policy['devices'])
+            storage_policy['devices'].append(disk)
+            storage_policy['devices'] = json.dumps(storage_policy['devices'])
+            r.hset(key, 'devices', storage_policy['devices'])
+            return JSONResponse('Disk added correctly', status=status.HTTP_200_OK)
+        else:
+            return JSONResponse('Disk could not be added.', status=status.HTTP_400_BAD_REQUEST)
+
+    return JSONResponse('Method not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+@csrf_exempt
+def delete_storage_policy_disks(request, storage_policy_id, disk_id):
+
+    try:
+        r = get_redis_connection()
+    except RedisError:
+        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    key = "storage-policy:" + storage_policy_id
+    
+    if request.method == 'DELETE':
+        if r.exists(key):
+            try:
+                storage_policy = r.hgetall(key)
+                storage_policy['devices'] = json.loads(storage_policy['devices'])
+                if disk_id in storage_policy['devices']:
+                    storage_policy['devices'].remove(disk_id)
+                    storage_policy['devices'] = json.dumps(storage_policy['devices'])
+                    r.hset(key, 'devices', storage_policy['devices'])
+                    return JSONResponse("Disk removed", status=status.HTTP_204_NO_CONTENT)
+                else: 
+                    return JSONResponse('Disk not found', status=status.HTTP_404_NOT_FOUND)
+            except RedisError:
+                return JSONResponse("Error updating storage policy", status=status.HTTP_400_BAD_REQUEST)
+        else:
+            return JSONResponse('Storage policy not found.', status=status.HTTP_404_NOT_FOUND)
+
+    return JSONResponse('Method not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 @csrf_exempt
 def locality_list(request, account, container=None, swift_object=None):
