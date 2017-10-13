@@ -78,6 +78,7 @@ def controller_detail(request, controller_id):
 
     elif request.method == 'DELETE':
         try:
+            # TODO: Check instances, return error message
             controller = r.hgetall('controller:' + str(controller_id))
             delete_file(controller['controller_name'], settings.CONTROLLERS_DIR)
             r.delete("controller:" + str(controller_id))
