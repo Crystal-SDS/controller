@@ -130,12 +130,14 @@ def get_admin_role_user_ids():
     for role in roles:
         if role.name == 'admin':
             admin_role_id = role.id
+        if role.name == 'ResellerAdmin':
+            reseller_admin_role_id = role.id
     users = keystone_client.users.list()
     for user in users:
         if user.name == settings.MANAGEMENT_ADMIN_USERNAME:
             admin_user_id = user.id
 
-    return admin_role_id, admin_user_id
+    return admin_role_id, reseller_admin_role_id, admin_user_id
 
 
 def get_project_list():

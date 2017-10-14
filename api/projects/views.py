@@ -42,34 +42,32 @@ def projects(request, project_id=None):
         return JSONResponse(projetcs, status=status.HTTP_200_OK)
 
     if request.method == 'PUT':
-        try:
-            project_list = get_project_list()
-            project_name = project_list[project_id]
-            if project_name == settings.MANAGEMENT_ACCOUNT:
-                return JSONResponse("Management project could not be set as Crystal project",
-                                    status=status.HTTP_400_BAD_REQUEST)
+        project_list = get_project_list()
+        project_name = project_list[project_id]
+        if project_name == settings.MANAGEMENT_ACCOUNT:
+            return JSONResponse("Management project could not be set as Crystal project",
+                                status=status.HTTP_400_BAD_REQUEST)
 
+        try:
             # Set Manager as admin of the Crystal Project
             keystone_client = get_keystone_admin_auth()
-            admin_role_id, admin_user_id = get_admin_role_user_ids()
+            admin_role_id, reseller_admin_role_id, admin_user_id = get_admin_role_user_ids()
             keystone_client.roles.grant(role=admin_role_id, user=admin_user_id, project=project_id)
+            keystone_client.roles.grant(role=reseller_admin_role_id, user=admin_user_id, project=project_id)
 
             # Post Storlet and Dependency containers
             url, token = get_swift_url_and_token(project_name)
-            try:
-                swift_client.put_container(url, token, "storlet")
-                swift_client.put_container(url, token, "dependency")
-                headers = {'X-Account-Meta-Crystal-Enabled': True, 'X-Account-Meta-Storlet-Enabled': True}
-                swift_client.post_account(url, token, headers)
-            except:
-                pass
+            swift_client.put_container(url, token, "storlet")
+            swift_client.put_container(url, token, "dependency")
+            headers = {'X-Account-Meta-Crystal-Enabled': True, 'X-Account-Meta-Storlet-Enabled': True}
+            swift_client.post_account(url, token, headers)
+
             # Create project docker image
             create_docker_image(r, project_id)
-
             r.lpush('projects_crystal_enabled', project_id)
-            return JSONResponse("Data inserted correctly", status=status.HTTP_201_CREATED)
-        except RedisError:
-            return JSONResponse("Error inserting data", status=status.HTTP_400_BAD_REQUEST)
+            return JSONResponse("Crystal Project correctly enabled", status=status.HTTP_201_CREATED)
+        except:
+            return JSONResponse("Error Enabling Crystal Project", status=status.HTTP_400_BAD_REQUEST)
 
     if request.method == 'DELETE':
         try:
@@ -77,18 +75,23 @@ def projects(request, project_id=None):
             project_name = project_list[project_id]
 
             # Delete Storlet and Dependency containers
-            url, token = get_swift_url_and_token(project_name)
             try:
+                url, token = get_swift_url_and_token(project_name)
                 swift_client.delete_container(url, token, "storlet")
                 swift_client.delete_container(url, token, "dependency")
                 headers = {'X-Account-Meta-Crystal-Enabled': '', 'X-Account-Meta-Storlet-Enabled': ''}
                 swift_client.post_account(url, token, headers)
             except:
                 pass
+
             # Delete Manager as admin of the Crystal Project
             keystone_client = get_keystone_admin_auth()
-            admin_role_id, admin_user_id = get_admin_role_user_ids()
-            keystone_client.roles.revoke(role=admin_role_id, user=admin_user_id, project=project_id)
+            admin_role_id, reseller_admin_role_id, admin_user_id = get_admin_role_user_ids()
+            try:
+                keystone_client.roles.revoke(role=admin_role_id, user=admin_user_id, project=project_id)
+                keystone_client.roles.revoke(role=reseller_admin_role_id, user=admin_user_id, project=project_id)
+            except:
+                pass
 
             # Delete project docker image
             delete_docker_image(r, project_id)
