@@ -59,29 +59,26 @@ def controller_detail(request, controller_id):
         to_json_bools(controller, 'enabled')
         return JSONResponse(controller, status=status.HTTP_200_OK)
 
-    elif request.method == 'POST':
-        print dir(request)
-        data = json.loads(request.POST['metadata'])
+    elif request.method == 'PUT':
         try:
-            if request.FILES['file']:
-                file_obj = request.FILES['file']
-                make_sure_path_exists(settings.CONTROLLERS_DIR)
-                path = save_file(file_obj, settings.CONTROLLERS_DIR)
-                data['controller_name'] = os.path.basename(path)
+            data = JSONParser().parse(request)
+        except ParseError:
+            return JSONResponse("Invalid format or empty request", status=status.HTTP_400_BAD_REQUEST)
 
+        try:
             r.hmset('controller:' + str(controller_id), data)
-            return JSONResponse("Data updated", status=status.HTTP_201_CREATED)
+            return JSONResponse("Data updated", status=status.HTTP_200_OK)
         except DataError:
-            return JSONResponse("Error updating data", status=status.HTTP_400_BAD_REQUEST)
-        except ValueError:
-            return JSONResponse("Error starting controller", status=status.HTTP_400_BAD_REQUEST)
+            return JSONResponse("Error updating data", status=status.HTTP_408_REQUEST_TIMEOUT)
 
     elif request.method == 'DELETE':
         try:
-            # TODO: Check instances, return error message
             controller = r.hgetall('controller:' + str(controller_id))
-            delete_file(controller['controller_name'], settings.CONTROLLERS_DIR)
-            r.delete("controller:" + str(controller_id))
+            if controller['instances'] not in ['0', 0]:
+                return JSONResponse("Controller could not be deleted because it has one or more instances.", status=status.HTTP_400_BAD_REQUEST)
+            else:
+                delete_file(controller['controller_name'], settings.CONTROLLERS_DIR)
+                r.delete("controller:" + str(controller_id))
         except:
             return JSONResponse("Error deleting controller", status=status.HTTP_400_BAD_REQUEST)
 
@@ -100,6 +97,25 @@ class ControllerData(APIView):
     Upload or download a global controller.
     """
     parser_classes = (MultiPartParser, FormParser,)
+    
+    def put(self, request, controller_id):
+        data = {}
+        try:
+            r = get_redis_connection()
+        except RedisError:
+            return JSONResponse('Error connecting with DB', status=500)        
+        
+        try:
+            file_obj = request.FILES['file']
+            make_sure_path_exists(settings.CONTROLLERS_DIR)
+            path = save_file(file_obj, settings.CONTROLLERS_DIR)
+            r.hmset('controller:' + str(controller_id), {'controller_name': os.path.basename(path)})
+            return JSONResponse("Data updated", status=status.HTTP_201_CREATED)
+        except DataError:
+            return JSONResponse("Error updating data", status=status.HTTP_400_BAD_REQUEST)
+        except ValueError:
+            return JSONResponse("Error starting controller", status=status.HTTP_400_BAD_REQUEST)
+        
 
     def post(self, request):
         try:
