@@ -81,6 +81,8 @@ def storage_policy_detail(request, storage_policy_id):
                 object_node_devices = json.loads(object_node['devices'])
                 device_detail = object_node_devices[device_id]
                 device_detail['id'] = device
+                device_detail['region'] = r.hgetall('region:' + object_node['region_id'])['name']
+                device_detail['zone'] = r.hgetall('zone:' + object_node['zone_id'])['name']
                 devices.append(device_detail)
             storage_policy['devices'] = devices
             return JSONResponse(storage_policy, status=status.HTTP_200_OK)
@@ -127,6 +129,8 @@ def storage_policy_disks(request, storage_policy_id):
                 object_node = r.hgetall('object_node:' + object_node_id)
                 device_detail = json.loads(object_node['devices'])[device_id]
                 device_detail['id'] = device
+                device_detail['region'] = r.hgetall('region:' + object_node['region_id'])['name']
+                device_detail['zone'] = r.hgetall('zone:' + object_node['zone_id'])['name']
                 available_devices_detail.append(device_detail)
             return JSONResponse(available_devices_detail, status=status.HTTP_200_OK)
         else:
