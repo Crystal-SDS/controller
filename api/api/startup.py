@@ -26,6 +26,6 @@ def run():
     for key in r.keys('policy:*'):
         r.hset(key, 'alive', 'False')
 
-    # Controllers
-    for key in r.keys('controller:*'):
-        r.hset(key, 'enabled', 'False')
+    # Controller Instances
+    for key in r.keys('controller_instance:*'):
+        r.hset(key, 'status', 'Stopped')
