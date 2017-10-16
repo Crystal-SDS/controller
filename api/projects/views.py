@@ -11,7 +11,7 @@ from paramiko.ssh_exception import SSHException, AuthenticationException
 from swiftclient import client as swift_client
 import logging
 import paramiko
-
+import json
 
 from api.common import JSONResponse, get_redis_connection, \
     get_project_list, get_keystone_admin_auth, \
@@ -199,11 +199,12 @@ def add_projects_group(request):
 
     if request.method == 'GET':
         keys = r.keys("project_group:*")
-        project_groups = {}
+        project_groups = []
         for key in keys:
-            group = r.lrange(key, 0, -1)
-            group_id = key.split(":")[1]
-            project_groups[group_id] = group
+            group = r.hgetall(key)
+            group['id'] = key.split(':')[1]
+            group['attached_projects'] = json.loads(group['attached_projects'])
+            project_groups.append(group)
         return JSONResponse(project_groups, status=status.HTTP_200_OK)
 
     if request.method == 'POST':
@@ -212,7 +213,7 @@ def add_projects_group(request):
             return JSONResponse('Tenant group cannot be empty',
                                 status=status.HTTP_400_BAD_REQUEST)
         gtenant_id = r.incr("project_groups:id")
-        r.rpush('project_group:' + str(gtenant_id), *data)
+        r.hmset('project_group:' + str(gtenant_id), data)
         return JSONResponse('Tenant group has been added to the registry', status=status.HTTP_201_CREATED)
 
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
