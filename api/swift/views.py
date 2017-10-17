@@ -12,8 +12,9 @@ import logging
 import requests
 import paramiko
 import storage_policies_utils
-from api.common_utils import JSONResponse, get_redis_connection
+from api.common import JSONResponse, get_redis_connection, to_json_bools
 from api.exceptions import FileSynchronizationException
+
 
 logger = logging.getLogger(__name__)
 
@@ -44,17 +45,18 @@ def storage_policies(request):
         return JSONResponse(storage_policy_list, status=status.HTTP_200_OK)
 
     if request.method == "POST":
+        try:
+            r = get_redis_connection()
+        except RedisError:
+            return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
         data = JSONParser().parse(request)
-        storage_nodes_list = []
-        if isinstance(data["storage_node"], dict):
-            data['storage_node']['policy_id'] = r.incr('storage-policies:id')
-            for k, v in data["storage_node"].items():
-                storage_nodes_list.extend([k, v])
-            data["storage_node"] = ','.join(map(str, storage_nodes_list))
-            try:
-                storage_policies_utils.create(data)
-            except Exception as e:
-                return JSONResponse('Error creating the Storage Policy: ' + e, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        try:
+            key = 'storage-policy:' + str(r.incr('storage-policies:id'))
+            r.hmset(key, data)
+        except Exception as e:
+            return JSONResponse('Error creating the Storage Policy', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         return JSONResponse('Account created successfully', status=status.HTTP_201_CREATED)
 
@@ -73,6 +75,8 @@ def storage_policy_detail(request, storage_policy_id):
     if request.method == 'GET':
         if r.exists(key):
             storage_policy = r.hgetall(key)
+            to_json_bools(storage_policy, 'deprecated', 'default', 'deployed')
+            print storage_policy
             storage_policy['devices'] = json.loads(storage_policy['devices'])
             devices = []
             for device in storage_policy['devices']:
