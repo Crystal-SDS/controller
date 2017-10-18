@@ -39,6 +39,7 @@ def storage_policies(request):
         storage_policy_list = []
         for key in keys:
             storage_policy = r.hgetall(key)
+            to_json_bools(storage_policy, 'deprecated', 'default', 'deployed')
             storage_policy['id'] = str(key).split(':')[-1]
             storage_policy['devices'] = json.loads(storage_policy['devices']) 
             storage_policy_list.append(storage_policy)
@@ -76,7 +77,7 @@ def storage_policy_detail(request, storage_policy_id):
         if r.exists(key):
             storage_policy = r.hgetall(key)
             to_json_bools(storage_policy, 'deprecated', 'default', 'deployed')
-            print storage_policy
+            storage_policy['storage_policy_id'] = storage_policy_id
             storage_policy['devices'] = json.loads(storage_policy['devices'])
             devices = []
             for device in storage_policy['devices']:
@@ -101,6 +102,18 @@ def storage_policy_detail(request, storage_policy_id):
                 return JSONResponse("Storage Policy updated", status=status.HTTP_201_CREATED)
             except RedisError:
                 return JSONResponse("Error updating storage policy", status=status.HTTP_400_BAD_REQUEST)
+        else:
+            return JSONResponse('Storage policy not found.', status=status.HTTP_404_NOT_FOUND)
+        
+    if request.method == 'DELETE':
+        if r.exists(key):
+            try:
+                r.delete(key)
+                if not r.keys('storage-policy:*'):
+                    r.delete('storage-policies:id')
+                return JSONResponse("Storage Policy deleted", status=status.HTTP_201_CREATED)
+            except RedisError:
+                return JSONResponse("Error deleting storage policy", status=status.HTTP_400_BAD_REQUEST)
         else:
             return JSONResponse('Storage policy not found.', status=status.HTTP_404_NOT_FOUND)
 
