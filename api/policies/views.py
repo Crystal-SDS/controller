@@ -47,6 +47,7 @@ def policy_list(request):
                                      'filter_name': policy['filter_name'],
                                      'object_type': policy['object_type'],
                                      'object_size': policy['object_size'],
+                                     'object_tag': policy['object_tag'],
                                      'execution_server': policy['execution_server'],
                                      'reverse': policy['reverse'],
                                      'execution_order': policy['execution_order'],
@@ -211,6 +212,7 @@ def deploy_static_policy(request, r, parsed_rule):
                     "policy_id": policy_id,
                     "object_type": "",
                     "object_size": "",
+                    "object_tag": "",
                     "execution_order": policy_id,
                     "params": "",
                     "callable": False

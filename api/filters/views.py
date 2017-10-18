@@ -250,6 +250,7 @@ def filter_deploy(request, filter_id, project_id, container=None, swift_object=N
             "policy_id": policy_id,
             "object_type": params['object_type'],
             "object_size": params['object_size'],
+            "object_tag": params['object_tag'],
             "execution_order": policy_id,
             "params": params['params'],
             "callable": False
