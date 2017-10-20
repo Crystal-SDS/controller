@@ -26,7 +26,7 @@ class Rule(object):
     _ask = ['get_target']
     _tell = ['update', 'start_rule', 'stop_actor']
 
-    def __init__(self, rule_parsed, action, target_id, target_name, controller_server):
+    def __init__(self, policy_data, controller_server):
         """
         Initialize all the variables needed for the rule.
 
@@ -54,9 +54,11 @@ class Rule(object):
                                        db=self.redis_db)
 
         self.rule_parsed = rule_parsed
-        self.action_list = action
-        self.target_id = target_id
-        self.target_name = target_name
+        self.action = policy_data['action']
+        self.filter = policy_data['filter']
+        self.params = policy_data['parameters']
+        self.target_id = policy_data['target_id']
+        self.target_name = policy_data['target_name']
         self.controller_server = controller_server
 
         self.conditions = rule_parsed.condition_list.asList()
@@ -197,10 +199,10 @@ class Rule(object):
 
         headers = {"X-Auth-Token": self.token}
 
-        if self.action_list.action == "SET":
+        if self.action == "SET":
             # TODO Review if this tenant has already deployed this filter. Not deploy the same filter more than one time.
 
-            url = os.path.join(self.controller_server, 'filters', self.target_id, "deploy", str(self.action_list.filter))
+            url = os.path.join(self.controller_server, 'filters', self.target_id, "deploy", str(self.filter))
 
             data = dict()
 
@@ -214,7 +216,7 @@ class Rule(object):
             else:
                 data['object_size'] = ''
 
-            data['params'] = self.action_list.params
+            data['params'] = self.params
 
             response = requests.put(url, json.dumps(data), headers=headers)
 
@@ -229,9 +231,9 @@ class Rule(object):
             else:
                 logger.error('Error setting policy')
 
-        elif self.action_list.action == "DELETE":
+        elif self.action == "DELETE":
 
-            url = os.path.join(self.controller_server, 'filters', self.target_id, "undeploy", str(self.action_list.filter))
+            url = os.path.join(self.controller_server, 'filters', self.target_id, "undeploy", str(self.filter))
             response = requests.put(url, headers=headers)
 
             if 200 <= response.status_code < 300:

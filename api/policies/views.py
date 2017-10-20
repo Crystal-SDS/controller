@@ -54,7 +54,7 @@ def policy_list(request):
                                      'reverse': policy['reverse'],
                                      'execution_order': policy['execution_order'],
                                      'params': policy['params'],
-                                     'put': filter['put'], 
+                                     'put': filter['put'],
                                      'get': filter['get'],
                                      'post': filter['post'],
                                      'head': filter['head'],
@@ -111,22 +111,57 @@ def policy_list(request):
                                     'metric before creating a new policy', status=status.HTTP_401_UNAUTHORIZED)
 
         return JSONResponse('Policies added successfully!', status=status.HTTP_201_CREATED)
-    
+
     if request.method == 'PUT':
-        key = "policy:" + str(r.incr('policies:id'))
+        # Dynamic Policy From form
+        host = create_local_host()
+        http_host = request.META['HTTP_HOST']
         data = JSONParser().parse(request)
+
+        policy_id = r.incr("policies:id")
+        rule_id = 'policy:' + str(policy_id)
+
+        action = data['action']
+        project_id = data['project_id']
+        container = data['container_id']
+
+        project_list = get_project_list()
+        project_name = project_list[project_id]
+
+        target_id = os.path.join(project_id, container)
+        target_name = os.path.join(project_name, container)
+
+        if data['transient']:
+            location = settings.RULE_TRANSIENT_MODULE
+        else:
+            location = settings.RULE_MODULE
+        policy_location = os.path.join(settings.PYACTOR_URL, location, str(rule_id))
+
+        policy_data = {"id": policy_id,
+                       "target_id": target_id,
+                       "target_name": target_name,
+                       "filter": data['filter_id'],
+                       "parameters": data['params'],
+                       "action": action,
+                       "condition": data['workload_metric']+' '+data['condition'],
+                       "object_type": data['object_type'],
+                       "object_size": data['object_size'],
+                       "object_tag": data['object_tag'],
+                       "transient": data['transient'],
+                       "policy_location": policy_location,
+                       "alive": True}
+
+        if data['transient']:
+            rule_actors[policy_id] = host.spawn(rule_id,
+                                                settings.RULE_TRANSIENT_MODULE,
+                                                [policy_data, http_host])
+        else:
+            rule_actors[policy_id] = host.spawn(rule_id, settings.RULE_MODULE,
+                                                [policy_data, http_host])
+        rule_actors[policy_id].start_rule()
+
         try:
-            r.hmset(key, {"id": key.split(':')[1],
-                         "policy": '', # TOFIX Retrieve Policy. From where?
-                         "target": data['target_id'],
-                         "filter": data['filter_id'],
-                         "condition": data['condition'],
-                         "object_type": data['object_type'],
-                         "object_size": data['object_size'],
-                         "object_tag": data['object_tag'],
-                         "transient": data['transient'],
-                         "policy_location": '', # TOFIX Retrieve location. From where?
-                         "alive": True})
+            r.hmset(key, policy_data)
             return JSONResponse("Policy inserted correctly", status=status.HTTP_201_CREATED)
         except RedisError:
             return JSONResponse("Error inserting policy", status=status.HTTP_400_BAD_REQUEST)
@@ -393,22 +428,10 @@ def deploy_dynamic_policy(r, rule_string, parsed_rule, http_host):
             rule_id = 'policy:' + str(policy_id)
 
             if action_info.transient:
-                # print 'Transient rule:', parsed_rule
-                rule_actors[policy_id] = host.spawn(rule_id,
-                                                    settings.RULE_TRANSIENT_MODULE,
-                                                    [rules_to_parse[target], action_info,
-                                                     target_id, target_name, http_host])
                 location = settings.RULE_TRANSIENT_MODULE
-                is_transient = True
             else:
-                # print 'Rule:', parsed_rule
-                rule_actors[policy_id] = host.spawn(rule_id, settings.RULE_MODULE,
-                                                    [rules_to_parse[target], action_info,
-                                                     target_id, target_name, http_host])
                 location = settings.RULE_MODULE
-                is_transient = False
-
-                rule_actors[policy_id].start_rule()
+            policy_location = os.path.join(settings.PYACTOR_URL, location, str(rule_id))
 
             # FIXME Should we recreate a static rule for each target and action??
             condition_re = re.compile(r'.* (WHEN .*) DO .*', re.M | re.I)
@@ -416,6 +439,7 @@ def deploy_dynamic_policy(r, rule_string, parsed_rule, http_host):
 
             object_type = ""
             object_size = ""
+            object_tag = ""
             if parsed_rule.object_list:
                 if parsed_rule.object_list.object_type:
                     object_type = parsed_rule.object_list.object_type.object_value
@@ -423,18 +447,29 @@ def deploy_dynamic_policy(r, rule_string, parsed_rule, http_host):
                     object_size = [parsed_rule.object_list.object_size.operand,
                                    parsed_rule.object_list.object_size.object_value]
 
+            policy_data = {"id": policy_id,
+                           "target_id": target_id,
+                           "target_name": target_name,
+                           "filter": action_info.filter,
+                           "parameters": action_info.params,
+                           "action": action_info.action,
+                           "condition": condition_str.replace('WHEN ', ''),
+                           "object_type": object_type,
+                           "object_size": object_size,
+                           "object_tag": object_tag,
+                           "transient": action_info.transient,
+                           "policy_location": policy_location,
+                           "alive": True}
+
+            if action_info.transient:
+                rule_actors[policy_id] = host.spawn(rule_id, settings.RULE_TRANSIENT_MODULE,
+                                                    [policy_data, http_host])
+            else:
+                rule_actors[policy_id] = host.spawn(rule_id, settings.RULE_MODULE,
+                                                    [policy_data, http_host])
+            rule_actors[policy_id].start_rule()
             # Add policy into Redis
-            policy_location = os.path.join(settings.PYACTOR_URL, location, str(rule_id))
-            r.hmset('policy:' + str(policy_id), {"id": policy_id,
-                                                 "policy": rule_string,
-                                                 "target": target_name,
-                                                 "filter": action_info[1],
-                                                 "condition": condition_str.replace('WHEN ', ''),
-                                                 "object_type": object_type,
-                                                 "object_size": object_size,
-                                                 "transient": is_transient,
-                                                 "policy_location": policy_location,
-                                                 "alive": True})
+            r.hmset('policy:' + str(policy_id), policy_data)
 
 
 #
