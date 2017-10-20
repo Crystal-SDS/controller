@@ -23,7 +23,7 @@ STORLET_FILTERS_DIR = os.path.join('/opt', 'crystal', 'storlet_filters')
 DEPENDENCY_DIR = os.path.join('/opt', 'crystal', 'dependencies')
 CONTROLLERS_DIR = os.path.join('/opt', 'crystal', 'controllers')
 
-NATIVE_FILTER_KEYS = ('id', 'filter_name', 'filter_type', 'language', 'dsl_name', 'dependencies', 'main', 'put', 'get', 'valid_parameters', 'execution_server', 'reverse', 'path')
+NATIVE_FILTER_KEYS = ('id', 'filter_name', 'filter_type', 'language', 'dsl_name', 'dependencies', 'main', 'put', 'get', 'post', 'head', 'delete', 'valid_parameters', 'execution_server', 'reverse', 'path')
 STORLET_FILTER_KEYS = ('id', 'filter_name', 'filter_type', 'language', 'dsl_name', 'interface_version', 'dependencies', 'main', 'put', 'get', 'valid_parameters', 'execution_server', 'reverse', 'path')
 DEPENDENCY_KEYS = ('id', 'name', 'version', 'permissions', 'path')
 

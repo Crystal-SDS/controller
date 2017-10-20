@@ -15,7 +15,7 @@ import os
 import re
 import dsl_parser
 from api.common import JSONResponse, get_redis_connection, get_project_list, \
-    get_token_connection, create_local_host, rule_actors
+    get_token_connection, create_local_host, rule_actors, to_json_bools
 from api.exceptions import SwiftClientError, StorletNotFoundException, \
     ProjectNotFound, ProjectNotCrystalEnabled
 from filters.views import set_filter, unset_filter
@@ -41,6 +41,8 @@ def policy_list(request):
             for it in keys:
                 for key, value in r.hgetall(it).items():
                     policy = json.loads(value)
+                    filter = r.hgetall('filter:' + str(policy['dsl_name']))
+                    to_json_bools(filter, 'get', 'put', 'post', 'head', 'delete')
                     target_id = it.replace('pipeline:', '')
                     policies.append({'id': key, 'target_id': target_id,
                                      'target_name': project_list[target_id.split(':')[0]],
@@ -51,7 +53,12 @@ def policy_list(request):
                                      'execution_server': policy['execution_server'],
                                      'reverse': policy['reverse'],
                                      'execution_order': policy['execution_order'],
-                                     'params': policy['params']})
+                                     'params': policy['params'],
+                                     'put': filter['put'], 
+                                     'get': filter['get'],
+                                     'post': filter['post'],
+                                     'head': filter['head'],
+                                     'delete': filter['delete']})
             sorted_policies = sorted(policies, key=lambda x: int(itemgetter('execution_order')(x)))
 
             return JSONResponse(sorted_policies, status=status.HTTP_200_OK)
@@ -70,7 +77,6 @@ def policy_list(request):
     if request.method == 'POST':
         # New Policy
         rules_string = request.body.splitlines()
-
         for rule_string in rules_string:
             #
             # Rules improved:
@@ -105,6 +111,25 @@ def policy_list(request):
                                     'metric before creating a new policy', status=status.HTTP_401_UNAUTHORIZED)
 
         return JSONResponse('Policies added successfully!', status=status.HTTP_201_CREATED)
+    
+    if request.method == 'PUT':
+        key = "policy:" + str(r.incr('policies:id'))
+        data = JSONParser().parse(request)
+        try:
+            r.hmset(key, {"id": key.split(':')[1],
+                         "policy": '', # TOFIX Retrieve Policy. From where?
+                         "target": data['target_id'],
+                         "filter": data['filter_id'],
+                         "condition": data['condition'],
+                         "object_type": data['object_type'],
+                         "object_size": data['object_size'],
+                         "object_tag": data['object_tag'],
+                         "transient": data['transient'],
+                         "policy_location": '', # TOFIX Retrieve location. From where?
+                         "alive": True})
+            return JSONResponse("Policy inserted correctly", status=status.HTTP_201_CREATED)
+        except RedisError:
+            return JSONResponse("Error inserting policy", status=status.HTTP_400_BAD_REQUEST)
 
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
@@ -131,6 +156,13 @@ def static_policy_detail(request, policy_id):
         project_list['global'] = 'Global'
         policy_redis = r.hget("pipeline:" + str(target), policy)
         data = json.loads(policy_redis)
+        filter = r.hgetall('filter:' + str(data['dsl_name']))
+        to_json_bools(filter, 'get', 'put', 'post', 'head', 'delete')
+        data['get'] = filter['get']
+        data['put'] = filter['put']
+        data['post'] = filter['post']
+        data['head'] = filter['head']
+        data['delete'] = filter['delete']
         data["id"] = policy
         data["target_id"] = target
         data["target_name"] = project_list[target.split(':')[0]]

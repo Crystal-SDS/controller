@@ -44,6 +44,7 @@ def filter_list(request):
         filters = []
         for key in keys:
             flter = r.hgetall(key)
+            to_json_bools(flter, 'get', 'put', 'post', 'head', 'delete')
             filters.append(flter)
         sorted_list = sorted(filters, key=lambda x: int(itemgetter('id')(x)))
         return JSONResponse(sorted_list, status=status.HTTP_200_OK)
@@ -86,7 +87,7 @@ def filter_detail(request, filter_id):
 
     if request.method == 'GET':
         my_filter = r.hgetall("filter:" + str(filter_id))
-        to_json_bools(my_filter, 'put', 'get')
+        to_json_bools(my_filter, 'put', 'get', 'post', 'head', 'delete')
         return JSONResponse(my_filter, status=status.HTTP_200_OK)
 
     elif request.method == 'PUT':
