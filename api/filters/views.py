@@ -167,26 +167,25 @@ class FilterData(APIView):
             except RedisError:
                 return JSONResponse('Problems connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-            if filter_type == 'storlet':
-                # Redeploy already deployed storlet filters
-                filter_data = r.hgetall(filter_name)
-                main = filter_data['main']
-                token = get_token_connection(request)
-                pipelines = r.keys('pipeline:*')
-                for pipeline in pipelines:
-                    target = pipeline.replace('pipeline:', '')
-                    filters_data = r.hgetall(pipeline)
-                    for policy_id in filters_data:
-                        parameters = {}
-                        parameters["policy_id"] = policy_id
-                        cfilter = eval(filters_data[policy_id].replace('true', '"True"').replace('false', '"False"'))
-                        if cfilter['dsl_name'] == filter_id:
-                            cfilter['filter_name'] = filter_basename
-                            cfilter['content_length'] = content_length
-                            cfilter['etag'] = etag
-                            cfilter['path'] = path
-                            cfilter['main'] = main
-                            set_filter(r, target, cfilter, parameters, token)
+            # Update info in already deployed filters
+            filter_data = r.hgetall(filter_name)
+            main = filter_data['main']
+            token = get_token_connection(request)
+            pipelines = r.keys('pipeline:*')
+            for pipeline in pipelines:
+                target = pipeline.replace('pipeline:', '')
+                filters_data = r.hgetall(pipeline)
+                for policy_id in filters_data:
+                    parameters = {}
+                    parameters["policy_id"] = policy_id
+                    cfilter = eval(filters_data[policy_id].replace('true', '"True"').replace('false', '"False"'))
+                    if cfilter['dsl_name'] == filter_id:
+                        cfilter['filter_name'] = filter_basename
+                        cfilter['content_length'] = content_length
+                        cfilter['etag'] = etag
+                        cfilter['path'] = path
+                        cfilter['main'] = main
+                        set_filter(r, target, cfilter, parameters, token)
 
             if filter_type == 'native':
                 # synchronize metrics directory with all nodes
