@@ -62,14 +62,12 @@ class SwiftMetric(object):
 
         logger.info('Metric, Attaching observer: ' + str(observer))
         target = observer.get_target(timeout=2)
-        logger.info('Metric, target is: ' + str(target))
         observer_id = observer.get_id()
 
         if target not in self._observers.keys():
             self._observers[target] = dict()
         if observer_id not in self._observers[target].keys():
             self._observers[target][observer_id] = observer
-        logger.info('Metric, _observers keys are: ' + str(self._observers.keys()))
 
     def detach(self, observer, target):
         """
