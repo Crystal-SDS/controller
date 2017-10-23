@@ -206,8 +206,31 @@ class MetricModuleData(APIView):
     Upload or download a metric module data.
     """
     parser_classes = (MultiPartParser, FormParser,)
+    
+    def put(self, request, metric_module_id):
+        data = {}
+        
+        try:
+            r = get_redis_connection()
+        except RedisError:
+            return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                
+        try:
+            file_obj = request.FILES['file']
+            
+            make_sure_path_exists(settings.WORKLOAD_METRICS_DIR)
+            path = save_file(file_obj, settings.WORKLOAD_METRICS_DIR)
+            data['metric_name'] = os.path.basename(path)
 
-    def put(self, request):
+            r.hmset('workload_metric:' + str(metric_module_id), data)
+            
+            return JSONResponse("Data updated", status=status.HTTP_201_CREATED)
+        except DataError:
+            return JSONResponse("Error updating data", status=status.HTTP_400_BAD_REQUEST)
+        except ValueError:
+            return JSONResponse("Error starting controller", status=status.HTTP_400_BAD_REQUEST)
+
+    def post(self, request):
         try:
             r = get_redis_connection()
         except RedisError:
