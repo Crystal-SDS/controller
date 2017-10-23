@@ -222,6 +222,13 @@ class MetricModuleData(APIView):
             path = save_file(file_obj, settings.WORKLOAD_METRICS_DIR)
             data['metric_name'] = os.path.basename(path)
 
+            # synchronize metrics directory with all nodes
+            try:
+                rsync_dir_with_nodes(settings.WORKLOAD_METRICS_DIR)
+            except FileSynchronizationException as e:
+                # print "FileSynchronizationException", e  # TODO remove
+                return JSONResponse(e.message, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
             r.hmset('workload_metric:' + str(metric_module_id), data)
             
             return JSONResponse("Data updated", status=status.HTTP_201_CREATED)
