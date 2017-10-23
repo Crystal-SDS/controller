@@ -53,15 +53,17 @@ class Rule(object):
                                        port=self.redis_port,
                                        db=self.redis_db)
 
-        self.rule_parsed = rule_parsed
         self.action = policy_data['action']
         self.filter = policy_data['filter']
         self.params = policy_data['parameters']
         self.target_id = policy_data['target_id']
         self.target_name = policy_data['target_name']
+        self.object_size = policy_data['object_size']
+        self.object_tag = policy_data['object_tag']
+        self.object_type = policy_data['object_type']
         self.controller_server = controller_server
 
-        self.conditions = rule_parsed.condition_list.asList()
+        self.conditions = policy_data['condition']
         self.observers_values = dict()
         self.observers_proxies = dict()
         self.token = None
@@ -97,11 +99,22 @@ class Rule(object):
         metrics necessaries.
         """
         logger.info("Rule, Start '" + str(self.id) + "'")
-        self.check_metrics(self.conditions)
+        logger.info('Rule, Conditions: ' + str(self.conditions))
+
+        # Start Condition checker
+        # TODO: PASRE CONDITIONS STRING
+        """
+        if not isinstance(condition_list[0], list):
+            self._add_metric(condition_list[0].lower())
+        else:
+            for element in condition_list:
+                if element is not "OR" and element is not "AND":
+                    self.check_metrics(element)
+        """
 
     def _add_metric(self, metric_name):
         """
-        The `add_metric()` method subscribes the rule to all workload metrics
+        This method subscribes the rule to the metric_name
         that it needs to check the conditions defined in the policy
 
         :param metric_name: The name that identifies the workload metric.
@@ -115,23 +128,6 @@ class Rule(object):
             observer.attach(self.proxy)
             self.observers_proxies[metric_name] = observer
             self.observers_values[metric_name] = None
-
-    def check_metrics(self, condition_list):
-        """
-        The check_metrics method finds in the condition list all the metrics
-        that it needs to check the conditions, when find some metric that it
-        needs, call the method add_metric.
-
-        :param condition_list: The list of all the conditions.
-        :type condition_list: **any** List type
-        """
-        logger.info('Rule, Condition: ' + str(condition_list))
-        if not isinstance(condition_list[0], list):
-            self._add_metric(condition_list[0].lower())
-        else:
-            for element in condition_list:
-                if element is not "OR" and element is not "AND":
-                    self.check_metrics(element)
 
     def update(self, metric_name, value):
         """
@@ -206,16 +202,9 @@ class Rule(object):
 
             data = dict()
 
-            if hasattr(self.rule_parsed.object_list, "object_type"):
-                data['object_type'] = self.rule_parsed.object_list.object_type.object_value
-            else:
-                data['object_type'] = ''
-
-            if hasattr(self.rule_parsed.object_list, "object_size"):
-                data['object_size'] = self.rule_parsed.object_list.object_size.object_value
-            else:
-                data['object_size'] = ''
-
+            data['object_type'] = self.object_type
+            data['object_size'] = self.object_size
+            data['object_tag'] = self.object_tag
             data['params'] = self.params
 
             response = requests.put(url, json.dumps(data), headers=headers)

@@ -125,11 +125,18 @@ def policy_list(request):
         project_id = data['project_id']
         container = data['container_id']
 
-        project_list = get_project_list()
-        project_name = project_list[project_id]
+        if project_id == 'global':
+            project_name = 'Global'
+        else:
+            project_list = get_project_list()
+            project_name = project_list[project_id]
 
-        target_id = os.path.join(project_id, container)
-        target_name = os.path.join(project_name, container)
+        if container:
+            target_id = os.path.join(project_id, container)
+            target_name = os.path.join(project_name, container)
+        else:
+            target_id = project_id
+            target_name = project_name
 
         if data['transient']:
             location = settings.RULE_TRANSIENT_MODULE
@@ -161,7 +168,7 @@ def policy_list(request):
         rule_actors[policy_id].start_rule()
 
         try:
-            r.hmset(key, policy_data)
+            r.hmset(rule_id, policy_data)
             return JSONResponse("Policy inserted correctly", status=status.HTTP_201_CREATED)
         except RedisError:
             return JSONResponse("Error inserting policy", status=status.HTTP_400_BAD_REQUEST)
@@ -429,8 +436,10 @@ def deploy_dynamic_policy(r, rule_string, parsed_rule, http_host):
             rule_id = 'policy:' + str(policy_id)
 
             if action_info.transient:
+                transient = True
                 location = settings.RULE_TRANSIENT_MODULE
             else:
+                transient = False
                 location = settings.RULE_MODULE
             policy_location = os.path.join(settings.PYACTOR_URL, location, str(rule_id))
 
@@ -444,6 +453,8 @@ def deploy_dynamic_policy(r, rule_string, parsed_rule, http_host):
             if parsed_rule.object_list:
                 if parsed_rule.object_list.object_type:
                     object_type = parsed_rule.object_list.object_type.object_value
+                if parsed_rule.object_list.object_tag:
+                    object_type = parsed_rule.object_list.object_tag.object_value
                 if parsed_rule.object_list.object_size:
                     object_size = [parsed_rule.object_list.object_size.operand,
                                    parsed_rule.object_list.object_size.object_value]
@@ -458,7 +469,7 @@ def deploy_dynamic_policy(r, rule_string, parsed_rule, http_host):
                            "object_type": object_type,
                            "object_size": object_size,
                            "object_tag": object_tag,
-                           "transient": action_info.transient,
+                           "transient": transient,
                            "policy_location": policy_location,
                            "alive": True}
 

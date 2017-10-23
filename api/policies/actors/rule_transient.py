@@ -80,15 +80,9 @@ class TransientRule(Rule):
             data = dict()
             url = os.path.join(self.controller_server, 'filters', self.target_id, "deploy", str(self.filter))
 
-            if hasattr(self.rule_parsed.object_list, "object_type"):
-                data['object_type'] = self.rule_parsed.object_list.object_type.object_value
-            else:
-                data['object_type'] = ''
-
-            if hasattr(self.rule_parsed.object_list, "object_size"):
-                data['object_size'] = self.rule_parsed.object_list.object_size.object_value
-            else:
-                data['object_size'] = ''
+            data['object_type'] = self.object_type
+            data['object_size'] = self.object_size
+            data['object_tag'] = self.object_tag
 
             data['params'] = self.params
 
