@@ -156,7 +156,7 @@ def policy_list(request):
                        "object_tag": data['object_tag'],
                        "transient": data['transient'],
                        "policy_location": policy_location,
-                       "alive": True}
+                       "status": 'Alive'}
 
         if data['transient']:
             rule_actors[policy_id] = host.spawn(rule_id,
@@ -471,7 +471,7 @@ def deploy_dynamic_policy(r, rule_string, parsed_rule, http_host):
                            "object_tag": object_tag,
                            "transient": transient,
                            "policy_location": policy_location,
-                           "alive": True}
+                           "status": 'Alive'}
 
             if action_info.transient:
                 rule_actors[policy_id] = host.spawn(rule_id, settings.RULE_TRANSIENT_MODULE,

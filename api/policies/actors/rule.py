@@ -211,7 +211,7 @@ class Rule(object):
 
             if 200 <= response.status_code < 300:
                 logger.info('Policy ' + str(self.id) + ' applied')
-                self.redis.hset(self.id, 'alive', False)
+                self.redis.hset(self.id, 'status', 'Applied')
                 try:
                     self.stop_actor()
                 except:

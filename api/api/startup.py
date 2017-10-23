@@ -24,7 +24,7 @@ def run():
 
     # Dynamic policies
     for key in r.keys('policy:*'):
-        r.hset(key, 'alive', 'False')
+        r.hset(key, 'status', 'Stopped')
 
     # Controller Instances
     for key in r.keys('controller_instance:*'):
