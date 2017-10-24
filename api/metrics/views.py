@@ -88,7 +88,7 @@ def metric_module_list(request):
         workload_metrics = []
         for key in keys:
             metric = r.hgetall(key)
-            to_json_bools(metric, 'in_flow', 'out_flow', 'enabled')
+            to_json_bools(metric, 'in_flow', 'out_flow', 'ssync', 'enabled')
             workload_metrics.append(metric)
         sorted_workload_metrics = sorted(workload_metrics, key=lambda x: int(itemgetter('id')(x)))
         return JSONResponse(sorted_workload_metrics, status=status.HTTP_200_OK)
@@ -134,7 +134,7 @@ def metric_module_detail(request, metric_module_id):
     if request.method == 'GET':
         metric = r.hgetall("workload_metric:" + str(metric_id))
 
-        to_json_bools(metric, 'in_flow', 'out_flow', 'enabled')
+        to_json_bools(metric, 'in_flow', 'out_flow', 'ssync', 'enabled')
         return JSONResponse(metric, status=status.HTTP_200_OK)
 
     elif request.method == 'POST':

@@ -88,7 +88,8 @@ def parse(input_string):
     operand_object = oneOf("< > == != <= >=")
     # object_parameter = oneOf("OBJECT_TYPE OBJECT_SIZE")
     object_type = Group(Literal("OBJECT_TYPE")("type") + Literal("=") + word(alphanums)("object_value"))("object_type")
-    object_size = Group(Literal("OBJECT_SIZE")("type") + operand_object("operand") + number("object_value"))("object_size")
+    object_size = Group(Literal("OBJECT_SIZE")("size") + operand_object("operand") + number("object_value"))("object_size")
+    object_tag = Group(Literal("OBJECT_TAG")("tag") + Literal("=") + word(alphanums)("object_value"))("object_tag")
     object_list = Group(object_type ^ object_size ^ object_type + "," + object_size ^ object_size + "," + object_type)
     to = Suppress("TO")
 
@@ -108,6 +109,7 @@ def parse(input_string):
     # Parse the rule
     parsed_rule = rule_parse.parseString(input_string)
 
+    print parsed_rule.condition_list
     # Pos-parsed validation
     has_condition_list = True
     if not parsed_rule.condition_list:

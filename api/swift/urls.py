@@ -4,6 +4,7 @@ from . import views
 urlpatterns = [
     # Storages Policies
     url(r'^storage_policies/?$', views.storage_policies),
+    url(r'^storage_policies/load?$', views.load_swift_policies),
     url(r'^storage_policy/(?P<storage_policy_id>[^/]+)/?$', views.storage_policy_detail),
     url(r'^storage_policy/(?P<storage_policy_id>[^/]+)/disk/?$', views.storage_policy_disks),
     url(r'^storage_policy/(?P<storage_policy_id>[^/]+)/disk/(?P<disk_id>[^/]+)/?$', views.delete_storage_policy_disks),

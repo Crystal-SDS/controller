@@ -196,6 +196,18 @@ def delete_storage_policy_disks(request, storage_policy_id, disk_id):
 
     return JSONResponse('Method not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
+
+@csrf_exempt
+def load_swift_policies(request):
+
+    if request.method == "POST":
+        
+        return JSONResponse('Policies loaded correctly', status=status.HTTP_200_OK)
+
+    return JSONResponse('Only HTTP POST requests allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+
+
 @csrf_exempt
 def locality_list(request, account, container=None, swift_object=None):
     """
