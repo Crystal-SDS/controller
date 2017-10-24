@@ -16,7 +16,7 @@ def run():
 
     # Workload metric definitions
     for key in r.keys('workload_metric:*'):
-        r.hset(key, 'enabled', False)
+        r.hset(key, 'status', 'Stopped')
 
     # Workload metric Actors
     for key in r.keys('metric:*'):

@@ -277,18 +277,16 @@ def start_controller_instance(instance_id, controller_name, controller_class_nam
 
     controller_location = os.path.join(controller_name, controller_class_name)
     parameters = parameters.strip().split(',')
-    # params = {}
-    params = list()
+    params = {}
     for parameter in parameters:
         param_name, value = parameter.split('=')
-        # params[param_name] = value
-        params.append(value)
+        params[param_name] = value
 
     actor_id = controller_name+':'+instance_id
 
     try:
         if instance_id not in controller_actors:
-            controller_actors[instance_id] = host.spawn(actor_id, controller_location, params)
+            controller_actors[instance_id] = host.spawn(actor_id, controller_location, **params)
             controller_actors[instance_id].run()
             logger.info("Controller, Started controller actor: "+controller_location)
     except Exception as e:
