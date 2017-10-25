@@ -30,6 +30,24 @@ def parse_group_tenants(tokens):
     data = r.lrange(tokens[0], 0, -1)
     return data
 
+def parse_condition(input_string):
+    
+    r = get_redis_connection()
+    
+    metrics_workload = r.keys("metric:*")
+    services = map(lambda x: "".join(x.split(":")[1]), metrics_workload)
+    services_options = oneOf(services)
+    operand = oneOf("< > == != <= >=")
+    number = Regex(r"[+-]?\d+(:?\.\d*)?(:?[eE][+-]?\d+)?")
+    
+    condition = Group(services_options + operand("operand") + number("limit_value"))
+    condition_list = operatorPrecedence(condition, [
+                                ("AND", 2, opAssoc.LEFT, ),
+                                ("OR", 2, opAssoc.LEFT, ),
+                                ])
+    rule = condition_list('condition_list')
+    
+    return rule.parseString(input_string).condition_list
 
 def parse(input_string):
     # TODO Raise an exception if not metrics or not action registered
@@ -109,7 +127,6 @@ def parse(input_string):
     # Parse the rule
     parsed_rule = rule_parse.parseString(input_string)
 
-    print parsed_rule.condition_list
     # Pos-parsed validation
     has_condition_list = True
     if not parsed_rule.condition_list:
