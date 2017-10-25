@@ -52,7 +52,7 @@ class TransientRule(Rule):
         self.observers_values[metric] = tenant_info
 
         if all(val is not None for val in self.observers_values.values()):
-            condition_accomplished = self._check_conditions(self.conditions)
+            condition_accomplished = self._check_conditions(self.condition_list)
             if condition_accomplished != self.execution_stat:
                 self.do_action(condition_accomplished)
                 self.execution_stat = condition_accomplished
@@ -78,7 +78,7 @@ class TransientRule(Rule):
             # TODO Review if this tenant has already deployed this filter. Don't deploy the same filter more than one time.
             logger.info("Setting static policy")
             data = dict()
-            url = os.path.join(self.controller_server, 'filters', self.target_id, "deploy", str(self.filter))
+            url = os.path.join('http://'+self.controller_server, 'filters', self.target_id, "deploy", str(self.filter))
 
             data['object_type'] = self.object_type
             data['object_size'] = self.object_size
@@ -96,7 +96,7 @@ class TransientRule(Rule):
 
         elif action == "DELETE":
             logger.info("Deleting static policy " + str(self.static_policy_id))
-            url = os.path.join(self.controller_server, "policies/static", self.target_id+":"+str(self.static_policy_id))
+            url = os.path.join('http://'+self.controller_server, "policies/static", self.target_id+":"+str(self.static_policy_id))
             response = requests.delete(url, headers=headers)
 
             if 200 <= response.status_code < 300:
