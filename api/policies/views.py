@@ -114,7 +114,6 @@ def policy_list(request):
 
     if request.method == 'PUT':
         # Dynamic Policy From form
-        host = create_local_host()
         http_host = request.META['HTTP_HOST']
         data = JSONParser().parse(request)
 
@@ -158,14 +157,7 @@ def policy_list(request):
                        "policy_location": policy_location,
                        "status": 'Alive'}
 
-        if data['transient']:
-            rule_actors[policy_id] = host.spawn(rule_id,
-                                                settings.RULE_TRANSIENT_MODULE,
-                                                [policy_data, http_host])
-        else:
-            rule_actors[policy_id] = host.spawn(rule_id, settings.RULE_MODULE,
-                                                [policy_data, http_host])
-        rule_actors[policy_id].start_rule()
+        start_dynamic_policy_actor(policy_data, http_host)
 
         try:
             r.hmset(rule_id, policy_data)
@@ -317,68 +309,45 @@ def deploy_static_policy(request, r, parsed_rule):
 #
 # Dynamic Policies
 #
-def load_policies():
-    try:
-        r = get_redis_connection()
-    except RedisError:
-        return JSONResponse('Error connecting with DB', status=500)
-
-    dynamic_policies = r.keys("policy:*")
-
-    if dynamic_policies:
-        logger.info("Starting dynamic rules stored in redis")
-
-    host = create_local_host()
-    for policy in dynamic_policies:
-        policy_data = r.hgetall(policy)
-
-        if policy_data['alive'] == 'True':
-            _, rule_parsed = dsl_parser.parse(policy_data['policy_description'])
-            target = rule_parsed.target[0][1]  # Tenant ID or tenant+container
-            for action_info in rule_parsed.action_list:
-                if action_info.transient:
-                    logger.info("Transient rule: " + policy_data['policy_description'])
-                    rule_actors[policy] = host.spawn(str(policy),
-                                                     settings.RULE_TRANSIENT_MODULE,
-                                                     [rule_parsed, action_info, target])
-                    rule_actors[policy].start_rule()
-                else:
-                    logger.info("Rule: "+policy_data['policy_description'])
-                    rule_actors[policy] = host.spawn(str(policy),
-                                                     settings.RULE_MODULE,
-                                                     [rule_parsed, action_info, target])
-                    rule_actors[policy].start_rule()
-
-
 @csrf_exempt
 def dynamic_policy_detail(request, policy_id):
     """
     Delete a dynamic policy.
     """
-
+    http_host = request.META['HTTP_HOST']
     try:
         r = get_redis_connection()
     except RedisError:
         return JSONResponse('Error connecting with DB', status=500)
-    
+
     key = 'policy:' + str(policy_id)
-    
+
     if request.method == 'PUT':
         data = JSONParser().parse(request)
         try:
+            if data['status'] == 'Stopped':
+                policy_id = int(policy_id)
+                if policy_id in rule_actors:
+                    rule_actors[policy_id].stop_actor()
+                    del rule_actors[policy_id]
+            else:
+                policy_data = r.hgetall(key)
+                try:
+                    start_dynamic_policy_actor(policy_data, http_host)
+                except Exception as e:
+                    return JSONResponse(str(e), status=400)
+
             r.hmset(key, data)
             return JSONResponse("Data updated", status=201)
         except DataError:
             return JSONResponse("Error updating data", status=400)
 
     elif request.method == 'DELETE':
-        create_local_host()
-
         try:
             policy_id = int(policy_id)
             if policy_id in rule_actors:
-                rule_actors[int(policy_id)].stop_actor()
-                del rule_actors[int(policy_id)]
+                rule_actors[policy_id].stop_actor()
+                del rule_actors[policy_id]
         except:
             logger.info("Error stopping the rule actor: "+str(policy_id))
 
@@ -393,7 +362,6 @@ def dynamic_policy_detail(request, policy_id):
 
 
 def deploy_dynamic_policy(r, rule_string, parsed_rule, http_host):
-    host = create_local_host()
     rules_to_parse = dict()
     project = None
     container = None
@@ -483,15 +451,28 @@ def deploy_dynamic_policy(r, rule_string, parsed_rule, http_host):
                            "policy_location": policy_location,
                            "status": 'Alive'}
 
-            if action_info.transient:
-                rule_actors[policy_id] = host.spawn(rule_id, settings.RULE_TRANSIENT_MODULE,
-                                                    [policy_data, http_host])
-            else:
-                rule_actors[policy_id] = host.spawn(rule_id, settings.RULE_MODULE,
-                                                    [policy_data, http_host])
-            rule_actors[policy_id].start_rule()
+            start_dynamic_policy_actor(policy_data, http_host)
+
             # Add policy into Redis
             r.hmset('policy:' + str(policy_id), policy_data)
+
+
+def start_dynamic_policy_actor(policy_data, http_host):
+    to_json_bools(policy_data, 'transient')
+    host = create_local_host()
+    transient = policy_data["transient"]
+    policy_id = int(policy_data["id"])
+    rule_id = 'policy:' + str(policy_id)
+    if transient:
+        rule_actors[policy_id] = host.spawn(rule_id, settings.RULE_TRANSIENT_MODULE, policy_data, http_host)
+    else:
+        rule_actors[policy_id] = host.spawn(rule_id, settings.RULE_MODULE, policy_data, http_host)
+    try:
+        rule_actors[policy_id].start_rule()
+    except Exception as e:
+        rule_actors[policy_id].stop_actor()
+        del rule_actors[policy_id]
+        raise ValueError("An error occurred starting the policy actor: "+str(e))
 
 
 #

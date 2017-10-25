@@ -5,6 +5,7 @@ import logging
 import redis
 import requests
 import os
+from policies.dsl_parser import parse_condition
 
 from api.settings import MANAGEMENT_ACCOUNT, MANAGEMENT_ADMIN_USERNAME, \
     MANAGEMENT_ADMIN_PASSWORD, KEYSTONE_ADMIN_URL, REDIS_HOST, REDIS_PORT, REDIS_DATABASE
@@ -23,8 +24,8 @@ class Rule(object):
     Rule actor executes an Action that it is also defined in the policy. Once
     the rule executed the action, this actor is destroyed.
     """
-    _ask = ['get_target']
-    _tell = ['update', 'start_rule', 'stop_actor']
+    _ask = ['get_target', 'start_rule']
+    _tell = ['update', 'stop_actor']
 
     def __init__(self, policy_data, controller_server):
         """
@@ -62,11 +63,11 @@ class Rule(object):
         self.object_tag = policy_data['object_tag']
         self.object_type = policy_data['object_type']
         self.controller_server = controller_server
-
-        self.conditions = policy_data['condition']
+        self.condition = policy_data['condition']
         self.observers_values = dict()
         self.observers_proxies = dict()
         self.token = None
+        self.applied = False
 
     def _get_admin_token(self):
         """
@@ -98,11 +99,22 @@ class Rule(object):
         **check_metrics()** which subscribes the rule to all the workload
         metrics necessaries.
         """
+        try:
+            self.condition_list = parse_condition(self.condition)
+        except:
+            raise ValueError("Workload Metric not started")
         logger.info("Rule, Start '" + str(self.id) + "'")
-        logger.info('Rule, Conditions: ' + str(self.conditions))
+        logger.info('Rule, Conditions: ' + str(self.condition))
 
-        # Start Condition checker
-        # TODO: PASRE CONDITIONS STRING
+        self.check_metrics(self.condition_list)
+
+    def check_metrics(self, condition_list):
+        """
+        The check_metrics method finds in the condition list all the metrics
+        that it needs to check the conditions, when find some metric that it
+        needs, call the method add_metric.
+        :param condition_list: The list of all the conditions.
+        :type condition_list: **any** List type
         """
         if not isinstance(condition_list[0], list):
             self._add_metric(condition_list[0].lower())
@@ -110,7 +122,6 @@ class Rule(object):
             for element in condition_list:
                 if element is not "OR" and element is not "AND":
                     self.check_metrics(element)
-        """
 
     def _add_metric(self, metric_name):
         """
@@ -150,7 +161,7 @@ class Rule(object):
         # Check the condition of the policy if all values are setted. If the
         # condition result is true, it calls the method do_action
         if all(val is not None for val in self.observers_values.values()):
-            if self._check_conditions(self.conditions):
+            if self._check_conditions(self.condition_list):
                 self._do_action()
         else:
             logger.error("not all values setted" + str(self.observers_values.values()))
@@ -190,6 +201,10 @@ class Rule(object):
         The do_action method is called after the conditions are satisfied. So
         this method is responsible to execute the action defined in the policy.
         """
+        if self.applied:
+            return
+        else:
+            self.applied = True
         if not self.token:
             self._get_admin_token()
 
@@ -198,7 +213,7 @@ class Rule(object):
         if self.action == "SET":
             # TODO Review if this tenant has already deployed this filter. Not deploy the same filter more than one time.
 
-            url = os.path.join(self.controller_server, 'filters', self.target_id, "deploy", str(self.filter))
+            url = os.path.join('http://'+self.controller_server, 'filters', self.target_id, "deploy", str(self.filter))
 
             data = dict()
 
@@ -222,7 +237,7 @@ class Rule(object):
 
         elif self.action == "DELETE":
 
-            url = os.path.join(self.controller_server, 'filters', self.target_id, "undeploy", str(self.filter))
+            url = os.path.join('http://'+self.controller_server, 'filters', self.target_id, "undeploy", str(self.filter))
             response = requests.put(url, headers=headers)
 
             if 200 <= response.status_code < 300:

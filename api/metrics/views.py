@@ -102,18 +102,22 @@ def start_metric(actor_id):
         if actor_id not in metric_actors:
             logger.info("Metric, Starting workload metric actor: " + str(actor_id))
             metric_actors[actor_id] = host.spawn(actor_id, settings.METRIC_MODULE,
-                                                 [actor_id, "metric." + actor_id])
+                                                 actor_id, "metric." + actor_id)
             metric_actors[actor_id].init_consum()
-    except Exception:
+    except Exception as e:
         logger.error("Metric, Error starting workload metric actor: " + str(actor_id))
-        raise Exception
+        raise e
 
 
 def stop_metric(actor_id):
     if actor_id in metric_actors:
         logger.info("Metric, Stopping workload metric actor: " + str(actor_id))
-        metric_actors[actor_id].stop_actor()
-        del metric_actors[actor_id]
+        try:
+            metric_actors[actor_id].stop_actor()
+            del metric_actors[actor_id]
+        except Exception as e:
+            logger.error("Metric, Error stopping workload metric actor: " + str(actor_id))
+            raise e
 
 
 @csrf_exempt

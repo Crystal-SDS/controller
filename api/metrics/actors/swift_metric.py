@@ -20,7 +20,8 @@ class SwiftMetric(object):
     for each observer in that tenant is subscribed. In this way, the metric
     actor only sends the necessary information to each observer.
     """
-    _tell = ['get_value', 'attach', 'detach', 'notify', 'start_consuming', 'stop_consuming', 'init_consum', 'stop_actor']
+    _tell = ['attach', 'detach', 'notify', 'start_consuming', 'stop_consuming']
+    _ask = ['init_consum', 'stop_actor']
     _ref = ['attach']
 
     def __init__(self, metric_id, routing_key):
@@ -101,10 +102,10 @@ class SwiftMetric(object):
                                                      "type": "integer"})
 
             self.consumer = self.host.spawn(self.id + "_consumer", settings.CONSUMER_MODULE,
-                                            [self.queue, self.routing_key, self.proxy])
+                                            self.queue, self.routing_key, self.proxy)
             self.start_consuming()
-        except Exception, e:
-            print e
+        except Exception as e:
+            raise ValueError(e.msg)
 
     def stop_actor(self):
         """
@@ -116,7 +117,7 @@ class SwiftMetric(object):
             for tenant in self._observers:
                 for observer in self._observers[tenant].values():
                     observer.stop_actor()
-                    self.redis.hset(observer.get_id(), 'alive', 'False')
+                    self.redis.hset(observer.get_id(), 'status', 'Stopped')
 
             self.redis.delete("metric:" + self.name)
             self.stop_consuming()
@@ -124,7 +125,7 @@ class SwiftMetric(object):
 
         except Exception as e:
             logger.error(str(e))
-            print e
+            raise e
 
     def start_consuming(self):
         """
