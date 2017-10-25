@@ -360,8 +360,18 @@ def dynamic_policy_detail(request, policy_id):
         r = get_redis_connection()
     except RedisError:
         return JSONResponse('Error connecting with DB', status=500)
+    
+    key = 'policy:' + str(policy_id)
+    
+    if request.method == 'PUT':
+        data = JSONParser().parse(request)
+        try:
+            r.hmset(key, data)
+            return JSONResponse("Data updated", status=201)
+        except DataError:
+            return JSONResponse("Error updating data", status=400)
 
-    if request.method == 'DELETE':
+    elif request.method == 'DELETE':
         create_local_host()
 
         try:
@@ -372,7 +382,7 @@ def dynamic_policy_detail(request, policy_id):
         except:
             logger.info("Error stopping the rule actor: "+str(policy_id))
 
-        r.delete('policy:' + str(policy_id))
+        r.delete(key)
         policies_ids = r.keys('policy:*')
         pipelines_ids = r.keys('pipeline:*')
         if len(policies_ids) == 0 and len(pipelines_ids) == 0:
