@@ -98,6 +98,7 @@ def storage_policy_detail(request, storage_policy_id):
         if r.exists(key):
             data = JSONParser().parse(request)
             try:
+                data['deployed'] = False
                 r.hmset(key, data)
                 return JSONResponse("Storage Policy updated", status=status.HTTP_201_CREATED)
             except RedisError:
@@ -161,6 +162,7 @@ def storage_policy_disks(request, storage_policy_id):
             storage_policy['devices'].append(disk)
             storage_policy['devices'] = json.dumps(storage_policy['devices'])
             r.hset(key, 'devices', storage_policy['devices'])
+            r.hset(key, 'deployed', False)
             return JSONResponse('Disk added correctly', status=status.HTTP_200_OK)
         else:
             return JSONResponse('Disk could not be added.', status=status.HTTP_400_BAD_REQUEST)
@@ -186,6 +188,7 @@ def delete_storage_policy_disks(request, storage_policy_id, disk_id):
                     storage_policy['devices'].remove(disk_id)
                     storage_policy['devices'] = json.dumps(storage_policy['devices'])
                     r.hset(key, 'devices', storage_policy['devices'])
+                    r.hset(key, 'deployed', False)
                     return JSONResponse("Disk removed", status=status.HTTP_204_NO_CONTENT)
                 else: 
                     return JSONResponse('Disk not found', status=status.HTTP_404_NOT_FOUND)
@@ -195,6 +198,32 @@ def delete_storage_policy_disks(request, storage_policy_id, disk_id):
             return JSONResponse('Storage policy not found.', status=status.HTTP_404_NOT_FOUND)
 
     return JSONResponse('Method not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+
+
+@csrf_exempt
+def deploy_storage_policy(request, storage_policy_id):
+    
+    try:
+        r = get_redis_connection()
+    except RedisError:
+        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    key = "storage-policy:" + storage_policy_id
+
+    print request.method
+    if request.method == "POST":
+        if r.exists(key):
+            try:
+                r.hset(key, 'deployed', True)
+                return JSONResponse('Storage policy deployed correctly', status=status.HTTP_200_OK)
+            except RedisError:
+                return JSONResponse('Storage policy could not be deployed', status=status.HTTP_400_BAD_REQUEST)
+        else:
+            return JSONResponse('Storage policy not found.', status=status.HTTP_404_NOT_FOUND)
+        
+    return JSONResponse('Only HTTP POST requests allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
 
 
 @csrf_exempt
