@@ -476,6 +476,60 @@ def start_dynamic_policy_actor(policy_data, http_host):
 
 
 #
+# Access Control
+#
+@csrf_exempt
+def access_control(request):
+    """
+    Delete a access control.
+    """
+    try:
+        r = get_redis_connection()
+    except RedisError:
+        return JSONResponse('Error connecting with DB', status=500)
+    
+    if request.method == 'GET':
+        acl = [] 
+        try:
+            keys = r.keys('access_control:*')
+            for key in keys:
+                policy = r.hgetall(key)
+                policy['id'] = key.split(':', 1)[1]
+                acl.append(policy)
+                
+            keys = r.hgetall('access_control:project_id')
+            for key in keys:
+                policy = json.loads(keys[key])
+                policy['id'] = key
+                print policy
+                acl.append(policy)
+            
+        except DataError:
+            return JSONResponse("Error retrieving policy", status=400)
+
+        return JSONResponse(acl, status=status.HTTP_200_OK)
+
+
+
+    if request.method == 'POST':
+        data = JSONParser().parse(request)
+        try:
+            
+            if data['container_id']:
+                key = 'access_control:' + data['project_id'] + ':' + data['container_id']
+                r.hmset(key, data)
+            else:
+                key = str(r.incr('access_controls:id'))
+                r.hset('access_control:project_id', key, json.dumps(data))
+                
+            return JSONResponse("Access control policy created", status=201)
+        except DataError:
+            return JSONResponse("Error creating policy", status=400)
+
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
+
+
+#
 # Bandwidth SLO's
 #
 @csrf_exempt
