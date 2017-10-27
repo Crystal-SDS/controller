@@ -480,9 +480,7 @@ def start_dynamic_policy_actor(policy_data, http_host):
 #
 @csrf_exempt
 def access_control(request):
-    """
-    Delete a access control.
-    """
+
     try:
         r = get_redis_connection()
     except RedisError:
@@ -495,20 +493,18 @@ def access_control(request):
             for key in keys:
                 policy = r.hgetall(key)
                 policy['id'] = key.split(':', 1)[1]
+                to_json_bools(policy, 'write', 'read')
                 acl.append(policy)
                 
-            keys = r.hgetall('access_control:project_id')
+            keys = r.hgetall('access_controls:project_id')
             for key in keys:
                 policy = json.loads(keys[key])
-                policy['id'] = key
-                print policy
+                policy['id'] = "access_controls:project_id:" + key
+                to_json_bools(policy, 'write', 'read')
                 acl.append(policy)
-            
         except DataError:
             return JSONResponse("Error retrieving policy", status=400)
-
         return JSONResponse(acl, status=status.HTTP_200_OK)
-
 
 
     if request.method == 'POST':
@@ -520,13 +516,58 @@ def access_control(request):
                 r.hmset(key, data)
             else:
                 key = str(r.incr('access_controls:id'))
-                r.hset('access_control:project_id', key, json.dumps(data))
+                r.hset('access_controls:project_id', key, json.dumps(data))
                 
             return JSONResponse("Access control policy created", status=201)
         except DataError:
             return JSONResponse("Error creating policy", status=400)
 
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
+
+
+@csrf_exempt
+def access_control_detail(request, policy_id):
+    """
+    Delete a access control.
+    """
+    try:
+        r = get_redis_connection()
+    except RedisError:
+        return JSONResponse('Error connecting with DB', status=500)
+    
+    if request.method == 'DELETE':
+        acl = [] 
+        try:
+            if policy_id.startswith('access_controls:project_id:'):
+                r.hdel('access_controls:project_id', str(policy_id.split(':')[2]))
+                if not r.hgetall('access_controls:project_id'):
+                    r.delete('access_controls:id')
+            else:
+                r.delete('access_control:' + policy_id)
+                print 'access_control:' + policy_id
+        except DataError:
+            return JSONResponse("Error retrieving policy", status=400)
+        return JSONResponse(acl, status=status.HTTP_200_OK)
+
+
+    if request.method == 'POST':
+        data = JSONParser().parse(request)
+        try:
+            
+            if data['container_id']:
+                key = 'access_control:' + data['project_id'] + ':' + data['container_id']
+                r.hmset(key, data)
+            else:
+                key = str(r.incr('access_controls:id'))
+                r.hset('access_controls:project_id', key, json.dumps(data))
+                
+            return JSONResponse("Access control policy created", status=201)
+        except DataError:
+            return JSONResponse("Error creating policy", status=400)
+
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
+
+
 
 
 #
