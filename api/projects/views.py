@@ -12,6 +12,7 @@ from swiftclient import client as swift_client
 import logging
 import paramiko
 import json
+import os
 
 from api.common import JSONResponse, get_redis_connection, \
     get_project_list, get_keystone_admin_auth, \
@@ -136,8 +137,8 @@ def create_docker_image(r, project_id):
                     raise AuthenticationException('An error occurred connecting to: '+node)
 
                 try:
-                    storlet_docker_image = '/'.join(settings.DOCKER_REPO, settings.STORLET_DOCKER_IMAGE)
-                    project_docker_image = '/'.join(settings.DOCKER_REPO, project_id[0:13])
+                    storlet_docker_image = os.path.join(settings.DOCKER_REPO, settings.STORLET_DOCKER_IMAGE)
+                    project_docker_image = os.path.join(settings.DOCKER_REPO, project_id[0:13])
                     command = 'sudo docker tag '+storlet_docker_image+' '+project_docker_image
                     ssh_client.exec_command(command)
                     ssh_client.close()
