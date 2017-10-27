@@ -136,7 +136,9 @@ def create_docker_image(r, project_id):
                     raise AuthenticationException('An error occurred connecting to: '+node)
 
                 try:
-                    command = 'sudo docker tag '+settings.STORLET_DOCKER_IMAGE+' '+project_id[0:13]
+                    storlet_docker_image = '/'.join(settings.DOCKER_REPO, settings.STORLET_DOCKER_IMAGE)
+                    project_docker_image = '/'.join(settings.DOCKER_REPO, project_id[0:13])
+                    command = 'sudo docker tag '+storlet_docker_image+' '+project_docker_image
                     ssh_client.exec_command(command)
                     ssh_client.close()
                     already_created.append(node_ip)
@@ -171,7 +173,8 @@ def delete_docker_image(r, project_id):
                     raise AuthenticationException('An error occurred connecting to: '+node)
 
                 try:
-                    command = 'sudo docker rmi -f '+project_id[0:13]
+                    project_docker_image = '/'.join(settings.DOCKER_REPO, project_id[0:13])
+                    command = 'sudo docker rmi -f '+project_docker_image
                     ssh_client.exec_command(command)
                     ssh_client.close()
                     already_created.append(node_ip)
