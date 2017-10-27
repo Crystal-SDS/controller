@@ -18,7 +18,7 @@ class MinTenantSLOGlobalSpareBWShare(BaseBwController):
         slo_name = self.method.lower() + "_bw"  # get_bw or put_bw
         bw_enforcements = self._get_redis_slos(slo_name)
 
-        # Work without policies at this moment
+        # Work without Swift storage policies at this moment
         clean_bw_enforcements = dict()
         for tenant in bw_enforcements:
             clean_bw_enforcements[tenant] = 0

@@ -11,6 +11,10 @@ urlpatterns = [
     url(r'^dynamic/?$', views.policy_list),
     url(r'^dynamic/(?P<policy_id>\w+)/?$', views.dynamic_policy_detail),
 
+    # Access control
+    url(r'^acl/?$', views.access_control),
+    url(r'^acl/(?P<policy_id>[^/]+)/?$', views.static_policy_detail),
+
     # Object Types
     url(r'^object_type/?$', views.object_type_list),
     url(r'^object_type/(?P<object_type_name>\w+)/?$', views.object_type_detail),

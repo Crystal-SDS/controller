@@ -1,7 +1,0 @@
-- hosts: storlet-mgmt
-
-  vars_files:
-   - ./common.yml
-
-  roles:
-   - create_new_storage_policy

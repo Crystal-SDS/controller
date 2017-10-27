@@ -2,7 +2,6 @@ from redis.exceptions import RedisError
 from pyactor.exceptions import NotFoundError
 from django.conf import settings
 import logging
-import Queue
 import pika
 import redis
 

@@ -88,7 +88,7 @@ def metric_module_list(request):
         workload_metrics = []
         for key in keys:
             metric = r.hgetall(key)
-            to_json_bools(metric, 'in_flow', 'out_flow', 'enabled')
+            to_json_bools(metric, 'put', 'get', 'ssync')
             workload_metrics.append(metric)
         sorted_workload_metrics = sorted(workload_metrics, key=lambda x: int(itemgetter('id')(x)))
         return JSONResponse(sorted_workload_metrics, status=status.HTTP_200_OK)
@@ -98,22 +98,26 @@ def metric_module_list(request):
 
 def start_metric(actor_id):
     host = create_local_host()
-    logger.info("Metric, Starting workload metric actor: " + str(actor_id))
     try:
         if actor_id not in metric_actors:
+            logger.info("Metric, Starting workload metric actor: " + str(actor_id))
             metric_actors[actor_id] = host.spawn(actor_id, settings.METRIC_MODULE,
-                                                 [actor_id, "metric." + actor_id])
+                                                 actor_id, "metric." + actor_id)
             metric_actors[actor_id].init_consum()
-    except Exception:
+    except Exception as e:
         logger.error("Metric, Error starting workload metric actor: " + str(actor_id))
-        raise Exception
+        raise e
 
 
 def stop_metric(actor_id):
     if actor_id in metric_actors:
         logger.info("Metric, Stopping workload metric actor: " + str(actor_id))
-        metric_actors[actor_id].stop_actor()
-        del metric_actors[actor_id]
+        try:
+            metric_actors[actor_id].stop_actor()
+            del metric_actors[actor_id]
+        except Exception as e:
+            logger.error("Metric, Error stopping workload metric actor: " + str(actor_id))
+            raise e
 
 
 @csrf_exempt
@@ -134,7 +138,7 @@ def metric_module_detail(request, metric_module_id):
     if request.method == 'GET':
         metric = r.hgetall("workload_metric:" + str(metric_id))
 
-        to_json_bools(metric, 'in_flow', 'out_flow', 'enabled')
+        to_json_bools(metric, 'put', 'get', 'ssync')
         return JSONResponse(metric, status=status.HTTP_200_OK)
 
     elif request.method == 'POST':
@@ -143,29 +147,32 @@ def metric_module_detail(request, metric_module_id):
         except ParseError:
             return JSONResponse("Invalid format or empty request", status=status.HTTP_400_BAD_REQUEST)
 
-        if len(data) == 1:
-            # Enable/disable button
-            redis_data = r.hgetall('workload_metric:' + str(metric_id))
-            redis_data.update(data)
-            data = redis_data
+        redis_data = r.hgetall('workload_metric:' + str(metric_id))
+        redis_data.update(data)
+        data = redis_data
+        to_json_bools(data, 'put', 'get', 'ssync')
 
         if 'metric_name' not in data:
             metric_name = r.hget('workload_metric:' + str(metric_id), 'metric_name').split('.')[0]
         else:
             metric_name = data['metric_name'].split('.')[0]
 
-        if data['enabled']:
+        if data['status'] == 'Running':
             try:
-                if data['in_flow'] == 'True':
+                if data['put'] == True:
                     start_metric('put_'+metric_name)
-                if data['out_flow'] == 'True':
+                else:
+                    stop_metric('put_'+metric_name)
+                if data['get'] == True:
                     start_metric('get_'+metric_name)
+                else:
+                    stop_metric('get_'+metric_name)
             except Exception:
-                data['enabled'] = False
+                data['status'] = 'Stopped'
         else:
-            if data['in_flow'] == 'True':
+            if data['put'] == True:
                 stop_metric('put_'+metric_name)
-            if data['out_flow'] == 'True':
+            if data['get'] == True:
                 stop_metric('get_'+metric_name)
 
         try:
@@ -179,11 +186,11 @@ def metric_module_detail(request, metric_module_id):
             wm_data = r.hgetall('workload_metric:' + str(metric_id))
             metric_name = wm_data['metric_name'].split('.')[0]
 
-            if wm_data['in_flow'] == 'True':
+            if wm_data['put'] == 'True':
                 actor_id = 'put_'+metric_name
                 if actor_id in metric_actors:
                     stop_metric(actor_id)
-            if wm_data['out_flow'] == 'True':
+            if wm_data['get'] == 'True':
                 actor_id = 'get_'+metric_name
                 if actor_id in metric_actors:
                     stop_metric(actor_id)
@@ -207,7 +214,37 @@ class MetricModuleData(APIView):
     """
     parser_classes = (MultiPartParser, FormParser,)
 
-    def put(self, request):
+    def put(self, request, metric_module_id):
+        data = {}
+
+        try:
+            r = get_redis_connection()
+        except RedisError:
+            return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        try:
+            file_obj = request.FILES['file']
+
+            make_sure_path_exists(settings.WORKLOAD_METRICS_DIR)
+            path = save_file(file_obj, settings.WORKLOAD_METRICS_DIR)
+            data['metric_name'] = os.path.basename(path)
+
+            # synchronize metrics directory with all nodes
+            try:
+                rsync_dir_with_nodes(settings.WORKLOAD_METRICS_DIR)
+            except FileSynchronizationException as e:
+                # print "FileSynchronizationException", e  # TODO remove
+                return JSONResponse(e.message, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+            r.hmset('workload_metric:' + str(metric_module_id), data)
+
+            return JSONResponse("Data updated", status=status.HTTP_201_CREATED)
+        except DataError:
+            return JSONResponse("Error updating data", status=status.HTTP_400_BAD_REQUEST)
+        except ValueError:
+            return JSONResponse("Error starting controller", status=status.HTTP_400_BAD_REQUEST)
+
+    def post(self, request):
         try:
             r = get_redis_connection()
         except RedisError:
@@ -238,9 +275,9 @@ class MetricModuleData(APIView):
 
             if data['enabled']:
                 metric_name = data['metric_name'].split('.')[0]
-                if data['in_flow']:
+                if data['put']:
                     start_metric('put_'+metric_name)
-                if data['out_flow']:
+                if data['get']:
                     start_metric('get_'+metric_name)
 
             return JSONResponse(data, status=status.HTTP_201_CREATED)

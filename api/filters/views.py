@@ -44,6 +44,7 @@ def filter_list(request):
         filters = []
         for key in keys:
             flter = r.hgetall(key)
+            to_json_bools(flter, 'get', 'put', 'post', 'head', 'delete')
             filters.append(flter)
         sorted_list = sorted(filters, key=lambda x: int(itemgetter('id')(x)))
         return JSONResponse(sorted_list, status=status.HTTP_200_OK)
@@ -86,7 +87,7 @@ def filter_detail(request, filter_id):
 
     if request.method == 'GET':
         my_filter = r.hgetall("filter:" + str(filter_id))
-        to_json_bools(my_filter, 'put', 'get')
+        to_json_bools(my_filter, 'put', 'get', 'post', 'head', 'delete')
         return JSONResponse(my_filter, status=status.HTTP_200_OK)
 
     elif request.method == 'PUT':
@@ -166,26 +167,25 @@ class FilterData(APIView):
             except RedisError:
                 return JSONResponse('Problems connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-            if filter_type == 'storlet':
-                # Redeploy already deployed storlet filters
-                filter_data = r.hgetall(filter_name)
-                main = filter_data['main']
-                token = get_token_connection(request)
-                pipelines = r.keys('pipeline:*')
-                for pipeline in pipelines:
-                    target = pipeline.replace('pipeline:', '')
-                    filters_data = r.hgetall(pipeline)
-                    for policy_id in filters_data:
-                        parameters = {}
-                        parameters["policy_id"] = policy_id
-                        cfilter = eval(filters_data[policy_id].replace('true', '"True"').replace('false', '"False"'))
-                        if cfilter['dsl_name'] == filter_id:
-                            cfilter['filter_name'] = filter_basename
-                            cfilter['content_length'] = content_length
-                            cfilter['etag'] = etag
-                            cfilter['path'] = path
-                            cfilter['main'] = main
-                            set_filter(r, target, cfilter, parameters, token)
+            # Update info in already deployed filters
+            filter_data = r.hgetall(filter_name)
+            main = filter_data['main']
+            token = get_token_connection(request)
+            pipelines = r.keys('pipeline:*')
+            for pipeline in pipelines:
+                target = pipeline.replace('pipeline:', '')
+                filters_data = r.hgetall(pipeline)
+                for policy_id in filters_data:
+                    parameters = {}
+                    parameters["policy_id"] = policy_id
+                    cfilter = eval(filters_data[policy_id].replace('true', '"True"').replace('false', '"False"'))
+                    if cfilter['dsl_name'] == filter_id:
+                        cfilter['filter_name'] = filter_basename
+                        cfilter['content_length'] = content_length
+                        cfilter['etag'] = etag
+                        cfilter['path'] = path
+                        cfilter['main'] = main
+                        set_filter(r, target, cfilter, parameters, token)
 
             if filter_type == 'native':
                 # synchronize metrics directory with all nodes
@@ -250,6 +250,7 @@ def filter_deploy(request, filter_id, project_id, container=None, swift_object=N
             "policy_id": policy_id,
             "object_type": params['object_type'],
             "object_size": params['object_size'],
+            "object_tag": params['object_tag'],
             "execution_order": policy_id,
             "params": params['params'],
             "callable": False

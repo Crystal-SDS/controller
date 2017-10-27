@@ -20,7 +20,7 @@ class TransientRule(Rule):
     _ask = ['get_target']
     _async = ['update', 'start_rule', 'stop_actor']
 
-    def __init__(self, rule_parsed, action, target_id, target_name, controller_server):
+    def __init__(self, policy_data, controller_server):
         """
         Initialize all the variables needed for the rule.
 
@@ -29,8 +29,7 @@ class TransientRule(Rule):
         :param target_name: The target assigned to this rule.
         :type target_name: **any** String type
         """
-        super(TransientRule, self).__init__(rule_parsed, action, target_id,
-                                            target_name, controller_server)
+        super(TransientRule, self).__init__(policy_data, controller_server)
         logger.info("Transient Rule")
         self.execution_stat = False
         self.static_policy_id = None
@@ -53,7 +52,7 @@ class TransientRule(Rule):
         self.observers_values[metric] = tenant_info
 
         if all(val is not None for val in self.observers_values.values()):
-            condition_accomplished = self._check_conditions(self.conditions)
+            condition_accomplished = self._check_conditions(self.condition_list)
             if condition_accomplished != self.execution_stat:
                 self.do_action(condition_accomplished)
                 self.execution_stat = condition_accomplished
@@ -63,12 +62,12 @@ class TransientRule(Rule):
         The do_action method is called after the conditions are satisfied. So
         this method is responsible to execute the action defined in the policy.
         """
-        if not condition_result and self.action_list.action == "SET":
+        if not condition_result and self.action == "SET":
             action = "DELETE"
-        elif not condition_result and self.action_list.action == "DELETE":
+        elif not condition_result and self.action == "DELETE":
             action = "SET"
         else:
-            action = self.action_list.action
+            action = self.action
 
         if not self.token:
             self._get_admin_token()
@@ -79,19 +78,13 @@ class TransientRule(Rule):
             # TODO Review if this tenant has already deployed this filter. Don't deploy the same filter more than one time.
             logger.info("Setting static policy")
             data = dict()
-            url = os.path.join(self.controller_server, 'filters', self.target_id, "deploy", str(self.action_list.filter))
+            url = os.path.join('http://'+self.controller_server, 'filters', self.target_id, "deploy", str(self.filter))
 
-            if hasattr(self.rule_parsed.object_list, "object_type"):
-                data['object_type'] = self.rule_parsed.object_list.object_type.object_value
-            else:
-                data['object_type'] = ''
+            data['object_type'] = self.object_type
+            data['object_size'] = self.object_size
+            data['object_tag'] = self.object_tag
 
-            if hasattr(self.rule_parsed.object_list, "object_size"):
-                data['object_size'] = self.rule_parsed.object_list.object_size.object_value
-            else:
-                data['object_size'] = ''
-
-            data['params'] = self.action_list.params
+            data['params'] = self.params
 
             response = requests.put(url, json.dumps(data), headers=headers)
 
@@ -103,7 +96,7 @@ class TransientRule(Rule):
 
         elif action == "DELETE":
             logger.info("Deleting static policy " + str(self.static_policy_id))
-            url = os.path.join(self.controller_server, "policies/static", self.target_id+":"+str(self.static_policy_id))
+            url = os.path.join('http://'+self.controller_server, "policies/static", self.target_id+":"+str(self.static_policy_id))
             response = requests.delete(url, headers=headers)
 
             if 200 <= response.status_code < 300:

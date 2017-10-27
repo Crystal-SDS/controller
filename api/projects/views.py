@@ -233,7 +233,8 @@ def projects_group_detail(request, group_id):
     if request.method == 'GET':
         key = 'project_group:' + str(group_id)
         if r.exists(key):
-            group = r.lrange(key, 0, -1)
+            group = r.hgetall(key)
+            group['attached_projects'] = json.loads(group['attached_projects'])
             return JSONResponse(group, status=status.HTTP_200_OK)
         else:
             return JSONResponse('The tenant group with id:  ' + str(group_id) + ' does not exist.', status=status.HTTP_404_NOT_FOUND)
@@ -242,14 +243,11 @@ def projects_group_detail(request, group_id):
         key = 'project_group:' + str(group_id)
         if r.exists(key):
             data = JSONParser().parse(request)
-            if not data:
-                return JSONResponse('Tenant group cannot be empty',
-                                    status=status.HTTP_400_BAD_REQUEST)
-            pipe = r.pipeline()
-            # the following commands are buffered in a single atomic request (to replace current contents)
-            if pipe.delete(key).rpush(key, *data).execute():
+            try:
+                r.hmset(key, data)
                 return JSONResponse('The members of the tenants group with id: ' + str(group_id) + ' has been updated', status=status.HTTP_201_CREATED)
-            return JSONResponse('Error storing the tenant group in the DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            except:
+                return JSONResponse('Error storing the tenant group in the DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         else:
             return JSONResponse('The tenant group with id:  ' + str(group_id) + ' does not exist.', status=status.HTTP_404_NOT_FOUND)
 

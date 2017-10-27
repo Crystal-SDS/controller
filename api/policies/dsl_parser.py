@@ -31,6 +31,26 @@ def parse_group_tenants(tokens):
     return data
 
 
+def parse_condition(input_string):
+
+    r = get_redis_connection()
+
+    metrics_workload = r.keys("metric:*")
+    services = map(lambda x: "".join(x.split(":")[1]), metrics_workload)
+    services_options = oneOf(services)
+    operand = oneOf("< > == != <= >=")
+    number = Regex(r"[+-]?\d+(:?\.\d*)?(:?[eE][+-]?\d+)?")
+
+    condition = Group(services_options + operand("operand") + number("limit_value"))
+    condition_list = operatorPrecedence(condition, [
+                                ("AND", 2, opAssoc.LEFT, ),
+                                ("OR", 2, opAssoc.LEFT, ),
+                                ])
+    rule = condition_list('condition_list')
+
+    return rule.parseString(input_string).condition_list.asList()
+
+
 def parse(input_string):
     # TODO Raise an exception if not metrics or not action registered
     # TODO Raise an exception if group of tenants does not exist.
@@ -88,7 +108,8 @@ def parse(input_string):
     operand_object = oneOf("< > == != <= >=")
     # object_parameter = oneOf("OBJECT_TYPE OBJECT_SIZE")
     object_type = Group(Literal("OBJECT_TYPE")("type") + Literal("=") + word(alphanums)("object_value"))("object_type")
-    object_size = Group(Literal("OBJECT_SIZE")("type") + operand_object("operand") + number("object_value"))("object_size")
+    object_size = Group(Literal("OBJECT_SIZE")("size") + operand_object("operand") + number("object_value"))("object_size")
+    object_tag = Group(Literal("OBJECT_TAG")("tag") + Literal("=") + word(alphanums)("object_value"))("object_tag")
     object_list = Group(object_type ^ object_size ^ object_type + "," + object_size ^ object_size + "," + object_type)
     to = Suppress("TO")
 
