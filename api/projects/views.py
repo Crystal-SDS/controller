@@ -10,6 +10,7 @@ from rest_framework.views import APIView
 from paramiko.ssh_exception import SSHException, AuthenticationException
 from swiftclient import client as swift_client
 import logging
+import threading
 import paramiko
 import json
 import os
@@ -123,69 +124,78 @@ def create_docker_image(r, project_id):
         node_ip = node_data['ip']
         if node_ip not in already_created:
             if node_data['ssh_access']:
-                ssh_user = node_data['ssh_username']
-                ssh_password = node_data['ssh_password']
-                ssh_client = paramiko.SSHClient()
-                ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-
-                try:
-                    ssh_client.connect(node_ip, username=ssh_user, password=ssh_password)
-                except AuthenticationException:
-                    r.hset(node, 'ssh_access', False)
-                    ssh_client.close()
-                    logger.error('An error occurred connecting to: '+node)
-                    raise AuthenticationException('An error occurred connecting to: '+node)
-
-                try:
-                    storlet_docker_image = os.path.join(settings.DOCKER_REPO, settings.STORLET_DOCKER_IMAGE)
-                    project_docker_image = os.path.join(settings.DOCKER_REPO, project_id[0:13])
-                    command = 'sudo docker tag '+storlet_docker_image+' '+project_docker_image
-                    ssh_client.exec_command(command)
-                    ssh_client.close()
-                    already_created.append(node_ip)
-                except SSHException:
-                    ssh_client.close()
-                    logger.error('An error occurred creating the Docker image in: '+node)
-                    raise SSHException('An error occurred creating the Docker image in: '+node)
+                already_created.append(node_ip)
+                threading.Thread(target=deploy_docker_imege, args=(node, node_data, project_id, r,)).start()
             else:
                 logger.error('An error occurred connecting to: '+node)
                 raise AuthenticationException('An error occurred connecting to: '+node)
+
+
+def deploy_docker_imege(node, node_data, project_id, r):
+    ssh_user = node_data['ssh_username']
+    ssh_password = node_data['ssh_password']
+    node_ip = node_data['ip']
+    ssh_client = paramiko.SSHClient()
+    ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+    try:
+        ssh_client.connect(node_ip, username=ssh_user, password=ssh_password)
+    except AuthenticationException:
+        r.hset(node, 'ssh_access', False)
+        ssh_client.close()
+        logger.error('An error occurred connecting to: '+node)
+
+    try:
+        storlet_docker_image = os.path.join(settings.DOCKER_REPO, settings.STORLET_DOCKER_IMAGE)
+        project_docker_image = os.path.join(settings.DOCKER_REPO, project_id[0:13])
+        command = 'sudo docker tag '+storlet_docker_image+' '+project_docker_image
+        ssh_client.exec_command(command)
+        ssh_client.close()
+    except SSHException:
+        ssh_client.close()
+        logger.error('An error occurred creating the Docker image in: '+node)
 
 
 def delete_docker_image(r, project_id):
     nodes = r.keys('*_node:*')
-    already_created = list()
+    already_deleted = list()
     for node in nodes:
         node_data = r.hgetall(node)
         node_ip = node_data['ip']
-        if node_ip not in already_created:
+        if node_ip not in already_deleted:
             if node_data['ssh_access']:
-                ssh_user = node_data['ssh_username']
-                ssh_password = node_data['ssh_password']
-                ssh_client = paramiko.SSHClient()
-                ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-
-                try:
-                    ssh_client.connect(node_ip, username=ssh_user, password=ssh_password)
-                except AuthenticationException:
-                    r.hset(node, 'ssh_access', False)
-                    ssh_client.close()
-                    logger.error('An error occurred connecting to: '+node)
-                    raise AuthenticationException('An error occurred connecting to: '+node)
-
-                try:
-                    project_docker_image = '/'.join(settings.DOCKER_REPO, project_id[0:13])
-                    command = 'sudo docker rmi -f '+project_docker_image
-                    ssh_client.exec_command(command)
-                    ssh_client.close()
-                    already_created.append(node_ip)
-                except SSHException:
-                    ssh_client.close()
-                    logger.error('An error occurred creating the Docker image in: '+node)
-                    raise SSHException('An error occurred creating the Docker image in: '+node)
+                already_deleted.append(node_ip)
+                threading.Thread(target=undeploy_docker_image, args=(node, node_data, project_id, r,)).start()
             else:
                 logger.error('An error occurred connecting to: '+node)
                 raise AuthenticationException('An error occurred connecting to: '+node)
+
+
+def undeploy_docker_image(node, node_data, project_id, r):
+    ssh_user = node_data['ssh_username']
+    ssh_password = node_data['ssh_password']
+    node_ip = node_data['ip']
+    ssh_client = paramiko.SSHClient()
+    ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+    try:
+        ssh_client.connect(node_ip, username=ssh_user, password=ssh_password)
+    except AuthenticationException:
+        r.hset(node, 'ssh_access', False)
+        ssh_client.close()
+        logger.error('An error occurred connecting to: '+node)
+        raise AuthenticationException('An error occurred connecting to: '+node)
+
+    try:
+        project_docker_image = os.path.join(settings.DOCKER_REPO, project_id[0:13])
+        command = 'sudo docker rmi -f '+project_docker_image
+        ssh_client.exec_command(command)
+        ssh_client.close()
+    except SSHException:
+        ssh_client.close()
+        logger.error('An error occurred creating the Docker image in: '+node)
+        raise SSHException('An error occurred creating the Docker image in: '+node)
+
 
 
 #
