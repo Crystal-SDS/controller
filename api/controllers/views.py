@@ -290,7 +290,8 @@ def start_controller_instance(instance_id, controller_name, controller_class_nam
             controller_actors[instance_id].run()
             logger.info("Controller, Started controller actor: "+controller_location)
     except Exception as e:
-        logger.error(str(e))
+        controller_actors[instance_id].stop_actor()
+        del controller_actors[instance_id]
         raise e
 
 
@@ -301,5 +302,5 @@ def stop_controller_instance(instance_id):
             del controller_actors[instance_id]
             logger.info("Controller, Stopped controller actor: " + str(instance_id))
         except Exception as e:
-            logger.error(str(e))
+            del controller_actors[instance_id]
             raise e

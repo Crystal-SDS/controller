@@ -111,8 +111,8 @@ class AbstractController(object):
                     metric_actor.detach(self.id, self.get_target())
             if self.consumer:
                 self.consumer.stop_consuming()
-        except NotFoundError as e:
-            logger.error(e)
+        except:
+            pass
         self.host.stop_actor(self.id)
 
     def compute_data(self, metric_data):
