@@ -97,14 +97,13 @@ class ControllerData(APIView):
     Upload or download a global controller.
     """
     parser_classes = (MultiPartParser, FormParser,)
-    
+
     def put(self, request, controller_id):
-        data = {}
         try:
             r = get_redis_connection()
         except RedisError:
-            return JSONResponse('Error connecting with DB', status=500)        
-        
+            return JSONResponse('Error connecting with DB', status=500)
+
         try:
             file_obj = request.FILES['file']
             make_sure_path_exists(settings.CONTROLLERS_DIR)
@@ -115,7 +114,6 @@ class ControllerData(APIView):
             return JSONResponse("Error updating data", status=status.HTTP_400_BAD_REQUEST)
         except ValueError:
             return JSONResponse("Error starting controller", status=status.HTTP_400_BAD_REQUEST)
-        
 
     def post(self, request):
         try:
@@ -253,6 +251,8 @@ def instance_detail(request, instance_id):
             return JSONResponse("Data updated", status=status.HTTP_201_CREATED)
         except DataError:
             return JSONResponse("Error updating data", status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return JSONResponse("Error starting the controller: "+str(e), status=status.HTTP_400_BAD_REQUEST)
 
     elif request.method == 'DELETE':
         try:
@@ -290,8 +290,8 @@ def start_controller_instance(instance_id, controller_name, controller_class_nam
             controller_actors[instance_id].run()
             logger.info("Controller, Started controller actor: "+controller_location)
     except Exception as e:
-        logger.error(str(e.message))
-        raise ValueError
+        logger.error(str(e))
+        raise e
 
 
 def stop_controller_instance(instance_id):
@@ -302,4 +302,4 @@ def stop_controller_instance(instance_id):
             logger.info("Controller, Stopped controller actor: " + str(instance_id))
         except Exception as e:
             logger.error(str(e))
-            raise ValueError
+            raise e

@@ -11,8 +11,8 @@ logger = logging.getLogger(__name__)
 
 class AbstractController(object):
 
-    _ask = ['get_target']
-    _tell = ['update', 'run', 'stop_actor', 'notify']
+    _ask = ['get_target', 'run']
+    _tell = ['update', 'stop_actor', 'notify']
 
     def __init__(self):
         self.rmq_user = settings.RABBITMQ_USERNAME
@@ -38,7 +38,8 @@ class AbstractController(object):
                 metric_actor = self.host.lookup(metric)
                 metric_actor.attach(self.proxy)
         except NotFoundError as e:
-            logger.error(e)
+            logger.error(str(e))
+            raise e
 
     def _connect_rmq(self):
         parameters = pika.ConnectionParameters(host=self.rmq_host,
@@ -69,6 +70,7 @@ class AbstractController(object):
             self.consumer.start_consuming()
         except Exception as e:
             logger.error(str(e))
+            raise e
 
     def notify(self, body):
         """
