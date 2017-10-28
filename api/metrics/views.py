@@ -88,7 +88,7 @@ def metric_module_list(request):
         workload_metrics = []
         for key in keys:
             metric = r.hgetall(key)
-            to_json_bools(metric, 'put', 'get', 'ssync')
+            to_json_bools(metric, 'put', 'get', 'replicate')
             workload_metrics.append(metric)
         sorted_workload_metrics = sorted(workload_metrics, key=lambda x: int(itemgetter('id')(x)))
         return JSONResponse(sorted_workload_metrics, status=status.HTTP_200_OK)
@@ -138,7 +138,7 @@ def metric_module_detail(request, metric_module_id):
     if request.method == 'GET':
         metric = r.hgetall("workload_metric:" + str(metric_id))
 
-        to_json_bools(metric, 'put', 'get', 'ssync')
+        to_json_bools(metric, 'put', 'get', 'replicate')
         return JSONResponse(metric, status=status.HTTP_200_OK)
 
     elif request.method == 'POST':
@@ -150,7 +150,7 @@ def metric_module_detail(request, metric_module_id):
         redis_data = r.hgetall('workload_metric:' + str(metric_id))
         redis_data.update(data)
         data = redis_data
-        to_json_bools(data, 'put', 'get', 'ssync')
+        to_json_bools(data, 'put', 'get', 'replicate')
 
         if 'metric_name' not in data:
             metric_name = r.hget('workload_metric:' + str(metric_id), 'metric_name').split('.')[0]
