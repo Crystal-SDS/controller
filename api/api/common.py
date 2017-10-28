@@ -162,15 +162,13 @@ def rsync_dir_with_nodes(directory):
             if not node['ssh_access']:
                 raise FileSynchronizationException("SSH credentials missing. Please, set the credentials for this "+node['type']+" node: "+node['name'])
 
-            # Directory is only synchronized if node status is UP
-            if calendar.timegm(time.gmtime()) - int(float(node['last_ping'])) <= NODE_STATUS_THRESHOLD:
-                # The basename of the path is not needed because it will be the same as source dir
-                logger.info("Rsync - pushing to "+node['type']+":"+node['name'])
-                dest_directory = os.path.dirname(directory)
-                data = {'directory': directory, 'dest_directory': dest_directory, 'node_ip': node['ip'],
-                        'ssh_username': node['ssh_username'], 'ssh_password': node['ssh_password']}
+            # The basename of the path is not needed because it will be the same as source dir
+            logger.info("Rsync - pushing to "+node['type']+":"+node['name'])
+            dest_directory = os.path.dirname(directory)
+            data = {'directory': directory, 'dest_directory': dest_directory, 'node_ip': node['ip'],
+                    'ssh_username': node['ssh_username'], 'ssh_password': node['ssh_password']}
 
-                threading.Thread(target=rsync, args=(node, data)).start()
+            threading.Thread(target=rsync, args=(node, data)).start()
 
 
 def rsync(node, data):

@@ -273,13 +273,6 @@ class MetricModuleData(APIView):
 
             r.hmset('workload_metric:' + str(workload_metric_id), data)
 
-            if data['enabled']:
-                metric_name = data['metric_name'].split('.')[0]
-                if data['put']:
-                    start_metric('put_'+metric_name)
-                if data['get']:
-                    start_metric('get_'+metric_name)
-
             return JSONResponse(data, status=status.HTTP_201_CREATED)
 
         except DataError:
