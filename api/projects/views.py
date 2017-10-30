@@ -292,3 +292,16 @@ def projects_groups_detail(request, group_id, project_id):
         return JSONResponse('Tenant ' + str(project_id) + ' has been deleted from group with the id: ' + str(group_id),
                             status=status.HTTP_204_NO_CONTENT)
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+@csrf_exempt
+def project_users_list(request, project_id):
+    
+    try:
+        r = get_redis_connection()
+    except RedisError:
+        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+     # TODO 
+    return JSONResponse([], status=status.HTTP_200_OK)
+
+  

@@ -537,3 +537,19 @@ def zone_detail(request, zone_id):
             return JSONResponse("Error updating zone data", status=status.HTTP_400_BAD_REQUEST)
 
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+
+# Containers
+@csrf_exempt
+def containers_list(request, project_id):
+    
+    try:
+        r = get_redis_connection()
+    except RedisError:
+        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+     # TODO 
+    return JSONResponse([], status=status.HTTP_200_OK)
+
+    
+    

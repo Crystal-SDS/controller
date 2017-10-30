@@ -11,5 +11,8 @@ urlpatterns = [
     # Crystal Projects
     url(r'^$', views.projects),
     url(r'^(?P<project_id>\w+)/?$', views.projects),
+    
+    # Crystal Project Users
+    url(r'^(?P<project_id>\w+)/users/?$', views.project_users_list),
 
 ]

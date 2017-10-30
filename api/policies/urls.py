@@ -13,7 +13,7 @@ urlpatterns = [
 
     # Access control
     url(r'^acl/?$', views.access_control),
-    url(r'^acl/(?P<policy_id>[^/]+)/?$', views.static_policy_detail),
+    url(r'^acl/(?P<policy_id>[^/]+)/?$', views.access_control_detail),
 
     # Object Types
     url(r'^object_type/?$', views.object_type_list),
