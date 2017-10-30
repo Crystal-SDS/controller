@@ -26,5 +26,8 @@ urlpatterns = [
     url(r'^regions/(?P<region_id>[^/]+)/?$', views.region_detail),
     url(r'^zones/?$', views.zones),
     url(r'^zones/(?P<zone_id>[^/]+)/?$', views.zone_detail),
-    
+
+    # Containers
+    url(r'^(?P<project_id>[^/]+)/containers/?$', views.containers_list),
+
 ]

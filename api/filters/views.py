@@ -266,9 +266,9 @@ def filter_deploy(request, filter_id, project_id, container=None, swift_object=N
 
         # TODO: Try to improve this part
         if container and swift_object:
-            target = project_id + "/" + container + "/" + swift_object
+            target = os.path.join(project_id, container, swift_object)
         elif container:
-            target = project_id + "/" + container
+            target = os.path.join(project_id, container)
         else:
             target = project_id
 
@@ -421,7 +421,7 @@ def dependency_deploy(request, dependency_id, project_id):
             content_length = None
             response = dict()
             token = get_token_connection(request)
-            url = settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/AUTH_" + project_id
+            url = settings.SWIFT_URL + "/AUTH_" + project_id
             swift_client.put_object(url, token, 'dependency', dependency["name"], dependency_file, content_length,
                                     None, None, "application/octet-stream", metadata, None, None, None, response)
         except ClientException:
@@ -477,7 +477,7 @@ def dependency_undeploy(request, dependency_id, project_id):
 
         try:
             token = get_token_connection(request)
-            url = settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/AUTH_" + project_id
+            url = settings.SWIFT_URL + "/AUTH_" + project_id
             swift_response = dict()
             swift_client.delete_object(url, token, 'dependency', dependency["name"], None, None, None, None, swift_response)
 
@@ -513,7 +513,7 @@ def set_filter(r, target, filter_data, parameters, token):
                 projects_crystal_enabled = r.lrange('projects_crystal_enabled', 0, -1)
                 for project_id in projects_crystal_enabled:
                     swift_response = dict()
-                    url = settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/AUTH_" + project_id
+                    url = settings.SWIFT_URL + "/AUTH_" + project_id
                     storlet_file = open(filter_data["path"], 'r')
                     swift_client.put_object(url, token, "storlet",
                                             filter_data["filter_name"],
@@ -522,7 +522,7 @@ def set_filter(r, target, filter_data, parameters, token):
                                             metadata, None, None, None, swift_response)
             else:
                 swift_response = dict()
-                url = settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/AUTH_" + project_id
+                url = settings.SWIFT_URL + "/AUTH_" + project_id
                 storlet_file = open(filter_data["path"], 'r')
                 swift_client.put_object(url, token, "storlet",
                                         filter_data["filter_name"],
@@ -567,7 +567,7 @@ def unset_filter(r, target, filter_data, token):
         try:
             project_id = target.split('/', 3)[0]
             swift_response = dict()
-            url = settings.SWIFT_URL + settings.SWIFT_API_VERSION + "/AUTH_" + project_id
+            url = settings.SWIFT_URL + "/AUTH_" + project_id
             swift_client.delete_object(url, token, "storlet", filter_data["filter_name"], None, None, None, None, swift_response)
         except ClientException as e:
             print swift_response + str(e)

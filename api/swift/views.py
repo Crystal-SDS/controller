@@ -6,12 +6,13 @@ from redis.exceptions import RedisError
 from rest_framework import status
 from rest_framework.exceptions import ParseError
 from rest_framework.parsers import JSONParser
+from swiftclient import client as swift_client
 from operator import itemgetter
 import json
 import logging
 import requests
 import paramiko
-from api.common import JSONResponse, get_redis_connection, to_json_bools
+from api.common import JSONResponse, get_redis_connection, to_json_bools, get_token_connection
 from api.exceptions import FileSynchronizationException
 
 
@@ -536,4 +537,20 @@ def zone_detail(request, zone_id):
         except RedisError:
             return JSONResponse("Error updating zone data", status=status.HTTP_400_BAD_REQUEST)
 
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+
+# Containers
+@csrf_exempt
+def containers_list(request, project_id):
+    if request.method == 'GET':
+        token = get_token_connection(request)
+        url = settings.SWIFT_URL + "/AUTH_" + project_id
+
+        _, containers = swift_client.get_account(url, token)
+        for c_id in reversed(range(len(containers))):
+            if containers[c_id]['name'] in ('dependency', 'storlet'):
+                del containers[c_id]
+
+        return JSONResponse(containers, status=status.HTTP_200_OK)
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)

@@ -53,7 +53,7 @@ def projects(request, project_id=None):
         try:
             # Set Manager as admin of the Crystal Project
             keystone_client = get_keystone_admin_auth()
-            admin_role_id, reseller_admin_role_id, admin_user_id = get_admin_role_user_ids()
+            admin_role_id, reseller_admin_role_id, admin_user_id = get_admin_role_user_ids(keystone_client)
             keystone_client.roles.grant(role=admin_role_id, user=admin_user_id, project=project_id)
             keystone_client.roles.grant(role=reseller_admin_role_id, user=admin_user_id, project=project_id)
 
@@ -88,7 +88,7 @@ def projects(request, project_id=None):
 
             # Delete Manager as admin of the Crystal Project
             keystone_client = get_keystone_admin_auth()
-            admin_role_id, reseller_admin_role_id, admin_user_id = get_admin_role_user_ids()
+            admin_role_id, reseller_admin_role_id, admin_user_id = get_admin_role_user_ids(keystone_client)
             try:
                 keystone_client.roles.revoke(role=admin_role_id, user=admin_user_id, project=project_id)
                 keystone_client.roles.revoke(role=reseller_admin_role_id, user=admin_user_id, project=project_id)
@@ -197,7 +197,6 @@ def undeploy_docker_image(node, node_data, project_id, r):
         raise SSHException('An error occurred creating the Docker image in: '+node)
 
 
-
 #
 # Crystal Projects groups
 #
@@ -291,4 +290,35 @@ def projects_groups_detail(request, group_id, project_id):
         r.lrem("project_group:" + str(group_id), str(project_id), 1)
         return JSONResponse('Tenant ' + str(project_id) + ' has been deleted from group with the id: ' + str(group_id),
                             status=status.HTTP_204_NO_CONTENT)
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+
+@csrf_exempt
+def project_users_list(request, project_id):
+    if request.method == 'GET':
+        keystone_client = get_keystone_admin_auth()
+        users = keystone_client.users.list()
+        roles = keystone_client.roles.list()
+
+        for role in roles:
+            if role.name == 'user':
+                user_role_id = role.id
+                break
+        role_assignments = keystone_client.role_assignments.list()
+
+        valid_users = list()
+        for ra in role_assignments:
+            if 'project' in ra.scope and ra.scope['project']['id'] == project_id \
+               and ra.role['id'] == user_role_id:
+                valid_users.append(ra.user['id'])
+
+        user_list = list()
+        for user in users:
+            if user.id in valid_users:
+                user_data = {}
+                user_data['id'] = user.id
+                user_data['name'] = user.name
+                user_list.append(user_data)
+
+        return JSONResponse(user_list, status=status.HTTP_200_OK)
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)

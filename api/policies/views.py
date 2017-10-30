@@ -498,6 +498,7 @@ def access_control(request):
                 
             keys = r.hgetall('access_controls:project_id')
             for key in keys:
+                print keys[key]
                 policy = json.loads(keys[key])
                 policy['id'] = "access_controls:project_id:" + key
                 to_json_bools(policy, 'write', 'read')
@@ -535,6 +536,29 @@ def access_control_detail(request, policy_id):
     except RedisError:
         return JSONResponse('Error connecting with DB', status=500)
     
+    if request.method == 'GET':
+        
+        try:
+            if policy_id.startswith('access_controls:project_id:'):
+                key = str(policy_id.split(':')[2])
+                if key in r.hgetall('access_controls:project_id'):
+                    acl = (r.hgetall('access_controls:project_id'))[key]
+                    data = json.loads(acl)
+                    to_json_bools(data, 'write', 'read')
+                    return JSONResponse(data, status=status.HTTP_200_OK)                
+                else:
+                    return JSONResponse("ACL not found.", status=status.HTTP_404_NOT_FOUND)
+            else:
+                key = 'access_control:' + policy_id
+                if r.keys(key):
+                    data = r.hgetall(key)
+                    to_json_bools(data, 'write', 'read')
+                    return JSONResponse(data, status=status.HTTP_200_OK)                
+                else:
+                    return JSONResponse("ACL not found.", status=status.HTTP_404_NOT_FOUND)       
+        except DataError:
+            return JSONResponse("Error retrieving policy", status=400)
+    
     if request.method == 'DELETE':
         acl = [] 
         try:
@@ -544,30 +568,32 @@ def access_control_detail(request, policy_id):
                     r.delete('access_controls:id')
             else:
                 r.delete('access_control:' + policy_id)
-                print 'access_control:' + policy_id
         except DataError:
             return JSONResponse("Error retrieving policy", status=400)
         return JSONResponse(acl, status=status.HTTP_200_OK)
-
-
-    if request.method == 'POST':
+    
+   
+    if request.method == 'PUT':
         data = JSONParser().parse(request)
         try:
-            
-            if data['container_id']:
-                key = 'access_control:' + data['project_id'] + ':' + data['container_id']
-                r.hmset(key, data)
+            if policy_id.startswith('access_controls:project_id:'):
+                key = str(policy_id.split(':')[2])
+                if key in r.hgetall('access_controls:project_id'):
+                    r.hset('access_controls:project_id', key, data)
+                    return JSONResponse('Data updated', status=status.HTTP_201_CREATED)
+                else:
+                    return JSONResponse("ACL not found.", status=status.HTTP_404_NOT_FOUND)
             else:
-                key = str(r.incr('access_controls:id'))
-                r.hset('access_controls:project_id', key, json.dumps(data))
-                
-            return JSONResponse("Access control policy created", status=201)
+                key = 'access_control:' + policy_id
+                if r.keys(key):
+                    r.hmset(key, data)
+                    return JSONResponse('Data updated', status=status.HTTP_201_CREATED)
+                else:
+                    return JSONResponse("ACL not found.", status=status.HTTP_404_NOT_FOUND)
         except DataError:
             return JSONResponse("Error creating policy", status=400)
 
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
-
-
 
 
 #
