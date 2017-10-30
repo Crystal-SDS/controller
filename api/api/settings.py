@@ -149,8 +149,7 @@ KEYSTONE_ADMIN_URL = 'http://localhost:35357/v3'
 KEYSTONE_URL = 'http://localhost:5000/v3'
 
 # Swift
-SWIFT_URL = 'http://localhost:8080/'
-SWIFT_API_VERSION = 'v1'
+SWIFT_URL = 'http://localhost:8080/v1'
 
 # Redis
 REDIS_HOST = 'localhost'

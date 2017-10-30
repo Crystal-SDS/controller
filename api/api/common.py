@@ -124,8 +124,8 @@ def get_swift_url_and_token(project_name):
                                  admin_passwd, auth_version="3")
 
 
-def get_admin_role_user_ids():
-    keystone_client = get_keystone_admin_auth()
+def get_admin_role_user_ids(keystone_client):
+    # keystone_client = get_keystone_admin_auth()
     roles = keystone_client.roles.list()
     for role in roles:
         if role.name == 'admin':
