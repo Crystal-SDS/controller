@@ -498,9 +498,8 @@ def access_control(request):
                 
             keys = r.hgetall('access_controls:project_id')
             for key in keys:
-                print keys[key]
                 policy = json.loads(keys[key])
-                policy['id'] = "access_controls:project_id:" + key
+                policy['id'] = "access_controls:project_id:" + str(key)
                 to_json_bools(policy, 'write', 'read')
                 acl.append(policy)
         except DataError:
@@ -572,14 +571,15 @@ def access_control_detail(request, policy_id):
             return JSONResponse("Error retrieving policy", status=400)
         return JSONResponse(acl, status=status.HTTP_200_OK)
     
-   
     if request.method == 'PUT':
         data = JSONParser().parse(request)
         try:
             if policy_id.startswith('access_controls:project_id:'):
                 key = str(policy_id.split(':')[2])
                 if key in r.hgetall('access_controls:project_id'):
-                    r.hset('access_controls:project_id', key, data)
+                    policy = json.loads(r.hgetall('access_controls:project_id')[key])
+                    policy.update(data)
+                    r.hset('access_controls:project_id', key, json.dumps(policy))
                     return JSONResponse('Data updated', status=status.HTTP_201_CREATED)
                 else:
                     return JSONResponse("ACL not found.", status=status.HTTP_404_NOT_FOUND)
