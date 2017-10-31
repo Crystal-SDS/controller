@@ -559,11 +559,13 @@ def access_control_detail(request, policy_id):
             r.hdel("acl:" + str(target_id), acl_id)
         except DataError:
             return JSONResponse("Error retrieving policy", status=400)
+
         return JSONResponse("Access policy correctly removed", status=status.HTTP_200_OK)
 
     if request.method == 'PUT':
         data = JSONParser().parse(request)
         try:
+
             policy_redis = r.hget("acl:" + str(target_id), acl_id)
             policy = json.loads(policy_redis)
             policy.update(data)
