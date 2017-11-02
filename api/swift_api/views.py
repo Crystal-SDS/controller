@@ -6,9 +6,13 @@ from redis.exceptions import RedisError
 from rest_framework import status
 from rest_framework.exceptions import ParseError
 from rest_framework.parsers import JSONParser
-from swiftclient import client as swift_client
+from swiftclient import client as swift_client  
+from swift.common.ring import RingBuilder
 from operator import itemgetter
+import os
+import glob
 import json
+import math
 import logging
 import requests
 import paramiko
@@ -227,8 +231,52 @@ def deploy_storage_policy(request, storage_policy_id):
 
 @csrf_exempt
 def load_swift_policies(request):
+    
+    try:
+        r = get_redis_connection()
+    except RedisError:
+        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
     if request.method == "POST":
+        
+        files = glob.glob('/etc/swift/object.builder*')
+              
+        
+        try:
+            
+            for file in files:
+                builder = RingBuilder.load(file)
+                if '-' in file:
+                    id = file.split('-')[-1]
+                    key = 'storage-policy:' + id
+                    if id > r.get('storage-policies:id'):
+                        r.set('storage-policies:id', id)
+                else:
+                    key = 'storage-policy:0'
+                
+#                 os.system("sed -n -e '/\[" + key + "\]/,/^[[:space:]]*$/ p' /etc/swift/swift.conf | grep -Ev '(#.*$)|(^$)'")
+                
+                devices = []
+                for device in builder.devs:
+                    devices.append(device['ip'] + ':' + device['device'])
+                
+                data = {'name': 'TODO',
+                        'default': 'False', 
+                        'deprecated': 'False', 
+                        'time': '1', 
+                        'devices': json.dumps(devices), 
+                        'deployed': 'True', 
+                        'policy_type': 'replication',
+                        'partition_power': int(math.log(builder.parts, 2)),
+                        'replicas': int(builder.replicas)
+                        }
+                    
+                r.hmset(key, data)
+                    
+            
+        except RedisError:
+                return JSONResponse('Policies could not be loaded', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         return JSONResponse('Policies loaded correctly', status=status.HTTP_200_OK)
 
