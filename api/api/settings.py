@@ -49,9 +49,6 @@ INSTALLED_APPS = (
     'django.contrib.staticfiles',
     'bootstrap3',
     'rest_framework',
-    'filters',
-    'swift',
-    'controller'
 )
 
 MIDDLEWARE_CLASSES = (
@@ -102,12 +99,12 @@ LOGGING = {
     'version': 1,
     'formatters': {
         'standard_django': {
-            '()': 'api.common_utils.LoggingColorsDjango',
+            '()': 'api.common.LoggingColorsDjango',
             'format': '[%(asctime)s]"%(levelname)s" %(message)s',
             'datefmt': '%d/%b/%Y %H:%M:%S',
         },
         'standard_crystal': {
-            '()': 'api.common_utils.LoggingColorsCrystal',
+            '()': 'api.common.LoggingColorsCrystal',
             'format': '[%(asctime)s]"%(levelname)s" %(name)s: %(message)s',
             'datefmt': '%d/%b/%Y %H:%M:%S',
         },
