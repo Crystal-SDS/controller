@@ -1,10 +1,8 @@
 import logging
-from datetime import datetime
-
 from keystoneauth1 import exceptions
 from rest_framework import status
 from django.utils import timezone
-from api.common_utils import JSONResponse, get_keystone_admin_auth
+from api.common import JSONResponse, get_keystone_admin_auth
 
 logger = logging.getLogger(__name__)
 
