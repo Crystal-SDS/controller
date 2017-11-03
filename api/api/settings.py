@@ -22,6 +22,8 @@ NATIVE_FILTERS_DIR = os.path.join('/opt', 'crystal', 'native_filters')
 STORLET_FILTERS_DIR = os.path.join('/opt', 'crystal', 'storlet_filters')
 DEPENDENCY_DIR = os.path.join('/opt', 'crystal', 'dependencies')
 CONTROLLERS_DIR = os.path.join('/opt', 'crystal', 'controllers')
+SWIFT_CFG_TMP_DIR = os.path.join('/opt', 'crystal', 'swift', 'tmp')
+SWIFT_CFG_DEPLOY_DIR = os.path.join('/opt', 'crystal', 'swift', 'deploy')
 
 NATIVE_FILTER_KEYS = ('id', 'filter_name', 'filter_type', 'language', 'dsl_name', 'dependencies', 'main', 'put', 'get', 'post', 'head', 'delete', 'valid_parameters', 'execution_server', 'reverse', 'path')
 STORLET_FILTER_KEYS = ('id', 'filter_name', 'filter_type', 'language', 'dsl_name', 'interface_version', 'dependencies', 'main', 'put', 'get', 'valid_parameters', 'execution_server', 'reverse', 'path')
