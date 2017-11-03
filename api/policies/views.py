@@ -15,7 +15,7 @@ import os
 import re
 import dsl_parser
 from api.common import JSONResponse, get_redis_connection, get_project_list, \
-    get_token_connection, create_local_host, rule_actors
+    get_token_connection, create_local_host, rule_actors, to_json_bools
 from api.exceptions import SwiftClientError, StorletNotFoundException, \
     ProjectNotFound, ProjectNotCrystalEnabled
 from filters.views import set_filter, unset_filter
@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 @csrf_exempt
 def policy_list(request):
     """
-    List all policies (sorted by execution_order). Deploy new policies.
+    List all policies (sorted by execution_order). Deploy new policies via DSL.
     """
     try:
         r = get_redis_connection()
@@ -41,14 +41,24 @@ def policy_list(request):
             for it in keys:
                 for key, value in r.hgetall(it).items():
                     policy = json.loads(value)
+                    filter = r.hgetall('filter:' + str(policy['dsl_name']))
+                    to_json_bools(filter, 'get', 'put', 'post', 'head', 'delete')
                     target_id = it.replace('pipeline:', '')
                     policies.append({'id': key, 'target_id': target_id,
                                      'target_name': project_list[target_id.split(':')[0]],
-                                     'filter_name': policy['filter_name'], 'object_type': policy['object_type'],
+                                     'filter_name': policy['filter_name'],
+                                     'object_type': policy['object_type'],
                                      'object_size': policy['object_size'],
+                                     'object_tag': policy['object_tag'],
                                      'execution_server': policy['execution_server'],
-                                     'execution_server_reverse': policy['execution_server_reverse'],
-                                     'execution_order': policy['execution_order'], 'params': policy['params']})
+                                     'reverse': policy['reverse'],
+                                     'execution_order': policy['execution_order'],
+                                     'params': policy['params'],
+                                     'put': filter['put'],
+                                     'get': filter['get'],
+                                     'post': filter['post'],
+                                     'head': filter['head'],
+                                     'delete': filter['delete']})
             sorted_policies = sorted(policies, key=lambda x: int(itemgetter('execution_order')(x)))
 
             return JSONResponse(sorted_policies, status=status.HTTP_200_OK)
@@ -67,7 +77,6 @@ def policy_list(request):
     if request.method == 'POST':
         # New Policy
         rules_string = request.body.splitlines()
-
         for rule_string in rules_string:
             #
             # Rules improved:
@@ -80,7 +89,8 @@ def policy_list(request):
                 condition_list, rule_parsed = dsl_parser.parse(rule_string)
                 if condition_list:
                     # Dynamic Rule
-                    deploy_dynamic_policy(r, rule_string, rule_parsed)
+                    http_host = request.META['HTTP_HOST']
+                    deploy_dynamic_policy(r, rule_string, rule_parsed, http_host)
                 else:
                     # Static Rule
                     deploy_static_policy(request, r, rule_parsed)
@@ -97,12 +107,63 @@ def policy_list(request):
                 return JSONResponse('The project is not Crystal Enabled. Verify it in the Projects panel.',
                                     status=status.HTTP_404_NOT_FOUND)
             except Exception:
-                # print("The rule: " + rule_string + " cannot be parsed")
-                # print("Exception message", e)
-                return JSONResponse('Please, review the rule, register the dsl filter and start the workload '
+                return JSONResponse('Please, review the rule, and start the related workload '
                                     'metric before creating a new policy', status=status.HTTP_401_UNAUTHORIZED)
 
         return JSONResponse('Policies added successfully!', status=status.HTTP_201_CREATED)
+
+    if request.method == 'PUT':
+        # Dynamic Policy From form
+        http_host = request.META['HTTP_HOST']
+        data = JSONParser().parse(request)
+
+        policy_id = r.incr("policies:id")
+        rule_id = 'policy:' + str(policy_id)
+
+        action = data['action']
+        project_id = data['project_id']
+        container = data['container_id']
+
+        if project_id == 'global':
+            project_name = 'Global'
+        else:
+            project_list = get_project_list()
+            project_name = project_list[project_id]
+
+        if container:
+            target_id = os.path.join(project_id, container)
+            target_name = os.path.join(project_name, container)
+        else:
+            target_id = project_id
+            target_name = project_name
+
+        if data['transient']:
+            location = settings.RULE_TRANSIENT_MODULE
+        else:
+            location = settings.RULE_MODULE
+        policy_location = os.path.join(settings.PYACTOR_URL, location, str(rule_id))
+
+        policy_data = {"id": policy_id,
+                       "target_id": target_id,
+                       "target_name": target_name,
+                       "filter": data['filter_id'],
+                       "parameters": data['params'],
+                       "action": action,
+                       "condition": data['workload_metric']+' '+data['condition'],
+                       "object_type": data['object_type'],
+                       "object_size": data['object_size'],
+                       "object_tag": data['object_tag'],
+                       "transient": data['transient'],
+                       "policy_location": policy_location,
+                       "status": 'Alive'}
+
+        start_dynamic_policy_actor(policy_data, http_host)
+
+        try:
+            r.hmset(rule_id, policy_data)
+            return JSONResponse("Policy inserted correctly", status=status.HTTP_201_CREATED)
+        except RedisError:
+            return JSONResponse("Error inserting policy", status=status.HTTP_400_BAD_REQUEST)
 
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
@@ -129,6 +190,13 @@ def static_policy_detail(request, policy_id):
         project_list['global'] = 'Global'
         policy_redis = r.hget("pipeline:" + str(target), policy)
         data = json.loads(policy_redis)
+        filter = r.hgetall('filter:' + str(data['dsl_name']))
+        to_json_bools(filter, 'get', 'put', 'post', 'head', 'delete')
+        data['get'] = filter['get']
+        data['put'] = filter['put']
+        data['post'] = filter['post']
+        data['head'] = filter['head']
+        data['delete'] = filter['delete']
         data["id"] = policy
         data["target_id"] = target
         data["target_name"] = project_list[target.split(':')[0]]
@@ -140,6 +208,7 @@ def static_policy_detail(request, policy_id):
             policy_redis = r.hget("pipeline:" + str(target), policy)
             json_data = json.loads(policy_redis)
             json_data.update(data)
+            json_data['execution_order'] = int(json_data['execution_order'])
             r.hset("pipeline:" + str(target), policy, json.dumps(json_data))
             return JSONResponse("Data updated", status=201)
         except DataError:
@@ -163,7 +232,6 @@ def deploy_static_policy(request, r, parsed_rule):
     token = get_token_connection(request)
     container = None
     rules_to_parse = dict()
-    # TODO: get only the Crystal enabled projects
     projects_crystal_enabled = r.lrange('projects_crystal_enabled', 0, -1)
     project_list = get_project_list()
 
@@ -195,10 +263,10 @@ def deploy_static_policy(request, r, parsed_rule):
     for target in rules_to_parse.keys():
         for action_info in rules_to_parse[target].action_list:
             logger.info("Static policy, target rule: " + str(action_info))
-            dynamic_filter = r.hgetall("dsl_filter:" + str(action_info.filter))
-            filter_data = r.hgetall("filter:" + dynamic_filter["identifier"])
 
-            if not filter_data:
+            cfilter = r.hgetall("filter:"+str(action_info.filter))
+
+            if not cfilter:
                 return JSONResponse("Filter does not exist", status=status.HTTP_404_NOT_FOUND)
 
             if action_info.action == "SET":
@@ -211,6 +279,7 @@ def deploy_static_policy(request, r, parsed_rule):
                     "policy_id": policy_id,
                     "object_type": "",
                     "object_size": "",
+                    "object_tag": "",
                     "execution_order": policy_id,
                     "params": "",
                     "callable": False
@@ -231,71 +300,58 @@ def deploy_static_policy(request, r, parsed_rule):
                     policy_data["callable"] = True
 
                 # Deploy (an exception is raised if something goes wrong)
-                set_filter(r, target, filter_data, policy_data, token)
+                set_filter(r, target, cfilter, policy_data, token)
 
             elif action_info.action == "DELETE":
-                unset_filter(r, target, filter_data, token)
+                unset_filter(r, target, cfilter, token)
 
 
 #
 # Dynamic Policies
 #
-def load_policies():
-    try:
-        r = get_redis_connection()
-    except RedisError:
-        return JSONResponse('Error connecting with DB', status=500)
-
-    dynamic_policies = r.keys("policy:*")
-
-    if dynamic_policies:
-        logger.info("Starting dynamic rules stored in redis")
-
-    host = create_local_host()
-    for policy in dynamic_policies:
-        policy_data = r.hgetall(policy)
-
-        if policy_data['alive'] == 'True':
-            _, rule_parsed = dsl_parser.parse(policy_data['policy_description'])
-            target = rule_parsed.target[0][1]  # Tenant ID or tenant+container
-            for action_info in rule_parsed.action_list:
-                if action_info.transient:
-                    logger.info("Transient rule: " + policy_data['policy_description'])
-                    rule_actors[policy] = host.spawn(str(policy),
-                                                     settings.RULE_TRANSIENT_MODULE,
-                                                     [rule_parsed, action_info, target])
-                    rule_actors[policy].start_rule()
-                else:
-                    logger.info("Rule: "+policy_data['policy_description'])
-                    rule_actors[policy] = host.spawn(str(policy),
-                                                     settings.RULE_MODULE,
-                                                     [rule_parsed, action_info, target])
-                    rule_actors[policy].start_rule()
-
-
 @csrf_exempt
 def dynamic_policy_detail(request, policy_id):
     """
     Delete a dynamic policy.
     """
-
+    http_host = request.META['HTTP_HOST']
     try:
         r = get_redis_connection()
     except RedisError:
         return JSONResponse('Error connecting with DB', status=500)
 
-    if request.method == 'DELETE':
-        create_local_host()
+    key = 'policy:' + str(policy_id)
 
+    if request.method == 'PUT':
+        data = JSONParser().parse(request)
+        try:
+            if data['status'] == 'Stopped':
+                policy_id = int(policy_id)
+                if policy_id in rule_actors:
+                    rule_actors[policy_id].stop_actor()
+                    del rule_actors[policy_id]
+            else:
+                policy_data = r.hgetall(key)
+                try:
+                    start_dynamic_policy_actor(policy_data, http_host)
+                except Exception as e:
+                    return JSONResponse(str(e), status=400)
+
+            r.hmset(key, data)
+            return JSONResponse("Data updated", status=201)
+        except DataError:
+            return JSONResponse("Error updating data", status=400)
+
+    elif request.method == 'DELETE':
         try:
             policy_id = int(policy_id)
             if policy_id in rule_actors:
-                rule_actors[int(policy_id)].stop_actor()
-                del rule_actors[int(policy_id)]
+                rule_actors[policy_id].stop_actor()
+                del rule_actors[policy_id]
         except:
             logger.info("Error stopping the rule actor: "+str(policy_id))
 
-        r.delete('policy:' + str(policy_id))
+        r.delete(key)
         policies_ids = r.keys('policy:*')
         pipelines_ids = r.keys('pipeline:*')
         if len(policies_ids) == 0 and len(pipelines_ids) == 0:
@@ -305,8 +361,7 @@ def dynamic_policy_detail(request, policy_id):
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
 
 
-def deploy_dynamic_policy(r, rule_string, parsed_rule):
-    host = create_local_host()
+def deploy_dynamic_policy(r, rule_string, parsed_rule, http_host):
     rules_to_parse = dict()
     project = None
     container = None
@@ -359,20 +414,12 @@ def deploy_dynamic_policy(r, rule_string, parsed_rule):
             rule_id = 'policy:' + str(policy_id)
 
             if action_info.transient:
-                # print 'Transient rule:', parsed_rule
-                rule_actors[policy_id] = host.spawn(rule_id,
-                                                    settings.RULE_TRANSIENT_MODULE,
-                                                    [rules_to_parse[target], action_info, target_id, target_name])
+                transient = True
                 location = settings.RULE_TRANSIENT_MODULE
-                is_transient = True
             else:
-                # print 'Rule:', parsed_rule
-                rule_actors[policy_id] = host.spawn(rule_id, settings.RULE_MODULE,
-                                                    [rules_to_parse[target], action_info, target_id, target_name])
+                transient = False
                 location = settings.RULE_MODULE
-                is_transient = False
-
-                rule_actors[policy_id].start_rule()
+            policy_location = os.path.join(settings.PYACTOR_URL, location, str(rule_id))
 
             # FIXME Should we recreate a static rule for each target and action??
             condition_re = re.compile(r'.* (WHEN .*) DO .*', re.M | re.I)
@@ -380,25 +427,156 @@ def deploy_dynamic_policy(r, rule_string, parsed_rule):
 
             object_type = ""
             object_size = ""
+            object_tag = ""
             if parsed_rule.object_list:
                 if parsed_rule.object_list.object_type:
                     object_type = parsed_rule.object_list.object_type.object_value
+                if parsed_rule.object_list.object_tag:
+                    object_type = parsed_rule.object_list.object_tag.object_value
                 if parsed_rule.object_list.object_size:
                     object_size = [parsed_rule.object_list.object_size.operand,
                                    parsed_rule.object_list.object_size.object_value]
 
+            policy_data = {"id": policy_id,
+                           "target_id": target_id,
+                           "target_name": target_name,
+                           "filter": action_info.filter,
+                           "parameters": action_info.params,
+                           "action": action_info.action,
+                           "condition": condition_str.replace('WHEN ', ''),
+                           "object_type": object_type,
+                           "object_size": object_size,
+                           "object_tag": object_tag,
+                           "transient": transient,
+                           "policy_location": policy_location,
+                           "status": 'Alive'}
+
+            start_dynamic_policy_actor(policy_data, http_host)
+
             # Add policy into Redis
-            policy_location = os.path.join(settings.PYACTOR_URL, location, str(rule_id))
-            r.hmset('policy:' + str(policy_id), {"id": policy_id,
-                                                 "policy": rule_string,
-                                                 "target": target_name,
-                                                 "filter": action_info[1],
-                                                 "condition": condition_str.replace('WHEN ', ''),
-                                                 "object_type": object_type,
-                                                 "object_size": object_size,
-                                                 "transient": is_transient,
-                                                 "policy_location": policy_location,
-                                                 "alive": True})
+            r.hmset('policy:' + str(policy_id), policy_data)
+
+
+def start_dynamic_policy_actor(policy_data, http_host):
+    to_json_bools(policy_data, 'transient')
+    host = create_local_host()
+    transient = policy_data["transient"]
+    policy_id = int(policy_data["id"])
+    rule_id = 'policy:' + str(policy_id)
+    if transient:
+        rule_actors[policy_id] = host.spawn(rule_id, settings.RULE_TRANSIENT_MODULE, policy_data, http_host)
+    else:
+        rule_actors[policy_id] = host.spawn(rule_id, settings.RULE_MODULE, policy_data, http_host)
+    try:
+        rule_actors[policy_id].start_rule()
+    except Exception as e:
+        rule_actors[policy_id].stop_actor()
+        del rule_actors[policy_id]
+        raise ValueError("An error occurred starting the policy actor: "+str(e))
+
+
+#
+# Access Control
+#
+@csrf_exempt
+def access_control(request):
+
+    try:
+        r = get_redis_connection()
+    except RedisError:
+        return JSONResponse('Error connecting with DB', status=500)
+
+    if request.method == 'GET':
+        acl = []
+        project_list = get_project_list()
+        try:
+            keys = r.keys('acl:*')
+            for it in keys:
+                for key, value in r.hgetall(it).items():
+                    policy = json.loads(value)
+                    to_json_bools(policy, 'write', 'read')
+                    target_id = it.replace('acl:', '')
+                    p = {'id': key,
+                         'target_id': target_id,
+                         'target_name': project_list[target_id.split(':')[0]]+'/'+target_id.split(':')[1]}
+                    p.update(policy)
+                    acl.append(p)
+
+        except DataError:
+            return JSONResponse("Error retrieving policy", status=400)
+        return JSONResponse(acl, status=status.HTTP_200_OK)
+
+    if request.method == 'POST':
+        data = JSONParser().parse(request)
+        try:
+            key = 'acl:' + data['project_id'] + ':' + data['container_id']
+            acl_id = str(r.incr('acls:id'))
+            data.pop('container_id')
+            data.pop('project_id')
+            r.hset(key, acl_id, json.dumps(data))
+
+            return JSONResponse("Access control policy created", status=201)
+        except DataError:
+            return JSONResponse("Error creating policy", status=400)
+
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
+
+
+@csrf_exempt
+def access_control_detail(request, policy_id):
+    """
+    Delete a access control.
+    """
+    try:
+        r = get_redis_connection()
+    except RedisError:
+        return JSONResponse('Error connecting with DB', status=500)
+
+    target_id = str(policy_id).split(':')[:-1]
+    target_id = ':'.join(target_id)
+    acl_id = str(policy_id).split(':')[-1]
+
+    if request.method == 'GET':
+        try:
+            project_list = get_project_list()
+            policy_redis = r.hget("acl:" + str(target_id), acl_id)
+            policy = json.loads(policy_redis)
+
+            to_json_bools(policy, 'write', 'read')
+
+            p = {'id': acl_id,
+                 'target_id': target_id,
+                 'target_name': project_list[target_id.split(':')[0]]+'/'+target_id.split(':')[1]}
+            p.update(policy)
+
+            return JSONResponse(p, status=status.HTTP_200_OK)
+
+        except DataError:
+            return JSONResponse("Error retrieving policy", status=400)
+
+    if request.method == 'DELETE':
+        try:
+            r.hdel("acl:" + str(target_id), acl_id)
+        except DataError:
+            return JSONResponse("Error retrieving policy", status=400)
+
+        return JSONResponse("Access policy correctly removed", status=status.HTTP_200_OK)
+
+    if request.method == 'PUT':
+        data = JSONParser().parse(request)
+        try:
+
+            policy_redis = r.hget("acl:" + str(target_id), acl_id)
+            policy = json.loads(policy_redis)
+            policy.update(data)
+            r.hset("acl:" + str(target_id), acl_id, json.dumps(policy))
+
+            return JSONResponse('Data updated', status=status.HTTP_201_CREATED)
+
+        except DataError:
+            return JSONResponse("Error creating policy", status=400)
+
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
 
 
 #

@@ -1,7 +1,0 @@
-- hosts: storlet-storage
-
-  vars_files:
-   - ./common.yml
-
-  roles:
-   - distribute_ring_to_storage_nodes

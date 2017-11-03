@@ -8,7 +8,7 @@ from rest_framework.renderers import JSONRenderer
 from api.exceptions import FileSynchronizationException
 from pyactor.context import set_context, create_host
 from swiftclient import client as swift_client
-
+import threading
 import errno
 import hashlib
 import calendar
@@ -124,18 +124,20 @@ def get_swift_url_and_token(project_name):
                                  admin_passwd, auth_version="3")
 
 
-def get_admin_role_user_ids():
-    keystone_client = get_keystone_admin_auth()
+def get_admin_role_user_ids(keystone_client):
+    # keystone_client = get_keystone_admin_auth()
     roles = keystone_client.roles.list()
     for role in roles:
         if role.name == 'admin':
             admin_role_id = role.id
+        if role.name == 'ResellerAdmin':
+            reseller_admin_role_id = role.id
     users = keystone_client.users.list()
     for user in users:
         if user.name == settings.MANAGEMENT_ADMIN_USERNAME:
             admin_user_id = user.id
 
-    return admin_role_id, admin_user_id
+    return admin_role_id, reseller_admin_role_id, admin_user_id
 
 
 def get_project_list():
@@ -152,22 +154,26 @@ def get_project_list():
 def rsync_dir_with_nodes(directory):
     # retrieve nodes
     nodes = get_all_registered_nodes()
+    already_sync = list()
     for node in nodes:
-        logger.info("Rsync - pushing to "+node['type']+":"+node['name'])
-        if not node.viewkeys() & {'ssh_username', 'ssh_password'}:
-            raise FileSynchronizationException("SSH credentials missing. Please, set the credentials for this "+node['type']+" node: "+node['name'])
+        if node['ip'] not in already_sync:
+            already_sync.append(node['ip'])
+            to_json_bools(node, 'ssh_access')
+            if not node['ssh_access']:
+                raise FileSynchronizationException("SSH credentials missing. Please, set the credentials for this "+node['type']+" node: "+node['name'])
 
-        # Directory is only synchronized if node status is UP
-        if calendar.timegm(time.gmtime()) - int(float(node['last_ping'])) <= NODE_STATUS_THRESHOLD:
             # The basename of the path is not needed because it will be the same as source dir
+            logger.info("Rsync - pushing to "+node['type']+":"+node['name'])
             dest_directory = os.path.dirname(directory)
             data = {'directory': directory, 'dest_directory': dest_directory, 'node_ip': node['ip'],
                     'ssh_username': node['ssh_username'], 'ssh_password': node['ssh_password']}
-            rsync_command = 'sshpass -p {ssh_password} rsync --progress --delete -avrz -e ssh {directory} {ssh_username}@{node_ip}:{dest_directory}'.format(**data)
 
-            ret = os.system(rsync_command)
-            if ret != 0:
-                raise FileSynchronizationException("An error occurred copying files to Swift nodes. Please check the SSH credentials of this "+node['type']+" node: "+node['name'])
+            threading.Thread(target=rsync, args=(node, data)).start()
+
+
+def rsync(node, data):
+    rsync_command = 'sshpass -p {ssh_password} rsync --progress --delete -avrz -e ssh {directory} {ssh_username}@{node_ip}:{dest_directory}'.format(**data)
+    os.system(rsync_command)
 
 
 def get_all_registered_nodes():

@@ -24,11 +24,11 @@ DEPENDENCY_DIR = os.path.join('/opt', 'crystal', 'dependencies')
 ANALYZERS_DIR = os.path.join('/opt', 'crystal', 'job_analyzers')
 JOBS_DIR = os.path.join('/opt', 'crystal', 'jobs')
 CONTROLLERS_DIR = os.path.join('/opt', 'crystal', 'controllers')
+SWIFT_CFG_TMP_DIR = os.path.join('/opt', 'crystal', 'swift', 'tmp')
+SWIFT_CFG_DEPLOY_DIR = os.path.join('/opt', 'crystal', 'swift', 'deploy')
 
-NATIVE_FILTER_KEYS = ('id', 'filter_name', 'filter_type', 'language', 'dependencies', 'main', 'is_pre_put', 'is_post_put',
-                      'is_pre_get', 'is_post_get', 'has_reverse', 'execution_server', 'execution_server_reverse', 'path')
-STORLET_FILTER_KEYS = ('id', 'filter_name', 'filter_type', 'language', 'interface_version', 'dependencies', 'main', 'is_pre_put', 'is_post_put',
-                       'is_pre_get', 'is_post_get', 'has_reverse', 'execution_server', 'execution_server_reverse', 'path')
+NATIVE_FILTER_KEYS = ('id', 'filter_name', 'filter_type', 'language', 'dsl_name', 'dependencies', 'main', 'put', 'get', 'post', 'head', 'delete', 'valid_parameters', 'execution_server', 'reverse', 'path')
+STORLET_FILTER_KEYS = ('id', 'filter_name', 'filter_type', 'language', 'dsl_name', 'interface_version', 'dependencies', 'main', 'put', 'get', 'valid_parameters', 'execution_server', 'reverse', 'path')
 DEPENDENCY_KEYS = ('id', 'name', 'version', 'permissions', 'path')
 
 # Quick-start development settings - unsuitable for production
@@ -53,9 +53,6 @@ INSTALLED_APPS = (
     'django.contrib.staticfiles',
     'bootstrap3',
     'rest_framework',
-    'filters',
-    'swift',
-    'controller'
 )
 
 MIDDLEWARE_CLASSES = (
@@ -106,12 +103,12 @@ LOGGING = {
     'version': 1,
     'formatters': {
         'standard_django': {
-            '()': 'api.common_utils.LoggingColorsDjango',
+            '()': 'api.common.LoggingColorsDjango',
             'format': '[%(asctime)s]"%(levelname)s" %(message)s',
             'datefmt': '%d/%b/%Y %H:%M:%S',
         },
         'standard_crystal': {
-            '()': 'api.common_utils.LoggingColorsCrystal',
+            '()': 'api.common.LoggingColorsCrystal',
             'format': '[%(asctime)s]"%(levelname)s" %(name)s: %(message)s',
             'datefmt': '%d/%b/%Y %H:%M:%S',
         },
@@ -153,8 +150,7 @@ KEYSTONE_ADMIN_URL = 'http://localhost:35357/v3'
 KEYSTONE_URL = 'http://localhost:5000/v3'
 
 # Swift
-SWIFT_URL = 'http://localhost:8080/'
-SWIFT_API_VERSION = 'v1'
+SWIFT_URL = 'http://localhost:8080/v1'
 
 # Redis
 REDIS_HOST = 'localhost'
@@ -163,7 +159,8 @@ REDIS_DATABASE = 0
 REDIS_CON_POOL = redis.ConnectionPool(host=REDIS_HOST, port=REDIS_PORT, db=REDIS_DATABASE)
 
 # Storlet docker image
-STORLET_DOCKER_IMAGE = '192.168.2.1:5001/ubuntu_16.04_jre8_storlets'
+DOCKER_REPO = '192.168.2.1:5001'
+STORLET_DOCKER_IMAGE = 'ubuntu_16.04_jre8_storlets'
 
 # Openstack Admin
 MANAGEMENT_ACCOUNT = 'management'

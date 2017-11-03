@@ -15,7 +15,7 @@ def run():
 
     # Workload metric definitions
     for key in r.keys('workload_metric:*'):
-        r.hset(key, 'enabled', False)
+        r.hset(key, 'status', 'Stopped')
 
     # Workload metric Actors
     for key in r.keys('metric:*'):
@@ -23,8 +23,8 @@ def run():
 
     # Dynamic policies
     for key in r.keys('policy:*'):
-        r.hset(key, 'alive', 'False')
+        r.hset(key, 'status', 'Stopped')
 
-    # Controllers
-    for key in r.keys('controller:*'):
-        r.hset(key, 'enabled', 'False')
+    # Controller Instances
+    for key in r.keys('controller_instance:*'):
+        r.hset(key, 'status', 'Stopped')

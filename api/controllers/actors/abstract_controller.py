@@ -2,7 +2,6 @@ from redis.exceptions import RedisError
 from pyactor.exceptions import NotFoundError
 from django.conf import settings
 import logging
-import Queue
 import pika
 import redis
 
@@ -12,8 +11,8 @@ logger = logging.getLogger(__name__)
 
 class AbstractController(object):
 
-    _ask = ['get_target']
-    _tell = ['update', 'run', 'stop_actor', 'notify']
+    _ask = ['get_target', 'run']
+    _tell = ['update', 'stop_actor', 'notify']
 
     def __init__(self):
         self.rmq_user = settings.RABBITMQ_USERNAME
@@ -24,6 +23,7 @@ class AbstractController(object):
 
         self.rmq_credentials = pika.PlainCredentials(self.rmq_user,
                                                      self.rmq_pass)
+        self.consumer = None
 
         try:
             self.redis = redis.Redis(connection_pool=settings.REDIS_CON_POOL)
@@ -31,8 +31,6 @@ class AbstractController(object):
             logger.error('"Error connecting with Redis DB"')
 
         self.metrics = dict()
-        self.metric_data = Queue.Queue()
-        self.rmq_messages = Queue.Queue()
 
     def _subscribe_metrics(self):
         try:
@@ -40,7 +38,8 @@ class AbstractController(object):
                 metric_actor = self.host.lookup(metric)
                 metric_actor.attach(self.proxy)
         except NotFoundError as e:
-            logger.error(e)
+            logger.error(str(e))
+            raise e
 
     def _connect_rmq(self):
         parameters = pika.ConnectionParameters(host=self.rmq_host,
@@ -67,10 +66,11 @@ class AbstractController(object):
     def _init_consum(self, queue, routing_key):
         try:
             self.consumer = self.host.spawn(self.id + "_consumer", settings.CONSUMER_MODULE,
-                                            [self.queue, self.routing_key, self.proxy])
-            self.start_consuming()
+                                            [queue, routing_key, self.proxy])
+            self.consumer.start_consuming()
         except Exception as e:
-            print e
+            logger.error(str(e))
+            raise e
 
     def notify(self, body):
         """
@@ -78,7 +78,7 @@ class AbstractController(object):
         RabbitMQ queue. After receive the value, this value is communicated to
         all the observers subscribed to this metric.
         """
-        self.rmq_messages.put(body)
+        self.compute_rmq_message(body)
 
     def get_target(self):
         """
@@ -109,6 +109,14 @@ class AbstractController(object):
                 for metric in self.metrics:
                     metric_actor = self.host.lookup(metric)
                     metric_actor.detach(self.id, self.get_target())
-        except NotFoundError as e:
-            logger.error(e)
+            if self.consumer:
+                self.consumer.stop_consuming()
+        except:
+            pass
         self.host.stop_actor(self.id)
+
+    def compute_data(self, metric_data):
+        raise NotImplementedError()
+
+    def compute_rmq_message(self, body):
+        raise NotImplementedError()
