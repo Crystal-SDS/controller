@@ -323,7 +323,7 @@ def load_swift_policies(request):
 
                 remote_file_list = sftp_client.listdir(swift_etc_path)
                 for r_file in remote_file_list:
-                    if r_file.startswith('object.builder'):
+                    if r_file.startswith('object') and r_file.endswith('.builder'):
                         remote_file = swift_etc_path+r_file
                         local_file = os.path.join(settings.SWIFT_CFG_TMP_DIR, r_file)
                         sftp_client.get(remote_file, local_file)
@@ -337,10 +337,10 @@ def load_swift_policies(request):
             ssh_client.close()
 
         # 2nd step: load policies
-        files = glob.glob(os.path.join(settings.SWIFT_CFG_TMP_DIR, 'object.builder*'))
+        pattern = os.path.join(settings.SWIFT_CFG_TMP_DIR, 'object*')
+        files = glob.glob(pattern)
 
         try:
-
             for builder_file in files:
                 builder = RingBuilder.load(builder_file)
                 if '-' in builder_file:
@@ -351,8 +351,9 @@ def load_swift_policies(request):
                 else:
                     key = 'storage-policy:0'
 
+                local_swift_file = os.path.join(settings.SWIFT_CFG_TMP_DIR, 'swift.conf')
                 configParser = ConfigParser.RawConfigParser()
-                configParser.read('/etc/swift/swift.conf')
+                configParser.read(local_swift_file)
                 if configParser.has_section(key):
 
                     name = configParser.get(key, 'name') if configParser.has_option(key, 'name') else 'Unnamed'
