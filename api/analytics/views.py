@@ -16,7 +16,7 @@ from rest_framework import status
 from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
 from rest_framework.views import APIView
 
-from api.common_utils import JSONResponse, get_redis_connection
+from api.common import JSONResponse, get_redis_connection
 from api.exceptions import AnalyticsJobSubmissionException
 from filters.views import save_file, make_sure_path_exists
 from analytics.job_analyzer_executor import init_job_submission
