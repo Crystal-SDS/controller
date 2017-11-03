@@ -9,6 +9,7 @@ from rest_framework.parsers import JSONParser
 from swiftclient import client as swift_client  
 from swift.common.ring import RingBuilder
 from operator import itemgetter
+import ConfigParser
 import os
 import glob
 import json
@@ -242,7 +243,6 @@ def load_swift_policies(request):
         
         files = glob.glob('/etc/swift/object.builder*')
               
-        
         try:
             
             for file in files:
@@ -255,25 +255,34 @@ def load_swift_policies(request):
                 else:
                     key = 'storage-policy:0'
                 
-#                 os.system("sed -n -e '/\[" + key + "\]/,/^[[:space:]]*$/ p' /etc/swift/swift.conf | grep -Ev '(#.*$)|(^$)'")
+                configParser = ConfigParser.RawConfigParser()
+                configParser.read('/etc/swift/swift.conf')
+                if configParser.has_section(key):
+                    sp = configParser.items(key)
                 
-                devices = []
-                for device in builder.devs:
-                    devices.append(device['ip'] + ':' + device['device'])
+                    name = [p[1] for p in sp if p[0] == 'name']
+                    default = [p[1] for p in sp if p[0] == 'default']
+                    policy_type = [p[1] for p in sp if p[0] == 'policy_type']
                 
-                data = {'name': 'TODO',
-                        'default': 'False', 
-                        'deprecated': 'False', 
-                        'time': '1', 
-                        'devices': json.dumps(devices), 
-                        'deployed': 'True', 
-                        'policy_type': 'replication',
-                        'partition_power': int(math.log(builder.parts, 2)),
-                        'replicas': int(builder.replicas)
-                        }
+                    devices = []
+                    for device in builder.devs:
+                        devices.append(device['ip'] + ':' + device['device'])
                     
-                r.hmset(key, data)
-                    
+                    data = {'name': name[0] if name else 'Unnamed',
+                            'default': default[0] if default else 'False', 
+                            'deprecated': 'False', 
+                            'time': '1', 
+                            'devices': json.dumps(devices), 
+                            'deployed': 'True', 
+                            'policy_type': policy_type[0] if policy_type else 'Replication',
+                            'partition_power': int(math.log(builder.parts, 2)),
+                            'replicas': int(builder.replicas)
+                            }
+                        
+                    r.hmset(key, data)
+                
+                else:
+                    pass #TODO                    
             
         except RedisError:
                 return JSONResponse('Policies could not be loaded', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
