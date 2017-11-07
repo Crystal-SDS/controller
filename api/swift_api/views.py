@@ -94,17 +94,7 @@ def storage_policies(request):
             key = 'storage-policy:' + id
             
             ring = RingBuilder(int(data['partition_power']), int(data['replicas']), int(data['time']))
-            ring.save(get_policy_file_path(settings.SWIFT_CFG_TMP_DIR, id))
-    
-            cfg_data = {
-                'name': data['name'],
-                'deprecated': data['deprecated'],
-                'default': data['default'],
-                'deployed': 'False',
-                'policy_type': data['policy_type']
-            }
-    
-            update_sp_files(settings.SWIFT_CFG_TMP_DIR, id, cfg_data)
+            ring.save(get_policy_file_path(settings.SWIFT_CFG_TMP_DIR, id))    
     
             r.hmset(key, data)
         except:
@@ -149,11 +139,7 @@ def storage_policy_detail(request, storage_policy_id):
         if r.exists(key):
             data = JSONParser().parse(request)
             try:
-                data['deployed'] = False
-                
-                update_sp_files(settings.SWIFT_CFG_TMP_DIR, storage_policy_id, {'name': data['name'], 'deprecated': data['deprecated'],
-                                                                                'default': data['default'], 'deployed': 'False'})
-                
+                data['deployed'] = False               
                 r.hmset(key, data)
                 return JSONResponse("Storage Policy updated", status=status.HTTP_201_CREATED)
             except RedisError:
@@ -170,17 +156,15 @@ def storage_policy_detail(request, storage_policy_id):
                     os.remove(policy_file_path)
                 os.remove(get_policy_file_path(settings.SWIFT_CFG_TMP_DIR, storage_policy_id))
                 
-                tmp_swift_file = get_swift_cfg_path(settings.SWIFT_CFG_TMP_DIR)
                 deploy_swift_file = get_swift_cfg_path(settings.SWIFT_CFG_DEPLOY_DIR)
                 
-                for file in [tmp_swift_file, deploy_swift_file]:
-                    configParser = ConfigParser.RawConfigParser()
-                    configParser.read(file)
-                    
-                    configParser.remove_section(key)
-                    
-                    with open(file, 'wb') as configfile:
-                        configParser.write(configfile)
+                configParser = ConfigParser.RawConfigParser()
+                configParser.read(deploy_swift_file)
+                
+                configParser.remove_section(key)
+                
+                with open(deploy_swift_file, 'wb') as configfile:
+                    configParser.write(configfile)
                 
                 r.delete(key)
                 
@@ -252,9 +236,7 @@ def storage_policy_disks(request, storage_policy_id):
             storage_policy['devices'] = json.dumps(storage_policy['devices'])
             r.hset(key, 'devices', storage_policy['devices'])
             r.hset(key, 'deployed', False)
-            
-            update_sp_files(settings.SWIFT_CFG_TMP_DIR, storage_policy_id, {'deploy': 'False'})
-            
+                        
             return JSONResponse('Disk added correctly', status=status.HTTP_200_OK)
         else:
             return JSONResponse('Disk could not be added.', status=status.HTTP_400_BAD_REQUEST)
@@ -292,9 +274,7 @@ def delete_storage_policy_disks(request, storage_policy_id, disk_id):
                         storage_policy['devices'] = json.dumps(storage_policy['devices'])
                         r.hset(key, 'devices', storage_policy['devices'])
                         r.hset(key, 'deployed', False)
-                        
-                        update_sp_files(settings.SWIFT_CFG_TMP_DIR, storage_policy_id, {'deploy': 'False'})
-                        
+                                                
                         return JSONResponse("Disk removed", status=status.HTTP_204_NO_CONTENT)
                     
                 if not found:
@@ -318,25 +298,24 @@ def deploy_storage_policy(request, storage_policy_id):
 
     key = "storage-policy:" + storage_policy_id
 
-    print request.method
     if request.method == "POST":
         if r.exists(key):
             try:
-                tmp_swift_file = get_swift_cfg_path(settings.SWIFT_CFG_TMP_DIR)
-                deploy_swift_file = get_swift_cfg_path(settings.SWIFT_CFG_DEPLOY_DIR)
                 tmp_policy_file = get_policy_file_path(settings.SWIFT_CFG_TMP_DIR, storage_policy_id)
                 deploy_policy_file = get_policy_file_path(settings.SWIFT_CFG_DEPLOY_DIR, storage_policy_id)
                                 
                 ring = RingBuilder.load(tmp_policy_file)
                 ring.rebalance()
-                RingBuilder.save(tmp_policy_file)
-                
-                copyfile(tmp_swift_file, deploy_swift_file)
+                ring.save(tmp_policy_file)
+
+                data = r.hgetall(key)
+                update_sp_files(settings.SWIFT_CFG_DEPLOY_DIR, storage_policy_id, {'name': data['name'], 'deprecated': data['deprecated'],
+                                                                                'default': data['default'], 'deployed': 'True'})
+
                 copyfile(tmp_policy_file, deploy_policy_file)
                 
-                update_sp_files(settings.SWIFT_CFG_TMP_DIR, storage_policy_id, {'deploy': 'True'})
+                r.hset(key, 'deployed', 'True')
                 
-                r.hset(key, 'deployed', True)
                 return JSONResponse('Storage policy deployed correctly', status=status.HTTP_200_OK)
             except RedisError:
                 return JSONResponse('Storage policy could not be deployed', status=status.HTTP_400_BAD_REQUEST)
@@ -368,14 +347,9 @@ def load_swift_policies(request):
 
             try:
                 sftp_client = ssh_client.open_sftp()
-
                 swift_etc_path = '/etc/swift/'
-
                 remote_swift_file = swift_etc_path+'swift.conf'
-                local_swift_file_tmp = get_swift_cfg_path(settings.SWIFT_CFG_TMP_DIR)
                 local_swift_file_deploy = get_swift_cfg_path(settings.SWIFT_CFG_DEPLOY_DIR)
-
-                sftp_client.get(remote_swift_file, local_swift_file_tmp)
                 sftp_client.get(remote_swift_file, local_swift_file_deploy)
 
                 remote_file_list = sftp_client.listdir(swift_etc_path)
@@ -410,7 +384,7 @@ def load_swift_policies(request):
                 else:
                     key = 'storage-policy:0'
 
-                local_swift_file = get_swift_cfg_path(settings.SWIFT_CFG_TMP_DIR)
+                local_swift_file = get_swift_cfg_path(settings.SWIFT_CFG_DEPLOY_DIR)
                 configParser = ConfigParser.RawConfigParser()
                 configParser.read(local_swift_file)
                 if configParser.has_section(key):
