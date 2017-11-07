@@ -19,6 +19,7 @@ import math
 import logging
 import requests
 import paramiko
+from socket import inet_aton
 from api.common import JSONResponse, get_redis_connection, to_json_bools, get_token_connection
 from api.exceptions import FileSynchronizationException
 
@@ -371,16 +372,20 @@ def load_swift_policies(request):
                 swift_etc_path = '/etc/swift/'
 
                 remote_swift_file = swift_etc_path+'swift.conf'
-                local_swift_file = get_swift_cfg_path(settings.SWIFT_CFG_TMP_DIR)
+                local_swift_file_tmp = get_swift_cfg_path(settings.SWIFT_CFG_TMP_DIR)
+                local_swift_file_deploy = get_swift_cfg_path(settings.SWIFT_CFG_DEPLOY_DIR)
 
-                sftp_client.get(remote_swift_file, local_swift_file)
+                sftp_client.get(remote_swift_file, local_swift_file_tmp)
+                sftp_client.get(remote_swift_file, local_swift_file_deploy)
 
                 remote_file_list = sftp_client.listdir(swift_etc_path)
                 for r_file in remote_file_list:
                     if r_file.startswith('object') and r_file.endswith('.builder'):
                         remote_file = swift_etc_path+r_file
-                        local_file = os.path.join(settings.SWIFT_CFG_TMP_DIR, r_file)
-                        sftp_client.get(remote_file, local_file)
+                        local_file_tmp = os.path.join(settings.SWIFT_CFG_TMP_DIR, r_file)
+                        local_file_deploy = os.path.join(settings.SWIFT_CFG_DEPLOY_DIR, r_file)
+                        sftp_client.get(remote_file, local_file_tmp)
+                        sftp_client.get(remote_file, local_file_deploy)
 
             except SSHException:
                 ssh_client.close()
@@ -400,7 +405,7 @@ def load_swift_policies(request):
                 if '-' in builder_file:
                     sp_id = builder_file.split('.')[0].split('-')[-1]
                     key = 'storage-policy:' + sp_id
-                    if id > r.get('storage-policies:id'):
+                    if int(sp_id) > r.get('storage-policies:id'):
                         r.set('storage-policies:id', sp_id)
                 else:
                     key = 'storage-policy:0'
@@ -410,10 +415,9 @@ def load_swift_policies(request):
                 configParser.read(local_swift_file)
                 if configParser.has_section(key):
 
-                    name = configParser.get(key, 'name') if configParser.has_option(key, 'name') else 'Unnamed'                    
+                    name = configParser.get(key, 'name') if configParser.has_option(key, 'name') else 'Policy-' + sp_id                    
                     policy_type = configParser.get(key, 'policy_type') if configParser.has_option(key, 'policy_type') else 'Replication'
                     deprecated = configParser.get(key, 'deprecated') if configParser.has_option(key, 'deprecated') else 'False'
-                    time = configParser.get(key, 'time') if configParser.has_option(key, 'time') else '1'
                     
                     if configParser.has_option(key, 'default'):
                         default = 'True' if configParser.get(key, 'default') in ['yes', 'Yes'] else 'False' 
@@ -423,12 +427,17 @@ def load_swift_policies(request):
 
                     devices = []
                     for device in builder.devs:
+                        try:
+                            inet_aton(device['ip'])
+                        except:
+                            device['ip'] = next((r.hgetall(key)['name'] for key in r.keys('*_node:*') if r.hgetall(key)['ip'] == device['ip']), device['ip'])
+                                
                         devices.append((device['ip'] + ':' + device['device'], device['id']))
 
                     data = {'name': name,
                             'default': default,
                             'deprecated': deprecated,
-                            'time': time,
+                            'time': builder.min_part_hours,
                             'devices': json.dumps(devices),
                             'deployed': 'True',
                             'policy_type': policy_type if policy_type else 'Replication',
