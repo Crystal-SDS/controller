@@ -10,12 +10,12 @@ from rest_framework import status
 from rest_framework.test import APIRequestFactory
 
 from filters.views import filter_list, filter_deploy, FilterData
-from .dsl_parser import parse
-from .views import object_type_list, object_type_detail, add_tenants_group, tenants_group_detail, gtenants_tenant_detail, \
-    add_metric, metric_detail, metric_module_list, metric_module_detail, MetricModuleData, add_dynamic_filter, \
-    dynamic_filter_detail, load_metrics, load_policies, static_policy_detail, dynamic_policy_detail, global_controller_list, global_controller_detail, \
-    GlobalControllerData
-from .views import policy_list
+from policies.dsl_parser import parse
+from policies.views import object_type_list, object_type_detail, static_policy_detail, dynamic_policy_detail, policy_list
+from projects.views import add_projects_group, projects_group_detail, projects_groups_detail
+from metrics.views import metric_module_list, metric_module_detail, MetricModuleData, load_metrics
+from .views import controller_list, controller_detail, ControllerData
+# from .views import add_metric, metric_detail, add_dynamic_filter, dynamic_filter_detail, load_policies
 
 
 # Tests use database=10 instead of 0.
@@ -47,7 +47,7 @@ class ControllerTestCase(TestCase):
     # Static policy tests
     #
 
-    @mock.patch('controller.views.get_project_list')
+    @mock.patch('policies.views.get_project_list')
     def test_registry_static_policy(self, mock_get_project_list):
         mock_get_project_list.return_value = {'0123456789abcdef': 'tenantA', '2': 'tenantB'}
 
@@ -68,7 +68,7 @@ class ControllerTestCase(TestCase):
         json_data = json.loads(response.content)
         self.assertEqual(len(json_data), 0)  # is empty
 
-    @mock.patch('controller.views.deploy_static_policy')
+    @mock.patch('policies.views.deploy_static_policy')
     def test_registry_static_policy_create_ok(self, mock_deploy_static_policy):
         self.setup_dsl_parser_data()
 
@@ -80,8 +80,8 @@ class ControllerTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertTrue(mock_deploy_static_policy.called)
 
-    @mock.patch('controller.views.get_project_list')
-    @mock.patch('controller.views.set_filter')
+    @mock.patch('policies.views.get_project_list')
+    @mock.patch('policies.views.set_filter')
     def test_registry_static_policy_create_set_filter_ok(self, mock_set_filter, mock_get_project_list):
         self.setup_dsl_parser_data()
 
@@ -94,10 +94,11 @@ class ControllerTestCase(TestCase):
         response = policy_list(request)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertTrue(mock_set_filter.called)
-        expected_policy_data = {'object_size': '', 'execution_order': 2, 'object_type': 'DOCS', 'params': mock.ANY, 'policy_id': 2, 'execution_server': 'PROXY', 'callable': False}
+        expected_policy_data = {'object_size': '', 'execution_order': 2, 'object_type': 'DOCS', 'params': mock.ANY,
+                                'policy_id': 2, 'execution_server': 'PROXY', 'callable': False}
         mock_set_filter.assert_called_with(mock.ANY, '0123456789abcdef', mock.ANY, expected_policy_data, 'fake_token')
 
-    @mock.patch('controller.views.deploy_dynamic_policy')
+    @mock.patch('policies.views.deploy_dynamic_policy')
     def test_registry_dynamic_policy_create_ok(self, mock_deploy_dynamic_policy):
         self.setup_dsl_parser_data()
 
@@ -109,8 +110,8 @@ class ControllerTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertTrue(mock_deploy_dynamic_policy.called)
 
-    @mock.patch('controller.views.get_project_list')
-    @mock.patch('controller.views.create_local_host')
+    @mock.patch('policies.views.get_project_list')
+    @mock.patch('policies.views.create_local_host')
     def test_registry_dynamic_policy_create_spawn_ok(self, mock_create_local_host, mock_get_project_list):
         self.setup_dsl_parser_data()
 
@@ -144,65 +145,65 @@ class ControllerTestCase(TestCase):
     # Metric tests
     #
 
-    def test_list_metrics_ok(self):
-        self.setup_dsl_parser_data()
-        request = self.factory.get('/controller/metrics')
-        response = add_metric(request)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        metrics = json.loads(response.content)
-        self.assertEqual(len(metrics), 2)
-
-    def test_create_metric_ok(self):
-        self.setup_dsl_parser_data()
-        data = {'name': 'metric3', 'network_location': '?', 'type': 'integer'}
-        request = self.factory.post('/controller/metrics', data, format='json')
-        response = add_metric(request)
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-
-        # Assert metric was created successfully
-        request = self.factory.get('/controller/metrics')
-        response = add_metric(request)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        metrics = json.loads(response.content)
-        self.assertEqual(len(metrics), 3)
-
-    def test_get_metric_ok(self):
-        self.setup_dsl_parser_data()
-        metric_name = 'metric1'
-        request = self.factory.get('/controller/metrics/' + metric_name)
-        response = metric_detail(request, metric_name)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        metric_data = json.loads(response.content)
-        self.assertEqual(metric_data['type'], 'integer')
-
-    def test_update_metric_ok(self):
-        self.setup_dsl_parser_data()
-        metric_name = 'metric1'
-        data = {'network_location': '?', 'type': 'float'}
-        request = self.factory.put('/controller/metrics/' + metric_name, data, format='json')
-        response = metric_detail(request, metric_name)
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-
-        # Assert metric was updated successfully
-        request = self.factory.get('/controller/metrics/' + metric_name)
-        response = metric_detail(request, metric_name)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        metric_data = json.loads(response.content)
-        self.assertEqual(metric_data['type'], 'float')
-
-    def test_delete_metric_ok(self):
-        self.setup_dsl_parser_data()
-        metric_name = 'metric1'
-        request = self.factory.delete('/controller/metrics/' + metric_name)
-        response = metric_detail(request, metric_name)
-        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-
-        # Assert metric was deleted successfully
-        request = self.factory.get('/controller/metrics')
-        response = add_metric(request)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        metrics = json.loads(response.content)
-        self.assertEqual(len(metrics), 1)
+    # def test_list_metrics_ok(self):
+    #     self.setup_dsl_parser_data()
+    #     request = self.factory.get('/controller/metrics')
+    #     response = add_metric(request)
+    #     self.assertEqual(response.status_code, status.HTTP_200_OK)
+    #     metrics = json.loads(response.content)
+    #     self.assertEqual(len(metrics), 2)
+    #
+    # def test_create_metric_ok(self):
+    #     self.setup_dsl_parser_data()
+    #     data = {'name': 'metric3', 'network_location': '?', 'type': 'integer'}
+    #     request = self.factory.post('/controller/metrics', data, format='json')
+    #     response = add_metric(request)
+    #     self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+    #
+    #     # Assert metric was created successfully
+    #     request = self.factory.get('/controller/metrics')
+    #     response = add_metric(request)
+    #     self.assertEqual(response.status_code, status.HTTP_200_OK)
+    #     metrics = json.loads(response.content)
+    #     self.assertEqual(len(metrics), 3)
+    #
+    # def test_get_metric_ok(self):
+    #     self.setup_dsl_parser_data()
+    #     metric_name = 'metric1'
+    #     request = self.factory.get('/controller/metrics/' + metric_name)
+    #     response = metric_detail(request, metric_name)
+    #     self.assertEqual(response.status_code, status.HTTP_200_OK)
+    #     metric_data = json.loads(response.content)
+    #     self.assertEqual(metric_data['type'], 'integer')
+    #
+    # def test_update_metric_ok(self):
+    #     self.setup_dsl_parser_data()
+    #     metric_name = 'metric1'
+    #     data = {'network_location': '?', 'type': 'float'}
+    #     request = self.factory.put('/controller/metrics/' + metric_name, data, format='json')
+    #     response = metric_detail(request, metric_name)
+    #     self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+    #
+    #     # Assert metric was updated successfully
+    #     request = self.factory.get('/controller/metrics/' + metric_name)
+    #     response = metric_detail(request, metric_name)
+    #     self.assertEqual(response.status_code, status.HTTP_200_OK)
+    #     metric_data = json.loads(response.content)
+    #     self.assertEqual(metric_data['type'], 'float')
+    #
+    # def test_delete_metric_ok(self):
+    #     self.setup_dsl_parser_data()
+    #     metric_name = 'metric1'
+    #     request = self.factory.delete('/controller/metrics/' + metric_name)
+    #     response = metric_detail(request, metric_name)
+    #     self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+    #
+    #     # Assert metric was deleted successfully
+    #     request = self.factory.get('/controller/metrics')
+    #     response = add_metric(request)
+    #     self.assertEqual(response.status_code, status.HTTP_200_OK)
+    #     metrics = json.loads(response.content)
+    #     self.assertEqual(len(metrics), 1)
 
     #
     # Metric module tests
@@ -237,7 +238,7 @@ class ControllerTestCase(TestCase):
 
     def test_update_metric_module_detail_ok(self):
         metric_id = '1'
-        data = {'enabled': False}
+        data = {'status': 'Stopped'}
         request = self.factory.post('/controller/metric_module/' + metric_id, data, format='json')
         response = metric_module_detail(request, metric_id)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -247,7 +248,7 @@ class ControllerTestCase(TestCase):
         response = metric_module_detail(request, metric_id)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         metric_data = json.loads(response.content)
-        self.assertEqual(metric_data['enabled'], False)
+        self.assertEqual(metric_data['status'], 'Stopped')
 
     def test_delete_metric_module_detail_ok(self):
         metric_id = '1'
@@ -268,11 +269,11 @@ class ControllerTestCase(TestCase):
         response = MetricModuleData.as_view()(request)
         self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
-    @mock.patch('controller.views.rsync_dir_with_nodes')
+    @mock.patch('policies.views.rsync_dir_with_nodes')
     def test_create_metric_module_ok(self, mock_rsync_dir):
         with open('test_data/test.py', 'r') as fp:
             metadata = {'class_name': 'Metric1', 'execution_server': 'proxy', 'out_flow': False,
-                        'in_flow': False, 'enabled': False}
+                        'in_flow': False, 'status': 'Stopped'}
             request = self.factory.put('/controller/metric_module/data/', {'file': fp, 'metadata': json.dumps(metadata)})
             response = MetricModuleData.as_view()(request)
             mock_rsync_dir.assert_called_with(settings.WORKLOAD_METRICS_DIR)
@@ -295,97 +296,97 @@ class ControllerTestCase(TestCase):
     # DSL Filters tests
     #
 
-    def test_add_dynamic_filter_with_method_not_allowed(self):
-        # No DELETE method for this API call
-        request = self.factory.delete('/controller/filters')
-        response = add_dynamic_filter(request)
-        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
-
-    def test_get_all_dsl_filters_ok(self):
-        # Create 2 dsl filters in redis
-        self.setup_dsl_parser_data()
-
-        request = self.factory.get('/controller/filters')
-        response = add_dynamic_filter(request)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        dsl_filters = json.loads(response.content)
-        self.assertEqual(len(dsl_filters), 2)
-        sorted_list = sorted(dsl_filters, key=lambda dslf: dslf['name'])
-        self.assertEqual(sorted_list[0]['name'], 'compression')
-        self.assertEqual(sorted_list[1]['name'], 'encryption')
-
-    def test_create_dsl_filter_ok(self):
-        data = {'name': 'caching', 'identifier': 'caching-1.0.jar', 'activation_url': 'http://localhost:7000/caching', 'valid_parameters': ''}
-        request = self.factory.post('/controller/filters', data, format='json')
-        response = add_dynamic_filter(request)
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-
-        # Check the DSL filter has been created successfully
-        request = self.factory.get('/controller/filters')
-        response = add_dynamic_filter(request)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        dsl_filters = json.loads(response.content)
-        self.assertEqual(len(dsl_filters), 1)
-        self.assertEqual(dsl_filters[0]['name'], 'caching')
-
-    def test_dynamic_filter_detail_with_method_not_allowed(self):
-        # No POST method for this API call
-        request = self.factory.post('/controller/filters/dummy', {'activation_url': 'http://www.example.com'}, format='json')
-        response = dynamic_filter_detail(request, 'dummy')
-        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
-
-    def test_get_dsl_filter_ok(self):
-        # Create 2 dsl filters in redis
-        self.setup_dsl_parser_data()
-
-        dsl_filter_name = 'encryption'
-        request = self.factory.get('/controller/filters/' + dsl_filter_name)
-        response = dynamic_filter_detail(request, dsl_filter_name)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        dsl_filter = json.loads(response.content)
-        valid_parameters = json.loads(dsl_filter['valid_parameters'])
-        self.assertEqual(len(valid_parameters), 3)
-        self.assertEqual(valid_parameters['eparam1'], 'integer')
-
-    def test_update_dsl_filter_ok(self):
-        # Create 2 dsl filters in redis
-        self.setup_dsl_parser_data()
-
-        dsl_filter_name = 'encryption'
-        data = {'activation_url': 'http://www.example.com/encryption'}
-        request = self.factory.put('/controller/filters/' + dsl_filter_name, data, format='json')
-        response = dynamic_filter_detail(request, dsl_filter_name)
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-
-        # Verify the DSL filter has been updated successfully
-        request = self.factory.get('/controller/filters/' + dsl_filter_name)
-        response = dynamic_filter_detail(request, dsl_filter_name)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        dsl_filter = json.loads(response.content)
-        self.assertEqual(dsl_filter['activation_url'], data['activation_url'])
-
-    def test_update_dsl_filter_with_non_existent_name(self):
-        dsl_filter_name = 'unknown'
-        data = {'activation_url': 'http://www.example.com'}
-        request = self.factory.put('/controller/filters/' + dsl_filter_name, data, format='json')
-        response = dynamic_filter_detail(request, dsl_filter_name)
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-
-    def test_delete_dsl_filter_ok(self):
-        # Create 2 dsl filters in redis
-        self.setup_dsl_parser_data()
-
-        dsl_filter_name = 'encryption'
-        request = self.factory.delete('/controller/filters/' + dsl_filter_name)
-        response = dynamic_filter_detail(request, dsl_filter_name)
-        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-
-        # Verify the DSL filter has been deleted successfully
-        request = self.factory.get('/controller/filters')
-        response = add_dynamic_filter(request)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        dsl_filters = json.loads(response.content)
-        self.assertEqual(len(dsl_filters), 1)
+    # def test_add_dynamic_filter_with_method_not_allowed(self):
+    #     # No DELETE method for this API call
+    #     request = self.factory.delete('/controller/filters')
+    #     response = add_dynamic_filter(request)
+    #     self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+    #
+    # def test_get_all_dsl_filters_ok(self):
+    #     # Create 2 dsl filters in redis
+    #     self.setup_dsl_parser_data()
+    #
+    #     request = self.factory.get('/controller/filters')
+    #     response = add_dynamic_filter(request)
+    #     self.assertEqual(response.status_code, status.HTTP_200_OK)
+    #     dsl_filters = json.loads(response.content)
+    #     self.assertEqual(len(dsl_filters), 2)
+    #     sorted_list = sorted(dsl_filters, key=lambda dslf: dslf['name'])
+    #     self.assertEqual(sorted_list[0]['name'], 'compression')
+    #     self.assertEqual(sorted_list[1]['name'], 'encryption')
+    #
+    # def test_create_dsl_filter_ok(self):
+    #     data = {'name': 'caching', 'identifier': 'caching-1.0.jar', 'activation_url': 'http://localhost:7000/caching', 'valid_parameters': ''}
+    #     request = self.factory.post('/controller/filters', data, format='json')
+    #     response = add_dynamic_filter(request)
+    #     self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+    #
+    #     # Check the DSL filter has been created successfully
+    #     request = self.factory.get('/controller/filters')
+    #     response = add_dynamic_filter(request)
+    #     self.assertEqual(response.status_code, status.HTTP_200_OK)
+    #     dsl_filters = json.loads(response.content)
+    #     self.assertEqual(len(dsl_filters), 1)
+    #     self.assertEqual(dsl_filters[0]['name'], 'caching')
+    #
+    # def test_dynamic_filter_detail_with_method_not_allowed(self):
+    #     # No POST method for this API call
+    #     request = self.factory.post('/controller/filters/dummy', {'activation_url': 'http://www.example.com'}, format='json')
+    #     response = dynamic_filter_detail(request, 'dummy')
+    #     self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+    #
+    # def test_get_dsl_filter_ok(self):
+    #     # Create 2 dsl filters in redis
+    #     self.setup_dsl_parser_data()
+    #
+    #     dsl_filter_name = 'encryption'
+    #     request = self.factory.get('/controller/filters/' + dsl_filter_name)
+    #     response = dynamic_filter_detail(request, dsl_filter_name)
+    #     self.assertEqual(response.status_code, status.HTTP_200_OK)
+    #     dsl_filter = json.loads(response.content)
+    #     valid_parameters = json.loads(dsl_filter['valid_parameters'])
+    #     self.assertEqual(len(valid_parameters), 3)
+    #     self.assertEqual(valid_parameters['eparam1'], 'integer')
+    #
+    # def test_update_dsl_filter_ok(self):
+    #     # Create 2 dsl filters in redis
+    #     self.setup_dsl_parser_data()
+    #
+    #     dsl_filter_name = 'encryption'
+    #     data = {'activation_url': 'http://www.example.com/encryption'}
+    #     request = self.factory.put('/controller/filters/' + dsl_filter_name, data, format='json')
+    #     response = dynamic_filter_detail(request, dsl_filter_name)
+    #     self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+    #
+    #     # Verify the DSL filter has been updated successfully
+    #     request = self.factory.get('/controller/filters/' + dsl_filter_name)
+    #     response = dynamic_filter_detail(request, dsl_filter_name)
+    #     self.assertEqual(response.status_code, status.HTTP_200_OK)
+    #     dsl_filter = json.loads(response.content)
+    #     self.assertEqual(dsl_filter['activation_url'], data['activation_url'])
+    #
+    # def test_update_dsl_filter_with_non_existent_name(self):
+    #     dsl_filter_name = 'unknown'
+    #     data = {'activation_url': 'http://www.example.com'}
+    #     request = self.factory.put('/controller/filters/' + dsl_filter_name, data, format='json')
+    #     response = dynamic_filter_detail(request, dsl_filter_name)
+    #     self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+    #
+    # def test_delete_dsl_filter_ok(self):
+    #     # Create 2 dsl filters in redis
+    #     self.setup_dsl_parser_data()
+    #
+    #     dsl_filter_name = 'encryption'
+    #     request = self.factory.delete('/controller/filters/' + dsl_filter_name)
+    #     response = dynamic_filter_detail(request, dsl_filter_name)
+    #     self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+    #
+    #     # Verify the DSL filter has been deleted successfully
+    #     request = self.factory.get('/controller/filters')
+    #     response = add_dynamic_filter(request)
+    #     self.assertEqual(response.status_code, status.HTTP_200_OK)
+    #     dsl_filters = json.loads(response.content)
+    #     self.assertEqual(len(dsl_filters), 1)
 
     #
     # object_type tests
@@ -559,151 +560,148 @@ class ControllerTestCase(TestCase):
     #
 
     def test_add_tenants_group_with_method_not_allowed(self):
-        request = self.factory.delete('/controller/gtenants')
-        response = add_tenants_group(request)
+        request = self.factory.delete('/projects/groups')
+        response = add_projects_group(request)
         self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
     def test_tenants_group_detail_with_method_not_allowed(self):
         gtenant_id = 1
-        tenants = ['0123456789abcdf', 'abcdef0123456789']
-        request = self.factory.post('/controller/gtenants/' + str(gtenant_id), tenants, format='json')
-        response = tenants_group_detail(request, gtenant_id)
+        tenant_group_data = {'name': 'group1', 'attached_projects': json.dumps(['0123456789abcdef', 'abcdef0123456789'])}
+        request = self.factory.post('/projects/groups/' + str(gtenant_id), tenant_group_data, format='json')
+        response = projects_group_detail(request, gtenant_id)
         self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
     def test_gtenants_tenant_detail_with_method_not_allowed(self):
         gtenant_id = '1'
         tenant_id = '0123456789abcdef'
-        request = self.factory.get('/controller/gtenants/' + gtenant_id + '/tenants/' + tenant_id)
-        response = gtenants_tenant_detail(request, gtenant_id, tenant_id)
+        request = self.factory.get('/projects/groups/' + gtenant_id + '/projects/' + tenant_id)
+        response = projects_groups_detail(request, gtenant_id, tenant_id)
         self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
     def test_list_tenants_group_ok(self):
-        request = self.factory.get('/controller/gtenants')
-        response = add_tenants_group(request)
+        request = self.factory.get('/projects/groups')
+        response = add_projects_group(request)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         tenants_groups = json.loads(response.content)
         self.assertEqual(len(tenants_groups), 1)  # 1 group
-        self.assertEqual(len(tenants_groups['1']), 2)  # 2 tenants in the group
-        self.assertTrue('0123456789abcdef' in tenants_groups['1'])
-        self.assertTrue('abcdef0123456789' in tenants_groups['1'])
+        attached_projects = tenants_groups[0]['attached_projects']
+        self.assertEqual(len(attached_projects), 2)  # 2 tenants in the group
+        self.assertTrue('0123456789abcdef' in attached_projects)
+        self.assertTrue('abcdef0123456789' in attached_projects)
 
     def test_create_tenant_group_ok(self):
         # Create a second tenant group
-        tenant_group_data = ['tenant1_id', 'tenant2_id', 'tenant3_id']
-        request = self.factory.post('/controller/gtenants', tenant_group_data, format='json')
-        response = add_tenants_group(request)
+        tenant_group_data = {'name': 'group1', 'attached_projects': json.dumps(['tenant1_id', 'tenant2_id', 'tenant3_id'])}
+        request = self.factory.post('/projects/groups', tenant_group_data, format='json')
+        response = add_projects_group(request)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
-        request = self.factory.get('/controller/gtenants')
-        response = add_tenants_group(request)
+        request = self.factory.get('/projects/groups')
+        response = add_projects_group(request)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         tenants_groups = json.loads(response.content)
         self.assertEqual(len(tenants_groups), 2)  # 2 groups
-        self.assertEqual(len(tenants_groups['2']), 3)  # 3 tenants in the 2nd group
-        self.assertTrue('tenant1_id' in tenants_groups['2'])
-        self.assertTrue('tenant2_id' in tenants_groups['2'])
-        self.assertTrue('tenant3_id' in tenants_groups['2'])
-        self.assertFalse('0123456789abcdef' in tenants_groups['2'])
+        attached_projects = tenants_groups[1]['attached_projects']
+        self.assertEqual(len(attached_projects), 3)  # 3 tenants in the 2nd group
+        self.assertTrue('tenant1_id' in attached_projects)
+        self.assertTrue('tenant2_id' in attached_projects)
+        self.assertTrue('tenant3_id' in attached_projects)
+        self.assertFalse('0123456789abcdef' in attached_projects)
 
     def test_create_tenant_group_with_empty_data(self):
         # Create a second tenant group with empty data --> ERROR
-        tenant_group_data = []
-        request = self.factory.post('/controller/gtenants', tenant_group_data, format='json')
-        response = add_tenants_group(request)
+        tenant_group_data = {}
+        request = self.factory.post('/projects/groups', tenant_group_data, format='json')
+        response = add_projects_group(request)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_tenant_group_detail_ok(self):
         gtenant_id = '1'
-        request = self.factory.get('/controller/gtenants/' + gtenant_id)
-        response = tenants_group_detail(request, gtenant_id)
+        request = self.factory.get('/projects/groups/' + gtenant_id)
+        response = projects_group_detail(request, gtenant_id)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        tenant_list = json.loads(response.content)
+        response = json.loads(response.content)
+        self.assertEqual(response['name'], 'group1')
+        tenant_list = response['attached_projects']
         self.assertEqual(len(tenant_list), 2)
         self.assertTrue('0123456789abcdef' in tenant_list)
         self.assertTrue('abcdef0123456789' in tenant_list)
 
     def test_tenant_group_detail_with_non_existent_id(self):
         gtenant_id = '2'
-        request = self.factory.get('/controller/gtenants/' + gtenant_id)
-        response = tenants_group_detail(request, gtenant_id)
+        request = self.factory.get('/projects/groups/' + gtenant_id)
+        response = projects_group_detail(request, gtenant_id)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_delete_tenant_group_ok(self):
         gtenant_id = '1'
-        request = self.factory.delete('/controller/gtenants/' + gtenant_id)
-        response = tenants_group_detail(request, gtenant_id)
+        request = self.factory.delete('/projects/groups/' + gtenant_id)
+        response = projects_group_detail(request, gtenant_id)
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
-        request = self.factory.get('/controller/gtenants')
-        response = add_tenants_group(request)
+        request = self.factory.get('/projects/groups')
+        response = add_projects_group(request)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.content, "{}")
+        self.assertEqual(response.content, "[]")
         tenants_groups = json.loads(response.content)
         self.assertEqual(len(tenants_groups), 0)
 
     def test_delete_tenant_group_with_non_existent_id(self):
         gtenant_id = '2'
-        request = self.factory.delete('/controller/gtenants/' + gtenant_id)
-        response = tenants_group_detail(request, gtenant_id)
+        request = self.factory.delete('/projects/groups/' + gtenant_id)
+        response = projects_group_detail(request, gtenant_id)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
         # Check nothing was deleted
-        request = self.factory.get('/controller/gtenants')
-        response = add_tenants_group(request)
+        request = self.factory.get('/projects/groups')
+        response = add_projects_group(request)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertNotEqual(response.content, "{}")
+        self.assertNotEqual(response.content, "[]")
         tenants_groups = json.loads(response.content)
         self.assertEqual(len(tenants_groups), 1)  # 1 group
-        self.assertEqual(len(tenants_groups['1']), 2)  # 2 tenants in the group
+        self.assertEqual(len(tenants_groups[0]['attached_projects']), 2)  # 2 tenants in the group
 
     def test_update_tenant_group_ok(self):
         gtenant_id = '1'
-        data = ['0123456789abcdef', 'abcdef0123456789', '3333333333']
-        request = self.factory.put('/controller/gtenants/' + gtenant_id, data, format='json')
-        response = tenants_group_detail(request, gtenant_id)
+        tenant_group_data = {'name': 'group1', 'attached_projects': json.dumps(['0123456789abcdef', 'abcdef0123456789', '3333333333'])}
+        request = self.factory.put('/projects/groups/' + gtenant_id, tenant_group_data, format='json')
+        response = projects_group_detail(request, gtenant_id)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         # Check the object type was updated properly
-        request = self.factory.get('/controller/gtenants')
-        response = add_tenants_group(request)
+        request = self.factory.get('/projects/groups')
+        response = add_projects_group(request)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         tenants_groups = json.loads(response.content)
         self.assertEqual(len(tenants_groups), 1)  # 1 group
-        self.assertEqual(len(tenants_groups['1']), 3)  # 2 tenants in the group
-        self.assertTrue('0123456789abcdef' in tenants_groups['1'])
-        self.assertTrue('abcdef0123456789' in tenants_groups['1'])
-        self.assertTrue('3333333333' in tenants_groups['1'])
+        self.assertEqual(len(tenants_groups[0]['attached_projects']), 3)  # 3 tenants in the group
+        self.assertTrue('0123456789abcdef' in tenants_groups[0]['attached_projects'])
+        self.assertTrue('abcdef0123456789' in tenants_groups[0]['attached_projects'])
+        self.assertTrue('3333333333' in tenants_groups[0]['attached_projects'])
 
     def test_update_tenant_group_with_non_existent_id(self):
         gtenant_id = '2'
-        data = ['0123456789abcdef', 'abcdef0123456789', '3333333333']
-        request = self.factory.put('/controller/gtenants/' + gtenant_id, data, format='json')
-        response = tenants_group_detail(request, gtenant_id)
+        tenant_group_data = {'name': 'group1', 'attached_projects': json.dumps(['0123456789abcdef', 'abcdef0123456789', '3333333333'])}
+        request = self.factory.put('/projects/groups/' + gtenant_id, tenant_group_data, format='json')
+        response = projects_group_detail(request, gtenant_id)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-
-    def test_update_tenant_group_with_empty_data(self):
-        gtenant_id = '1'
-        data = []
-        request = self.factory.put('/controller/gtenants/' + gtenant_id, data, format='json')
-        response = tenants_group_detail(request, gtenant_id)
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_delete_individual_tenant_from_group_ok(self):
         gtenant_id = '1'
         tenant_id = '0123456789abcdef'
-        request = self.factory.delete('/controller/gtenants/' + gtenant_id + '/tenants/' + tenant_id)
-        response = gtenants_tenant_detail(request, gtenant_id, tenant_id)
+        request = self.factory.delete('/projects/groups/' + gtenant_id + '/projects/' + tenant_id)
+        response = projects_groups_detail(request, gtenant_id, tenant_id)
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
         # Check delete was successful
-        request = self.factory.get('/controller/gtenants')
-        response = add_tenants_group(request)
+        request = self.factory.get('/projects/groups')
+        response = add_projects_group(request)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         tenants_groups = json.loads(response.content)
         self.assertEqual(len(tenants_groups), 1)
-        self.assertEqual(len(tenants_groups['1']), 1)
-        self.assertFalse('0123456789abcdef' in tenants_groups['1'])
-        self.assertTrue('abcdef0123456789' in tenants_groups['1'])
+        self.assertEqual(len(tenants_groups[0]['attached_projects']), 1)
+        self.assertFalse('0123456789abcdef' in tenants_groups[0]['attached_projects'])
+        self.assertTrue('abcdef0123456789' in tenants_groups[0]['attached_projects'])
 
     #
     # Parse tests
@@ -854,39 +852,39 @@ class ControllerTestCase(TestCase):
     # load_metrics() / load_policies()
     #
 
-    @mock.patch('controller.views.start_metric')
+    @mock.patch('policies.views.start_metric')
     def test_load_metrics(self, mock_start_metric):
         load_metrics()
         mock_start_metric.assert_called_with(1, 'm1')
 
-    @mock.patch('controller.views.create_local_host')
-    def test_load_policies_not_alive(self, mock_create_local_host):
-        self.r.hmset('policy:20',
-                     {'alive': 'False', 'policy_description': 'FOR TENANT:0123456789abcdef DO SET compression'})
-        load_policies()
-        self.assertEqual(len(mock_create_local_host.return_value.method_calls), 0)
-
-    @mock.patch('controller.views.create_local_host')
-    def test_load_policies_alive(self, mock_create_local_host):
-        self.setup_dsl_parser_data()
-        self.r.hmset('policy:21',
-                     {'alive': 'True', 'policy_description': 'FOR TENANT:0123456789abcdef DO SET compression'})
-        load_policies()
-        self.assertTrue(mock_create_local_host.return_value.spawn.called)
-
-    @mock.patch('controller.views.create_local_host')
-    def test_load_policies_alive_transient(self, mock_create_local_host):
-        self.setup_dsl_parser_data()
-        self.r.hmset('policy:21',
-                     {'alive': 'True', 'policy_description': 'FOR TENANT:0123456789abcdef DO SET compression TRANSIENT'})
-        load_policies()
-        self.assertTrue(mock_create_local_host.return_value.spawn.called)
+    # @mock.patch('controller.views.create_local_host')
+    # def test_load_policies_not_alive(self, mock_create_local_host):
+    #     self.r.hmset('policy:20',
+    #                  {'alive': 'False', 'policy_description': 'FOR TENANT:0123456789abcdef DO SET compression'})
+    #     load_policies()
+    #     self.assertEqual(len(mock_create_local_host.return_value.method_calls), 0)
+    #
+    # @mock.patch('controller.views.create_local_host')
+    # def test_load_policies_alive(self, mock_create_local_host):
+    #     self.setup_dsl_parser_data()
+    #     self.r.hmset('policy:21',
+    #                  {'alive': 'True', 'policy_description': 'FOR TENANT:0123456789abcdef DO SET compression'})
+    #     load_policies()
+    #     self.assertTrue(mock_create_local_host.return_value.spawn.called)
+    #
+    # @mock.patch('controller.views.create_local_host')
+    # def test_load_policies_alive_transient(self, mock_create_local_host):
+    #     self.setup_dsl_parser_data()
+    #     self.r.hmset('policy:21',
+    #                  {'alive': 'True', 'policy_description': 'FOR TENANT:0123456789abcdef DO SET compression TRANSIENT'})
+    #     load_policies()
+    #     self.assertTrue(mock_create_local_host.return_value.spawn.called)
 
     #
     # static_policy_detail()
     #
 
-    @mock.patch('controller.views.get_project_list')
+    @mock.patch('policies.views.get_project_list')
     def test_registry_static_policy_detail_ok(self, mock_get_project_list):
         mock_get_project_list.return_value = {'0123456789abcdef': 'tenantA', '2': 'tenantB'}
 
@@ -898,7 +896,7 @@ class ControllerTestCase(TestCase):
         json_data = json.loads(response.content)
         self.assertEqual(json_data["target_name"], 'tenantA')
 
-    @mock.patch('controller.views.get_project_list')
+    @mock.patch('policies.views.get_project_list')
     def test_registry_static_policy_update(self, mock_get_project_list):
         mock_get_project_list.return_value = {'0123456789abcdef': 'tenantA', '2': 'tenantB'}
 
@@ -918,7 +916,7 @@ class ControllerTestCase(TestCase):
         self.assertEqual(json_data["execution_server"], 'object')
         self.assertEqual(json_data["execution_server_reverse"], 'object')
 
-    @mock.patch('controller.views.get_project_list')
+    @mock.patch('policies.views.get_project_list')
     def test_registry_static_policy_detail_delete(self, mock_get_project_list):
         mock_get_project_list.return_value = {'0123456789abcdef': 'tenantA', '2': 'tenantB'}
 
@@ -946,18 +944,18 @@ class ControllerTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
     #
-    # global_controller_list()/global_controller_detail()
+    # controller_list()/controller_detail()
     #
 
-    def test_global_controller_list_with_method_not_allowed(self):
-        request = self.factory.delete('/controller/global_controllers')
-        response = global_controller_list(request)
+    def test_controller_list_with_method_not_allowed(self):
+        request = self.factory.delete('/controllers')
+        response = controller_list(request)
         self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
-    def test_global_controller_detail_with_method_not_allowed(self):
+    def test_controller_detail_with_method_not_allowed(self):
         gc_id = '1'
-        request = self.factory.post('/controller/global_controller/' + gc_id)
-        response = global_controller_detail(request, gc_id)
+        request = self.factory.post('/controllers/' + gc_id)
+        response = controller_detail(request, gc_id)
         self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
     # def test_object_type_detail_with_method_not_allowed(self):
@@ -967,77 +965,77 @@ class ControllerTestCase(TestCase):
     #     response = object_type_detail(request, name)
     #     self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
-    def test_global_controller_list_ok(self):
-        request = self.factory.get('/controller/global_controllers')
-        response = global_controller_list(request)
+    def test_controller_list_ok(self):
+        request = self.factory.get('/controllers')
+        response = controller_list(request)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         global_controllers = json.loads(response.content)
         self.assertEqual(global_controllers[0]['class_name'], "MinTenantSLOGlobalSpareBWShare")
 
-    def test_global_controller_detail_get_ok(self):
+    def test_controller_detail_get_ok(self):
         gc_id = '1'
-        request = self.factory.get('/controller/global_controller/' + gc_id)
-        response = global_controller_detail(request, gc_id)
+        request = self.factory.get('/controllers/' + gc_id)
+        response = controller_detail(request, gc_id)
 
         global_controller = json.loads(response.content)
         self.assertEqual(global_controller['class_name'], "MinTenantSLOGlobalSpareBWShare")
-        self.assertEqual(global_controller['enabled'], False)
+        self.assertEqual(global_controller['status'], 'Stopped')
 
-    def test_global_controller_detail_delete_ok(self):
+    def test_controller_detail_delete_ok(self):
         gc_id = '1'
-        request = self.factory.delete('/controller/global_controller/' + gc_id)
-        response = global_controller_detail(request, gc_id)
+        request = self.factory.delete('/controllers/' + gc_id)
+        response = controller_detail(request, gc_id)
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
         # Verify controller is deleted
-        request = self.factory.get('/controller/global_controllers')
-        response = global_controller_list(request)
+        request = self.factory.get('/controllers')
+        response = controller_list(request)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         global_controllers = json.loads(response.content)
         self.assertEqual(len(global_controllers), 0)
 
-    @mock.patch('controller.views.stop_global_controller')
-    @mock.patch('controller.views.start_global_controller')
-    def test_global_controller_detail_update_start_stop_ok(self, mock_start_global_controller, mock_stop_global_controller):
+    @mock.patch('policies.views.stop_global_controller')
+    @mock.patch('policies.views.start_global_controller')
+    def test_controller_detail_update_start_stop_ok(self, mock_start_global_controller, mock_stop_global_controller):
         gc_id = '1'
-        controller_data = {'enabled': 'True'}
-        request = self.factory.put('/controller/global_controller/' + gc_id, controller_data, format='json')
-        response = global_controller_detail(request, gc_id)
+        controller_data = {'status': 'Running'}
+        request = self.factory.put('/controllers/' + gc_id, controller_data, format='json')
+        response = controller_detail(request, gc_id)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertTrue(mock_start_global_controller.called)
 
-        controller_data = {'enabled': 'False'}
-        request = self.factory.put('/controller/global_controller/' + gc_id, controller_data, format='json')
-        response = global_controller_detail(request, gc_id)
+        controller_data = {'status': 'Running'}
+        request = self.factory.put('/controllers/' + gc_id, controller_data, format='json')
+        response = controller_detail(request, gc_id)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertTrue(mock_stop_global_controller.called)
 
-    def test_global_controller_data_view_with_method_not_allowed(self):
+    def test_controller_data_view_with_method_not_allowed(self):
         # No PUT method for this API call
-        request = self.factory.put('/controller/global_controllers/data/')
-        response = GlobalControllerData.as_view()(request)
+        request = self.factory.put('/controllers/data/')
+        response = ControllerData.as_view()(request)
         self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
-    @mock.patch('controller.views.start_global_controller')
-    def test_create_global_controller_ok(self, mock_start_global_controller):
+    @mock.patch('policies.views.start_global_controller')
+    def test_create_controller_ok(self, mock_start_global_controller):
         with open('test_data/test.py', 'r') as fp:
-            metadata = {'class_name': 'TestClass', 'enabled': True, 'dsl_filter': 'test_filter', 'type': 'get'}
-            request = self.factory.post('/controller/global_controllers/data/', {'file': fp, 'metadata': json.dumps(metadata)})
-            response = GlobalControllerData.as_view()(request)
+            metadata = {'class_name': 'TestClass', 'status': 'Running', 'dsl_filter': 'test_filter', 'type': 'get'}
+            request = self.factory.post('/controllers/data/', {'file': fp, 'metadata': json.dumps(metadata)})
+            response = ControllerData.as_view()(request)
 
         mock_start_global_controller.assert_called_with('2', 'test', 'TestClass', 'get', 'test_filter')
-        #self.assertTrue(mock_start_global_controller.called)
+        # self.assertTrue(mock_start_global_controller.called)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         global_controller = json.loads(response.content)
         self.assertEqual(global_controller['id'], 2)
-        self.assertEqual(global_controller['enabled'], True)
+        self.assertEqual(global_controller['status'], 'Running')
         self.assertEqual(global_controller['controller_name'], 'test.py')
 
         # check the global controller has been created
         gc_id = '2'
-        request = self.factory.get('/controller/global_controller/' + gc_id)
-        response = global_controller_detail(request, gc_id)
+        request = self.factory.get('/controllers/' + gc_id)
+        response = controller_detail(request, gc_id)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         gc_data = json.loads(response.content)
         self.assertEqual(gc_data['controller_name'], 'test.py')
@@ -1047,19 +1045,18 @@ class ControllerTestCase(TestCase):
     #
 
     def create_storlet(self):
-        filter_data = {'filter_type': 'storlet', 'interface_version': '',
-                       'object_metadata': '', 'main': 'com.example.FakeMain', 'is_pre_put': 'False', 'is_post_get': 'False',
-                       'is_post_put': 'False', 'is_pre_get': 'False',
-                       'has_reverse': 'False', 'execution_server': 'proxy', 'execution_server_reverse': 'proxy'}
+        filter_data = {'filter_type': 'storlet', 'language': 'java', 'dsl_name': 'fake', 'interface_version': '1.0',
+                       'dependencies': '', 'main': 'com.example.FakeMain', 'put': 'False', 'get': 'False',
+                       'valid_parameters': '', 'execution_server': 'proxy', 'reverse': 'proxy'}
         request = self.factory.post('/filters/', filter_data, format='json')
         response = filter_list(request)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
     def upload_filter(self):
-        # Upload a filter for the storlet 1
+        # Upload a filter for the filter "fake"
         with open('test_data/test-1.0.jar', 'r') as fp:
-            request = self.factory.put('/filters/1/data', {'file': fp})
-            FilterData.as_view()(request, 1)
+            request = self.factory.put('/filters/fake/data', {'file': fp})
+            FilterData.as_view()(request, 'fake')
 
     def mock_put_object_status_created(url, token=None, container=None, name=None, contents=None,
                                        content_length=None, etag=None, chunk_size=None,
@@ -1067,7 +1064,7 @@ class ControllerTestCase(TestCase):
                                        query_string=None, response_dict=None):
         response_dict['status'] = status.HTTP_201_CREATED
 
-    @mock.patch('controller.views.get_project_list')
+    @mock.patch('policies.views.get_project_list')
     @mock.patch('filters.views.swift_client.put_object', side_effect=mock_put_object_status_created)
     def deploy_storlet(self, mock_put_object, mock_get_project_list):
         mock_get_project_list.return_value = {'0123456789abcdef': 'tenantA', '2': 'tenantB'}
@@ -1080,12 +1077,13 @@ class ControllerTestCase(TestCase):
             "policy_id": "1",
             "object_type": None,
             "object_size": None,
+            "object_tag": None,
             "execution_order": "1",
             "params": ""
         }
-        request = self.factory.put('/0123456789abcdef/deploy/1', policy_data, format='json')
+        request = self.factory.put('/0123456789abcdef/deploy/fake', policy_data, format='json')
         request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
-        response = filter_deploy(request, "1", "0123456789abcdef")
+        response = filter_deploy(request, "fake", "0123456789abcdef")
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
     def create_object_type_docs(self):
@@ -1095,19 +1093,18 @@ class ControllerTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
     def setup_dsl_parser_data(self):
-        self.r.hmset('dsl_filter:compression', {'identifier': '1', 'valid_parameters': '{"cparam1": "integer", "cparam2": "integer", "cparam3": "integer"}',
-                                                'activation_url': 'http://10.30.1.6:9000/filters'})
-        self.r.hmset('dsl_filter:encryption', {'identifier': '2', 'valid_parameters': '{"eparam1": "integer", "eparam2": "bool", "eparam3": "string"}',
-                                               'activation_url': 'http://10.30.1.6:9000/filters'})
+        # Simplified filter data:
+        self.r.hmset('filter:compression', {'valid_parameters': '{"cparam1": "integer", "cparam2": "integer", "cparam3": "integer"}'})
+        self.r.hmset('filter:encryption', { 'valid_parameters': '{"eparam1": "integer", "eparam2": "bool", "eparam3": "string"}'})
         self.r.hmset('metric:metric1', {'network_location': '?', 'type': 'integer'})
         self.r.hmset('metric:metric2', {'network_location': '?', 'type': 'integer'})
         self.r.rpush('G:1', '0123456789abcdef')
         self.r.rpush('G:2', 'abcdef0123456789')
 
     def create_tenant_group_1(self):
-        tenant_group_data = ['0123456789abcdef', 'abcdef0123456789']
-        request = self.factory.post('/controller/gtenants', tenant_group_data, format='json')
-        response = add_tenants_group(request)
+        tenant_group_data = {'name': 'group1', 'attached_projects': json.dumps(['0123456789abcdef', 'abcdef0123456789'])}
+        request = self.factory.post('/projects/groups', tenant_group_data, format='json')
+        response = add_projects_group(request)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
     def create_nodes(self):
@@ -1128,10 +1125,11 @@ class ControllerTestCase(TestCase):
     def create_metric_modules(self):
         self.r.incr("workload_metrics:id")  # setting autoincrement to 1
         self.r.hmset('workload_metric:1', {'metric_name': 'm1.py', 'class_name': 'Metric1', 'execution_server': 'proxy', 'out_flow': 'False',
-                                           'in_flow': 'False', 'enabled': 'True', 'id': '1'})
+                                           'in_flow': 'False', 'status': 'Running', 'id': '1'})
 
     def create_global_controllers(self):
         self.r.incr("controllers:id")  # setting autoincrement to 1
-        self.r.hmset('controller:1', {'class_name': 'MinTenantSLOGlobalSpareBWShare', 'enabled': 'False',
+        self.r.hmset('controller:1', {'class_name': 'MinTenantSLOGlobalSpareBWShare',
                                       'controller_name': 'min_slo_tenant_global_share_spare_bw_v2.py',
-                                      'dsl_filter': 'bandwidth', 'type': 'put', 'id': '1'})
+                                      'valid_parameters': 'method={put|get}', 'id': '1', 'instances': 0,
+                                      'enabled': 'False', 'description': 'Fake description'})

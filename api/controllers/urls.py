@@ -10,7 +10,7 @@ urlpatterns = [
     url(r'^(?P<controller_id>\d+)/?$', views.controller_detail),
 
     # Controller Instances
-    url(r'^instances/?$', views.instences_list),
+    url(r'^instances/?$', views.instances_list),
     url(r'^instance/?$', views.create_instance),
     url(r'^instance/(?P<instance_id>\w+)/?$', views.instance_detail),
 

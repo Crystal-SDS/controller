@@ -43,9 +43,9 @@ def filter_list(request):
         keys = r.keys("filter:*")
         filters = []
         for key in keys:
-            flter = r.hgetall(key)
-            to_json_bools(flter, 'get', 'put', 'post', 'head', 'delete')
-            filters.append(flter)
+            filter = r.hgetall(key)
+            to_json_bools(filter, 'get', 'put', 'post', 'head', 'delete')
+            filters.append(filter)
         sorted_list = sorted(filters, key=lambda x: int(itemgetter('id')(x)))
         return JSONResponse(sorted_list, status=status.HTTP_200_OK)
 
@@ -172,6 +172,7 @@ class FilterData(APIView):
             main = filter_data['main']
             token = get_token_connection(request)
             pipelines = r.keys('pipeline:*')
+
             for pipeline in pipelines:
                 target = pipeline.replace('pipeline:', '')
                 filters_data = r.hgetall(pipeline)

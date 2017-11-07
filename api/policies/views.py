@@ -1,13 +1,8 @@
 from django.conf import settings
-from django.http import HttpResponse
-from django.http import StreamingHttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from redis.exceptions import RedisError, DataError
 from rest_framework import status
-from rest_framework.exceptions import ParseError
-from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
-from rest_framework.response import Response
-from rest_framework.views import APIView
+from rest_framework.parsers import JSONParser
 from operator import itemgetter
 import logging
 import json
@@ -432,7 +427,7 @@ def deploy_dynamic_policy(r, rule_string, parsed_rule, http_host):
                 if parsed_rule.object_list.object_type:
                     object_type = parsed_rule.object_list.object_type.object_value
                 if parsed_rule.object_list.object_tag:
-                    object_type = parsed_rule.object_list.object_tag.object_value
+                    object_tag = parsed_rule.object_list.object_tag.object_value
                 if parsed_rule.object_list.object_size:
                     object_size = [parsed_rule.object_list.object_size.operand,
                                    parsed_rule.object_list.object_size.object_value]

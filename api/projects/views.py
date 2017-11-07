@@ -125,13 +125,13 @@ def create_docker_image(r, project_id):
         if node_ip not in already_created:
             if node_data['ssh_access']:
                 already_created.append(node_ip)
-                threading.Thread(target=deploy_docker_imege, args=(node, node_data, project_id, r,)).start()
+                threading.Thread(target=deploy_docker_image, args=(node, node_data, project_id, r,)).start()
             else:
                 logger.error('An error occurred connecting to: '+node)
                 raise AuthenticationException('An error occurred connecting to: '+node)
 
 
-def deploy_docker_imege(node, node_data, project_id, r):
+def deploy_docker_image(node, node_data, project_id, r):
     ssh_user = node_data['ssh_username']
     ssh_password = node_data['ssh_password']
     node_ip = node_data['ip']
