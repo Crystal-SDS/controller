@@ -36,7 +36,7 @@ def load_metrics():
 
     for wm in workload_metrics:
         wm_data = r.hgetall(wm)
-        if wm_data['enabled'] == 'True':
+        if wm_data['status'] == 'Running':
             actor_id = wm_data['metric_name'].split('.')[0]
             metric_id = int(wm_data['id'])
             start_metric(metric_id, actor_id)

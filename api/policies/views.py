@@ -39,21 +39,25 @@ def policy_list(request):
                     filter = r.hgetall('filter:' + str(policy['dsl_name']))
                     to_json_bools(filter, 'get', 'put', 'post', 'head', 'delete')
                     target_id = it.replace('pipeline:', '')
-                    policies.append({'id': key, 'target_id': target_id,
-                                     'target_name': project_list[target_id.split(':')[0]],
-                                     'filter_name': policy['filter_name'],
-                                     'object_type': policy['object_type'],
-                                     'object_size': policy['object_size'],
-                                     'object_tag': policy['object_tag'],
-                                     'execution_server': policy['execution_server'],
-                                     'reverse': policy['reverse'],
-                                     'execution_order': policy['execution_order'],
-                                     'params': policy['params'],
-                                     'put': filter['put'],
-                                     'get': filter['get'],
-                                     'post': filter['post'],
-                                     'head': filter['head'],
-                                     'delete': filter['delete']})
+                    policy = {'id': key, 'target_id': target_id,
+                              'target_name': project_list[target_id.split(':')[0]],
+                              'filter_name': policy['filter_name'],
+                              'object_type': policy['object_type'],
+                              'object_size': policy['object_size'],
+                              'object_tag': policy['object_tag'],
+                              'execution_server': policy['execution_server'],
+                              'reverse': policy['reverse'],
+                              'execution_order': policy['execution_order'],
+                              'params': policy['params'],
+                              'put': filter['put'],
+                              'get': filter['get']}
+                    if 'post' in filter:
+                        policy['post'] = filter['post']
+                    if 'head' in filter:
+                        policy['head'] = filter['head']
+                    if 'delete' in filter:
+                        policy['delete'] = filter['delete']
+                    policies.append(policy)
             sorted_policies = sorted(policies, key=lambda x: int(itemgetter('execution_order')(x)))
 
             return JSONResponse(sorted_policies, status=status.HTTP_200_OK)
@@ -101,7 +105,8 @@ def policy_list(request):
             except ProjectNotCrystalEnabled:
                 return JSONResponse('The project is not Crystal Enabled. Verify it in the Projects panel.',
                                     status=status.HTTP_404_NOT_FOUND)
-            except Exception:
+            except Exception as e:
+                logger.info('Unexpected exception: ' + e.message)
                 return JSONResponse('Please, review the rule, and start the related workload '
                                     'metric before creating a new policy', status=status.HTTP_401_UNAUTHORIZED)
 
@@ -186,12 +191,16 @@ def static_policy_detail(request, policy_id):
         policy_redis = r.hget("pipeline:" + str(target), policy)
         data = json.loads(policy_redis)
         filter = r.hgetall('filter:' + str(data['dsl_name']))
+
         to_json_bools(filter, 'get', 'put', 'post', 'head', 'delete')
         data['get'] = filter['get']
         data['put'] = filter['put']
-        data['post'] = filter['post']
-        data['head'] = filter['head']
-        data['delete'] = filter['delete']
+        if 'post' in filter:
+            data['post'] = filter['post']
+        if 'head' in filter:
+            data['head'] = filter['head']
+        if 'delete' in filter:
+            data['delete'] = filter['delete']
         data["id"] = policy
         data["target_id"] = target
         data["target_name"] = project_list[target.split(':')[0]]

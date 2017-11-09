@@ -14,7 +14,7 @@ from policies.dsl_parser import parse
 from policies.views import object_type_list, object_type_detail, static_policy_detail, dynamic_policy_detail, policy_list
 from projects.views import add_projects_group, projects_group_detail, projects_groups_detail
 from metrics.views import metric_module_list, metric_module_detail, MetricModuleData, load_metrics
-from .views import controller_list, controller_detail, ControllerData
+from .views import controller_list, controller_detail, ControllerData, create_instance, instance_detail
 # from .views import add_metric, metric_detail, add_dynamic_filter, dynamic_filter_detail, load_policies
 
 
@@ -54,6 +54,7 @@ class ControllerTestCase(TestCase):
         # Create an instance of a GET request.
         request = self.factory.get('/controller/static_policy')
         request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
+        request.META['HTTP_HOST'] = 'fake_host'
         response = policy_list(request)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         json_data = json.loads(response.content)
@@ -63,6 +64,7 @@ class ControllerTestCase(TestCase):
         # Create an instance of a GET request.
         request = self.factory.get('/controller/dynamic_policy')
         request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
+        request.META['HTTP_HOST'] = 'fake_host'
         response = policy_list(request)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         json_data = json.loads(response.content)
@@ -76,6 +78,7 @@ class ControllerTestCase(TestCase):
         data = "FOR TENANT:0123456789abcdef DO SET compression"
         request = self.factory.post('/controller/static_policy', data, content_type='text/plain')
         request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
+        request.META['HTTP_HOST'] = 'fake_host'
         response = policy_list(request)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertTrue(mock_deploy_static_policy.called)
@@ -85,17 +88,19 @@ class ControllerTestCase(TestCase):
     def test_registry_static_policy_create_set_filter_ok(self, mock_set_filter, mock_get_project_list):
         self.setup_dsl_parser_data()
 
+        self.r.lpush('projects_crystal_enabled', '0123456789abcdef')
         mock_get_project_list.return_value = {'0123456789abcdef': 'tenantA', '2': 'tenantB'}
 
         # Create an instance of a POST request.
         data = "FOR TENANT:0123456789abcdef DO SET compression WITH bw=2 ON PROXY TO OBJECT_TYPE=DOCS"
         request = self.factory.post('/controller/static_policy', data, content_type='text/plain')
         request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
+        request.META['HTTP_HOST'] = 'fake_host'
         response = policy_list(request)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertTrue(mock_set_filter.called)
         expected_policy_data = {'object_size': '', 'execution_order': 2, 'object_type': 'DOCS', 'params': mock.ANY,
-                                'policy_id': 2, 'execution_server': 'PROXY', 'callable': False}
+                                'execution_server': 'PROXY', 'callable': False, 'object_tag': '', 'policy_id': 2}
         mock_set_filter.assert_called_with(mock.ANY, '0123456789abcdef', mock.ANY, expected_policy_data, 'fake_token')
 
     @mock.patch('policies.views.deploy_dynamic_policy')
@@ -106,6 +111,7 @@ class ControllerTestCase(TestCase):
         data = "FOR TENANT:0123456789abcdef WHEN metric1 > 5 DO SET compression"
         request = self.factory.post('/controller/dynamic_policy', data, content_type='text/plain')
         request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
+        request.META['HTTP_HOST'] = 'fake_host'
         response = policy_list(request)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertTrue(mock_deploy_dynamic_policy.called)
@@ -116,18 +122,21 @@ class ControllerTestCase(TestCase):
         self.setup_dsl_parser_data()
 
         mock_get_project_list.return_value = {'0123456789abcdef': 'tenantA', '2': 'tenantB'}
+        self.r.lpush('projects_crystal_enabled', '0123456789abcdef')
 
         # Create an instance of a POST request.
         data = "FOR TENANT:0123456789abcdef WHEN metric1 > 5 DO SET compression"
         request = self.factory.post('/controller/dynamic_policy', data, content_type='text/plain')
         request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
+        request.META['HTTP_HOST'] = 'fake_host'
         response = policy_list(request)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertTrue(mock_create_local_host.called)
         self.assertTrue(mock_create_local_host.return_value.spawn.called)
         self.assertTrue(self.r.exists('policy:2'))
         policy_data = self.r.hgetall('policy:2')
-        self.assertEqual(policy_data['policy'], 'FOR TENANT:0123456789abcdef WHEN metric1 > 5 DO SET compression')
+        self.assertEqual(policy_data['target_id'], '0123456789abcdef')
+        self.assertEqual(policy_data['filter'], 'compression')
         self.assertEqual(policy_data['condition'], 'metric1 > 5')
 
     # def test_registry_static_policy_create_with_inexistent_filter(self):
@@ -264,17 +273,17 @@ class ControllerTestCase(TestCase):
         self.assertEqual(len(metrics), 0)
 
     def test_metric_module_data_view_with_method_not_allowed(self):
-        # No POST method for this API call
-        request = self.factory.post('/controller/metric_module/data/')
+        # No DELETE method for this API call
+        request = self.factory.delete('/controller/metric_module/data/')
         response = MetricModuleData.as_view()(request)
         self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
-    @mock.patch('policies.views.rsync_dir_with_nodes')
+    @mock.patch('metrics.views.rsync_dir_with_nodes')
     def test_create_metric_module_ok(self, mock_rsync_dir):
         with open('test_data/test.py', 'r') as fp:
             metadata = {'class_name': 'Metric1', 'execution_server': 'proxy', 'out_flow': False,
                         'in_flow': False, 'status': 'Stopped'}
-            request = self.factory.put('/controller/metric_module/data/', {'file': fp, 'metadata': json.dumps(metadata)})
+            request = self.factory.post('/controller/metric_module/data/', {'file': fp, 'metadata': json.dumps(metadata)})
             response = MetricModuleData.as_view()(request)
             mock_rsync_dir.assert_called_with(settings.WORKLOAD_METRICS_DIR)
 
@@ -591,7 +600,7 @@ class ControllerTestCase(TestCase):
 
     def test_create_tenant_group_ok(self):
         # Create a second tenant group
-        tenant_group_data = {'name': 'group1', 'attached_projects': json.dumps(['tenant1_id', 'tenant2_id', 'tenant3_id'])}
+        tenant_group_data = {'name': 'group2', 'attached_projects': json.dumps(['tenant1_id', 'tenant2_id', 'tenant3_id'])}
         request = self.factory.post('/projects/groups', tenant_group_data, format='json')
         response = add_projects_group(request)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
@@ -601,12 +610,13 @@ class ControllerTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         tenants_groups = json.loads(response.content)
         self.assertEqual(len(tenants_groups), 2)  # 2 groups
-        attached_projects = tenants_groups[1]['attached_projects']
-        self.assertEqual(len(attached_projects), 3)  # 3 tenants in the 2nd group
-        self.assertTrue('tenant1_id' in attached_projects)
-        self.assertTrue('tenant2_id' in attached_projects)
-        self.assertTrue('tenant3_id' in attached_projects)
-        self.assertFalse('0123456789abcdef' in attached_projects)
+        for tenants_group in tenants_groups:
+            if tenants_group['name'] == 'group2':
+                attached_projects = tenants_group['attached_projects']
+                self.assertEqual(len(attached_projects), 3)  # 3 tenants in the 2nd group
+                self.assertTrue('tenant1_id' in attached_projects)
+                self.assertTrue('tenant2_id' in attached_projects)
+                self.assertTrue('tenant3_id' in attached_projects)
 
     def test_create_tenant_group_with_empty_data(self):
         # Create a second tenant group with empty data --> ERROR
@@ -852,7 +862,7 @@ class ControllerTestCase(TestCase):
     # load_metrics() / load_policies()
     #
 
-    @mock.patch('policies.views.start_metric')
+    @mock.patch('metrics.views.start_metric')
     def test_load_metrics(self, mock_start_metric):
         load_metrics()
         mock_start_metric.assert_called_with(1, 'm1')
@@ -901,7 +911,7 @@ class ControllerTestCase(TestCase):
         mock_get_project_list.return_value = {'0123456789abcdef': 'tenantA', '2': 'tenantB'}
 
         # Create an instance of a PUT request.
-        data = {"execution_server": "object", "execution_server_reverse": "object"}
+        data = {"execution_server": "object", "reverse": "object"}
         request = self.factory.put('/controller/static_policy/0123456789abcdef:1', data, format='json')
         request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
         response = static_policy_detail(request, '0123456789abcdef:1')
@@ -914,7 +924,7 @@ class ControllerTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         json_data = json.loads(response.content)
         self.assertEqual(json_data["execution_server"], 'object')
-        self.assertEqual(json_data["execution_server_reverse"], 'object')
+        self.assertEqual(json_data["reverse"], 'object')
 
     @mock.patch('policies.views.get_project_list')
     def test_registry_static_policy_detail_delete(self, mock_get_project_list):
@@ -940,6 +950,7 @@ class ControllerTestCase(TestCase):
 
     def test_registry_dynamic_policy_detail_with_method_not_allowed(self):
         request = self.factory.get('/controller/dynamic_policy/123')
+        request.META['HTTP_HOST'] = 'fake_host'
         response = dynamic_policy_detail(request, '123')
         self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
@@ -980,7 +991,6 @@ class ControllerTestCase(TestCase):
 
         global_controller = json.loads(response.content)
         self.assertEqual(global_controller['class_name'], "MinTenantSLOGlobalSpareBWShare")
-        self.assertEqual(global_controller['status'], 'Stopped')
 
     def test_controller_detail_delete_ok(self):
         gc_id = '1'
@@ -995,41 +1005,45 @@ class ControllerTestCase(TestCase):
         global_controllers = json.loads(response.content)
         self.assertEqual(len(global_controllers), 0)
 
-    @mock.patch('policies.views.stop_global_controller')
-    @mock.patch('policies.views.start_global_controller')
-    def test_controller_detail_update_start_stop_ok(self, mock_start_global_controller, mock_stop_global_controller):
+    @mock.patch('controllers.views.stop_controller_instance')
+    @mock.patch('controllers.views.start_controller_instance')
+    def test_controller_detail_update_start_stop_ok(self, mock_start_controller_instance, mock_stop_controller_instance):
         gc_id = '1'
-        controller_data = {'status': 'Running'}
-        request = self.factory.put('/controllers/' + gc_id, controller_data, format='json')
-        response = controller_detail(request, gc_id)
+        controller_data = {'controller': gc_id, 'parameters': ''}
+        request = self.factory.post('/controllers/instance', controller_data, format='json')
+        response = create_instance(request)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertTrue(mock_start_global_controller.called)
 
+        instance_id = '1'
         controller_data = {'status': 'Running'}
-        request = self.factory.put('/controllers/' + gc_id, controller_data, format='json')
-        response = controller_detail(request, gc_id)
+        request = self.factory.put('/controllers/instance/' + instance_id, controller_data, format='json')
+        response = instance_detail(request, instance_id)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertTrue(mock_stop_global_controller.called)
+        self.assertTrue(mock_start_controller_instance.called)
+
+        controller_data = {'status': 'Stopped'}
+        request = self.factory.put('/controllers/instance/' + instance_id, controller_data, format='json')
+        response = instance_detail(request, instance_id)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(mock_stop_controller_instance.called)
 
     def test_controller_data_view_with_method_not_allowed(self):
-        # No PUT method for this API call
-        request = self.factory.put('/controllers/data/')
+        # No DELETE method for this API call
+        request = self.factory.delete('/controllers/data/')
         response = ControllerData.as_view()(request)
         self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
-    @mock.patch('policies.views.start_global_controller')
-    def test_create_controller_ok(self, mock_start_global_controller):
+    def test_create_controller_ok(self):
         with open('test_data/test.py', 'r') as fp:
-            metadata = {'class_name': 'TestClass', 'status': 'Running', 'dsl_filter': 'test_filter', 'type': 'get'}
+            metadata = {'class_name': 'TestClass', 'enabled': 'False', 'description': 'test controller', 'type': 'get'}
             request = self.factory.post('/controllers/data/', {'file': fp, 'metadata': json.dumps(metadata)})
             response = ControllerData.as_view()(request)
 
-        mock_start_global_controller.assert_called_with('2', 'test', 'TestClass', 'get', 'test_filter')
-        # self.assertTrue(mock_start_global_controller.called)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         global_controller = json.loads(response.content)
+
         self.assertEqual(global_controller['id'], 2)
-        self.assertEqual(global_controller['status'], 'Running')
+        self.assertEqual(global_controller['enabled'], 'False')
         self.assertEqual(global_controller['controller_name'], 'test.py')
 
         # check the global controller has been created
@@ -1098,8 +1112,8 @@ class ControllerTestCase(TestCase):
         self.r.hmset('filter:encryption', { 'valid_parameters': '{"eparam1": "integer", "eparam2": "bool", "eparam3": "string"}'})
         self.r.hmset('metric:metric1', {'network_location': '?', 'type': 'integer'})
         self.r.hmset('metric:metric2', {'network_location': '?', 'type': 'integer'})
-        self.r.rpush('G:1', '0123456789abcdef')
-        self.r.rpush('G:2', 'abcdef0123456789')
+        # self.r.rpush('G:1', '0123456789abcdef')
+        # self.r.rpush('G:2', 'abcdef0123456789')
 
     def create_tenant_group_1(self):
         tenant_group_data = {'name': 'group1', 'attached_projects': json.dumps(['0123456789abcdef', 'abcdef0123456789'])}
@@ -1124,8 +1138,10 @@ class ControllerTestCase(TestCase):
 
     def create_metric_modules(self):
         self.r.incr("workload_metrics:id")  # setting autoincrement to 1
-        self.r.hmset('workload_metric:1', {'metric_name': 'm1.py', 'class_name': 'Metric1', 'execution_server': 'proxy', 'out_flow': 'False',
-                                           'in_flow': 'False', 'status': 'Running', 'id': '1'})
+        #self.r.hmset('workload_metric:1', {'metric_name': 'm1.py', 'class_name': 'Metric1', 'execution_server': 'proxy', 'out_flow': 'False',
+        #                                   'in_flow': 'False', 'status': 'Running', 'id': '1'})
+        self.r.hmset('workload_metric:1', {'metric_name': 'm1.py', 'class_name': 'Metric1', 'status': 'Running', 'get': 'False', 'put': 'False',
+                                           'execution_server': 'object', 'replicate' : 'True', 'ssync': 'True', 'id': '1' })
 
     def create_global_controllers(self):
         self.r.incr("controllers:id")  # setting autoincrement to 1
