@@ -322,3 +322,11 @@ def project_users_list(request, project_id):
 
         return JSONResponse(user_list, status=status.HTTP_200_OK)
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+
+@csrf_exempt
+def project_groups_list(request, project_id):
+    if request.method == 'GET':
+        groups_list = list()
+        return JSONResponse(groups_list, status=status.HTTP_200_OK)
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
