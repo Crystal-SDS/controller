@@ -37,7 +37,7 @@ def controller_list(request):
         controller_list = []
         for key in keys:
             controller = r.hgetall(key)
-            to_json_bools(controller, 'enabled')
+            # to_json_bools(controller, 'enabled')
             controller_list.append(controller)
         return JSONResponse(controller_list, status=status.HTTP_200_OK)
 
@@ -56,7 +56,7 @@ def controller_detail(request, controller_id):
 
     if request.method == 'GET':
         controller = r.hgetall('controller:' + str(controller_id))
-        to_json_bools(controller, 'enabled')
+        # to_json_bools(controller, 'enabled')
         return JSONResponse(controller, status=status.HTTP_200_OK)
 
     elif request.method == 'PUT':
@@ -176,7 +176,7 @@ class ControllerData(APIView):
 # Instances
 #
 @csrf_exempt
-def instences_list(request):
+def instances_list(request):
     """
     List all global controllers.
     """

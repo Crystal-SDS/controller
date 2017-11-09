@@ -125,13 +125,13 @@ def create_docker_image(r, project_id):
         if node_ip not in already_created:
             if node_data['ssh_access']:
                 already_created.append(node_ip)
-                threading.Thread(target=deploy_docker_imege, args=(node, node_data, project_id, r,)).start()
+                threading.Thread(target=deploy_docker_image, args=(node, node_data, project_id, r,)).start()
             else:
                 logger.error('An error occurred connecting to: '+node)
                 raise AuthenticationException('An error occurred connecting to: '+node)
 
 
-def deploy_docker_imege(node, node_data, project_id, r):
+def deploy_docker_image(node, node_data, project_id, r):
     ssh_user = node_data['ssh_username']
     ssh_password = node_data['ssh_password']
     node_ip = node_data['ip']
@@ -268,7 +268,7 @@ def projects_group_detail(request, group_id):
         key = 'project_group:' + str(group_id)
         if r.exists(key):
             r.delete("project_group:" + str(group_id))
-            gtenants_ids = r.keys('G:*')
+            gtenants_ids = r.keys('project_group:*')
             if len(gtenants_ids) == 0:
                 r.set('project_groups:id', 0)
             return JSONResponse('Tenants group has been deleted', status=status.HTTP_204_NO_CONTENT)
@@ -287,7 +287,12 @@ def projects_groups_detail(request, group_id, project_id):
     except RedisError:
         return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     if request.method == 'DELETE':
-        r.lrem("project_group:" + str(group_id), str(project_id), 1)
+        key = 'project_group:' + str(group_id)
+        group = r.hgetall(key)
+        attached_projects = json.loads(group['attached_projects'])
+        attached_projects.remove(str(project_id))
+        group['attached_projects'] = json.dumps(attached_projects)
+        r.hmset(key, group)
         return JSONResponse('Tenant ' + str(project_id) + ' has been deleted from group with the id: ' + str(group_id),
                             status=status.HTTP_204_NO_CONTENT)
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
