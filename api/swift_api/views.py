@@ -749,7 +749,7 @@ def containers_list(request, project_id):
 
         _, containers = swift_client.get_account(url, token)
         for c_id in reversed(range(len(containers))):
-            if containers[c_id]['name'] in ('dependency', 'storlet'):
+            if containers[c_id]['name'] in ('.dependency', '.storlet'):
                 del containers[c_id]
 
         return JSONResponse(containers, status=status.HTTP_200_OK)

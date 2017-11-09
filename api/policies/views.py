@@ -494,11 +494,18 @@ def access_control(request):
             for it in keys:
                 for key, value in r.hgetall(it).items():
                     policy = json.loads(value)
-                    to_json_bools(policy, 'write', 'read')
+                    to_json_bools(policy, 'list', 'write', 'read')
                     target_id = it.replace('acl:', '')
+
+                    target_split = target_id.split(':')
+                    if len(target_split) > 1:
+                        target_name = project_list[target_id.split(':')[0]]+'/'+target_id.split(':')[1]
+                    else:
+                        target_name = project_list[target_id.split(':')[0]]
+
                     p = {'id': key,
                          'target_id': target_id,
-                         'target_name': project_list[target_id.split(':')[0]]+'/'+target_id.split(':')[1]}
+                         'target_name': target_name}
                     p.update(policy)
                     acl.append(p)
 
@@ -509,10 +516,23 @@ def access_control(request):
     if request.method == 'POST':
         data = JSONParser().parse(request)
         try:
-            key = 'acl:' + data['project_id'] + ':' + data['container_id']
+            if data['container_id']:
+                key = 'acl:' + data['project_id'] + ':' + data['container_id']
+            else:
+                key = 'acl:' + data['project_id']
             acl_id = str(r.incr('acls:id'))
             data.pop('container_id')
             data.pop('project_id')
+
+            users = data['user_id']
+
+            if 'user_id' in users:
+                data['user_id'] = users.replace('user_id:', '')
+                data['group_id'] = ''
+            elif 'group_id' in users:
+                data['group_id'] = users.replace('group_id:', '')
+                data['user_id'] = ''
+
             r.hset(key, acl_id, json.dumps(data))
 
             return JSONResponse("Access control policy created", status=201)
@@ -542,11 +562,17 @@ def access_control_detail(request, policy_id):
             policy_redis = r.hget("acl:" + str(target_id), acl_id)
             policy = json.loads(policy_redis)
 
-            to_json_bools(policy, 'write', 'read')
+            to_json_bools(policy, 'list', 'write', 'read')
+
+            target_split = target_id.split(':')
+            if len(target_split) > 1:
+                target_name = project_list[target_id.split(':')[0]]+'/'+target_id.split(':')[1]
+            else:
+                target_name = project_list[target_id.split(':')[0]]
 
             p = {'id': acl_id,
                  'target_id': target_id,
-                 'target_name': project_list[target_id.split(':')[0]]+'/'+target_id.split(':')[1]}
+                 'target_name': target_name}
             p.update(policy)
 
             return JSONResponse(p, status=status.HTTP_200_OK)

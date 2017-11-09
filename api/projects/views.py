@@ -59,8 +59,8 @@ def projects(request, project_id=None):
 
             # Post Storlet and Dependency containers
             url, token = get_swift_url_and_token(project_name)
-            swift_client.put_container(url, token, "storlet")
-            swift_client.put_container(url, token, "dependency")
+            swift_client.put_container(url, token, ".storlet")
+            swift_client.put_container(url, token, ".dependency")
             headers = {'X-Account-Meta-Crystal-Enabled': True, 'X-Account-Meta-Storlet-Enabled': True}
             swift_client.post_account(url, token, headers)
 
@@ -79,10 +79,10 @@ def projects(request, project_id=None):
             # Delete Storlet and Dependency containers
             try:
                 url, token = get_swift_url_and_token(project_name)
-                swift_client.delete_container(url, token, "storlet")
-                swift_client.delete_container(url, token, "dependency")
                 headers = {'X-Account-Meta-Crystal-Enabled': '', 'X-Account-Meta-Storlet-Enabled': ''}
                 swift_client.post_account(url, token, headers)
+                swift_client.delete_container(url, token, ".storlet")
+                swift_client.delete_container(url, token, ".dependency")
             except:
                 pass
 
@@ -308,7 +308,7 @@ def project_users_list(request, project_id):
 
         valid_users = list()
         for ra in role_assignments:
-            if 'project' in ra.scope and ra.scope['project']['id'] == project_id \
+            if hasattr(ra, 'user') and 'project' in ra.scope and ra.scope['project']['id'] == project_id \
                and ra.role['id'] == user_role_id:
                 valid_users.append(ra.user['id'])
 
@@ -327,6 +327,29 @@ def project_users_list(request, project_id):
 @csrf_exempt
 def project_groups_list(request, project_id):
     if request.method == 'GET':
+        keystone_client = keystone_client = get_keystone_admin_auth()
+        groups = keystone_client.groups.list()
+        roles = keystone_client.roles.list()
+
+        for role in roles:
+            if role.name == 'user':
+                user_role_id = role.id
+                break
+        role_assignments = keystone_client.role_assignments.list()
+
+        valid_groups = list()
+        for ra in role_assignments:
+            if hasattr(ra, 'group') and 'project' in ra.scope and ra.scope['project']['id'] == project_id \
+               and ra.role['id'] == user_role_id:
+                valid_groups.append(ra.group['id'])
+
         groups_list = list()
+        for group in groups:
+            if group.id in valid_groups:
+                group_data = {}
+                group_data['id'] = group.id
+                group_data['name'] = group.name
+                groups_list.append(group_data)
+
         return JSONResponse(groups_list, status=status.HTTP_200_OK)
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
