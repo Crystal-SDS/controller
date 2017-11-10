@@ -528,13 +528,27 @@ def access_control(request):
             data.pop('container_id')
             data.pop('project_id')
 
-            users = data['user_id']
+            identity = data.pop('identity')
+            access = data.pop('access')
 
-            if 'user_id' in users:
-                data['user_id'] = users.replace('user_id:', '')
+            if access == 'list':
+                data['list'] = True
+                data['read'] = False
+                data['write'] = False
+            elif access == 'read':
+                data['list'] = False
+                data['read'] = True
+                data['write'] = False
+            elif access == 'read-write':
+                data['list'] = False
+                data['read'] = True
+                data['write'] = True
+
+            if 'user_id' in identity:
+                data['user_id'] = identity.replace('user_id:', '')
                 data['group_id'] = ''
-            elif 'group_id' in users:
-                data['group_id'] = users.replace('group_id:', '')
+            elif 'group_id' in identity:
+                data['group_id'] = identity.replace('group_id:', '')
                 data['user_id'] = ''
 
             r.hset(key, acl_id, json.dumps(data))
@@ -598,6 +612,20 @@ def access_control_detail(request, policy_id):
 
             policy_redis = r.hget("acl:" + str(target_id), acl_id)
             policy = json.loads(policy_redis)
+            access = data.pop('access')
+
+            if access == 'list':
+                data['list'] = True
+                data['read'] = False
+                data['write'] = False
+            elif access == 'read':
+                data['list'] = False
+                data['read'] = True
+                data['write'] = False
+            elif access == 'read-write':
+                data['list'] = False
+                data['read'] = True
+                data['write'] = True
             policy.update(data)
             r.hset("acl:" + str(target_id), acl_id, json.dumps(policy))
 
