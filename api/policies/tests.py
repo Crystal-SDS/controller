@@ -8,7 +8,7 @@ from django.test import TestCase, override_settings
 from pyparsing import ParseException
 from rest_framework import status
 from rest_framework.test import APIRequestFactory
-from policies.dsl_parser import parse
+from policies.dsl_parser import parse, parse_condition, parse_group_tenants
 from filters.views import filter_list, filter_deploy, FilterData
 from policies.views import object_type_list, object_type_detail, static_policy_detail, dynamic_policy_detail, policy_list
 from projects.views import add_projects_group
@@ -199,7 +199,6 @@ class PoliciesTestCase(TestCase):
         response = dynamic_policy_detail(request, '123')
         self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
-
     #
     # Parse tests
     #
@@ -276,6 +275,28 @@ class PoliciesTestCase(TestCase):
         self.assertIsNotNone(object_type.object_value)
         self.assertEqual(object_type.object_value, 'DOCS')
 
+    def test_parse_target_tenant_to_object_type_tag_size_ok(self):
+        self.setup_dsl_parser_data()
+        rule_str = 'FOR TENANT:0123456789abcdef DO SET compression TO OBJECT_TAG=tagtag, OBJECT_SIZE>10, OBJECT_TYPE=DOCS'
+        has_condition_list, rule_parsed = parse(rule_str)
+        self.assertFalse(has_condition_list)
+        self.assertIsNotNone(rule_parsed)
+        object_list = rule_parsed.object_list
+        self.assertIsNotNone(object_list)
+        object_type = object_list.object_type
+        self.assertIsNotNone(object_type)
+        self.assertIsNotNone(object_type.object_value)
+        self.assertEqual(object_type.object_value, 'DOCS')
+        object_tag = object_list.object_tag
+        self.assertIsNotNone(object_tag)
+        self.assertIsNotNone(object_tag.object_value)
+        self.assertEqual(object_tag.object_value, 'tagtag')
+        object_size = object_list.object_size
+        self.assertIsNotNone(object_size)
+        self.assertIsNotNone(object_size.object_value)
+        self.assertEqual(object_size.object_value, '10')
+        self.assertEqual(object_size.operand, '>')
+
     def test_parse_target_tenant_with_parameters_ok(self):
         self.setup_dsl_parser_data()
         has_condition_list, rule_parsed = parse('FOR TENANT:0123456789abcdef DO SET compression WITH cparam1=11, cparam2=12, cparam3=13')
@@ -341,6 +362,12 @@ class PoliciesTestCase(TestCase):
         self.assertEqual(len(action_list), 1)
         action_info = action_list[0]
         self.assertEqual(action_info.callable, '')
+
+    def test_parse_condition_ok(self):
+        self.setup_dsl_parser_data()
+        condition_list = parse_condition("metric1 > 5.0 OR metric1 < 2.0")
+        self.assertIsNotNone(condition_list)
+        self.assertEqual(condition_list, [['metric1', '>', '5.0'], 'OR', ['metric1', '<', '2.0']])
 
     #
     # object_type tests
@@ -507,7 +534,6 @@ class PoliciesTestCase(TestCase):
         response = object_type_detail(request, name)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-
     #
     # Aux methods
     #
@@ -563,11 +589,9 @@ class PoliciesTestCase(TestCase):
     def setup_dsl_parser_data(self):
         # Simplified filter data:
         self.r.hmset('filter:compression', {'valid_parameters': '{"cparam1": "integer", "cparam2": "integer", "cparam3": "integer"}'})
-        self.r.hmset('filter:encryption', { 'valid_parameters': '{"eparam1": "integer", "eparam2": "bool", "eparam3": "string"}'})
+        self.r.hmset('filter:encryption', {'valid_parameters': '{"eparam1": "integer", "eparam2": "bool", "eparam3": "string"}'})
         self.r.hmset('metric:metric1', {'network_location': '?', 'type': 'integer'})
         self.r.hmset('metric:metric2', {'network_location': '?', 'type': 'integer'})
-        # self.r.rpush('G:1', '0123456789abcdef')
-        # self.r.rpush('G:2', 'abcdef0123456789')
 
     def create_tenant_group_1(self):
         tenant_group_data = {'name': 'group1', 'attached_projects': json.dumps(['0123456789abcdef', 'abcdef0123456789'])}
@@ -592,10 +616,8 @@ class PoliciesTestCase(TestCase):
 
     def create_metric_modules(self):
         self.r.incr("workload_metrics:id")  # setting autoincrement to 1
-        #self.r.hmset('workload_metric:1', {'metric_name': 'm1.py', 'class_name': 'Metric1', 'execution_server': 'proxy', 'out_flow': 'False',
-        #                                   'in_flow': 'False', 'status': 'Running', 'id': '1'})
         self.r.hmset('workload_metric:1', {'metric_name': 'm1.py', 'class_name': 'Metric1', 'status': 'Running', 'get': 'False', 'put': 'False',
-                                           'execution_server': 'object', 'replicate' : 'True', 'ssync': 'True', 'id': '1' })
+                                           'execution_server': 'object', 'replicate': 'True', 'ssync': 'True', 'id': '1'})
 
     def create_global_controllers(self):
         self.r.incr("controllers:id")  # setting autoincrement to 1

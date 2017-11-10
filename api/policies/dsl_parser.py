@@ -112,7 +112,17 @@ def parse(input_string):
     object_type = Group(Literal("OBJECT_TYPE")("type") + Literal("=") + word(alphanums)("object_value"))("object_type")
     object_size = Group(Literal("OBJECT_SIZE")("size") + operand_object("operand") + number("object_value"))("object_size")
     object_tag = Group(Literal("OBJECT_TAG")("tag") + Literal("=") + word(alphanums)("object_value"))("object_tag")
-    object_list = Group(object_type ^ object_size ^ object_type + "," + object_size ^ object_size + "," + object_type)
+    object_list = Group(object_type ^ object_size ^ object_tag ^
+                        object_type + "," + object_size ^ object_size + "," + object_type ^
+                        object_type + "," + object_tag ^ object_tag + "," + object_type ^
+                        object_size + "," + object_tag ^ object_tag + "," + object_size ^
+                        object_type + "," + object_size + "," + object_tag ^
+                        object_type + "," + object_tag + "," + object_size ^
+                        object_size + "," + object_type + "," + object_tag ^
+                        object_size + "," + object_tag + "," + object_type ^
+                        object_tag + "," + object_type + "," + object_size ^
+                        object_tag + "," + object_size + "," + object_type)
+
     to = Suppress("TO")
 
     # Functions post-parsed

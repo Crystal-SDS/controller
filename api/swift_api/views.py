@@ -4,7 +4,6 @@ from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from redis.exceptions import RedisError
 from rest_framework import status
-from rest_framework.exceptions import ParseError
 from rest_framework.parsers import JSONParser
 from shutil import copyfile
 from swiftclient import client as swift_client
@@ -36,17 +35,17 @@ def update_sp_files(path, policy_id, d):
 
     swift_file = os.path.join(path, 'swift.conf')
 
-    configParser = ConfigParser.RawConfigParser()
-    configParser.read(swift_file)
+    config_parser = ConfigParser.RawConfigParser()
+    config_parser.read(swift_file)
 
-    if not configParser.has_section(storage_policy_key):
-        configParser.add_section(storage_policy_key)
+    if not config_parser.has_section(storage_policy_key):
+        config_parser.add_section(storage_policy_key)
 
     for key, value in d.iteritems():
-        configParser.set(storage_policy_key, key, value)
+        config_parser.set(storage_policy_key, key, value)
 
     with open(swift_file, 'wb') as configfile:
-        configParser.write(configfile)
+        config_parser.write(configfile)
 
 
 def get_policy_file_path(dir_path, policy_id):
@@ -157,13 +156,13 @@ def storage_policy_detail(request, storage_policy_id):
 
                 deploy_swift_file = get_swift_cfg_path(settings.SWIFT_CFG_DEPLOY_DIR)
 
-                configParser = ConfigParser.RawConfigParser()
-                configParser.read(deploy_swift_file)
+                config_parser = ConfigParser.RawConfigParser()
+                config_parser.read(deploy_swift_file)
 
-                configParser.remove_section(key)
+                config_parser.remove_section(key)
 
                 with open(deploy_swift_file, 'wb') as configfile:
-                    configParser.write(configfile)
+                    config_parser.write(configfile)
 
                 r.delete(key)
 
@@ -219,7 +218,7 @@ def storage_policy_disks(request, storage_policy_id):
 
             object_node_id, device_id = disk.split(':')
             object_node = r.hgetall('object_node:' + object_node_id)
-            device_detail = json.loads(object_node['devices'])[device_id]
+            # device_detail = json.loads(object_node['devices'])[device_id]
             region = r.hgetall('region:' + object_node['region_id'])['name']
             zone = r.hgetall('zone:' + object_node['zone_id'])['name']
 
@@ -384,16 +383,16 @@ def load_swift_policies(request):
                     key = 'storage-policy:0'
 
                 local_swift_file = get_swift_cfg_path(settings.SWIFT_CFG_DEPLOY_DIR)
-                configParser = ConfigParser.RawConfigParser()
-                configParser.read(local_swift_file)
-                if configParser.has_section(key):
+                config_parser = ConfigParser.RawConfigParser()
+                config_parser.read(local_swift_file)
+                if config_parser.has_section(key):
 
-                    name = configParser.get(key, 'name') if configParser.has_option(key, 'name') else 'Policy-' + sp_id
-                    policy_type = configParser.get(key, 'policy_type') if configParser.has_option(key, 'policy_type') else 'Replication'
-                    deprecated = configParser.get(key, 'deprecated') if configParser.has_option(key, 'deprecated') else 'False'
+                    name = config_parser.get(key, 'name') if config_parser.has_option(key, 'name') else 'Policy-' + sp_id
+                    policy_type = config_parser.get(key, 'policy_type') if config_parser.has_option(key, 'policy_type') else 'Replication'
+                    deprecated = config_parser.get(key, 'deprecated') if config_parser.has_option(key, 'deprecated') else 'False'
 
-                    if configParser.has_option(key, 'default'):
-                        default = 'True' if configParser.get(key, 'default') in ['yes', 'Yes'] else 'False'
+                    if config_parser.has_option(key, 'default'):
+                        default = 'True' if config_parser.get(key, 'default') in ['yes', 'Yes'] else 'False'
                     else:
                         default = 'False'
 
@@ -503,7 +502,7 @@ def node_detail(request, server_type, node_id):
     """
     GET: Retrieve node details. PUT: Update node.
     :param request:
-    :param server:
+    :param server_type:
     :param node_id:
     :return:
     """
@@ -550,7 +549,7 @@ def node_detail(request, server_type, node_id):
     if request.method == 'DELETE':
         # Deletes the key. If the node is alive, the metric middleware will recreate this key again.
         if r.exists(key):
-            node = r.delete(key)
+            r.delete(key)
             return JSONResponse('Node has been deleted', status=status.HTTP_204_NO_CONTENT)
         else:
             return JSONResponse('Node not found.', status=status.HTTP_404_NOT_FOUND)
@@ -631,18 +630,18 @@ def region_detail(request, region_id):
     except RedisError:
         return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    regionKey = 'region:' + str(region_id)
+    region_key = 'region:' + str(region_id)
 
     if request.method == 'GET':
-        if r.exists(regionKey):
-            region = r.hgetall(regionKey)
+        if r.exists(region_key):
+            region = r.hgetall(region_key)
             return JSONResponse(region, status=status.HTTP_200_OK)
         else:
             return JSONResponse('Region not found.', status=status.HTTP_404_NOT_FOUND)
 
     if request.method == 'DELETE':
         # Deletes the key. If the node is alive, the metric middleware will recreate this key again.
-        if r.exists(regionKey):
+        if r.exists(region_key):
             keys = r.keys("zone:*")
             if 'zone:id' in keys:
                 keys.remove('zone:id')
@@ -652,7 +651,7 @@ def region_detail(request, region_id):
                     return JSONResponse("Region couldn't be deleted because the zone with id: " +
                                         region_id + ' has this region assigned.', status=status.HTTP_400_BAD_REQUEST)
 
-            r.delete(regionKey)
+            r.delete(region_key)
             return JSONResponse('Region has been deleted', status=status.HTTP_204_NO_CONTENT)
         else:
             return JSONResponse('Region not found.', status=status.HTTP_404_NOT_FOUND)

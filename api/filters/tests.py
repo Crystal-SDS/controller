@@ -214,7 +214,7 @@ class FiltersTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.content, '1')
         mock_put_object.assert_called_with(settings.SWIFT_URL + "/AUTH_0123456789abcdef",
-                                           'fake_token', "storlet", "test-1.0.jar", mock.ANY, mock.ANY, mock.ANY,
+                                           'fake_token', ".storlet", "test-1.0.jar", mock.ANY, mock.ANY, mock.ANY,
                                            mock.ANY, mock.ANY, mock.ANY, mock.ANY, mock.ANY, mock.ANY, mock.ANY)
         self.assertTrue(self.r.hexists("pipeline:0123456789abcdef", "1"))
         dumped_data = self.r.hget("pipeline:0123456789abcdef", "1")
@@ -239,7 +239,7 @@ class FiltersTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.content, '1')
         mock_put_object.assert_called_with(settings.SWIFT_URL + "/AUTH_0123456789abcdef",
-                                           'fake_token', "storlet", "test-1.0.jar", mock.ANY, mock.ANY, mock.ANY,
+                                           'fake_token', ".storlet", "test-1.0.jar", mock.ANY, mock.ANY, mock.ANY,
                                            mock.ANY, mock.ANY, mock.ANY, mock.ANY, mock.ANY, mock.ANY, mock.ANY)
         self.assertTrue(self.r.hexists("pipeline:0123456789abcdef:container1", "1"))
         dumped_data = self.r.hget("pipeline:0123456789abcdef:container1", "1")
@@ -270,7 +270,7 @@ class FiltersTestCase(TestCase):
     #     response = filter_deploy(request, "1", "0123456789abcdef")
     #     self.assertEqual(response.status_code, status.HTTP_201_CREATED)
     #     mock_put_object.assert_called_with(settings.SWIFT_URL + "/AUTH_0123456789abcdef",
-    #                                        'fake_token', "storlet", "FakeFilter", mock.ANY, mock.ANY, mock.ANY,
+    #                                        'fake_token', ".storlet", "FakeFilter", mock.ANY, mock.ANY, mock.ANY,
     #                                        mock.ANY, mock.ANY, mock.ANY, mock.ANY, mock.ANY, mock.ANY, mock.ANY)
     #     self.assertTrue(self.r.hexists("pipeline:0123456789abcdef", "1"))
     #     dumped_data = self.r.hget("pipeline:0123456789abcdef", "1")
@@ -353,7 +353,7 @@ class FiltersTestCase(TestCase):
         self.r.hmset('pipeline:0123456789abcdef', {'20': json.dumps(data20), '21': json.dumps(data21)})
         unset_filter(self.r, '0123456789abcdef', {'filter_type': 'storlet', 'filter_name': 'test-1.0.jar'}, 'fake_token')
         mock_delete_object.assert_called_with(settings.SWIFT_URL + "/AUTH_0123456789abcdef",
-                                              'fake_token', "storlet", "test-1.0.jar", mock.ANY, mock.ANY, mock.ANY,
+                                              'fake_token', ".storlet", "test-1.0.jar", mock.ANY, mock.ANY, mock.ANY,
                                               mock.ANY, mock.ANY)
         self.assertFalse(self.r.hexists("pipeline:0123456789abcdef", "21"))  # 21 was deleted
         self.assertTrue(self.r.hexists("pipeline:0123456789abcdef", "20"))  # 20 was not deleted

@@ -1,12 +1,8 @@
 from django.conf import settings
-from django.http import HttpResponse
-from django.http import StreamingHttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from redis.exceptions import RedisError
 from rest_framework import status
-from rest_framework.exceptions import ParseError
-from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
-from rest_framework.views import APIView
+from rest_framework.parsers import JSONParser
 from paramiko.ssh_exception import SSHException, AuthenticationException
 from swiftclient import client as swift_client
 import logging

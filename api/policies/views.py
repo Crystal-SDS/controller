@@ -36,8 +36,8 @@ def policy_list(request):
             for it in keys:
                 for key, value in r.hgetall(it).items():
                     policy = json.loads(value)
-                    filter = r.hgetall('filter:' + str(policy['dsl_name']))
-                    to_json_bools(filter, 'get', 'put', 'post', 'head', 'delete')
+                    filter_data = r.hgetall('filter:' + str(policy['dsl_name']))
+                    to_json_bools(filter_data, 'get', 'put', 'post', 'head', 'delete')
                     target_id = it.replace('pipeline:', '')
                     policy = {'id': key, 'target_id': target_id,
                               'target_name': project_list[target_id.split(':')[0]],
@@ -49,14 +49,14 @@ def policy_list(request):
                               'reverse': policy['reverse'],
                               'execution_order': policy['execution_order'],
                               'params': policy['params'],
-                              'put': filter['put'],
-                              'get': filter['get']}
-                    if 'post' in filter:
-                        policy['post'] = filter['post']
-                    if 'head' in filter:
-                        policy['head'] = filter['head']
-                    if 'delete' in filter:
-                        policy['delete'] = filter['delete']
+                              'put': filter_data['put'],
+                              'get': filter_data['get']}
+                    if 'post' in filter_data:
+                        policy['post'] = filter_data['post']
+                    if 'head' in filter_data:
+                        policy['head'] = filter_data['head']
+                    if 'delete' in filter_data:
+                        policy['delete'] = filter_data['delete']
                     policies.append(policy)
             sorted_policies = sorted(policies, key=lambda x: int(itemgetter('execution_order')(x)))
 
@@ -190,17 +190,17 @@ def static_policy_detail(request, policy_id):
         project_list['global'] = 'Global'
         policy_redis = r.hget("pipeline:" + str(target), policy)
         data = json.loads(policy_redis)
-        filter = r.hgetall('filter:' + str(data['dsl_name']))
+        filter_data = r.hgetall('filter:' + str(data['dsl_name']))
 
-        to_json_bools(filter, 'get', 'put', 'post', 'head', 'delete')
-        data['get'] = filter['get']
-        data['put'] = filter['put']
-        if 'post' in filter:
-            data['post'] = filter['post']
-        if 'head' in filter:
-            data['head'] = filter['head']
-        if 'delete' in filter:
-            data['delete'] = filter['delete']
+        to_json_bools(filter_data, 'get', 'put', 'post', 'head', 'delete')
+        data['get'] = filter_data['get']
+        data['put'] = filter_data['put']
+        if 'post' in filter_data:
+            data['post'] = filter_data['post']
+        if 'head' in filter_data:
+            data['head'] = filter_data['head']
+        if 'delete' in filter_data:
+            data['delete'] = filter_data['delete']
         data["id"] = policy
         data["target_id"] = target
         data["target_name"] = project_list[target.split(':')[0]]

@@ -23,25 +23,6 @@ from api.exceptions import FileSynchronizationException
 logger = logging.getLogger(__name__)
 
 
-def load_metrics():
-    try:
-        r = get_redis_connection()
-    except RedisError:
-        return JSONResponse('Error connecting with DB', status=500)
-
-    workload_metrics = r.keys("workload_metric:*")
-
-    if workload_metrics:
-        logger.info("Starting workload metrics")
-
-    for wm in workload_metrics:
-        wm_data = r.hgetall(wm)
-        if wm_data['status'] == 'Running':
-            actor_id = wm_data['metric_name'].split('.')[0]
-            metric_id = int(wm_data['id'])
-            start_metric(metric_id, actor_id)
-
-
 @csrf_exempt
 def list_activated_metrics(request):
     """

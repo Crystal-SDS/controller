@@ -8,7 +8,8 @@ from django.test import TestCase, override_settings
 from rest_framework import status
 from rest_framework.test import APIRequestFactory
 
-from metrics.views import metric_module_list, metric_module_detail, MetricModuleData, load_metrics
+from metrics.views import metric_module_list, metric_module_detail, MetricModuleData
+
 
 # Tests use database=10 instead of 0.
 @override_settings(REDIS_CON_POOL=redis.ConnectionPool(host='localhost', port=6379, db=10),
@@ -113,15 +114,6 @@ class MetricsTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         metric_data = json.loads(response.content)
         self.assertEqual(metric_data['metric_name'], 'test.py')
-
-    #
-    # load_metrics()
-    #
-
-    @mock.patch('metrics.views.start_metric')
-    def test_load_metrics(self, mock_start_metric):
-        load_metrics()
-        mock_start_metric.assert_called_with(1, 'm1')
 
     #
     # Aux methods
