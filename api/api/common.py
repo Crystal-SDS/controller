@@ -166,7 +166,7 @@ def rsync_dir_with_nodes(directory):
             data = {'directory': directory, 'dest_directory': dest_directory, 'node_ip': node['ip'],
                     'ssh_username': node['ssh_username'], 'ssh_password': node['ssh_password']}
 
-            threading.Thread(target=rsync, args=data).start()
+            threading.Thread(target=rsync, args=(data,)).start()
 
 
 def rsync(data):
