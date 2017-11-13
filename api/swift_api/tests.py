@@ -1,6 +1,7 @@
 import json
-
+import mock
 import redis
+
 from django.conf import settings
 from django.test import TestCase, override_settings
 from django.test.client import RequestFactory
@@ -109,6 +110,41 @@ class SwiftTestCase(TestCase):
         response = node_detail(request, server_type, node_id)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
+    def test_delete_node_detail_not_found(self):
+        server_type = 'object'
+        node_id = 'storagenode100000'
+        request = self.api_factory.delete('/swift/nodes/' + server_type + '/' + node_id)
+        response = node_detail(request, server_type, node_id)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_put_node_detail_not_found(self):
+        server_type = 'object'
+        node_id = 'storagenode100000'
+        request = self.api_factory.put('/swift/nodes/' + server_type + '/' + node_id)
+        response = node_detail(request, server_type, node_id)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    @mock.patch('swift_api.views.paramiko.SSHClient')
+    def test_put_node_detail_ok(self, mock_ssh_client):
+        server_type = 'object'
+        node_id = 'storagenode1'
+        data = {'ssh_username': 'admin', 'ssh_password': 's3cr3t'}
+        request = self.api_factory.put('/swift/nodes/' + server_type + '/' + node_id, data, format='json')
+        response = node_detail(request, server_type, node_id)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        mock_ssh_client.assert_called()
+
+        # Check ssh settings are stored:
+        request = self.api_factory.get('/swift/nodes/' + server_type + '/' + node_id)
+        response = node_detail(request, server_type, node_id)
+        node = json.loads(response.content)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(node['name'], 'storagenode1')
+        self.assertEqual(node['ssh_access'], 'True')
+        self.assertEqual(node['ssh_username'], 'admin')
+
+
+
     # Regions / Zones
 
     def test_regions_get_ok(self):
@@ -139,13 +175,16 @@ class SwiftTestCase(TestCase):
     def create_nodes(self):
         self.r.hmset('proxy_node:controller',
                      {'ip': '192.168.2.1', 'last_ping': '1467623304.332646', 'type': 'proxy', 'name': 'controller',
-                      'devices': '{"sdb1": {"free": 16832876544, "size": 16832880640}}', 'region_id': 1, 'zone_id': 1})
+                      'devices': '{"sdb1": {"free": 16832876544, "size": 16832880640}}', 'region_id': 1, 'zone_id': 1,
+                      'ssh_access': 'False'})
         self.r.hmset('object_node:storagenode1',
                      {'ip': '192.168.2.2', 'last_ping': '1467623304.332646', 'type': 'object', 'name': 'storagenode1',
-                      'devices': '{"sdb1": {"free": 16832876544, "size": 16832880640}}', 'region_id': 1, 'zone_id': 1})
+                      'devices': '{"sdb1": {"free": 16832876544, "size": 16832880640}}', 'region_id': 1, 'zone_id': 1,
+                      'ssh_access': 'False'})
         self.r.hmset('object_node:storagenode2',
                      {'ip': '192.168.2.3', 'last_ping': '1467623304.332646', 'type': 'object', 'name': 'storagenode2',
-                      'devices': '{"sdb1": {"free": 16832876544, "size": 16832880640}}', 'region_id': 1, 'zone_id': 1})
+                      'devices': '{"sdb1": {"free": 16832876544, "size": 16832880640}}', 'region_id': 1, 'zone_id': 1,
+                      'ssh_access': 'False'})
 
     def create_regions_and_zones(self):
         self.r.set('regions:id', 1)

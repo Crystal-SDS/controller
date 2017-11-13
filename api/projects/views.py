@@ -36,8 +36,8 @@ def projects(request, project_id=None):
         return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     if request.method == 'GET':
-        projetcs = r.lrange('projects_crystal_enabled', 0, -1)
-        return JSONResponse(projetcs, status=status.HTTP_200_OK)
+        enabled_projects = r.lrange('projects_crystal_enabled', 0, -1)
+        return JSONResponse(enabled_projects, status=status.HTTP_200_OK)
 
     if request.method == 'PUT':
         project_list = get_project_list()
@@ -100,14 +100,11 @@ def projects(request, project_id=None):
             return JSONResponse("Error inserting data", status=status.HTTP_400_BAD_REQUEST)
 
     if request.method == 'POST':
-        try:
-            projects = r.lrange('projects_crystal_enabled', 0, -1)
-            if project_id in projects:
-                return JSONResponse(project_id, status=status.HTTP_200_OK)
-            return JSONResponse('The project with id:  ' + str(project_id) + ' does not exist.',
-                                status=status.HTTP_404_NOT_FOUND)
-        except RedisError:
-            return JSONResponse("Error inserting data", status=status.HTTP_400_BAD_REQUEST)
+        enabled_projects = r.lrange('projects_crystal_enabled', 0, -1)
+        if project_id in enabled_projects:
+            return JSONResponse(project_id, status=status.HTTP_200_OK)
+        return JSONResponse('The project with id:  ' + str(project_id) + ' does not exist.',
+                            status=status.HTTP_404_NOT_FOUND)
 
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 

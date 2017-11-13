@@ -1,12 +1,16 @@
+import calendar
 import json
+import mock
 import os
-
 import redis
+import time
+
 from django.conf import settings
 from django.test import TestCase, override_settings
 from rest_framework import status
 from rest_framework.test import APIRequestFactory
-from projects.views import add_projects_group, projects_group_detail, projects_groups_detail
+from projects.views import add_projects_group, projects_group_detail, projects_groups_detail, projects, \
+    create_docker_image, delete_docker_image
 
 
 # Tests use database=10 instead of 0.
@@ -14,21 +18,122 @@ from projects.views import add_projects_group, projects_group_detail, projects_g
                    STORLET_FILTERS_DIR=os.path.join("/tmp", "crystal", "storlet_filters"),
                    WORKLOAD_METRICS_DIR=os.path.join("/tmp", "crystal", "workload_metrics"),
                    GLOBAL_CONTROLLERS_DIR=os.path.join("/tmp", "crystal", "global_controllers"))
-class PoliciesTestCase(TestCase):
+class ProjectsTestCase(TestCase):
     def setUp(self):
         # Every test needs access to the request factory.
         # Using rest_framework's APIRequestFactory: http://www.django-rest-framework.org/api-guide/testing/
         self.r = redis.Redis(connection_pool=settings.REDIS_CON_POOL)
 
         self.factory = APIRequestFactory()
+        self.create_projects()
         self.create_tenant_group_1()
+        self.create_nodes()
 
     def tearDown(self):
         self.r.flushdb()
 
-        #
-        # Tenant groups
-        #
+    #
+    # Projects
+    #
+
+    def test_get_projects_ok(self):
+        request = self.factory.get('/projects')
+        response = projects(request)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        enabled_projects = json.loads(response.content)
+        self.assertEqual(len(enabled_projects), 1)
+        self.assertEqual(enabled_projects[0], '0123456789abcdef')
+
+    @mock.patch('projects.views.create_docker_image')
+    @mock.patch('projects.views.swift_client.post_account')
+    @mock.patch('projects.views.swift_client.put_container')
+    @mock.patch('projects.views.get_swift_url_and_token')
+    @mock.patch('projects.views.get_admin_role_user_ids')
+    @mock.patch('projects.views.get_keystone_admin_auth')
+    @mock.patch('projects.views.get_project_list')
+    def test_put_projects_ok(self, mock_get_project_list, mock_get_keystone_admin_auth, mock_get_admin_role_user_ids,
+                             mock_get_swift_url_and_token, mock_put_container, mock_post_account, mock_create_docker_image):
+        mock_get_project_list.return_value = {'0123456789abcdef': 'tenantA', 'abcdef0123456789': 'tenantB'}
+        mock_get_swift_url_and_token.return_value = ('http://example.com/fakeurl', 'fakeToken',)
+        mock_get_admin_role_user_ids.return_value = ('fakeId', 'fakeId', 'fakeName',)
+        project_id = 'abcdef0123456789'
+        request = self.factory.put('/projects' + project_id)
+        response = projects(request, project_id)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        self.assertEqual(mock_put_container.call_count, 2)
+        mock_post_account.assert_called_with('http://example.com/fakeurl', 'fakeToken', mock.ANY)
+        mock_create_docker_image.assert_called_with(mock.ANY, project_id)
+
+        # Check
+        request = self.factory.get('/projects')
+        response = projects(request)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        enabled_projects = json.loads(response.content)
+        self.assertEqual(len(enabled_projects), 2)
+        self.assertTrue('abcdef0123456789' in enabled_projects)
+
+    @mock.patch('projects.views.delete_docker_image')
+    @mock.patch('projects.views.swift_client.post_account')
+    @mock.patch('projects.views.swift_client.delete_container')
+    @mock.patch('projects.views.get_swift_url_and_token')
+    @mock.patch('projects.views.get_admin_role_user_ids')
+    @mock.patch('projects.views.get_keystone_admin_auth')
+    @mock.patch('projects.views.get_project_list')
+    def test_delete_projects_ok(self, mock_get_project_list, mock_get_keystone_admin_auth, mock_get_admin_role_user_ids,
+                                mock_get_swift_url_and_token, mock_delete_container, mock_post_account, mock_delete_docker_image):
+        mock_get_project_list.return_value = {'0123456789abcdef': 'tenantA'}
+        mock_get_swift_url_and_token.return_value = ('http://example.com/fakeurl', 'fakeToken',)
+        mock_get_admin_role_user_ids.return_value = ('fakeId', 'fakeId', 'fakeName',)
+        project_id = '0123456789abcdef'
+        request = self.factory.delete('/projects' + project_id)
+        response = projects(request, project_id)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        self.assertEqual(mock_delete_container.call_count, 2)
+        mock_post_account.assert_called_with('http://example.com/fakeurl', 'fakeToken', mock.ANY)
+        mock_delete_docker_image.assert_called_with(mock.ANY, project_id)
+
+        # Check
+        request = self.factory.get('/projects')
+        response = projects(request)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        enabled_projects = json.loads(response.content)
+        self.assertEqual(len(enabled_projects), 0)
+
+    def test_check_projects_ok(self):
+        project_id = '0123456789abcdef'
+        request = self.factory.post('/projects/' + project_id)
+        response = projects(request, project_id)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_check_projects_non_existent(self):
+        project_id = 'abcdef0123456789'
+        request = self.factory.post('/projects/' + project_id)
+        response = projects(request, project_id)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_projects_method_not_allowed(self):
+        # HEAD method is not allowed
+        request = self.factory.head('/projects')
+        response = projects(request)
+        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    @mock.patch('projects.views.threading.Thread')
+    def test_create_docker_image_ok(self, mock_thread):
+        project_id = '0123456789abcdef'
+        create_docker_image(self.r, project_id)
+        self.assertEqual(mock_thread.call_count, 3)
+
+    @mock.patch('projects.views.threading.Thread')
+    def test_delete_docker_image_ok(self, mock_thread):
+        project_id = '0123456789abcdef'
+        delete_docker_image(self.r, project_id)
+        self.assertEqual(mock_thread.call_count, 3)
+
+    #
+    # Tenant groups
+    #
 
     def test_add_tenants_group_with_method_not_allowed(self):
         request = self.factory.delete('/projects/groups')
@@ -175,12 +280,28 @@ class PoliciesTestCase(TestCase):
         self.assertFalse('0123456789abcdef' in tenants_groups[0]['attached_projects'])
         self.assertTrue('abcdef0123456789' in tenants_groups[0]['attached_projects'])
 
+
+
     #
     # Aux methods
     #
+
+    def create_projects(self):
+        self.r.lpush('projects_crystal_enabled', '0123456789abcdef')
 
     def create_tenant_group_1(self):
         tenant_group_data = {'name': 'group1', 'attached_projects': json.dumps(['0123456789abcdef', 'abcdef0123456789'])}
         request = self.factory.post('/projects/groups', tenant_group_data, format='json')
         response = add_projects_group(request)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def create_nodes(self):
+        self.r.hmset('proxy_node:controller',
+                     {'ip': '192.168.2.1', 'last_ping': str(calendar.timegm(time.gmtime())), 'type': 'proxy', 'name': 'controller',
+                      'devices': '{"sdb1": {"free": 16832876544, "size": 16832880640}}', 'ssh_access': 'False'})
+        self.r.hmset('object_node:storagenode1',
+                     {'ip': '192.168.2.2', 'last_ping': str(calendar.timegm(time.gmtime())), 'type': 'object', 'name': 'storagenode1',
+                      'devices': '{"sdb1": {"free": 16832876544, "size": 16832880640}}', 'ssh_access': 'False'})
+        self.r.hmset('object_node:storagenode2',
+                     {'ip': '192.168.2.3', 'last_ping': str(calendar.timegm(time.gmtime())), 'type': 'object', 'name': 'storagenode2',
+                      'devices': '{"sdb1": {"free": 16832876544, "size": 16832880640}}', 'ssh_access': 'False'})

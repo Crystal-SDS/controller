@@ -8,7 +8,7 @@ from django.test import TestCase, override_settings
 from pyparsing import ParseException
 from rest_framework import status
 from rest_framework.test import APIRequestFactory
-from policies.dsl_parser import parse, parse_condition, parse_group_tenants
+from policies.dsl_parser import parse, parse_condition
 from filters.views import filter_list, filter_deploy, FilterData
 from policies.views import object_type_list, object_type_detail, static_policy_detail, dynamic_policy_detail, policy_list
 from projects.views import add_projects_group
