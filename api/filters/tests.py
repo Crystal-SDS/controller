@@ -246,43 +246,6 @@ class FiltersTestCase(TestCase):
         json_data = json.loads(dumped_data)
         self.assertEqual(json_data["filter_name"], "test-1.0.jar")
 
-    # def _test_storlet_undeploy_for_non_existent_storlet(self):
-    #     # Filter 2 does not exist
-    #     request = self.factory.put('/filters/0123456789abcdef/undeploy/2')
-    #     response = storlet_undeploy(request, '2', '0123456789abcdef')
-    #     self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-    #
-    # def _test_storlet_undeploy_for_non_deployed_storlet_and_project(self):
-    #     request = self.factory.put('/filters/0123456789abcdef/undeploy/1')
-    #     response = storlet_undeploy(request, '1', '0123456789abcdef')
-    #     self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-
-    # @mock.patch('filters.views.swift_client.put_object', side_effect=mock_put_object_status_created)
-    # def test_storlet_undeploy_without_auth_token(self, mock_put_object):
-    #     # Upload a filter for the storlet 1
-    #     with open('test_data/test-1.0.jar', 'r') as fp:
-    #         request = self.factory.put('/filters/1/data', {'file': fp})
-    #         response = StorletData.as_view()(request, 1)
-    #
-    #     # Call filter_deploy
-    #     request = self.factory.put('/filters/0123456789abcdef/deploy/1', {"policy_id": "1"}, format='json')
-    #     request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
-    #     response = filter_deploy(request, "1", "0123456789abcdef")
-    #     self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-    #     mock_put_object.assert_called_with(settings.SWIFT_URL + "/AUTH_0123456789abcdef",
-    #                                        'fake_token', ".storlet", "FakeFilter", mock.ANY, mock.ANY, mock.ANY,
-    #                                        mock.ANY, mock.ANY, mock.ANY, mock.ANY, mock.ANY, mock.ANY, mock.ANY)
-    #     self.assertTrue(self.r.hexists("pipeline:0123456789abcdef", "1"))
-    #     dumped_data = self.r.hget("pipeline:0123456789abcdef", "1")
-    #     json_data = json.loads(dumped_data)
-    #     self.assertEqual(json_data["filter_name"], "FakeFilter")
-    #
-    #     # Try to undeploy without auth token
-    #     request = self.factory.put('/filters/0123456789abcdef/undeploy/1')
-    #     response = storlet_undeploy(request, "1", "0123456789abcdef")
-    #     print response
-    #     self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-
     def test_get_all_dependencies_ok(self):
         request = self.factory.get('/filters/dependencies')
         response = dependency_list(request)

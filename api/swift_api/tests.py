@@ -8,7 +8,8 @@ from django.test.client import RequestFactory
 from rest_framework import status
 from rest_framework.test import APIRequestFactory
 
-from swift_api.views import storage_policies, locality_list, node_list, node_detail, regions
+from swift_api.views import storage_policies, storage_policy_detail, storage_policy_disks, locality_list, node_list, node_detail, \
+    regions
 
 
 # Tests use database=10 instead of 0.
@@ -27,6 +28,10 @@ class SwiftTestCase(TestCase):
 
     def tearDown(self):
         self.r.flushdb()
+
+    #
+    # Storage Policies
+    #
 
     def test_storage_policies_with_method_not_allowed(self):
         """ Test that PUT requests to storage_policies() return METHOD_NOT_ALLOWED """
@@ -49,6 +54,45 @@ class SwiftTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         storage_policies_json = json.loads(response.content)
         self.assertEqual(len(storage_policies_json), 5)
+
+    @mock.patch('swift_api.views.RingBuilder')
+    def test_storage_policies_post_ok(self, mock_ring_builder):
+        data = {'partition_power': '5', 'replicas': '3', 'time': '10'}
+        request = self.api_factory.post('/swift/storage_policies', data, format='json')
+        response = storage_policies(request)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        mock_ring_builder.assert_called_with(5, 3, 10)
+        mock_ring_builder.return_value.save.assert_called_with('/opt/crystal/swift/tmp/object-1.builder')
+
+    def test_storage_policy_detail_get_ok(self):
+        sp_id = '1'
+        request = self.api_factory.get('/swift/storage_policy/' + sp_id)
+        response = storage_policy_detail(request, sp_id)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        policy_data = json.loads(response.content)
+        self.assertEqual(policy_data['storage_policy_id'], sp_id)
+        self.assertEqual(len(policy_data['devices']), 2)
+
+    def test_storage_policy_disks_get_ok(self):
+        sp_id = '1'
+        request = self.api_factory.get('/swift/storage_policy/' + sp_id + '/disk')
+        response = storage_policy_disks(request, sp_id)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        available_devices = json.loads(response.content)
+        self.assertEqual(available_devices, [])
+
+    @mock.patch('swift_api.views.RingBuilder.load')
+    def test_storage_policy_disks_add_disk_ok(self, mock_ring_builder_load):
+        mock_ring_builder_load.return_value.add_dev.return_value = '10'
+        sp_id = '1'
+        disk_data = "storagenode1:sdb2"
+        request = self.api_factory.put('/swift/storage_policy/' + sp_id + '/disk', disk_data, format='json')
+        response = storage_policy_disks(request, sp_id)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        mock_ring_builder_load.assert_called_with('/opt/crystal/swift/tmp/object-1.builder')
+        expected_dict = {'weight': 100, 'zone': 'Rack', 'ip': '192.168.2.2', 'region': 'data_center', 'device': 'sdb2', 'port': '6000'}
+        mock_ring_builder_load.return_value.add_dev.assert_called_with(expected_dict)
+        mock_ring_builder_load.return_value.save.assert_called_with('/opt/crystal/swift/tmp/object-1.builder')
 
     #
     # Nodes
@@ -143,8 +187,6 @@ class SwiftTestCase(TestCase):
         self.assertEqual(node['ssh_access'], 'True')
         self.assertEqual(node['ssh_username'], 'admin')
 
-
-
     # Regions / Zones
 
     def test_regions_get_ok(self):
@@ -160,7 +202,7 @@ class SwiftTestCase(TestCase):
     #
 
     def create_storage_policies(self):
-        devices = ["storagenode1:sdb1", "storagenode2:sdb1"]
+        devices = [["storagenode1:sdb1"], ["storagenode2:sdb1"]]
         self.r.hmset("storage-policy:0", {'name': 'allnodes', 'default': 'yes', 'policy_type': 'replication',
                                           'devices': json.dumps(devices)})
         self.r.hmset("storage-policy:1", {'name': 'storage4', 'default': 'no', 'policy_type': 'replication',

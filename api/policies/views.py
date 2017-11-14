@@ -563,7 +563,7 @@ def access_control(request):
 @csrf_exempt
 def access_control_detail(request, policy_id):
     """
-    Delete a access control.
+    Get or delete an access control.
     """
     try:
         r = get_redis_connection()

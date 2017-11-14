@@ -8,7 +8,7 @@ from django.test import TestCase, override_settings
 from rest_framework import status
 from rest_framework.test import APIRequestFactory
 
-from metrics.views import metric_module_list, metric_module_detail, MetricModuleData
+from metrics.views import metric_module_list, metric_module_detail, MetricModuleData, list_activated_metrics
 
 
 # Tests use database=10 instead of 0.
@@ -115,6 +115,48 @@ class MetricsTestCase(TestCase):
         metric_data = json.loads(response.content)
         self.assertEqual(metric_data['metric_name'], 'test.py')
 
+    @mock.patch('metrics.views.rsync_dir_with_nodes')
+    def test_update_metric_module_put_ok(self, mock_rsync_dir):
+        metric_id = '1'
+        with open('test_data/test.py', 'r') as fp:
+            request = self.factory.put('/metrics/' + metric_id + '/data', {'file': fp})
+            response = MetricModuleData.as_view()(request, metric_id)
+            mock_rsync_dir.assert_called_with(settings.WORKLOAD_METRICS_DIR)
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        # check the metric module has been updated
+        request = self.factory.get('/metrics/' + metric_id)
+        response = metric_module_detail(request, metric_id)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        metric_data = json.loads(response.content)
+        self.assertEqual(metric_data['metric_name'], 'test.py')
+
+    @mock.patch('metrics.views.os.path.join')
+    def test_download_metric_module_get_ok(self, mock_os_path_join):
+        mock_os_path_join.return_value = 'test_data/test.py'
+        metric_id = '1'
+
+        request = self.factory.get('/metrics/' + metric_id + '/data')
+        response = MetricModuleData.as_view()(request, metric_id)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response['Content-Length'], '11')
+        self.assertEqual(response['Content-Disposition'], 'attachment; filename=test.py')
+
+    def test_download_metric_module_not_found(self):
+        metric_id = '1'
+        request = self.factory.get('/metrics/' + metric_id + '/data')
+        response = MetricModuleData.as_view()(request, metric_id)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_list_activated_metrics(self):
+        self.setup_activated_metrics_data()
+        request = self.factory.get('/metrics/activated')
+        response = list_activated_metrics(request)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        metrics_data = json.loads(response.content)
+        self.assertEqual(len(metrics_data), 2)
+
     #
     # Aux methods
     #
@@ -125,3 +167,7 @@ class MetricsTestCase(TestCase):
         #                                   'in_flow': 'False', 'status': 'Running', 'id': '1'})
         self.r.hmset('workload_metric:1', {'metric_name': 'm1.py', 'class_name': 'Metric1', 'status': 'Running', 'get': 'False', 'put': 'False',
                                            'execution_server': 'object', 'replicate': 'True', 'ssync': 'True', 'id': '1'})
+
+    def setup_activated_metrics_data(self):
+        self.r.hmset('metric:metric1', {'network_location': '?', 'type': 'integer'})
+        self.r.hmset('metric:metric2', {'network_location': '?', 'type': 'integer'})

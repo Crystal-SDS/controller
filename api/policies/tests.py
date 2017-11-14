@@ -10,7 +10,8 @@ from rest_framework import status
 from rest_framework.test import APIRequestFactory
 from policies.dsl_parser import parse, parse_condition
 from filters.views import filter_list, filter_deploy, FilterData
-from policies.views import object_type_list, object_type_detail, static_policy_detail, dynamic_policy_detail, policy_list
+from policies.views import object_type_list, object_type_detail, static_policy_detail, dynamic_policy_detail, policy_list, \
+    access_control, access_control_detail
 from projects.views import add_projects_group
 
 
@@ -35,6 +36,7 @@ class PoliciesTestCase(TestCase):
         self.create_storage_nodes()
         self.create_metric_modules()
         self.create_global_controllers()
+        self.create_acls()
 
     def tearDown(self):
         self.r.flushdb()
@@ -535,6 +537,99 @@ class PoliciesTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     #
+    # ACL's
+    #
+
+    @mock.patch('policies.views.get_project_list')
+    def test_access_control_get_ok(self, mock_get_project_list):
+        mock_get_project_list.return_value = {'0123456789abcdef': 'tenantA', 'abcdef0123456789': 'tenantB'}
+
+        request = self.factory.get('/policies/acl/')
+        response = access_control(request)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        acls = json.loads(response.content)
+        self.assertEqual(len(acls), 1)
+        acl = acls[0]
+        self.assertEqual(acl['user_id'], 'a1a1a1a1a1a1')
+        self.assertEqual(acl['target_name'], 'tenantA/container1')
+        self.assertEqual(acl['target_id'], '0123456789abcdef:container1')
+        self.assertEqual(acl['write'], True)
+        self.assertEqual(acl['read'], True)
+        self.assertEqual(acl['id'], '1')
+
+    @mock.patch('policies.views.get_project_list')
+    def test_access_control_post_list_ok(self, mock_get_project_list):
+        mock_get_project_list.return_value = {'0123456789abcdef': 'tenantA', 'abcdef0123456789': 'tenantB'}
+
+        acl_data = {'project_id': '0123456789abcdef', 'container_id': 'container2', 'identity': 'user_id:a1a1a1a1a1a1', 'access': 'list'}
+        request = self.factory.post('/policies/acl/', acl_data, format='json')
+        response = access_control(request)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        # check it has been created
+        request = self.factory.get('/policies/acl/')
+        response = access_control(request)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        acls = json.loads(response.content)
+        self.assertEqual(len(acls), 2)
+
+    @mock.patch('policies.views.get_project_list')
+    def test_access_control_post_read_group_ok(self, mock_get_project_list):
+        mock_get_project_list.return_value = {'0123456789abcdef': 'tenantA', 'abcdef0123456789': 'tenantB'}
+
+        acl_data = {'project_id': '0123456789abcdef', 'container_id': 'container2', 'identity': 'group_id:g2g2g2', 'access': 'read'}
+        request = self.factory.post('/policies/acl/', acl_data, format='json')
+        response = access_control(request)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        # check it has been created
+        policy_id = '0123456789abcdef:container2:2'
+        request = self.factory.get('/policies/acl/' + policy_id)
+        response = access_control_detail(request, policy_id)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        acl_policy = json.loads(response.content)
+        self.assertEqual(acl_policy['target_name'], 'tenantA/container2')
+        self.assertFalse(acl_policy['list'])
+        self.assertFalse(acl_policy['write'])
+        self.assertTrue(acl_policy['read'])
+        self.assertEqual(acl_policy['group_id'], 'g2g2g2')
+
+    @mock.patch('policies.views.get_project_list')
+    def test_access_control_delete_ok(self, mock_get_project_list):
+        mock_get_project_list.return_value = {'0123456789abcdef': 'tenantA', 'abcdef0123456789': 'tenantB'}
+
+        policy_id = '0123456789abcdef:container1:1'
+        request = self.factory.delete('/policies/acl/' + policy_id)
+        response = access_control_detail(request, policy_id)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # check it has been deleted
+        request = self.factory.get('/policies/acl/')
+        response = access_control(request)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        acls = json.loads(response.content)
+        self.assertEqual(len(acls), 0)
+
+    @mock.patch('policies.views.get_project_list')
+    def test_access_control_update_ok(self, mock_get_project_list):
+        mock_get_project_list.return_value = {'0123456789abcdef': 'tenantA', 'abcdef0123456789': 'tenantB'}
+
+        policy_id = '0123456789abcdef:container1:1'
+        acl_data = {'access': 'list'}
+        request = self.factory.put('/policies/acl/' + policy_id, acl_data, format='json')
+        response = access_control_detail(request, policy_id)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        # check it has been updated
+        request = self.factory.get('/policies/acl/' + policy_id)
+        response = access_control_detail(request, policy_id)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        acl_policy = json.loads(response.content)
+        self.assertTrue(acl_policy['list'])
+        self.assertFalse(acl_policy['write'])
+        self.assertFalse(acl_policy['read'])
+
+    #
     # Aux methods
     #
 
@@ -625,3 +720,8 @@ class PoliciesTestCase(TestCase):
                                       'controller_name': 'min_slo_tenant_global_share_spare_bw_v2.py',
                                       'valid_parameters': 'method={put|get}', 'id': '1', 'instances': 0,
                                       'enabled': 'False', 'description': 'Fake description'})
+
+    def create_acls(self):
+        self.r.incr('acls:id')
+        acl_data = {'user_id': 'a1a1a1a1a1a1', 'read': True, 'object_type': '', 'write': True, 'object_tag': ''}
+        self.r.hmset('acl:0123456789abcdef:container1', {'1': json.dumps(acl_data)})
