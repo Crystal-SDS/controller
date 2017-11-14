@@ -752,4 +752,12 @@ def containers_list(request, project_id):
                 del containers[c_id]
 
         return JSONResponse(containers, status=status.HTTP_200_OK)
+    
+    if request.method == 'PUT':
+        data = JSONParser().parse(request)
+        
+        #TODO
+        
+        return JSONResponse("Container Policy updated correctly", status=status.HTTP_201_CREATED)
+    
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)

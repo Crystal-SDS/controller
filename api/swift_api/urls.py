@@ -29,5 +29,6 @@ urlpatterns = [
 
     # Containers
     url(r'^(?P<project_id>[^/]+)/containers/?$', views.containers_list),
+    url(r'^(?P<project_id>[^/]+)/container/policy?$', views.containers_list),
 
 ]
