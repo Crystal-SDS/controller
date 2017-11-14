@@ -43,9 +43,9 @@ def filter_list(request):
         keys = r.keys("filter:*")
         filters = []
         for key in keys:
-            flter = r.hgetall(key)
-            to_json_bools(flter, 'get', 'put', 'post', 'head', 'delete')
-            filters.append(flter)
+            filter = r.hgetall(key)
+            to_json_bools(filter, 'get', 'put', 'post', 'head', 'delete')
+            filters.append(filter)
         sorted_list = sorted(filters, key=lambda x: int(itemgetter('id')(x)))
         return JSONResponse(sorted_list, status=status.HTTP_200_OK)
 
@@ -172,6 +172,7 @@ class FilterData(APIView):
             main = filter_data['main']
             token = get_token_connection(request)
             pipelines = r.keys('pipeline:*')
+
             for pipeline in pipelines:
                 target = pipeline.replace('pipeline:', '')
                 filters_data = r.hgetall(pipeline)
@@ -251,6 +252,7 @@ def filter_deploy(request, filter_id, project_id, container=None, swift_object=N
             "object_type": params['object_type'],
             "object_size": params['object_size'],
             "object_tag": params['object_tag'],
+            "object_name": params['object_name'],
             "execution_order": policy_id,
             "params": params['params'],
             "callable": False
@@ -515,7 +517,7 @@ def set_filter(r, target, filter_data, parameters, token):
                     swift_response = dict()
                     url = settings.SWIFT_URL + "/AUTH_" + project_id
                     storlet_file = open(filter_data["path"], 'r')
-                    swift_client.put_object(url, token, "storlet",
+                    swift_client.put_object(url, token, ".storlet",
                                             filter_data["filter_name"],
                                             storlet_file, None,
                                             None, None, "application/octet-stream",
@@ -524,7 +526,7 @@ def set_filter(r, target, filter_data, parameters, token):
                 swift_response = dict()
                 url = settings.SWIFT_URL + "/AUTH_" + project_id
                 storlet_file = open(filter_data["path"], 'r')
-                swift_client.put_object(url, token, "storlet",
+                swift_client.put_object(url, token, ".storlet",
                                         filter_data["filter_name"],
                                         storlet_file, None,
                                         None, None, "application/octet-stream",
@@ -568,7 +570,7 @@ def unset_filter(r, target, filter_data, token):
             project_id = target.split('/', 3)[0]
             swift_response = dict()
             url = settings.SWIFT_URL + "/AUTH_" + project_id
-            swift_client.delete_object(url, token, "storlet", filter_data["filter_name"], None, None, None, None, swift_response)
+            swift_client.delete_object(url, token, ".storlet", filter_data["filter_name"], None, None, None, None, swift_response)
         except ClientException as e:
             print swift_response + str(e)
             return swift_response.get("status")

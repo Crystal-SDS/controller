@@ -23,25 +23,6 @@ from api.exceptions import FileSynchronizationException
 logger = logging.getLogger(__name__)
 
 
-def load_metrics():
-    try:
-        r = get_redis_connection()
-    except RedisError:
-        return JSONResponse('Error connecting with DB', status=500)
-
-    workload_metrics = r.keys("workload_metric:*")
-
-    if workload_metrics:
-        logger.info("Starting workload metrics")
-
-    for wm in workload_metrics:
-        wm_data = r.hgetall(wm)
-        if wm_data['enabled'] == 'True':
-            actor_id = wm_data['metric_name'].split('.')[0]
-            metric_id = int(wm_data['id'])
-            start_metric(metric_id, actor_id)
-
-
 @csrf_exempt
 def list_activated_metrics(request):
     """
@@ -56,7 +37,7 @@ def list_activated_metrics(request):
     try:
         r = get_redis_connection()
     except RedisError:
-        return JSONResponse('Error connecting with DB', status=500)
+        return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     if request.method == 'GET':
         keys = r.keys("metric:*")
@@ -65,9 +46,9 @@ def list_activated_metrics(request):
             metric = r.hgetall(key)
             metric["name"] = key.split(":")[1]
             metrics.append(metric)
-        return JSONResponse(metrics, status=200)
+        return JSONResponse(metrics, status=status.HTTP_200_OK)
 
-    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=405)
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
 #

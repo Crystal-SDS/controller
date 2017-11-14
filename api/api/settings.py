@@ -194,7 +194,7 @@ METRICS_BASE_MODULE = 'controller.dynamic_policies.metrics'
 RABBITMQ_HOST = 'localhost'
 RABBITMQ_PORT = 5672
 RABBITMQ_USERNAME = 'guest'
-RABBITMQ_PASSWORD = 'guest'
+RABBITMQ_PASSWORD = 'guest'  # noqa
 RABBITMQ_EXCHANGE = 'amq.topic'
 
 # Logstash

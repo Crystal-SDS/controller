@@ -11,12 +11,10 @@ from swiftclient import client as swift_client
 import threading
 import errno
 import hashlib
-import calendar
 import logging
 import redis
 import os
 import sys
-import time
 
 logger = logging.getLogger(__name__)
 host = None
@@ -168,10 +166,10 @@ def rsync_dir_with_nodes(directory):
             data = {'directory': directory, 'dest_directory': dest_directory, 'node_ip': node['ip'],
                     'ssh_username': node['ssh_username'], 'ssh_password': node['ssh_password']}
 
-            threading.Thread(target=rsync, args=(node, data)).start()
+            threading.Thread(target=rsync, args=(data,)).start()
 
 
-def rsync(node, data):
+def rsync(data):
     rsync_command = 'sshpass -p {ssh_password} rsync --progress --delete -avrz -e ssh {directory} {ssh_username}@{node_ip}:{dest_directory}'.format(**data)
     os.system(rsync_command)
 

@@ -2,14 +2,18 @@ import calendar
 import time
 import mock
 import redis
+from datetime import timedelta
 from django.conf import settings
 from django.core.urlresolvers import resolve
 from django.test import TestCase, override_settings
+from django.utils import timezone
+from rest_framework import status
 from rest_framework.test import APIRequestFactory
 
-from .common_utils import get_all_registered_nodes, remove_extra_whitespaces, to_json_bools, rsync_dir_with_nodes, get_project_list, get_keystone_admin_auth
+from .common import get_all_registered_nodes, remove_extra_whitespaces, to_json_bools, rsync_dir_with_nodes, get_project_list, get_keystone_admin_auth
 from .exceptions import FileSynchronizationException
 from .startup import run as startup_run
+from .middleware import CrystalMiddleware
 
 
 # Tests use database=10 instead of 0.
@@ -50,28 +54,13 @@ class MainTestCase(TestCase):
         self.assertEqual(bdict['d'], 'False')
         self.assertNotEqual(bdict['d'], False)
 
-    @mock.patch('api.common_utils.os.system')
-    def test_rsync_dir_with_nodes_ok(self, mock_os_system):
-        mock_os_system.return_value = 0  # return value when rsync succeeds
-
+    @mock.patch('api.common.threading.Thread')
+    def test_rsync_dir_with_nodes_ok(self, mock_thread):
         self.configure_usernames_and_passwords_for_nodes()
         rsync_dir_with_nodes(settings.WORKLOAD_METRICS_DIR)
-
-        # test that rsync_dir_with_nodes() called os.system with the right parameters
-        calls = [mock.call("sshpass -p s3cr3t rsync --progress --delete -avrz -e ssh /opt/crystal/workload_metrics user1@192.168.2.1:/opt/crystal"),
-                 mock.call("sshpass -p s3cr3t rsync --progress --delete -avrz -e ssh /opt/crystal/workload_metrics user1@192.168.2.2:/opt/crystal"),
-                 mock.call("sshpass -p s3cr3t rsync --progress --delete -avrz -e ssh /opt/crystal/workload_metrics user1@192.168.2.3:/opt/crystal")]
-        mock_os_system.assert_has_calls(calls, any_order=True)
+        self.assertEqual(mock_thread.call_count, 3)
 
     def test_rsync_dir_with_nodes_when_username_and_password_not_present(self):
-        with self.assertRaises(FileSynchronizationException):
-            rsync_dir_with_nodes(settings.WORKLOAD_METRICS_DIR)
-
-    @mock.patch('api.common_utils.os.system')
-    def test_rsync_dir_with_nodes_when_rsync_fails(self, mock_os_system):
-        mock_os_system.return_value = 1  # return value when rsync fails
-
-        self.configure_usernames_and_passwords_for_nodes()
         with self.assertRaises(FileSynchronizationException):
             rsync_dir_with_nodes(settings.WORKLOAD_METRICS_DIR)
 
@@ -122,7 +111,7 @@ class MainTestCase(TestCase):
     #     resp = get_token_connection(request)
     #     self.assertFalse(resp)
 
-    @mock.patch('api.common_utils.get_keystone_admin_auth')
+    @mock.patch('api.common.get_keystone_admin_auth')
     def test_get_project_list_ok(self, mock_keystone_admin_auth):
         fake_tenants_list = [FakeTenantData('1234567890abcdef', 'tenantA'), FakeTenantData('abcdef1234567890', 'tenantB')]
         mock_keystone_admin_auth.return_value.projects.list.return_value = fake_tenants_list
@@ -132,9 +121,9 @@ class MainTestCase(TestCase):
 
     @override_settings(MANAGEMENT_ACCOUNT='mng_account', MANAGEMENT_ADMIN_USERNAME='mng_username', MANAGEMENT_ADMIN_PASSWORD='mng_pw',
                        KEYSTONE_ADMIN_URL='http://localhost:35357/v3')
-    @mock.patch('api.common_utils.client.Client')
-    @mock.patch('api.common_utils.session.Session')
-    @mock.patch('api.common_utils.v3.Password')
+    @mock.patch('api.common.client.Client')
+    @mock.patch('api.common.session.Session')
+    @mock.patch('api.common.v3.Password')
     def test_get_keystone_admin_auth_ok(self, mock_password, mock_session, mock_keystone_client):
         get_keystone_admin_auth()
         mock_password.assert_called_with(auth_url='http://localhost:35357/v3', username='mng_username', password='mng_pw',
@@ -148,12 +137,12 @@ class MainTestCase(TestCase):
         # Mocking redis to use DB=10 (in startup.py, settings are imported directly from ./settings.py instead of using django.conf)
         mock_startup_redis.return_value = self.r
         startup_run()
-        self.assertEquals(self.r.hget('workload_metric:1', 'enabled'), 'False')
-        self.assertEquals(self.r.hget('workload_metric:2', 'enabled'), 'False')
+        self.assertEquals(self.r.hget('workload_metric:1', 'status'), 'Stopped')
+        self.assertEquals(self.r.hget('workload_metric:2', 'status'), 'Stopped')
         self.assertFalse(self.r.exists('metric:metric1'))
         self.assertFalse(self.r.exists('metric:metric2'))
-        self.assertEquals(self.r.hget('policy:1', 'alive'), 'False')
-        self.assertEquals(self.r.hget('policy:2', 'alive'), 'False')
+        self.assertEquals(self.r.hget('policy:1', 'status'), 'Stopped')
+        self.assertEquals(self.r.hget('policy:2', 'status'), 'Stopped')
 
     #
     # URL tests
@@ -172,11 +161,46 @@ class MainTestCase(TestCase):
         self.assertEqual(resolver.kwargs, {'filter_id': '123'})
 
         resolver = resolve('/swift/nodes/')
-        self.assertEqual(resolver.view_name, 'swift.views.node_list')
+        self.assertEqual(resolver.view_name, 'swift_api.views.node_list')
 
         resolver = resolve('/swift/nodes/object/node1')
-        self.assertEqual(resolver.view_name, 'swift.views.node_detail')
+        self.assertEqual(resolver.view_name, 'swift_api.views.node_detail')
         self.assertEqual(resolver.kwargs, {'server_type': 'object', 'node_id': 'node1'})
+
+    #
+    # Crystal Middleware tests
+    #
+
+    def test_middleware_no_token_header(self):
+        cm = CrystalMiddleware()
+
+        request = self.factory.get('/filters')
+        response = cm.process_request(request)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    @mock.patch('api.middleware.get_keystone_admin_auth')
+    def test_middleware_with_new_token_ok(self, mock_get_keystone_admin_auth):
+        # Mock to validate fake token
+        not_expired_admin_token = FakeTokenData(timezone.now() + timedelta(minutes=5),
+                                                [{'name': 'admin'}, {'name': '_member_'}])
+        mock_get_keystone_admin_auth.return_value.tokens.validate.return_value = not_expired_admin_token
+
+        cm = CrystalMiddleware()
+
+        request = self.factory.get('/filters')
+        request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
+        response = cm.process_request(request)
+        mock_get_keystone_admin_auth.assert_called()
+        self.assertEqual(response, None)
+
+        # Now token is saved in valid_tokens
+        mock_get_keystone_admin_auth.reset_mock()
+        request = self.factory.get('/filters')
+        request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
+        response = cm.process_request(request)
+        mock_get_keystone_admin_auth.assert_not_called()
+        self.assertEqual(response, None)
+
 
     #
     # Aux methods
@@ -185,36 +209,40 @@ class MainTestCase(TestCase):
     def create_nodes(self):
         self.r.hmset('proxy_node:controller',
                      {'ip': '192.168.2.1', 'last_ping': str(calendar.timegm(time.gmtime())), 'type': 'proxy', 'name': 'controller',
-                      'devices': '{"sdb1": {"free": 16832876544, "size": 16832880640}}'})
+                      'devices': '{"sdb1": {"free": 16832876544, "size": 16832880640}}', 'ssh_access': 'False'})
         self.r.hmset('object_node:storagenode1',
                      {'ip': '192.168.2.2', 'last_ping': str(calendar.timegm(time.gmtime())), 'type': 'object', 'name': 'storagenode1',
-                      'devices': '{"sdb1": {"free": 16832876544, "size": 16832880640}}'})
+                      'devices': '{"sdb1": {"free": 16832876544, "size": 16832880640}}', 'ssh_access': 'False'})
         self.r.hmset('object_node:storagenode2',
                      {'ip': '192.168.2.3', 'last_ping': str(calendar.timegm(time.gmtime())), 'type': 'object', 'name': 'storagenode2',
-                      'devices': '{"sdb1": {"free": 16832876544, "size": 16832880640}}'})
+                      'devices': '{"sdb1": {"free": 16832876544, "size": 16832880640}}', 'ssh_access': 'False'})
 
     def configure_usernames_and_passwords_for_nodes(self):
-        self.r.hmset('proxy_node:controller', {'ssh_username': 'user1', 'ssh_password': 's3cr3t'})
-        self.r.hmset('object_node:storagenode1', {'ssh_username': 'user1', 'ssh_password': 's3cr3t'})
-        self.r.hmset('object_node:storagenode2', {'ssh_username': 'user1', 'ssh_password': 's3cr3t'})
+        self.r.hmset('proxy_node:controller', {'ssh_username': 'user1', 'ssh_password': 's3cr3t', 'ssh_access': 'True'})
+        self.r.hmset('object_node:storagenode1', {'ssh_username': 'user1', 'ssh_password': 's3cr3t', 'ssh_access': 'True'})
+        self.r.hmset('object_node:storagenode2', {'ssh_username': 'user1', 'ssh_password': 's3cr3t', 'ssh_access': 'True'})
 
     def create_startup_fixtures(self):
         self.r.hmset('workload_metric:1', {'metric_name': 'm1.py', 'class_name': 'Metric1', 'execution_server': 'proxy', 'out_flow': 'False',
-                                           'in_flow': 'False', 'enabled': 'True', 'id': '1'})
+                                           'in_flow': 'False', 'status': 'Running', 'id': '1'})
         self.r.hmset('workload_metric:2', {'metric_name': 'm2.py', 'class_name': 'Metric2', 'execution_server': 'proxy', 'out_flow': 'False',
-                                           'in_flow': 'False', 'enabled': 'True', 'id': '2'})
+                                           'in_flow': 'False', 'status': 'Running', 'id': '2'})
         self.r.hmset('metric:metric1', {'network_location': '?', 'type': 'integer'})
         self.r.hmset('metric:metric2', {'network_location': '?', 'type': 'integer'})
         self.r.hmset('policy:1',
-                     {'alive': 'True', 'policy_description': 'FOR TENANT:0123456789abcdef DO SET compression'})
+                     {'status': 'Alive', 'policy_description': 'FOR TENANT:0123456789abcdef DO SET compression'})
         self.r.hmset('policy:2',
-                     {'alive': 'True', 'policy_description': 'FOR TENANT:0123456789abcdef DO SET encryption'})
+                     {'status': 'Alive', 'policy_description': 'FOR TENANT:0123456789abcdef DO SET encryption'})
 
 
 class FakeTokenData:
-    def __init__(self, expires, user):
+    def __init__(self, expires, roles):
         self.expires = expires
-        self.user = user
+        self.roles = roles
+
+    def __getitem__(self, i):
+        if i == 'roles':
+            return self.roles
 
 
 class FakeTenantData:

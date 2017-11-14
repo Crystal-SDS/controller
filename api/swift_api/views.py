@@ -4,9 +4,9 @@ from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from redis.exceptions import RedisError
 from rest_framework import status
-from rest_framework.exceptions import ParseError
 from rest_framework.parsers import JSONParser
-from swiftclient import client as swift_client  
+from shutil import copyfile
+from swiftclient import client as swift_client
 from swift.common.ring import RingBuilder
 from swift.common import exceptions
 from operator import itemgetter
@@ -18,6 +18,7 @@ import math
 import logging
 import requests
 import paramiko
+from socket import inet_aton
 from api.common import JSONResponse, get_redis_connection, to_json_bools, get_token_connection
 from api.exceptions import FileSynchronizationException
 
@@ -28,6 +29,34 @@ logger = logging.getLogger(__name__)
 #
 # Storage Policies
 #
+
+def update_sp_files(path, policy_id, d):
+    storage_policy_key = 'storage-policy:' + policy_id
+
+    swift_file = os.path.join(path, 'swift.conf')
+
+    config_parser = ConfigParser.RawConfigParser()
+    config_parser.read(swift_file)
+
+    if not config_parser.has_section(storage_policy_key):
+        config_parser.add_section(storage_policy_key)
+
+    for key, value in d.iteritems():
+        config_parser.set(storage_policy_key, key, value)
+
+    with open(swift_file, 'wb') as configfile:
+        config_parser.write(configfile)
+
+
+def get_policy_file_path(dir_path, policy_id):
+    object_builder_key = 'object.builder' if policy_id == '0' else 'object-' + policy_id + '.builder'
+    return os.path.join(dir_path, object_builder_key)
+
+
+def get_swift_cfg_path(dir_path):
+    return os.path.join(dir_path, 'swift.conf')
+
+
 @csrf_exempt
 def storage_policies(request):
     """
@@ -60,23 +89,11 @@ def storage_policies(request):
         data = JSONParser().parse(request)
 
         try:
-            id = str(r.incr('storage-policies:id'))
-            key = 'storage-policy:' + id
+            sp_id = str(r.incr('storage-policies:id'))
+            key = 'storage-policy:' + sp_id
 
             ring = RingBuilder(int(data['partition_power']), int(data['replicas']), int(data['time']))
-            ring.save('/etc/swift/object.builder-' + id)
-
-            configParser = ConfigParser.RawConfigParser()
-            configParser.read('/etc/swift/swift.conf')
-
-            configParser.add_section(key)
-            configParser.set(key, 'name', data['name'])
-            configParser.set(key, 'deprecated', data['deprecated'])
-            configParser.set(key, 'default', data['default'])
-            configParser.set(key, 'policy_type', data['policy_type'])
-
-            with open('/etc/swift/swift.conf', 'wb') as configfile:
-                configParser.write(configfile)
+            ring.save(get_policy_file_path(settings.SWIFT_CFG_TMP_DIR, sp_id))
 
             r.hmset(key, data)
         except:
@@ -122,17 +139,6 @@ def storage_policy_detail(request, storage_policy_id):
             data = JSONParser().parse(request)
             try:
                 data['deployed'] = False
-                
-                configParser = ConfigParser.RawConfigParser()
-                configParser.read('/etc/swift/swift.conf')
-                
-                configParser.set(key, 'name', data['name'])
-                configParser.set(key, 'deprecated', data['deprecated'])
-                configParser.set(key, 'default', data['default'])
-                
-                with open('/etc/swift/swift.conf', 'wb') as configfile:
-                    configParser.write(configfile)
-                
                 r.hmset(key, data)
                 return JSONResponse("Storage Policy updated", status=status.HTTP_201_CREATED)
             except RedisError:
@@ -143,19 +149,26 @@ def storage_policy_detail(request, storage_policy_id):
     if request.method == 'DELETE':
         if r.exists(key):
             try:
+                policy_file_path = get_policy_file_path(settings.SWIFT_CFG_DEPLOY_DIR, storage_policy_id)
+                if os.path.isfile(policy_file_path):
+                    os.remove(policy_file_path)
+                os.remove(get_policy_file_path(settings.SWIFT_CFG_TMP_DIR, storage_policy_id))
+
+                deploy_swift_file = get_swift_cfg_path(settings.SWIFT_CFG_DEPLOY_DIR)
+
+                config_parser = ConfigParser.RawConfigParser()
+                config_parser.read(deploy_swift_file)
+
+                config_parser.remove_section(key)
+
+                with open(deploy_swift_file, 'wb') as configfile:
+                    config_parser.write(configfile)
+
                 r.delete(key)
-                os.remove('/etc/swift/object.builder-' + storage_policy_id)
-                
-                configParser = ConfigParser.RawConfigParser()
-                configParser.read('/etc/swift/swift.conf')
-                
-                configParser.remove_section(key)
-                
-                with open('/etc/swift/swift.conf', 'wb') as configfile:
-                    configParser.write(configfile)
-                
+
                 if not r.keys('storage-policy:*'):
                     r.delete('storage-policies:id')
+
                 return JSONResponse("Storage Policy deleted", status=status.HTTP_201_CREATED)
             except RedisError:
                 return JSONResponse("Error deleting storage policy", status=status.HTTP_400_BAD_REQUEST)
@@ -184,7 +197,7 @@ def storage_policy_disks(request, storage_policy_id):
                 node = r.hgetall(node_key)
                 all_devices += [node_key.split(':')[1] + ':' + device for device in json.loads(node['devices']).keys()]
 
-            current_devices = [ dev[0] for dev in storage_policy['devices']]
+            current_devices = [dev[0] for dev in storage_policy['devices']]
             available_devices = [device for device in all_devices if device not in current_devices]
             available_devices_detail = []
             for device in available_devices:
@@ -202,23 +215,26 @@ def storage_policy_disks(request, storage_policy_id):
     if request.method == 'PUT':
         if r.exists(key):
             disk = JSONParser().parse(request)
-            
+
             object_node_id, device_id = disk.split(':')
             object_node = r.hgetall('object_node:' + object_node_id)
-            device_detail = json.loads(object_node['devices'])[device_id]
+            # device_detail = json.loads(object_node['devices'])[device_id]
             region = r.hgetall('region:' + object_node['region_id'])['name']
             zone = r.hgetall('zone:' + object_node['zone_id'])['name']
-            
-            ring = RingBuilder.load('/etc/swift/object.builder-' + storage_policy_id)
+
+            tmp_policy_file = get_policy_file_path(settings.SWIFT_CFG_TMP_DIR, storage_policy_id)
+
+            ring = RingBuilder.load(tmp_policy_file)
             ring_dev_id = ring.add_dev({'weight': 100, 'region': region, 'zone': zone, 'ip': object_node['ip'], 'port': '6000', 'device': device_id})
-            ring.save('/etc/swift/object.builder-' + storage_policy_id)
-            
+            ring.save(tmp_policy_file)
+
             storage_policy = r.hgetall(key)
             storage_policy['devices'] = json.loads(storage_policy['devices'])
             storage_policy['devices'].append((disk, ring_dev_id))
             storage_policy['devices'] = json.dumps(storage_policy['devices'])
             r.hset(key, 'devices', storage_policy['devices'])
             r.hset(key, 'deployed', False)
+
             return JSONResponse('Disk added correctly', status=status.HTTP_200_OK)
         else:
             return JSONResponse('Disk could not be added.', status=status.HTTP_400_BAD_REQUEST)
@@ -239,24 +255,29 @@ def delete_storage_policy_disks(request, storage_policy_id, disk_id):
     if request.method == 'DELETE':
         if r.exists(key):
             try:
+
+                tmp_policy_file = get_policy_file_path(settings.SWIFT_CFG_TMP_DIR, storage_policy_id)
+
                 found = False
                 storage_policy = r.hgetall(key)
                 storage_policy['devices'] = json.loads(storage_policy['devices'])
-                for i,disk in enumerate(storage_policy['devices']):
+
+                for i, disk in enumerate(storage_policy['devices']):
                     if disk_id == disk[0]:
                         found = True
-                        ring = RingBuilder.load('/etc/swift/object.builder-' + storage_policy_id)
+                        ring = RingBuilder.load(tmp_policy_file)
                         ring.remove_dev(disk[1])
-                        ring.save('/etc/swift/object.builder-' + storage_policy_id)
+                        ring.save(tmp_policy_file)
                         del storage_policy['devices'][i]
                         storage_policy['devices'] = json.dumps(storage_policy['devices'])
                         r.hset(key, 'devices', storage_policy['devices'])
                         r.hset(key, 'deployed', False)
+
                         return JSONResponse("Disk removed", status=status.HTTP_204_NO_CONTENT)
-                    
+
                 if not found:
                     return JSONResponse('Disk not found', status=status.HTTP_404_NOT_FOUND)
-                
+
             except RedisError:
                 return JSONResponse("Error updating storage policy", status=status.HTTP_400_BAD_REQUEST)
         else:
@@ -275,13 +296,24 @@ def deploy_storage_policy(request, storage_policy_id):
 
     key = "storage-policy:" + storage_policy_id
 
-    print request.method
     if request.method == "POST":
         if r.exists(key):
             try:
-                ring = RingBuilder.load('/etc/swift/object.builder-' + storage_policy_id)
+                tmp_policy_file = get_policy_file_path(settings.SWIFT_CFG_TMP_DIR, storage_policy_id)
+                deploy_policy_file = get_policy_file_path(settings.SWIFT_CFG_DEPLOY_DIR, storage_policy_id)
+
+                ring = RingBuilder.load(tmp_policy_file)
                 ring.rebalance()
-                r.hset(key, 'deployed', True)
+                ring.save(tmp_policy_file)
+
+                data = r.hgetall(key)
+                update_sp_files(settings.SWIFT_CFG_DEPLOY_DIR, storage_policy_id, {'name': data['name'], 'deprecated': data['deprecated'],
+                                                                                   'default': data['default'], 'deployed': 'True'})
+
+                copyfile(tmp_policy_file, deploy_policy_file)
+
+                r.hset(key, 'deployed', 'True')
+
                 return JSONResponse('Storage policy deployed correctly', status=status.HTTP_200_OK)
             except RedisError:
                 return JSONResponse('Storage policy could not be deployed', status=status.HTTP_400_BAD_REQUEST)
@@ -313,20 +345,19 @@ def load_swift_policies(request):
 
             try:
                 sftp_client = ssh_client.open_sftp()
-
                 swift_etc_path = '/etc/swift/'
-
                 remote_swift_file = swift_etc_path+'swift.conf'
-                local_swift_file = os.path.join(settings.SWIFT_CFG_TMP_DIR, 'swift.conf')
-
-                sftp_client.get(remote_swift_file, local_swift_file)
+                local_swift_file_deploy = get_swift_cfg_path(settings.SWIFT_CFG_DEPLOY_DIR)
+                sftp_client.get(remote_swift_file, local_swift_file_deploy)
 
                 remote_file_list = sftp_client.listdir(swift_etc_path)
                 for r_file in remote_file_list:
-                    if r_file.startswith('object.builder'):
+                    if r_file.startswith('object') and r_file.endswith('.builder'):
                         remote_file = swift_etc_path+r_file
-                        local_file = os.path.join(settings.SWIFT_CFG_TMP_DIR, r_file)
-                        sftp_client.get(remote_file, local_file)
+                        local_file_tmp = os.path.join(settings.SWIFT_CFG_TMP_DIR, r_file)
+                        local_file_deploy = os.path.join(settings.SWIFT_CFG_DEPLOY_DIR, r_file)
+                        sftp_client.get(remote_file, local_file_tmp)
+                        sftp_client.get(remote_file, local_file_deploy)
 
             except SSHException:
                 ssh_client.close()
@@ -337,37 +368,52 @@ def load_swift_policies(request):
             ssh_client.close()
 
         # 2nd step: load policies
-        files = glob.glob(os.path.join(settings.SWIFT_CFG_TMP_DIR, 'object.builder*'))
+        pattern = os.path.join(settings.SWIFT_CFG_TMP_DIR, 'object*')
+        files = glob.glob(pattern)
 
         try:
-
             for builder_file in files:
                 builder = RingBuilder.load(builder_file)
                 if '-' in builder_file:
-                    sp_id = builder_file.split('-')[-1]
+                    sp_id = builder_file.split('.')[0].split('-')[-1]
                     key = 'storage-policy:' + sp_id
-                    if id > r.get('storage-policies:id'):
+                    if int(sp_id) > r.get('storage-policies:id'):
                         r.set('storage-policies:id', sp_id)
                 else:
                     key = 'storage-policy:0'
 
-                configParser = ConfigParser.RawConfigParser()
-                configParser.read('/etc/swift/swift.conf')
-                if configParser.has_section(key):
+                local_swift_file = get_swift_cfg_path(settings.SWIFT_CFG_DEPLOY_DIR)
+                config_parser = ConfigParser.RawConfigParser()
+                config_parser.read(local_swift_file)
+                if config_parser.has_section(key):
 
-                    name = configParser.get(key, 'name') if configParser.has_option(key, 'name') else 'Unnamed'
-                    default = configParser.get(key, 'default') if configParser.has_option(key, 'default') else 'False'
-                    policy_type = configParser.get(key, 'policy_type') if configParser.has_option(key, 'policy_type') else 'Replication'
-                    deprecated = configParser.get(key, 'deprecated') if configParser.has_option(key, 'deprecated') else 'False'
+                    name = config_parser.get(key, 'name') if config_parser.has_option(key, 'name') else 'Policy-' + sp_id
+                    policy_type = config_parser.get(key, 'policy_type') if config_parser.has_option(key, 'policy_type') else 'Replication'
+                    deprecated = config_parser.get(key, 'deprecated') if config_parser.has_option(key, 'deprecated') else 'False'
+
+                    if config_parser.has_option(key, 'default'):
+                        default = 'True' if config_parser.get(key, 'default') in ['yes', 'Yes'] else 'False'
+                    else:
+                        default = 'False'
 
                     devices = []
+                    nodes_data = {}
+                    nodes = r.keys('*_node:*')
+                    for node in nodes:
+                        nodes_data[node] = r.hgetall(node)
+
                     for device in builder.devs:
+                        try:
+                            inet_aton(device['ip'])
+                            device['ip'] = next((nodes_data[node]['name'] for node in nodes_data if nodes_data[node]['ip'] == device['ip']), device['ip'])
+                        except:
+                            pass
                         devices.append((device['ip'] + ':' + device['device'], device['id']))
 
-                    data = {'name': name if name else 'Unnamed',
-                            'default': default if default else 'False',
-                            'deprecated': deprecated if deprecated else 'False',
-                            'time': '1',  # TODO: CHANGE TO CIORRECT TIME
+                    data = {'name': name,
+                            'default': default,
+                            'deprecated': deprecated,
+                            'time': builder.min_part_hours,
                             'devices': json.dumps(devices),
                             'deployed': 'True',
                             'policy_type': policy_type if policy_type else 'Replication',
@@ -456,7 +502,7 @@ def node_detail(request, server_type, node_id):
     """
     GET: Retrieve node details. PUT: Update node.
     :param request:
-    :param server:
+    :param server_type:
     :param node_id:
     :return:
     """
@@ -503,7 +549,7 @@ def node_detail(request, server_type, node_id):
     if request.method == 'DELETE':
         # Deletes the key. If the node is alive, the metric middleware will recreate this key again.
         if r.exists(key):
-            node = r.delete(key)
+            r.delete(key)
             return JSONResponse('Node has been deleted', status=status.HTTP_204_NO_CONTENT)
         else:
             return JSONResponse('Node not found.', status=status.HTTP_404_NOT_FOUND)
@@ -584,18 +630,18 @@ def region_detail(request, region_id):
     except RedisError:
         return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    regionKey = 'region:' + str(region_id)
+    region_key = 'region:' + str(region_id)
 
     if request.method == 'GET':
-        if r.exists(regionKey):
-            region = r.hgetall(regionKey)
+        if r.exists(region_key):
+            region = r.hgetall(region_key)
             return JSONResponse(region, status=status.HTTP_200_OK)
         else:
             return JSONResponse('Region not found.', status=status.HTTP_404_NOT_FOUND)
 
     if request.method == 'DELETE':
         # Deletes the key. If the node is alive, the metric middleware will recreate this key again.
-        if r.exists(regionKey):
+        if r.exists(region_key):
             keys = r.keys("zone:*")
             if 'zone:id' in keys:
                 keys.remove('zone:id')
@@ -605,7 +651,7 @@ def region_detail(request, region_id):
                     return JSONResponse("Region couldn't be deleted because the zone with id: " +
                                         region_id + ' has this region assigned.', status=status.HTTP_400_BAD_REQUEST)
 
-            r.delete(regionKey)
+            r.delete(region_key)
             return JSONResponse('Region has been deleted', status=status.HTTP_204_NO_CONTENT)
         else:
             return JSONResponse('Region not found.', status=status.HTTP_404_NOT_FOUND)
@@ -702,8 +748,16 @@ def containers_list(request, project_id):
 
         _, containers = swift_client.get_account(url, token)
         for c_id in reversed(range(len(containers))):
-            if containers[c_id]['name'] in ('dependency', 'storlet'):
+            if containers[c_id]['name'] in ('.dependency', '.storlet'):
                 del containers[c_id]
 
         return JSONResponse(containers, status=status.HTTP_200_OK)
+    
+    if request.method == 'PUT':
+        data = JSONParser().parse(request)
+        
+        #TODO
+        
+        return JSONResponse("Container Policy updated correctly", status=status.HTTP_201_CREATED)
+    
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)

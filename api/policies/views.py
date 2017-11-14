@@ -1,13 +1,8 @@
 from django.conf import settings
-from django.http import HttpResponse
-from django.http import StreamingHttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from redis.exceptions import RedisError, DataError
 from rest_framework import status
-from rest_framework.exceptions import ParseError
-from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
-from rest_framework.response import Response
-from rest_framework.views import APIView
+from rest_framework.parsers import JSONParser
 from operator import itemgetter
 import logging
 import json
@@ -41,24 +36,29 @@ def policy_list(request):
             for it in keys:
                 for key, value in r.hgetall(it).items():
                     policy = json.loads(value)
-                    filter = r.hgetall('filter:' + str(policy['dsl_name']))
-                    to_json_bools(filter, 'get', 'put', 'post', 'head', 'delete')
+                    filter_data = r.hgetall('filter:' + str(policy['dsl_name']))
+                    to_json_bools(filter_data, 'get', 'put', 'post', 'head', 'delete')
                     target_id = it.replace('pipeline:', '')
-                    policies.append({'id': key, 'target_id': target_id,
-                                     'target_name': project_list[target_id.split(':')[0]],
-                                     'filter_name': policy['filter_name'],
-                                     'object_type': policy['object_type'],
-                                     'object_size': policy['object_size'],
-                                     'object_tag': policy['object_tag'],
-                                     'execution_server': policy['execution_server'],
-                                     'reverse': policy['reverse'],
-                                     'execution_order': policy['execution_order'],
-                                     'params': policy['params'],
-                                     'put': filter['put'],
-                                     'get': filter['get'],
-                                     'post': filter['post'],
-                                     'head': filter['head'],
-                                     'delete': filter['delete']})
+                    policy = {'id': key, 'target_id': target_id,
+                              'target_name': project_list[target_id.split(':')[0]],
+                              'filter_name': policy['filter_name'],
+                              'object_type': policy['object_type'],
+                              'object_size': policy['object_size'],
+                              'object_tag': policy['object_tag'],
+                              'object_name': policy['object_name'],
+                              'execution_server': policy['execution_server'],
+                              'reverse': policy['reverse'],
+                              'execution_order': policy['execution_order'],
+                              'params': policy['params'],
+                              'put': filter_data['put'],
+                              'get': filter_data['get']}
+                    if 'post' in filter_data:
+                        policy['post'] = filter_data['post']
+                    if 'head' in filter_data:
+                        policy['head'] = filter_data['head']
+                    if 'delete' in filter_data:
+                        policy['delete'] = filter_data['delete']
+                    policies.append(policy)
             sorted_policies = sorted(policies, key=lambda x: int(itemgetter('execution_order')(x)))
 
             return JSONResponse(sorted_policies, status=status.HTTP_200_OK)
@@ -106,7 +106,8 @@ def policy_list(request):
             except ProjectNotCrystalEnabled:
                 return JSONResponse('The project is not Crystal Enabled. Verify it in the Projects panel.',
                                     status=status.HTTP_404_NOT_FOUND)
-            except Exception:
+            except Exception as e:
+                logger.info('Unexpected exception: ' + e.message)
                 return JSONResponse('Please, review the rule, and start the related workload '
                                     'metric before creating a new policy', status=status.HTTP_401_UNAUTHORIZED)
 
@@ -153,6 +154,7 @@ def policy_list(request):
                        "object_type": data['object_type'],
                        "object_size": data['object_size'],
                        "object_tag": data['object_tag'],
+                       "object_name": data['object_name'],
                        "transient": data['transient'],
                        "policy_location": policy_location,
                        "status": 'Alive'}
@@ -190,13 +192,17 @@ def static_policy_detail(request, policy_id):
         project_list['global'] = 'Global'
         policy_redis = r.hget("pipeline:" + str(target), policy)
         data = json.loads(policy_redis)
-        filter = r.hgetall('filter:' + str(data['dsl_name']))
-        to_json_bools(filter, 'get', 'put', 'post', 'head', 'delete')
-        data['get'] = filter['get']
-        data['put'] = filter['put']
-        data['post'] = filter['post']
-        data['head'] = filter['head']
-        data['delete'] = filter['delete']
+        filter_data = r.hgetall('filter:' + str(data['dsl_name']))
+
+        to_json_bools(filter_data, 'get', 'put', 'post', 'head', 'delete')
+        data['get'] = filter_data['get']
+        data['put'] = filter_data['put']
+        if 'post' in filter_data:
+            data['post'] = filter_data['post']
+        if 'head' in filter_data:
+            data['head'] = filter_data['head']
+        if 'delete' in filter_data:
+            data['delete'] = filter_data['delete']
         data["id"] = policy
         data["target_id"] = target
         data["target_name"] = project_list[target.split(':')[0]]
@@ -280,6 +286,7 @@ def deploy_static_policy(request, r, parsed_rule):
                     "object_type": "",
                     "object_size": "",
                     "object_tag": "",
+                    "object_name": "",
                     "execution_order": policy_id,
                     "params": "",
                     "callable": False
@@ -432,7 +439,7 @@ def deploy_dynamic_policy(r, rule_string, parsed_rule, http_host):
                 if parsed_rule.object_list.object_type:
                     object_type = parsed_rule.object_list.object_type.object_value
                 if parsed_rule.object_list.object_tag:
-                    object_type = parsed_rule.object_list.object_tag.object_value
+                    object_tag = parsed_rule.object_list.object_tag.object_value
                 if parsed_rule.object_list.object_size:
                     object_size = [parsed_rule.object_list.object_size.operand,
                                    parsed_rule.object_list.object_size.object_value]
@@ -494,11 +501,18 @@ def access_control(request):
             for it in keys:
                 for key, value in r.hgetall(it).items():
                     policy = json.loads(value)
-                    to_json_bools(policy, 'write', 'read')
+                    to_json_bools(policy, 'list', 'write', 'read')
                     target_id = it.replace('acl:', '')
+
+                    target_split = target_id.split(':')
+                    if len(target_split) > 1:
+                        target_name = project_list[target_id.split(':')[0]]+'/'+target_id.split(':')[1]
+                    else:
+                        target_name = project_list[target_id.split(':')[0]]
+
                     p = {'id': key,
                          'target_id': target_id,
-                         'target_name': project_list[target_id.split(':')[0]]+'/'+target_id.split(':')[1]}
+                         'target_name': target_name}
                     p.update(policy)
                     acl.append(p)
 
@@ -509,10 +523,37 @@ def access_control(request):
     if request.method == 'POST':
         data = JSONParser().parse(request)
         try:
-            key = 'acl:' + data['project_id'] + ':' + data['container_id']
+            if data['container_id']:
+                key = 'acl:' + data['project_id'] + ':' + data['container_id']
+            else:
+                key = 'acl:' + data['project_id']
             acl_id = str(r.incr('acls:id'))
             data.pop('container_id')
             data.pop('project_id')
+
+            identity = data.pop('identity')
+            access = data.pop('access')
+
+            if access == 'list':
+                data['list'] = True
+                data['read'] = False
+                data['write'] = False
+            elif access == 'read':
+                data['list'] = False
+                data['read'] = True
+                data['write'] = False
+            elif access == 'read-write':
+                data['list'] = False
+                data['read'] = True
+                data['write'] = True
+
+            if 'user_id' in identity:
+                data['user_id'] = identity.replace('user_id:', '')
+                data['group_id'] = ''
+            elif 'group_id' in identity:
+                data['group_id'] = identity.replace('group_id:', '')
+                data['user_id'] = ''
+
             r.hset(key, acl_id, json.dumps(data))
 
             return JSONResponse("Access control policy created", status=201)
@@ -525,7 +566,7 @@ def access_control(request):
 @csrf_exempt
 def access_control_detail(request, policy_id):
     """
-    Delete a access control.
+    Get or delete an access control.
     """
     try:
         r = get_redis_connection()
@@ -542,11 +583,17 @@ def access_control_detail(request, policy_id):
             policy_redis = r.hget("acl:" + str(target_id), acl_id)
             policy = json.loads(policy_redis)
 
-            to_json_bools(policy, 'write', 'read')
+            to_json_bools(policy, 'list', 'write', 'read')
+
+            target_split = target_id.split(':')
+            if len(target_split) > 1:
+                target_name = project_list[target_id.split(':')[0]]+'/'+target_id.split(':')[1]
+            else:
+                target_name = project_list[target_id.split(':')[0]]
 
             p = {'id': acl_id,
                  'target_id': target_id,
-                 'target_name': project_list[target_id.split(':')[0]]+'/'+target_id.split(':')[1]}
+                 'target_name': target_name}
             p.update(policy)
 
             return JSONResponse(p, status=status.HTTP_200_OK)
@@ -568,6 +615,20 @@ def access_control_detail(request, policy_id):
 
             policy_redis = r.hget("acl:" + str(target_id), acl_id)
             policy = json.loads(policy_redis)
+            access = data.pop('access')
+
+            if access == 'list':
+                data['list'] = True
+                data['read'] = False
+                data['write'] = False
+            elif access == 'read':
+                data['list'] = False
+                data['read'] = True
+                data['write'] = False
+            elif access == 'read-write':
+                data['list'] = False
+                data['read'] = True
+                data['write'] = True
             policy.update(data)
             r.hset("acl:" + str(target_id), acl_id, json.dumps(policy))
 

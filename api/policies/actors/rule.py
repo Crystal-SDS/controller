@@ -94,7 +94,7 @@ class Rule(object):
 
     def start_rule(self):
         """
-        Method called afeter init to start the rule. Basically this method
+        Method called after init to start the rule. Basically this method
         allows to be called remotely and calls the internal method
         **check_metrics()** which subscribes the rule to all the workload
         metrics necessaries.
