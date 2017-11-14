@@ -98,7 +98,8 @@ class PoliciesTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertTrue(mock_set_filter.called)
         expected_policy_data = {'object_size': '', 'execution_order': 2, 'object_type': 'DOCS', 'params': mock.ANY,
-                                'execution_server': 'PROXY', 'callable': False, 'object_tag': '', 'policy_id': 2}
+                                'execution_server': 'PROXY', 'callable': False, 'object_tag': '', 'policy_id': 2,
+                                'object_name': ''}
         mock_set_filter.assert_called_with(mock.ANY, '0123456789abcdef', mock.ANY, expected_policy_data, 'fake_token')
 
     @mock.patch('policies.views.deploy_dynamic_policy')
@@ -667,6 +668,7 @@ class PoliciesTestCase(TestCase):
             "object_type": None,
             "object_size": None,
             "object_tag": None,
+            "object_name": None,
             "execution_order": "1",
             "params": ""
         }
