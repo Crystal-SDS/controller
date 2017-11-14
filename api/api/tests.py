@@ -2,14 +2,18 @@ import calendar
 import time
 import mock
 import redis
+from datetime import timedelta
 from django.conf import settings
 from django.core.urlresolvers import resolve
 from django.test import TestCase, override_settings
+from django.utils import timezone
+from rest_framework import status
 from rest_framework.test import APIRequestFactory
 
 from .common import get_all_registered_nodes, remove_extra_whitespaces, to_json_bools, rsync_dir_with_nodes, get_project_list, get_keystone_admin_auth
 from .exceptions import FileSynchronizationException
 from .startup import run as startup_run
+from .middleware import CrystalMiddleware
 
 
 # Tests use database=10 instead of 0.
@@ -164,6 +168,41 @@ class MainTestCase(TestCase):
         self.assertEqual(resolver.kwargs, {'server_type': 'object', 'node_id': 'node1'})
 
     #
+    # Crystal Middleware tests
+    #
+
+    def test_middleware_no_token_header(self):
+        cm = CrystalMiddleware()
+
+        request = self.factory.get('/filters')
+        response = cm.process_request(request)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    @mock.patch('api.middleware.get_keystone_admin_auth')
+    def test_middleware_with_new_token_ok(self, mock_get_keystone_admin_auth):
+        # Mock to validate fake token
+        not_expired_admin_token = FakeTokenData(timezone.now() + timedelta(minutes=5),
+                                                [{'name': 'admin'}, {'name': '_member_'}])
+        mock_get_keystone_admin_auth.return_value.tokens.validate.return_value = not_expired_admin_token
+
+        cm = CrystalMiddleware()
+
+        request = self.factory.get('/filters')
+        request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
+        response = cm.process_request(request)
+        mock_get_keystone_admin_auth.assert_called()
+        self.assertEqual(response, None)
+
+        # Now token is saved in valid_tokens
+        mock_get_keystone_admin_auth.reset_mock()
+        request = self.factory.get('/filters')
+        request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
+        response = cm.process_request(request)
+        mock_get_keystone_admin_auth.assert_not_called()
+        self.assertEqual(response, None)
+
+
+    #
     # Aux methods
     #
 
@@ -197,9 +236,13 @@ class MainTestCase(TestCase):
 
 
 class FakeTokenData:
-    def __init__(self, expires, user):
+    def __init__(self, expires, roles):
         self.expires = expires
-        self.user = user
+        self.roles = roles
+
+    def __getitem__(self, i):
+        if i == 'roles':
+            return self.roles
 
 
 class FakeTenantData:

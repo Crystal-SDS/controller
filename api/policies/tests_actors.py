@@ -10,17 +10,6 @@ from actors.rule import Rule
 from actors.rule_transient import TransientRule
 from .dsl_parser import parse
 
-# Adding a path to be able to import bandwidth_controller_samples
-# sys.path.insert(0, '../')
-# from controller.dynamic_policies.metrics.bw_info import BwInfo
-# from controller.dynamic_policies.metrics.bw_info_ssync import BwInfoSSYNC
-# from controller.dynamic_policies.metrics.swift_metric import SwiftMetric
-# from controller_samples.static_bandwidth import StaticBandwidthPerTenant
-# from controller_samples.static_replication_bandwidth import StaticReplicationBandwidth
-# from controller_samples.min_bandwidth_per_tenant import SimpleMinBandwidthPerTenant
-# from controller_samples.min_slo_tenant_global_share_spare_bw import MinTenantSLOGlobalSpareBWShare
-# from controller_samples.min_slo_tenant_global_share_spare_bw_v2 import MinTenantSLOGlobalSpareBWShare as MinTenantSLOGlobalSpareBWShareV2
-
 
 @urlmatch(netloc=r'(.*\.)?example\.com')
 def example_mock_200(url, request):
@@ -36,7 +25,7 @@ def example_mock_400(url, request):
 @override_settings(REDIS_CON_POOL=redis.ConnectionPool(host='localhost', port=6379, db=10),
                    STORLET_FILTERS_DIR=os.path.join("/tmp", "crystal", "storlet_filters"),
                    WORKLOAD_METRICS_DIR=os.path.join("/tmp", "crystal", "workload_metrics"))
-class ActorsTestCase(TestCase):
+class PoliciesActorsTestCase(TestCase):
 
     def setUp(self):
         self.r = redis.Redis(connection_pool=settings.REDIS_CON_POOL)
