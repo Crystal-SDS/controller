@@ -45,6 +45,7 @@ def policy_list(request):
                               'object_type': policy['object_type'],
                               'object_size': policy['object_size'],
                               'object_tag': policy['object_tag'],
+                              'object_name': policy['object_name'],
                               'execution_server': policy['execution_server'],
                               'reverse': policy['reverse'],
                               'execution_order': policy['execution_order'],
@@ -153,6 +154,7 @@ def policy_list(request):
                        "object_type": data['object_type'],
                        "object_size": data['object_size'],
                        "object_tag": data['object_tag'],
+                       "object_name": data['object_name'],
                        "transient": data['transient'],
                        "policy_location": policy_location,
                        "status": 'Alive'}
@@ -284,6 +286,7 @@ def deploy_static_policy(request, r, parsed_rule):
                     "object_type": "",
                     "object_size": "",
                     "object_tag": "",
+                    "object_name": "",
                     "execution_order": policy_id,
                     "params": "",
                     "callable": False
