@@ -149,10 +149,13 @@ def storage_policy_detail(request, storage_policy_id):
     if request.method == 'DELETE':
         if r.exists(key):
             try:
-                policy_file_path = get_policy_file_path(settings.SWIFT_CFG_DEPLOY_DIR, storage_policy_id)
-                if os.path.isfile(policy_file_path):
-                    os.remove(policy_file_path)
-                os.remove(get_policy_file_path(settings.SWIFT_CFG_TMP_DIR, storage_policy_id))
+                policy_file_path_dep = get_policy_file_path(settings.SWIFT_CFG_DEPLOY_DIR, storage_policy_id)
+                if os.path.isfile(policy_file_path_dep):
+                    os.remove(policy_file_path_dep)
+
+                policy_file_path_tmp = get_policy_file_path(settings.SWIFT_CFG_TMP_DIR, storage_policy_id)
+                if os.path.isfile(policy_file_path_tmp):
+                    os.remove(policy_file_path_tmp)
 
                 deploy_swift_file = get_swift_cfg_path(settings.SWIFT_CFG_DEPLOY_DIR)
 
