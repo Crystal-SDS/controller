@@ -435,7 +435,10 @@ def deploy_dynamic_policy(r, rule_string, parsed_rule, http_host):
             object_type = ""
             object_size = ""
             object_tag = ""
+            object_name = ""
             if parsed_rule.object_list:
+                if parsed_rule.object_list.object_name:
+                    object_name = parsed_rule.object_list.object_name.object_value
                 if parsed_rule.object_list.object_type:
                     object_type = parsed_rule.object_list.object_type.object_value
                 if parsed_rule.object_list.object_tag:
@@ -451,6 +454,7 @@ def deploy_dynamic_policy(r, rule_string, parsed_rule, http_host):
                            "parameters": action_info.params,
                            "action": action_info.action,
                            "condition": condition_str.replace('WHEN ', ''),
+                           "object_name": object_name,
                            "object_type": object_type,
                            "object_size": object_size,
                            "object_tag": object_tag,
