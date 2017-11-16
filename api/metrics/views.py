@@ -212,7 +212,7 @@ class MetricModuleData(APIView):
 
             # synchronize metrics directory with all nodes
             try:
-                rsync_dir_with_nodes(settings.WORKLOAD_METRICS_DIR)
+                rsync_dir_with_nodes(settings.WORKLOAD_METRICS_DIR, settings.WORKLOAD_METRICS_DIR)
             except FileSynchronizationException as e:
                 # print "FileSynchronizationException", e  # TODO remove
                 return JSONResponse(e.message, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -247,7 +247,7 @@ class MetricModuleData(APIView):
 
             # synchronize metrics directory with all nodes
             try:
-                rsync_dir_with_nodes(settings.WORKLOAD_METRICS_DIR)
+                rsync_dir_with_nodes(settings.WORKLOAD_METRICS_DIR, settings.WORKLOAD_METRICS_DIR)
             except FileSynchronizationException as e:
                 # print "FileSynchronizationException", e  # TODO remove
                 return JSONResponse(e.message, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

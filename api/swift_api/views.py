@@ -19,7 +19,8 @@ import logging
 import requests
 import paramiko
 from socket import inet_aton
-from api.common import JSONResponse, get_redis_connection, to_json_bools, get_token_connection
+from api.common import JSONResponse, get_redis_connection, to_json_bools, get_token_connection,\
+    rsync_dir_with_nodes
 from api.exceptions import FileSynchronizationException
 
 
@@ -169,6 +170,8 @@ def storage_policy_detail(request, storage_policy_id):
 
                 r.delete(key)
 
+                rsync_dir_with_nodes(settings.SWIFT_CFG_DEPLOY_DIR, '/etc/swift')
+
                 if not r.keys('storage-policy:*'):
                     r.delete('storage-policies:id')
 
@@ -310,10 +313,12 @@ def deploy_storage_policy(request, storage_policy_id):
                 ring.save(tmp_policy_file)
 
                 data = r.hgetall(key)
-                update_sp_files(settings.SWIFT_CFG_DEPLOY_DIR, storage_policy_id, {'name': data['name'], 'deprecated': data['deprecated'],
-                                                                                   'default': data['default'], 'deployed': 'True'})
+                update_sp_files(settings.SWIFT_CFG_DEPLOY_DIR, storage_policy_id, {'name': data['name'],
+                                                                                   'deprecated': data['deprecated'],
+                                                                                   'default': data['default']})
 
                 copyfile(tmp_policy_file, deploy_policy_file)
+                rsync_dir_with_nodes(settings.SWIFT_CFG_DEPLOY_DIR, '/etc/swift')
 
                 r.hset(key, 'deployed', 'True')
 

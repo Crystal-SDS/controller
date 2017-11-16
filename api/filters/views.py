@@ -191,7 +191,7 @@ class FilterData(APIView):
             if filter_type == 'native':
                 # synchronize metrics directory with all nodes
                 try:
-                    rsync_dir_with_nodes(filter_dir)
+                    rsync_dir_with_nodes(filter_dir, filter_dir)
                 except FileSynchronizationException as e:
                     return JSONResponse(e.message, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
