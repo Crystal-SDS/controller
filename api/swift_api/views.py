@@ -153,10 +153,18 @@ def storage_policy_detail(request, storage_policy_id):
                 policy_file_path_dep = get_policy_file_path(settings.SWIFT_CFG_DEPLOY_DIR, storage_policy_id)
                 if os.path.isfile(policy_file_path_dep):
                     os.remove(policy_file_path_dep)
+                
+                gzip_policy_file_dep = policy_file_path_dep.replace('builder', 'ring.gz')
+                if os.path.isfile(gzip_policy_file_dep):
+                    os.remove(gzip_policy_file_dep)
 
                 policy_file_path_tmp = get_policy_file_path(settings.SWIFT_CFG_TMP_DIR, storage_policy_id)
                 if os.path.isfile(policy_file_path_tmp):
                     os.remove(policy_file_path_tmp)
+
+                gzip_policy_file_tmp = policy_file_path_tmp.replace('builder', 'ring.gz')
+                if os.path.isfile(gzip_policy_file_tmp):
+                    os.remove(gzip_policy_file_tmp)
 
                 deploy_swift_file = get_swift_cfg_path(settings.SWIFT_CFG_DEPLOY_DIR)
 
