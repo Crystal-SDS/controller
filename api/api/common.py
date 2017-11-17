@@ -170,7 +170,6 @@ def rsync_dir_with_nodes(src, dest):
 
 def rsync(data):
     rsync_command = 'sshpass -p {ssh_password} rsync --progress -avrz -e ssh {directory} {ssh_username}@{node_ip}:{dest_directory}'.format(**data)
-    print rsync_command
     os.system(rsync_command)
 
 

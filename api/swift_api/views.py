@@ -239,7 +239,7 @@ def storage_policy_disks(request, storage_policy_id):
             tmp_policy_file = get_policy_file_path(settings.SWIFT_CFG_TMP_DIR, storage_policy_id)
 
             ring = RingBuilder.load(tmp_policy_file)
-            ring_dev_id = ring.add_dev({'weight': 100, 'region': region, 'zone': zone, 'ip': object_node['ip'], 'port': '6000', 'device': device_id})
+            ring_dev_id = ring.add_dev({'weight': 100, 'region': region, 'zone': zone, 'ip': object_node['ip'], 'port': '6200', 'device': device_id})
             ring.save(tmp_policy_file)
 
             storage_policy = r.hgetall(key)
@@ -771,45 +771,49 @@ def containers_list(request, project_id):
             if containers[c_id]['name'] in ('.dependency', '.storlet'):
                 del containers[c_id]
 
-        return JSONResponse(containers, status=status.HTTP_200_OK)    
+        return JSONResponse(containers, status=status.HTTP_200_OK)
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
 @csrf_exempt
 def update_container(request, project_id, container_name):
-    
+
     if request.method == 'PUT':
         sp = JSONParser().parse(request)
         token = get_token_connection(request)
         url = settings.SWIFT_URL + "/AUTH_" + project_id
-        
+
         headers, obj_list = swift_client.get_container(url, token, container_name)
         headers['x-storage-policy'] = sp
-        
+
         path_container = settings.SWIFT_CFG_TMP_DIR + "/" + container_name
         os.mkdir(path_container)
-        
+
         for obj in obj_list:
             file = open(path_container + "/" + obj["name"], "w")
             obj_headers, obj_body = swift_client.get_object(url, token, container_name, obj["name"])
             file.write(obj_body)
+            file.close()
             obj["headers"] = obj_headers
             swift_client.delete_object(url, token, container_name, obj["name"])
 
         swift_client.delete_container(url, token, container_name)
         swift_client.put_container(url, token, container_name, headers)
-        
+
         for obj in obj_list:
-            obj_body = open(path_container + "/" + obj["name"], "r")
+            obj_path = os.path.join(path_container, obj["name"])
+            obj_body = open(obj_path, "r")
+            content_length = os.stat(obj_path).st_size
             swift_response = {}
             swift_client.put_object(url, token, container_name, obj["name"],
-                                            obj_body, None,
-                                            None, None, obj['content_type'],
-                                            obj["headers"], None, None, None, swift_response)
-            os.remove(path_container + "/" + obj)
-        
+                                    obj_body, content_length,
+                                    None, None, obj['content_type'],
+                                    obj["headers"], None, None, None, swift_response)
+            obj_body.close()
+            os.remove(obj_path)
+
         os.rmdir(path_container)
-             
+
         return JSONResponse("Container Policy updated correctly", status=status.HTTP_201_CREATED)
-    
+
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
