@@ -45,7 +45,7 @@ def policy_list(request):
                               'object_type': policy['object_type'],
                               'object_size': policy['object_size'],
                               'object_tag': policy['object_tag'],
-                              'object_name': policy['object_name'],
+                              'object_name': ', '.join(r.lrange('object_type:' + policy['object_type'], 0, -1)),
                               'execution_server': policy['execution_server'],
                               'reverse': policy['reverse'],
                               'execution_order': policy['execution_order'],
@@ -154,7 +154,7 @@ def policy_list(request):
                        "object_type": data['object_type'],
                        "object_size": data['object_size'],
                        "object_tag": data['object_tag'],
-                       "object_name": data['object_name'],
+                       "object_name": ', '.join(r.lrange('object_type:' + data['object_type'], 0, -1)),
                        "transient": data['transient'],
                        "policy_location": policy_location,
                        "status": 'Alive'}
@@ -296,6 +296,7 @@ def deploy_static_policy(request, r, parsed_rule):
                 if parsed_rule.object_list:
                     if parsed_rule.object_list.object_type:
                         policy_data["object_type"] = parsed_rule.object_list.object_type.object_value
+                        policy_data["object_name"] = ', '.join(r.lrange('object_type:' + policy['object_type'], 0, -1))
                     if parsed_rule.object_list.object_size:
                         policy_data["object_size"] = [parsed_rule.object_list.object_size.operand,
                                                       parsed_rule.object_list.object_size.object_value]
@@ -437,10 +438,9 @@ def deploy_dynamic_policy(r, rule_string, parsed_rule, http_host):
             object_tag = ""
             object_name = ""
             if parsed_rule.object_list:
-                if parsed_rule.object_list.object_name:
-                    object_name = parsed_rule.object_list.object_name.object_value
                 if parsed_rule.object_list.object_type:
                     object_type = parsed_rule.object_list.object_type.object_value
+                    object_name = ', '.join(r.lrange('object_type:' + policy['object_type'], 0, -1))
                 if parsed_rule.object_list.object_tag:
                     object_tag = parsed_rule.object_list.object_tag.object_value
                 if parsed_rule.object_list.object_size:
