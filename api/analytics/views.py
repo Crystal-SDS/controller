@@ -3,7 +3,7 @@ import json
 import logging
 import mimetypes
 import os
-
+import sys
 
 from django.conf import settings
 from wsgiref.util import FileWrapper
@@ -103,9 +103,8 @@ class JobSubmitData(APIView):
             return JSONResponse(ajse.message, status=status.HTTP_400_BAD_REQUEST)
         except DataError:
             return JSONResponse("Error to save the object", status=status.HTTP_400_BAD_REQUEST)
-        except Exception as e:
-            print type(e)
-            print e
+        except Exception:
+            print sys.exc_info()
             return JSONResponse("Error uploading file", status=status.HTTP_400_BAD_REQUEST)
 
 
