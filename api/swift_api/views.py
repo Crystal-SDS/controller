@@ -307,10 +307,14 @@ def deploy_storage_policy(request, storage_policy_id):
             try:
                 tmp_policy_file = get_policy_file_path(settings.SWIFT_CFG_TMP_DIR, storage_policy_id)
                 deploy_policy_file = get_policy_file_path(settings.SWIFT_CFG_DEPLOY_DIR, storage_policy_id)
+                deploy_gzip_filename = deploy_policy_file.replace('builder', 'ring.gz')
 
                 ring = RingBuilder.load(tmp_policy_file)
                 ring.rebalance()
                 ring.save(tmp_policy_file)
+
+                ringdata = ring.get_ring()
+                ringdata.save(deploy_gzip_filename)
 
                 data = r.hgetall(key)
                 update_sp_files(settings.SWIFT_CFG_DEPLOY_DIR, storage_policy_id, {'name': data['name'],
