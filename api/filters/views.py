@@ -252,7 +252,7 @@ def filter_deploy(request, filter_id, project_id, container=None, swift_object=N
             "object_type": params['object_type'],
             "object_size": params['object_size'],
             "object_tag": params['object_tag'],
-            "object_name": params['object_name'],
+            "object_name": ', '.join(r.lrange('object_type:' + params['object_type'], 0, -1)),
             "execution_order": policy_id,
             "params": params['params'],
             "callable": False

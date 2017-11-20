@@ -29,6 +29,7 @@ urlpatterns = [
 
     # Containers
     url(r'^(?P<project_id>[^/]+)/containers/?$', views.containers_list),
+    url(r'^(?P<project_id>[^/]+)/(?P<container_name>[^/]+)/create?$', views.create_container),
     url(r'^(?P<project_id>[^/]+)/(?P<container_name>[^/]+)/policy?$', views.update_container),
 
 ]

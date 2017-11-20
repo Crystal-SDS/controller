@@ -760,6 +760,24 @@ def zone_detail(request, zone_id):
 
 
 # Containers
+
+@csrf_exempt
+def create_container(request, project_id, container_name):
+    if request.method == 'POST':
+        
+#         try:
+        headers = JSONParser().parse(request)
+        token = get_token_connection(request)
+        url = settings.SWIFT_URL + "/AUTH_" + project_id
+
+        swift_client.put_container(url, token, container_name, headers)
+#         except Exception as ex:
+#             return JSONResponse(ex.message, status=status.HTTP_500_INTERNAL_SERVER_ERROR) 
+
+        return JSONResponse("Container Policy updated correctly", status=status.HTTP_201_CREATED)
+    return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+
 @csrf_exempt
 def containers_list(request, project_id):
     if request.method == 'GET':
@@ -784,7 +802,7 @@ def update_container(request, project_id, container_name):
         url = settings.SWIFT_URL + "/AUTH_" + project_id
 
         headers, obj_list = swift_client.get_container(url, token, container_name)
-        headers['x-storage-policy'] = sp
+        headers['X-Storage-Policy'] = sp
 
         path_container = settings.SWIFT_CFG_TMP_DIR + "/" + container_name
         os.mkdir(path_container)
