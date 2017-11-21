@@ -8,9 +8,9 @@ urlpatterns = [
     url(r'^(?P<filter_id>\w+)/data/?$', views.FilterData.as_view()),
 
     # Deploy to project container or object
-    url(r'^(?P<project_id>\w+)/deploy/(?P<filter_id>\w+)/?$', views.filter_deploy),
-    url(r'^(?P<project_id>\w+)/(?P<container>[-\w]+)/deploy/(?P<filter_id>\w+)/?$', views.filter_deploy),
-    url(r'^(?P<project_id>\w+)/(?P<container>[-\w]+)/(?P<swift_object>[-\w]+)/deploy/(?P<filter_id>\w+)/?$', views.filter_deploy),
+    url(r'^(?P<project_id>[:\w]+)/deploy/(?P<filter_id>\w+)/?$', views.filter_deploy),
+    url(r'^(?P<project_id>[:\w]+)/(?P<container>[-\w]+)/deploy/(?P<filter_id>\w+)/?$', views.filter_deploy),
+    url(r'^(?P<project_id>[:\w]+)/(?P<container>[-\w]+)/(?P<swift_object>[-\w]+)/deploy/(?P<filter_id>\w+)/?$', views.filter_deploy),
 
     # Undeploy to project container or object
     url(r'^(?P<project_id>\w+)/undeploy/(?P<filter_id>\w+)/?$', views.filter_undeploy),
