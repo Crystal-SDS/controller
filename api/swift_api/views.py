@@ -106,6 +106,35 @@ def storage_policies(request):
 
 
 @csrf_exempt
+def deployed_storage_policies(request):
+
+    if request.method == "GET":
+        try:
+            r = get_redis_connection()
+        except RedisError:
+            return JSONResponse('Error connecting with DB', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        keys = r.keys("storage-policy:*")
+        swift_file = os.path.join(settings.SWIFT_CFG_DEPLOY_DIR, 'swift.conf')
+        config_parser = ConfigParser.RawConfigParser()
+        config_parser.read(swift_file)
+
+        deployed_storage_policy_list = [sp for sp in keys if config_parser.has_section(sp)]
+        
+        storage_policy_list = []
+        for key in deployed_storage_policy_list:
+            storage_policy = r.hgetall(key)
+            to_json_bools(storage_policy, 'deprecated', 'default', 'deployed')
+            storage_policy['id'] = str(key).split(':')[-1]
+            storage_policy['devices'] = json.loads(storage_policy['devices'])
+            storage_policy_list.append(storage_policy)
+            
+        return JSONResponse(storage_policy_list, status=status.HTTP_200_OK)
+
+    return JSONResponse('Only HTTP POST requests allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+
+@csrf_exempt
 def storage_policy_detail(request, storage_policy_id):
 
     try:
