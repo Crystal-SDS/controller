@@ -266,8 +266,8 @@ def filter_deploy(request, filter_id, project_id, container=None, swift_object=N
             if params['execution_server_reverse'] != 'default':
                 policy_data['execution_server_reverse'] = params['execution_server_reverse']
 
-        if project_id.startswith('group_'):
-            projects_id = json.loads(r.hgetall('project_group:' + project_id.split('_')[1])['attached_projects'])
+        if project_id.startswith('group:'):
+            projects_id = json.loads(r.hgetall('project_group:' + project_id.split(':')[1])['attached_projects'])
         else:
             projects_id = [project_id]
 
