@@ -90,7 +90,7 @@ class SwiftTestCase(TestCase):
         response = storage_policy_disks(request, sp_id)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         mock_ring_builder_load.assert_called_with('/opt/crystal/swift/tmp/object-1.builder')
-        expected_dict = {'weight': 100, 'zone': 'Rack', 'ip': '192.168.2.2', 'region': 'data_center', 'device': 'sdb2', 'port': '6000'}
+        expected_dict = {'weight': 100, 'zone': 'Rack', 'ip': '192.168.2.2', 'region': 'data_center', 'device': 'sdb2', 'port': '6200'}
         mock_ring_builder_load.return_value.add_dev.assert_called_with(expected_dict)
         mock_ring_builder_load.return_value.save.assert_called_with('/opt/crystal/swift/tmp/object-1.builder')
 

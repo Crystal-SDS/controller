@@ -99,7 +99,7 @@ class MetricsTestCase(TestCase):
                         'in_flow': False, 'status': 'Stopped'}
             request = self.factory.post('/metrics/data/', {'file': fp, 'metadata': json.dumps(metadata)})
             response = MetricModuleData.as_view()(request)
-            mock_rsync_dir.assert_called_with(settings.WORKLOAD_METRICS_DIR)
+            mock_rsync_dir.assert_called_with(settings.WORKLOAD_METRICS_DIR, settings.WORKLOAD_METRICS_DIR)
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         metric = json.loads(response.content)
@@ -121,7 +121,7 @@ class MetricsTestCase(TestCase):
         with open('test_data/test.py', 'r') as fp:
             request = self.factory.put('/metrics/' + metric_id + '/data', {'file': fp})
             response = MetricModuleData.as_view()(request, metric_id)
-            mock_rsync_dir.assert_called_with(settings.WORKLOAD_METRICS_DIR)
+            mock_rsync_dir.assert_called_with(settings.WORKLOAD_METRICS_DIR, settings.WORKLOAD_METRICS_DIR)
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 

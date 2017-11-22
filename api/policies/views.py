@@ -296,7 +296,7 @@ def deploy_static_policy(request, r, parsed_rule):
                 if parsed_rule.object_list:
                     if parsed_rule.object_list.object_type:
                         policy_data["object_type"] = parsed_rule.object_list.object_type.object_value
-                        policy_data["object_name"] = ', '.join(r.lrange('object_type:' + policy['object_type'], 0, -1))
+                        policy_data["object_name"] = ', '.join(r.lrange('object_type:' + policy_data['object_type'], 0, -1))
                     if parsed_rule.object_list.object_size:
                         policy_data["object_size"] = [parsed_rule.object_list.object_size.operand,
                                                       parsed_rule.object_list.object_size.object_value]
@@ -440,7 +440,7 @@ def deploy_dynamic_policy(r, rule_string, parsed_rule, http_host):
             if parsed_rule.object_list:
                 if parsed_rule.object_list.object_type:
                     object_type = parsed_rule.object_list.object_type.object_value
-                    object_name = ', '.join(r.lrange('object_type:' + policy['object_type'], 0, -1))
+                    object_name = ', '.join(r.lrange('object_type:' + object_type, 0, -1))
                 if parsed_rule.object_list.object_tag:
                     object_tag = parsed_rule.object_list.object_tag.object_value
                 if parsed_rule.object_list.object_size:

@@ -99,7 +99,7 @@ class PoliciesTestCase(TestCase):
         self.assertTrue(mock_set_filter.called)
         expected_policy_data = {'object_size': '', 'execution_order': 2, 'object_type': 'DOCS', 'params': mock.ANY,
                                 'execution_server': 'PROXY', 'callable': False, 'object_tag': '', 'policy_id': 2,
-                                'object_name': ''}
+                                'object_name': 'txt, doc, docx'}
         mock_set_filter.assert_called_with(mock.ANY, '0123456789abcdef', mock.ANY, expected_policy_data, 'fake_token')
 
     @mock.patch('policies.views.deploy_dynamic_policy')
@@ -665,7 +665,7 @@ class PoliciesTestCase(TestCase):
         # Call filter_deploy
         policy_data = {
             "policy_id": "1",
-            "object_type": None,
+            "object_type": '',
             "object_size": None,
             "object_tag": None,
             "object_name": None,
