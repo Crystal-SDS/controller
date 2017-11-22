@@ -65,15 +65,17 @@ def init_job_submission(job_execution_data):
 
     r = get_redis_connection()
 
+    job_name = job_execution_data['_simple_name']
+    job_migratory_name = job_execution_data['name']
+
     # STEP 1: Execute the JobAnalyzer
-    analyzer_file_name = r.hget('analyzer:' + str(job_execution_data['analyzer_id']), 'analyzer_file_name')
+    analyzer_data = r.hgetall('analyzer:' + str(job_execution_data['analyzer_id']))
+    analyzer_file_name = analyzer_data['analyzer_file_name']
+    analyzer_framework = analyzer_data['framework']
     job_analyzer_path = os.path.join(settings.ANALYZERS_DIR, str(analyzer_file_name))
-    spark_job_path = os.path.join(settings.JOBS_DIR, str(job_execution_data['job_file_name']))
+    job_path = os.path.join(settings.JOBS_DIR, str(job_execution_data['job_file_name']))
 
-    spark_job_name = job_execution_data['_simple_name']
-    spark_job_migratory_name = job_execution_data['name']
-
-    json_object = execute_java_analyzer(job_analyzer_path, spark_job_path)
+    json_object = execute_java_analyzer(job_analyzer_path, job_path)
 
     # STEP 2: Get the lambdas and the code of the Job
     lambdas_to_migrate = json_object.get("lambdas")
@@ -112,63 +114,75 @@ def init_job_submission(job_execution_data):
     m = re.search('package\s*(\w\.?)*\s*;', job_to_compile)
     job_to_compile = job_to_compile.replace(m.group(0),
                                             'package ' + executor_location.replace('/', '.')[1:-1] + ';')
-    job_to_compile = job_to_compile.replace(spark_job_name, spark_job_migratory_name)
+    job_to_compile = job_to_compile.replace(job_name, job_migratory_name)
 
-    jobfile = open(executor_location + '/' + spark_job_migratory_name + '.java', 'w')
+    jobfile = open(executor_location + '/' + job_migratory_name + '.java', 'w')
     print >> jobfile, job_to_compile
     jobfile.close()
 
     logger.info("Starting compilation")
-    cmd = settings.JOB_ANALYZER_JAVAC_PATH + ' -cp \"' + settings.JOB_ANALYZER_SPARK_LIBS_LOCATION + '*\" '
-    cmd += executor_location + spark_job_migratory_name + '.java'
+    if analyzer_framework == 'Spark':
+        framework_libs_location = settings.JOB_ANALYZER_SPARK_LIBS_LOCATION
+    elif analyzer_framework == 'Flink':
+        framework_libs_location = settings.JOB_ANALYZER_FLINK_LIBS_LOCATION
+    cmd = settings.JOB_ANALYZER_JAVAC_PATH + ' -cp \"' + framework_libs_location + '*\" '
+    cmd += executor_location + job_migratory_name + '.java'
     logger.info(">> EXECUTING: " + cmd)
     proc = subprocess.call(cmd, shell=True)
     if proc != 0:
-        raise AnalyticsJobSubmissionException("javac error compiling " + spark_job_migratory_name)
+        raise AnalyticsJobSubmissionException("javac error compiling " + job_migratory_name)
 
-    # STEP 6: Package the Spark Job class as a JAR and set the manifest
+    # STEP 6: Package the Job class as a JAR and set the manifest
     logger.info("Starting packaging")
-    cmd = 'jar -cfe ' + executor_location + spark_job_migratory_name + '.jar ' + \
-          executor_location.replace('/', '.')[1:] + spark_job_migratory_name + ' ' + \
-          executor_location + spark_job_migratory_name + '.class'
+    cmd = 'jar -cfe ' + executor_location + job_migratory_name + '.jar ' + \
+          executor_location.replace('/', '.')[1:] + job_migratory_name + ' ' + \
+          executor_location + job_migratory_name + '.class'
     logger.info(">> EXECUTING: " + cmd)
     proc = subprocess.call(cmd, shell=True)
     if proc != 0:
-        raise AnalyticsJobSubmissionException("jar error packaging " + spark_job_migratory_name)
+        raise AnalyticsJobSubmissionException("jar error packaging " + job_migratory_name)
 
     # STEP 7: In cluster mode, we need to store the produced jar in HDFS to make it available to workers
     if settings.JOB_ANALYZER_CLUSTER_MODE:
         logger.info("Starting to store the JAR in HDFS")
-        cmd = settings.JOB_ANALYZER_HDFS_LOCATION + ' -put -f ' + executor_location + spark_job_migratory_name + '.jar ' + \
-              ' /' + spark_job_migratory_name + '.jar'
+        cmd = settings.JOB_ANALYZER_HDFS_LOCATION + ' -put -f ' + executor_location + job_migratory_name + '.jar ' + \
+              ' /' + job_migratory_name + '.jar'
         logger.info(">> EXECUTING: " + cmd)
         proc = subprocess.call(cmd, shell=True)
         if proc != 0:
-            raise AnalyticsJobSubmissionException("There was a problem storing the " + spark_job_migratory_name + " JAR in HDFS")
+            raise AnalyticsJobSubmissionException("There was a problem storing the " + job_migratory_name + " JAR in HDFS")
 
     # STEP 8: Execute the job against Swift
     logger.info("Starting execution")
     if settings.JOB_ANALYZER_CLUSTER_MODE:
         deploy_mode = 'cluster'
-        jar_location = 'hdfs://' + settings.JOB_ANALYZER_HDFS_IP_PORT + '/' + spark_job_migratory_name + '.jar'
+        jar_location = 'hdfs://' + settings.JOB_ANALYZER_HDFS_IP_PORT + '/' + job_migratory_name + '.jar'
     else:
         deploy_mode = 'client'
-        jar_location = executor_location + spark_job_migratory_name + '.jar'
-    cmd = 'bash ' + settings.JOB_ANALYZER_SPARK_FOLDER + 'bin/spark-submit --deploy-mode ' + deploy_mode + \
-          ' --master ' + settings.JOB_ANALYZER_SPARK_MASTER_URL + ' ' + \
-          '--class ' + executor_location.replace('/', '.')[1:] + spark_job_migratory_name + ' ' + \
-          '--driver-class-path ' + settings.JOB_ANALYZER_SPARK_FOLDER + 'jars/stocator-1.0.9.jar ' + \
-          '--executor-cores ' + settings.JOB_ANALYZER_AVAILABLE_CPUS + ' --executor-memory ' + settings.JOB_ANALYZER_AVAILABLE_RAM + \
-          ' ' + jar_location + ' --jars ' + settings.JOB_ANALYZER_SPARK_FOLDER + 'jars/*.jar'
+        jar_location = executor_location + job_migratory_name + '.jar'
+
+    if analyzer_framework == 'Spark':
+        executor_cores = job_execution_data['executor_cores'] or settings.JOB_ANALYZER_AVAILABLE_CPUS
+        executor_memory = job_execution_data['executor_memory'] or settings.JOB_ANALYZER_AVAILABLE_RAM
+        cmd = 'bash ' + settings.JOB_ANALYZER_SPARK_FOLDER + 'bin/spark-submit --deploy-mode ' + deploy_mode + \
+              ' --master ' + settings.JOB_ANALYZER_SPARK_MASTER_URL + ' ' + \
+              '--class ' + executor_location.replace('/', '.')[1:] + job_migratory_name + ' ' + \
+              '--driver-class-path ' + settings.JOB_ANALYZER_SPARK_FOLDER + 'jars/stocator-1.0.9.jar ' + \
+              '--executor-cores ' + executor_cores + ' --executor-memory ' + executor_memory + \
+              ' ' + jar_location + ' --jars ' + settings.JOB_ANALYZER_SPARK_FOLDER + 'jars/*.jar'
+        # Note: to use FlightRecorderTaskMetrics, add the following line to spark submit call:
+        # '--conf spark.extraListeners=ch.cern.sparkmeasure.FlightRecorderStageMetrics,ch.cern.sparkmeasure.FlightRecorderTaskMetrics ' +
+    elif analyzer_framework == 'Flink':
+        parallelism = '-p ' + job_execution_data['parallelism'] or ''
+        cmd = 'bash ' + settings.JOB_ANALYZER_FLINK_FOLDER + 'bin/flink run ' + parallelism + ' ' + jar_location
+
     logger.info(">> EXECUTING: " + cmd)
-    subprocess.Popen(cmd, shell=True)
-    # Note: to use FlightRecorderTaskMetrics, add the following line to spark submit call:
-    # '--conf spark.extraListeners=ch.cern.sparkmeasure.FlightRecorderStageMetrics,ch.cern.sparkmeasure.FlightRecorderTaskMetrics ' +
+    Popen(cmd, shell=True)
 
     # STEP 9: Clean files
-    os.remove(executor_location + spark_job_migratory_name + '.java')
-    os.remove(executor_location + spark_job_migratory_name + '.class')
-    os.remove(executor_location + spark_job_name + 'Java8Translated.java')
-    # os.remove(executor_location + spark_job_migratory_name + '.jar')
+    os.remove(executor_location + job_migratory_name + '.java')
+    os.remove(executor_location + job_migratory_name + '.class')
+    os.remove(executor_location + job_name + 'Java8Translated.java')
+    # os.remove(executor_location + job_migratory_name + '.jar')
 
     r.hset('job_execution:' + str(job_execution_data['id']), 'status', 'submitted')
