@@ -281,7 +281,7 @@ def filter_deploy(request, filter_id, project_id, container=None, swift_object=N
                     target = project
 
                 token = get_token_connection(request)
-                set_filter(r, target, filter_data, policy_data, token)
+                set_filter(r, target, filter_data.copy(), policy_data.copy(), token)
 
             return JSONResponse(policy_id, status=status.HTTP_201_CREATED)
 
