@@ -14,6 +14,27 @@ from subprocess import PIPE, STDOUT, Popen
 logger = logging.getLogger(__name__)
 
 
+def execute_java_pre_analyzer(path_to_jar, path_to_job_file, arguments_str):
+    arguments = arguments_str.split(' ')
+
+    p = Popen(['java', '-jar', path_to_jar, path_to_job_file] + arguments, stdout=PIPE, stderr=STDOUT)
+    json_result = ''
+
+    for line in p.stdout:
+        if line.startswith("{\"pushdown-job-code\":"):
+            json_result += line
+
+    io = StringIO(json_result)
+    json_object = json.load(io)
+    original_code_with_args = json_object.get("pushdown-job-code")
+    new_filename = os.path.basename(path_to_job_file).split('.')[0] + 'ModifiedWithArgs.java'
+    modified_job_file = os.path.join(settings.JOBS_DIR, new_filename)
+    with open(modified_job_file, "w") as text_file:
+        text_file.write(original_code_with_args)
+
+    return modified_job_file
+
+
 def execute_java_analyzer(path_to_jar, path_to_job_file):
     p = Popen(['java', '-jar', path_to_jar, path_to_job_file], stdout=PIPE, stderr=STDOUT)
     json_result = ''
@@ -68,12 +89,24 @@ def init_job_submission(job_execution_data):
     job_name = job_execution_data['_simple_name']
     job_migratory_name = job_execution_data['name']
 
+    # STEP 0: Clean old files
+    executor_location = settings.JOB_ANALYZER_EXECUTOR_LOCATION
+    files = os.listdir(executor_location)
+    for f in files:
+        if f.endswith(('.jar', '.class', 'Java8Translated.java', 'ModifiedWithArgs.java')):
+            os.remove(os.path.join(executor_location, f))
+
+    # STEP 0.5: Execute the Java JobPreAnalyzer (substitutes args[...] by literal string arguments)
+    job_pre_analyzer_path = os.path.join(settings.ANALYZERS_DIR, 'JavaJobPreAnalyzer.jar')
+    job_path = os.path.join(settings.JOBS_DIR, str(job_execution_data['job_file_name']))
+    job_path = execute_java_pre_analyzer(job_pre_analyzer_path, job_path, job_execution_data['arguments'])
+
     # STEP 1: Execute the JobAnalyzer
     analyzer_data = r.hgetall('analyzer:' + str(job_execution_data['analyzer_id']))
     analyzer_file_name = analyzer_data['analyzer_file_name']
     analyzer_framework = analyzer_data['framework']
     job_analyzer_path = os.path.join(settings.ANALYZERS_DIR, str(analyzer_file_name))
-    job_path = os.path.join(settings.JOBS_DIR, str(job_execution_data['job_file_name']))
+    # job_path = os.path.join(settings.JOBS_DIR, str(job_execution_data['job_file_name']))
 
     json_object = execute_java_analyzer(job_analyzer_path, job_path)
 
@@ -110,7 +143,6 @@ def init_job_submission(job_execution_data):
                 update_lambda_params(target_id, policy_id, '')
 
     # STEP 5: Compile pushdown/original job
-    executor_location = settings.JOB_ANALYZER_EXECUTOR_LOCATION
     m = re.search('package\s*(\w\.?)*\s*;', job_to_compile)
     job_to_compile = job_to_compile.replace(m.group(0),
                                             'package ' + executor_location.replace('/', '.')[1:-1] + ';')
@@ -132,11 +164,11 @@ def init_job_submission(job_execution_data):
     if proc != 0:
         raise AnalyticsJobSubmissionException("javac error compiling " + job_migratory_name)
 
-    # STEP 6: Package the Job class as a JAR and set the manifest
+    # STEP 6: Package the Job classes as a JAR and set the manifest
     logger.info("Starting packaging")
     cmd = 'jar -cfe ' + executor_location + job_migratory_name + '.jar ' + \
           executor_location.replace('/', '.')[1:] + job_migratory_name + ' ' + \
-          executor_location + job_migratory_name + '.class'
+          executor_location + '*.class'
     logger.info(">> EXECUTING: " + cmd)
     proc = subprocess.call(cmd, shell=True)
     if proc != 0:
@@ -179,10 +211,14 @@ def init_job_submission(job_execution_data):
     logger.info(">> EXECUTING: " + cmd)
     Popen(cmd, shell=True)
 
-    # STEP 9: Clean files
-    os.remove(executor_location + job_migratory_name + '.java')
-    os.remove(executor_location + job_migratory_name + '.class')
-    os.remove(executor_location + job_name + 'Java8Translated.java')
+    # STEP 9: Clean files (except the jar file)
+    files = os.listdir(executor_location)
+    for f in files:
+        if f.endswith(('.java', '.class', 'Java8Translated.java')):
+            os.remove(os.path.join(executor_location, f))
+    # os.remove(executor_location + job_migratory_name + '.java')
+    # os.remove(executor_location + job_migratory_name + '.class')
+    # os.remove(executor_location + job_name + 'Java8Translated.java')
     # os.remove(executor_location + job_migratory_name + '.jar')
 
     r.hset('job_execution:' + str(job_execution_data['id']), 'status', 'submitted')
