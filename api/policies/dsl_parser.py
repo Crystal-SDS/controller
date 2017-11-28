@@ -1,6 +1,7 @@
 from pyparsing import Word, Suppress, alphas, Literal, Group, Combine, opAssoc, alphanums
 from pyparsing import Regex, operatorPrecedence, oneOf, nums, Optional, delimitedList
 from django.conf import settings
+import json
 import redis
 
 # By default, PyParsing treats \n as whitespace and ignores it
@@ -27,8 +28,10 @@ def get_redis_connection():
 
 def parse_group_tenants(tokens):
     r = get_redis_connection()
-    data = r.lrange(tokens[0], 0, -1)
-    return data
+    # data = r.lrange(tokens[0], 0, -1)
+    project_group_id = tokens[0].split(':')[1]
+    attached_projects = r.hget("project_group:" + project_group_id, "attached_projects")
+    return json.loads(attached_projects)
 
 
 def parse_condition(input_string):
@@ -47,7 +50,6 @@ def parse_condition(input_string):
                                 ("OR", 2, opAssoc.LEFT, ),
                                 ])
     rule = condition_list('condition_list')
-
     return rule.parseString(input_string).condition_list.asList()
 
 
@@ -110,7 +112,17 @@ def parse(input_string):
     object_type = Group(Literal("OBJECT_TYPE")("type") + Literal("=") + word(alphanums)("object_value"))("object_type")
     object_size = Group(Literal("OBJECT_SIZE")("size") + operand_object("operand") + number("object_value"))("object_size")
     object_tag = Group(Literal("OBJECT_TAG")("tag") + Literal("=") + word(alphanums)("object_value"))("object_tag")
-    object_list = Group(object_type ^ object_size ^ object_type + "," + object_size ^ object_size + "," + object_type)
+    object_list = Group(object_type ^ object_size ^ object_tag ^
+                        object_type + "," + object_size ^ object_size + "," + object_type ^
+                        object_type + "," + object_tag ^ object_tag + "," + object_type ^
+                        object_size + "," + object_tag ^ object_tag + "," + object_size ^
+                        object_type + "," + object_size + "," + object_tag ^
+                        object_type + "," + object_tag + "," + object_size ^
+                        object_size + "," + object_type + "," + object_tag ^
+                        object_size + "," + object_tag + "," + object_type ^
+                        object_tag + "," + object_type + "," + object_size ^
+                        object_tag + "," + object_size + "," + object_type)
+
     to = Suppress("TO")
 
     # Functions post-parsed
@@ -129,14 +141,14 @@ def parse(input_string):
     # Parse the rule
     parsed_rule = rule_parse.parseString(input_string)
 
-    # Pos-parsed validation
+    # Post-parsed validation
     has_condition_list = True
     if not parsed_rule.condition_list:
         has_condition_list = False
 
     for action in parsed_rule.action_list:
         if action.params:
-            filter_info = r.hgetall("dsl_filter:"+str(action.filter))
+            filter_info = r.hgetall("filter:"+str(action.filter))
             if "valid_parameters" in filter_info.keys():
                 params = eval(filter_info["valid_parameters"])
                 result = set(action.params.keys()).intersection(params.keys())
