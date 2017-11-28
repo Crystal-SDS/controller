@@ -535,6 +535,7 @@ def access_control(request):
             acl_id = str(r.incr('acls:id'))
             data.pop('container_id')
             data.pop('project_id')
+            data['object_name'] = ', '.join(r.lrange('object_type:' + data['object_type'], 0, -1))
 
             identity = data.pop('identity')
             access = data.pop('access')
@@ -634,7 +635,9 @@ def access_control_detail(request, policy_id):
                 data['list'] = False
                 data['read'] = True
                 data['write'] = True
+                
             policy.update(data)
+            policy['object_name'] = ', '.join(r.lrange('object_type:' + policy['object_type'], 0, -1))
             r.hset("acl:" + str(target_id), acl_id, json.dumps(policy))
 
             return JSONResponse('Data updated', status=status.HTTP_201_CREATED)
