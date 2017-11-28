@@ -214,6 +214,7 @@ def static_policy_detail(request, policy_id):
             policy_redis = r.hget("pipeline:" + str(target), policy)
             json_data = json.loads(policy_redis)
             json_data.update(data)
+            json_data['object_name'] = ', '.join(r.lrange('object_type:' + json_data['object_type'], 0, -1))
             json_data['execution_order'] = int(json_data['execution_order'])
             r.hset("pipeline:" + str(target), policy, json.dumps(json_data))
             return JSONResponse("Data updated", status=201)
@@ -344,7 +345,7 @@ def dynamic_policy_detail(request, policy_id):
                     start_dynamic_policy_actor(policy_data, http_host)
                 except Exception as e:
                     return JSONResponse(str(e), status=400)
-
+            data['object_name'] = ', '.join(r.lrange('object_type:' + data['object_type'], 0, -1))
             r.hmset(key, data)
             return JSONResponse("Data updated", status=201)
         except DataError:
