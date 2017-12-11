@@ -710,10 +710,10 @@ def region_detail(request, region_id):
 
     if request.method == 'PUT':
         data = JSONParser().parse(request)
-        key = "region:" + str(data['region_id'])
+
         try:
-            r.hmset(key, data)
-            return JSONResponse("Data updated correctly", status=status.HTTP_201_CREATED)
+            r.hmset(region_key, data)
+            return JSONResponse("Data updated correctly", status=status.HTTP_204_NO_CONTENT)
         except RedisError:
             return JSONResponse("Error updating data", status=status.HTTP_400_BAD_REQUEST)
 

@@ -9,7 +9,7 @@ from rest_framework import status
 from rest_framework.test import APIRequestFactory
 
 from swift_api.views import storage_policies, storage_policy_detail, storage_policy_disks, locality_list, node_list, node_detail, \
-    regions
+    regions, region_detail
 
 
 # Tests use database=10 instead of 0.
@@ -57,7 +57,7 @@ class SwiftTestCase(TestCase):
 
     @mock.patch('swift_api.views.RingBuilder')
     def test_storage_policies_post_ok(self, mock_ring_builder):
-        data = {'partition_power': '5', 'replicas': '3', 'time': '10'}
+        data = {'policy_type': 'replication', 'partition_power': '5', 'replicas': '3', 'time': '10'}
         request = self.api_factory.post('/swift/storage_policies', data, format='json')
         response = storage_policies(request)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
@@ -188,14 +188,45 @@ class SwiftTestCase(TestCase):
         self.assertEqual(node['ssh_username'], 'admin')
 
     # Regions / Zones
+    def test_regions_post_ok(self):
+        data = {'name': 'data_center', 'description': 'Acme Data Center'}
+        request = self.api_factory.post('/swift/regions/', data, format='json')
+        response = regions(request)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
     def test_regions_get_ok(self):
         request = self.api_factory.get('/swift/regions/')
         response = regions(request)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         region_items = json.loads(response.content)
-        self.assertEqual(len(region_items), 1)
+        self.assertEqual(len(region_items), 2)
         self.assertEqual(region_items[0]['name'], 'data_center')
+
+    def test_region_detail_delete_with_zone_assigned(self):
+        region_id = '1'
+        request = self.api_factory.delete('/swift/regions/' + region_id)
+        response = region_detail(request, region_id)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+    
+    def test_region_detail_delete_not_found(self):
+        region_id = '3'
+        request = self.api_factory.delete('/swift/regions/' + region_id)
+        response = region_detail(request, region_id)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_region_detail_delete_ok(self):
+        region_id = '2'
+        request = self.api_factory.delete('/swift/regions/' + region_id)
+        response = region_detail(request, region_id)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        
+    def test_region_detail_update_ok(self):
+        region_id = '2'
+        request = self.api_factory.put('/swift/regions/' + region_id, {'name': 'data_center'}, format='json')
+        response = region_detail(request, region_id)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+    
+
 
     #
     # Aux functions
@@ -229,8 +260,9 @@ class SwiftTestCase(TestCase):
                       'ssh_access': 'False'})
 
     def create_regions_and_zones(self):
-        self.r.set('regions:id', 1)
+        self.r.set('regions:id', 2)
         self.r.hmset('region:1', {'name': 'data_center', 'description': 'Acme Data Center'})
+        self.r.hmset('region:2', {'name': 'data_center', 'description': 'Acme Data Center'})
         self.r.set('zones:id', 1)
         self.r.hmset('zone:1', {'name': 'Rack', 'description': 'Dummy Rack: GbE Switch, 2 Proxies and 7 Storage Nodes',
-                                'regions': '1', 'zone_id': '1'})
+                                'region': '1', 'zone_id': '1'})
