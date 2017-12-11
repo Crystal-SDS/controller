@@ -89,6 +89,9 @@ def storage_policies(request):
 
         data = JSONParser().parse(request)
 
+        if data['policy_type'] == 'EC':
+            data['replicas'] = int(data['ec_num_data_fragments']) + int(data['ec_num_parity_fragments'])
+
         try:
             sp_id = str(r.incr('storage-policies:id'))
             key = 'storage-policy:' + sp_id
