@@ -562,7 +562,7 @@ class PoliciesTestCase(TestCase):
     def test_access_control_post_list_ok(self, mock_get_project_list):
         mock_get_project_list.return_value = {'0123456789abcdef': 'tenantA', 'abcdef0123456789': 'tenantB'}
 
-        acl_data = {'project_id': '0123456789abcdef', 'container_id': 'container2', 'identity': 'user_id:a1a1a1a1a1a1', 'access': 'list'}
+        acl_data = {'project_id': '0123456789abcdef', 'container_id': 'container2', 'identity': 'user_id:a1a1a1a1a1a1', 'access': 'list', 'object_type': 'DOCS'}
         request = self.factory.post('/policies/acl/', acl_data, format='json')
         response = access_control(request)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
@@ -578,7 +578,7 @@ class PoliciesTestCase(TestCase):
     def test_access_control_post_read_group_ok(self, mock_get_project_list):
         mock_get_project_list.return_value = {'0123456789abcdef': 'tenantA', 'abcdef0123456789': 'tenantB'}
 
-        acl_data = {'project_id': '0123456789abcdef', 'container_id': 'container2', 'identity': 'group_id:g2g2g2', 'access': 'read'}
+        acl_data = {'project_id': '0123456789abcdef', 'container_id': 'container2', 'identity': 'group_id:g2g2g2', 'access': 'read', 'object_type': 'DOCS'}
         request = self.factory.post('/policies/acl/', acl_data, format='json')
         response = access_control(request)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
