@@ -8,12 +8,14 @@ from django.test.client import RequestFactory
 from rest_framework import status
 from rest_framework.test import APIRequestFactory
 
-from swift_api.views import storage_policies, storage_policy_detail, storage_policy_disks, locality_list, node_list, node_detail, \
-    regions, region_detail
+from swift_api.views import storage_policies, storage_policy_detail, storage_policy_disks, deploy_storage_policy, deployed_storage_policies, \
+    locality_list, node_list, node_detail, regions, region_detail, zones, zone_detail
+import os
 
 
 # Tests use database=10 instead of 0.
-@override_settings(REDIS_CON_POOL=redis.ConnectionPool(host='localhost', port=6379, db=10))
+@override_settings(REDIS_CON_POOL=redis.ConnectionPool(host='localhost', port=6379, db=10),
+                   SWIFT_CFG_DEPLOY_DIR=os.path.join(os.getcwd(), 'test_data', 'deploy'))
 class SwiftTestCase(TestCase):
     def setUp(self):
         # Every test needs access to the request factory.
@@ -72,6 +74,21 @@ class SwiftTestCase(TestCase):
         policy_data = json.loads(response.content)
         self.assertEqual(policy_data['storage_policy_id'], sp_id)
         self.assertEqual(len(policy_data['devices']), 2)
+        
+    def test_storage_policy_detail_put_ok(self):
+        sp_id = '1'
+        data = {'name': 'storage4'}
+        request = self.api_factory.put('/swift/storage_policy/' + sp_id, data, format='json')
+        response = storage_policy_detail(request, sp_id)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+    @mock.patch('swift_api.views.rsync_dir_with_nodes')
+    def test_storage_policy_detail_delete_ok(self, mock_rsync):
+        sp_id = '1'
+        data = {'name': 'storage4'}
+        request = self.api_factory.put('/swift/storage_policy/' + sp_id, data, format='json')
+        response = storage_policy_detail(request, sp_id)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
     def test_storage_policy_disks_get_ok(self):
         sp_id = '1'
@@ -93,6 +110,26 @@ class SwiftTestCase(TestCase):
         expected_dict = {'weight': 100, 'zone': 'Rack', 'ip': '192.168.2.2', 'region': 'data_center', 'device': 'sdb2', 'port': '6200'}
         mock_ring_builder_load.return_value.add_dev.assert_called_with(expected_dict)
         mock_ring_builder_load.return_value.save.assert_called_with('/opt/crystal/swift/tmp/object-1.builder')
+    
+    @mock.patch('swift_api.views.RingBuilder.load')
+    @mock.patch('swift_api.views.copyfile')
+    @mock.patch('swift_api.views.rsync_dir_with_nodes')
+    def test_storage_policy_deploy(self, mock_rsync, mock_copyfile, mock_ring_builder_load):
+        sp_id = '1'
+        request = self.api_factory.post('/swift/storage_policy/' + sp_id + '/deploy/')
+        response = deploy_storage_policy(request, sp_id)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        mock_ring_builder_load.assert_called_with('/opt/crystal/swift/tmp/object-1.builder')
+        mock_ring_builder_load.return_value.save.assert_called_with('/opt/crystal/swift/tmp/object-1.builder')
+        mock_ring_builder_load.return_value.get_ring.return_value.save.assert_called_with(os.path.join(os.getcwd(), 'test_data', 'deploy', 'object-1.ring.gz'))
+        
+    def test_storage_policies_deployed(self):
+        request = self.api_factory.get('/swift/storage_policies/deployed')
+        response = deployed_storage_policies(request)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        sps = json.loads(response.content)
+        self.assertEqual(len(sps), 1)
+        self.assertEqual(sps[0]['name'], 'storage4')
 
     #
     # Nodes
@@ -219,13 +256,63 @@ class SwiftTestCase(TestCase):
         request = self.api_factory.delete('/swift/regions/' + region_id)
         response = region_detail(request, region_id)
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        request = self.api_factory.get('/swift/regions/' + region_id)
+        response = region_detail(request, region_id)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         
     def test_region_detail_update_ok(self):
         region_id = '2'
         request = self.api_factory.put('/swift/regions/' + region_id, {'name': 'data_center'}, format='json')
         response = region_detail(request, region_id)
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        
+    def test_region_detail_get_ok(self):
+        region_id = '2'
+        request = self.api_factory.get('/swift/regions/' + region_id)
+        response = region_detail(request, region_id)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+    def test_region_detail_get_not_found(self):
+        region_id = '3'
+        request = self.api_factory.get('/swift/regions/' + region_id)
+        response = region_detail(request, region_id)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
     
+    
+    def test_zones_post_ok(self):
+        data = {'name': 'Rack', 'description': 'Dummy Rack: GbE Switch, 2 Proxies and 7 Storage Nodes', 'region': '1', 'zone_id': '1'}
+        request = self.api_factory.post('/swift/zones/', data, format='json')
+        response = zones(request)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_zones_get_ok(self):
+        request = self.api_factory.get('/swift/zones/')
+        response = zones(request)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        zone_items = json.loads(response.content)
+        self.assertEqual(len(zone_items), 1)
+        self.assertEqual(zone_items[0]['name'], 'Rack')
+
+    def test_zones_detail_get_ok(self):
+        zone_id = '1'
+        request = self.api_factory.get('/swift/zones/' + zone_id)
+        response = zone_detail(request, zone_id)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        zone = json.loads(response.content)
+        self.assertEqual(zone['name'], 'Rack')
+
+    def test_zones_detail_delete_ok(self):
+        zone_id = '1'
+        request = self.api_factory.delete('/swift/zones/' + zone_id)
+        response = zone_detail(request, zone_id)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+    def test_zones_detail_update_ok(self):
+        zone_id = '1'
+        data = {'name': 'Rack', 'description': 'Dummy Rack: GbE Switch, 2 Proxies and 7 Storage Nodes', 'region': '1', 'zone_id': '1'}
+        request = self.api_factory.put('/swift/zones/' + zone_id, data, format='json')
+        response = zone_detail(request, zone_id)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
 
     #
@@ -235,15 +322,15 @@ class SwiftTestCase(TestCase):
     def create_storage_policies(self):
         devices = [["storagenode1:sdb1"], ["storagenode2:sdb1"]]
         self.r.hmset("storage-policy:0", {'name': 'allnodes', 'default': 'yes', 'policy_type': 'replication',
-                                          'devices': json.dumps(devices)})
+                                          'devices': json.dumps(devices), 'deprecated': 'false'})
         self.r.hmset("storage-policy:1", {'name': 'storage4', 'default': 'no', 'policy_type': 'replication',
-                                          'devices': json.dumps(devices)})
+                                          'devices': json.dumps(devices), 'deprecated': 'false'})
         self.r.hmset("storage-policy:2", {'name': 's0y1', 'default': 'no', 'policy_type': 'replication',
-                                          'devices': json.dumps(devices)})
+                                          'devices': json.dumps(devices), 'deprecated': 'false'})
         self.r.hmset("storage-policy:3", {'name': 's3y4', 'default': 'no', 'policy_type': 'replication',
-                                          'devices': json.dumps(devices)})
+                                          'devices': json.dumps(devices), 'deprecated': 'false'})
         self.r.hmset("storage-policy:4", {'name': 's5y6', 'default': 'no', 'policy_type': 'replication',
-                                          'devices': json.dumps(devices)})
+                                          'devices': json.dumps(devices), 'deprecated': 'false'})
 
     def create_nodes(self):
         self.r.hmset('proxy_node:controller',

@@ -48,7 +48,6 @@ def update_sp_files(path, policy_id, d):
     with open(swift_file, 'wb') as configfile:
         config_parser.write(configfile)
 
-
 def get_policy_file_path(dir_path, policy_id):
     object_builder_key = 'object.builder' if policy_id == '0' else 'object-' + policy_id + '.builder'
     return os.path.join(dir_path, object_builder_key)
@@ -173,7 +172,7 @@ def storage_policy_detail(request, storage_policy_id):
             try:
                 data['deployed'] = False
                 r.hmset(key, data)
-                return JSONResponse("Storage Policy updated", status=status.HTTP_201_CREATED)
+                return JSONResponse("Storage Policy updated", status=status.HTTP_204_NO_CONTENT)
             except RedisError:
                 return JSONResponse("Error updating storage policy", status=status.HTTP_400_BAD_REQUEST)
         else:
@@ -215,7 +214,7 @@ def storage_policy_detail(request, storage_policy_id):
                 if not r.keys('storage-policy:*'):
                     r.delete('storage-policies:id')
 
-                return JSONResponse("Storage Policy deleted", status=status.HTTP_201_CREATED)
+                return JSONResponse("Storage Policy deleted", status=status.HTTP_204_NO_CONTENT)
             except RedisError:
                 return JSONResponse("Error deleting storage policy", status=status.HTTP_400_BAD_REQUEST)
         else:
@@ -784,7 +783,7 @@ def zone_detail(request, zone_id):
         key = "zone:" + str(data['zone_id'])
         try:
             r.hmset(key, data)
-            return JSONResponse("Zone Data updated correctly", status=status.HTTP_201_CREATED)
+            return JSONResponse("Zone Data updated correctly", status=status.HTTP_204_NO_CONTENT)
         except RedisError:
             return JSONResponse("Error updating zone data", status=status.HTTP_400_BAD_REQUEST)
 
@@ -796,7 +795,7 @@ def zone_detail(request, zone_id):
 @csrf_exempt
 def create_container(request, project_id, container_name):
     if request.method == 'POST':
-        
+
 #         try:
         headers = JSONParser().parse(request)
         token = get_token_connection(request)
