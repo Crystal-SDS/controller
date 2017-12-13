@@ -85,8 +85,7 @@ class SwiftTestCase(TestCase):
     @mock.patch('swift_api.views.rsync_dir_with_nodes')
     def test_storage_policy_detail_delete_ok(self, mock_rsync):
         sp_id = '1'
-        data = {'name': 'storage4'}
-        request = self.api_factory.put('/swift/storage_policy/' + sp_id, data, format='json')
+        request = self.api_factory.delete('/swift/storage_policy/' + sp_id)
         response = storage_policy_detail(request, sp_id)
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
