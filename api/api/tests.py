@@ -1,6 +1,7 @@
 import calendar
 import time
 import mock
+import os
 import redis
 from datetime import timedelta
 from django.conf import settings
@@ -17,7 +18,8 @@ from .middleware import CrystalMiddleware
 
 
 # Tests use database=10 instead of 0.
-@override_settings(REDIS_CON_POOL=redis.ConnectionPool(host='localhost', port=6379, db=10))
+@override_settings(REDIS_CON_POOL=redis.ConnectionPool(host='localhost', port=6379, db=10),
+                   WORKLOAD_METRICS_DIR=os.path.join("/tmp", "crystal", "workload_metrics"),)
 class MainTestCase(TestCase):
     def setUp(self):
         self.r = redis.Redis(connection_pool=settings.REDIS_CON_POOL)
@@ -57,12 +59,12 @@ class MainTestCase(TestCase):
     @mock.patch('api.common.threading.Thread')
     def test_rsync_dir_with_nodes_ok(self, mock_thread):
         self.configure_usernames_and_passwords_for_nodes()
-        rsync_dir_with_nodes(settings.WORKLOAD_METRICS_DIR)
+        rsync_dir_with_nodes(settings.WORKLOAD_METRICS_DIR, settings.WORKLOAD_METRICS_DIR)
         self.assertEqual(mock_thread.call_count, 3)
 
     def test_rsync_dir_with_nodes_when_username_and_password_not_present(self):
         with self.assertRaises(FileSynchronizationException):
-            rsync_dir_with_nodes(settings.WORKLOAD_METRICS_DIR)
+            rsync_dir_with_nodes(settings.WORKLOAD_METRICS_DIR, settings.WORKLOAD_METRICS_DIR)
 
     # @mock.patch('api.common_utils.get_keystone_admin_auth')
     # def test_is_valid_request_new_valid_token(self, mock_keystone_admin_auth):

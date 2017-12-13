@@ -98,7 +98,8 @@ class PoliciesTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertTrue(mock_set_filter.called)
         expected_policy_data = {'object_size': '', 'execution_order': 2, 'object_type': 'DOCS', 'params': mock.ANY,
-                                'execution_server': 'PROXY', 'callable': False, 'object_tag': '', 'policy_id': 2}
+                                'execution_server': 'PROXY', 'callable': False, 'object_tag': '', 'policy_id': 2,
+                                'object_name': 'txt, doc, docx'}
         mock_set_filter.assert_called_with(mock.ANY, '0123456789abcdef', mock.ANY, expected_policy_data, 'fake_token')
 
     @mock.patch('policies.views.deploy_dynamic_policy')
@@ -561,7 +562,7 @@ class PoliciesTestCase(TestCase):
     def test_access_control_post_list_ok(self, mock_get_project_list):
         mock_get_project_list.return_value = {'0123456789abcdef': 'tenantA', 'abcdef0123456789': 'tenantB'}
 
-        acl_data = {'project_id': '0123456789abcdef', 'container_id': 'container2', 'identity': 'user_id:a1a1a1a1a1a1', 'access': 'list'}
+        acl_data = {'project_id': '0123456789abcdef', 'container_id': 'container2', 'identity': 'user_id:a1a1a1a1a1a1', 'access': 'list', 'object_type': 'DOCS'}
         request = self.factory.post('/policies/acl/', acl_data, format='json')
         response = access_control(request)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
@@ -577,7 +578,7 @@ class PoliciesTestCase(TestCase):
     def test_access_control_post_read_group_ok(self, mock_get_project_list):
         mock_get_project_list.return_value = {'0123456789abcdef': 'tenantA', 'abcdef0123456789': 'tenantB'}
 
-        acl_data = {'project_id': '0123456789abcdef', 'container_id': 'container2', 'identity': 'group_id:g2g2g2', 'access': 'read'}
+        acl_data = {'project_id': '0123456789abcdef', 'container_id': 'container2', 'identity': 'group_id:g2g2g2', 'access': 'read', 'object_type': 'DOCS'}
         request = self.factory.post('/policies/acl/', acl_data, format='json')
         response = access_control(request)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
@@ -664,9 +665,10 @@ class PoliciesTestCase(TestCase):
         # Call filter_deploy
         policy_data = {
             "policy_id": "1",
-            "object_type": None,
+            "object_type": '',
             "object_size": None,
             "object_tag": None,
+            "object_name": None,
             "execution_order": "1",
             "params": ""
         }

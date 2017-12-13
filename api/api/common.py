@@ -149,7 +149,7 @@ def get_project_list():
     return project_list
 
 
-def rsync_dir_with_nodes(directory):
+def rsync_dir_with_nodes(src, dest):
     # retrieve nodes
     nodes = get_all_registered_nodes()
     already_sync = list()
@@ -162,15 +162,14 @@ def rsync_dir_with_nodes(directory):
 
             # The basename of the path is not needed because it will be the same as source dir
             logger.info("Rsync - pushing to "+node['type']+":"+node['name'])
-            dest_directory = os.path.dirname(directory)
-            data = {'directory': directory, 'dest_directory': dest_directory, 'node_ip': node['ip'],
+            data = {'directory': src+'/', 'dest_directory': dest+'/', 'node_ip': node['ip'],
                     'ssh_username': node['ssh_username'], 'ssh_password': node['ssh_password']}
 
             threading.Thread(target=rsync, args=(data,)).start()
 
 
 def rsync(data):
-    rsync_command = 'sshpass -p {ssh_password} rsync --progress --delete -avrz -e ssh {directory} {ssh_username}@{node_ip}:{dest_directory}'.format(**data)
+    rsync_command = 'sshpass -p {ssh_password} rsync --progress -avrz -e ssh {directory} {ssh_username}@{node_ip}:{dest_directory}'.format(**data)
     os.system(rsync_command)
 
 

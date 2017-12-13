@@ -191,7 +191,7 @@ class FilterData(APIView):
             if filter_type == 'native':
                 # synchronize metrics directory with all nodes
                 try:
-                    rsync_dir_with_nodes(filter_dir)
+                    rsync_dir_with_nodes(filter_dir, filter_dir)
                 except FileSynchronizationException as e:
                     return JSONResponse(e.message, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -252,7 +252,7 @@ def filter_deploy(request, filter_id, project_id, container=None, swift_object=N
             "object_type": params['object_type'],
             "object_size": params['object_size'],
             "object_tag": params['object_tag'],
-            "object_name": params['object_name'],
+            "object_name": ', '.join(r.lrange('object_type:' + params['object_type'], 0, -1)),
             "execution_order": policy_id,
             "params": params['params'],
             "callable": False
@@ -266,17 +266,22 @@ def filter_deploy(request, filter_id, project_id, container=None, swift_object=N
             if params['execution_server_reverse'] != 'default':
                 policy_data['execution_server_reverse'] = params['execution_server_reverse']
 
-        # TODO: Try to improve this part
-        if container and swift_object:
-            target = os.path.join(project_id, container, swift_object)
-        elif container:
-            target = os.path.join(project_id, container)
+        if project_id.startswith('group:'):
+            projects_id = json.loads(r.hgetall('project_group:' + project_id.split(':')[1])['attached_projects'])
         else:
-            target = project_id
+            projects_id = [project_id]
 
         try:
-            token = get_token_connection(request)
-            set_filter(r, target, filter_data, policy_data, token)
+            for project in projects_id:
+                if container and swift_object:
+                    target = os.path.join(project, container, swift_object)
+                elif container:
+                    target = os.path.join(project, container)
+                else:
+                    target = project
+
+                token = get_token_connection(request)
+                set_filter(r, target, filter_data.copy(), policy_data.copy(), token)
 
             return JSONResponse(policy_id, status=status.HTTP_201_CREATED)
 

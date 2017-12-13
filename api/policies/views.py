@@ -45,7 +45,7 @@ def policy_list(request):
                               'object_type': policy['object_type'],
                               'object_size': policy['object_size'],
                               'object_tag': policy['object_tag'],
-                              'object_name': policy['object_name'],
+                              'object_name': ', '.join(r.lrange('object_type:' + policy['object_type'], 0, -1)),
                               'execution_server': policy['execution_server'],
                               'reverse': policy['reverse'],
                               'execution_order': policy['execution_order'],
@@ -154,7 +154,7 @@ def policy_list(request):
                        "object_type": data['object_type'],
                        "object_size": data['object_size'],
                        "object_tag": data['object_tag'],
-                       "object_name": data['object_name'],
+                       "object_name": ', '.join(r.lrange('object_type:' + data['object_type'], 0, -1)),
                        "transient": data['transient'],
                        "policy_location": policy_location,
                        "status": 'Alive'}
@@ -214,6 +214,7 @@ def static_policy_detail(request, policy_id):
             policy_redis = r.hget("pipeline:" + str(target), policy)
             json_data = json.loads(policy_redis)
             json_data.update(data)
+            json_data['object_name'] = ', '.join(r.lrange('object_type:' + json_data['object_type'], 0, -1))
             json_data['execution_order'] = int(json_data['execution_order'])
             r.hset("pipeline:" + str(target), policy, json.dumps(json_data))
             return JSONResponse("Data updated", status=201)
@@ -296,6 +297,7 @@ def deploy_static_policy(request, r, parsed_rule):
                 if parsed_rule.object_list:
                     if parsed_rule.object_list.object_type:
                         policy_data["object_type"] = parsed_rule.object_list.object_type.object_value
+                        policy_data["object_name"] = ', '.join(r.lrange('object_type:' + policy_data['object_type'], 0, -1))
                     if parsed_rule.object_list.object_size:
                         policy_data["object_size"] = [parsed_rule.object_list.object_size.operand,
                                                       parsed_rule.object_list.object_size.object_value]
@@ -343,7 +345,7 @@ def dynamic_policy_detail(request, policy_id):
                     start_dynamic_policy_actor(policy_data, http_host)
                 except Exception as e:
                     return JSONResponse(str(e), status=400)
-
+            data['object_name'] = ', '.join(r.lrange('object_type:' + data['object_type'], 0, -1))
             r.hmset(key, data)
             return JSONResponse("Data updated", status=201)
         except DataError:
@@ -435,9 +437,11 @@ def deploy_dynamic_policy(r, rule_string, parsed_rule, http_host):
             object_type = ""
             object_size = ""
             object_tag = ""
+            object_name = ""
             if parsed_rule.object_list:
                 if parsed_rule.object_list.object_type:
                     object_type = parsed_rule.object_list.object_type.object_value
+                    object_name = ', '.join(r.lrange('object_type:' + object_type, 0, -1))
                 if parsed_rule.object_list.object_tag:
                     object_tag = parsed_rule.object_list.object_tag.object_value
                 if parsed_rule.object_list.object_size:
@@ -451,6 +455,7 @@ def deploy_dynamic_policy(r, rule_string, parsed_rule, http_host):
                            "parameters": action_info.params,
                            "action": action_info.action,
                            "condition": condition_str.replace('WHEN ', ''),
+                           "object_name": object_name,
                            "object_type": object_type,
                            "object_size": object_size,
                            "object_tag": object_tag,
@@ -530,6 +535,7 @@ def access_control(request):
             acl_id = str(r.incr('acls:id'))
             data.pop('container_id')
             data.pop('project_id')
+            data['object_name'] = ', '.join(r.lrange('object_type:' + data['object_type'], 0, -1))
 
             identity = data.pop('identity')
             access = data.pop('access')
@@ -629,7 +635,9 @@ def access_control_detail(request, policy_id):
                 data['list'] = False
                 data['read'] = True
                 data['write'] = True
+                
             policy.update(data)
+            policy['object_name'] = ', '.join(r.lrange('object_type:' + policy['object_type'], 0, -1))
             r.hset("acl:" + str(target_id), acl_id, json.dumps(policy))
 
             return JSONResponse('Data updated', status=status.HTTP_201_CREATED)

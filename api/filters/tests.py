@@ -206,7 +206,7 @@ class FiltersTestCase(TestCase):
         # Call filter_deploy
         data = {"filter_id": "fake", "target_id": "0123456789abcdef",
                 "execution_server": "proxy", "execution_server_reverse": "proxy",
-                "object_type": "", "object_size": "", "object_tag": "", "params": ""}
+                "object_type": "", "object_size": "", "object_tag": "", "object_name": "", "params": ""}
 
         request = self.factory.put('/filters/0123456789abcdef/deploy/fake', data, format='json')
         request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
@@ -231,7 +231,7 @@ class FiltersTestCase(TestCase):
         # Call filter_deploy
         data = {"filter_id": "fake", "target_id": "0123456789abcdef",
                 "execution_server": "proxy", "execution_server_reverse": "proxy",
-                "object_type": "", "object_size": "", "object_tag": "", "params": ""}
+                "object_type": "", "object_size": "", "object_tag": "", "object_name": "", "params": ""}
 
         request = self.factory.put('/filters/0123456789abcdef/container1/deploy/fake', data, format='json')
         request.META['HTTP_X_AUTH_TOKEN'] = 'fake_token'
