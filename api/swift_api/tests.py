@@ -9,7 +9,7 @@ from rest_framework import status
 from rest_framework.test import APIRequestFactory
 
 from swift_api.views import storage_policies, storage_policy_detail, storage_policy_disks, deploy_storage_policy, deployed_storage_policies, \
-    locality_list, node_list, node_detail, regions, region_detail, zones, zone_detail
+    locality_list, node_list, node_detail, regions, region_detail, zones, zone_detail, delete_storage_policy_disks, create_container, update_container
 import os
 
 
@@ -109,6 +109,28 @@ class SwiftTestCase(TestCase):
         expected_dict = {'weight': 100, 'zone': 'Rack', 'ip': '192.168.2.2', 'region': 'data_center', 'device': 'sdb2', 'port': '6200'}
         mock_ring_builder_load.return_value.add_dev.assert_called_with(expected_dict)
         mock_ring_builder_load.return_value.save.assert_called_with('/opt/crystal/swift/tmp/object-1.builder')
+        
+    @mock.patch('swift_api.views.RingBuilder.load')
+    def test_storage_policy_disk_delete(self, mock_ring_builder_load):
+        sp_id = '1'
+        disk_id = "storagenode1:sdb1"
+        request = self.api_factory.delete('/swift/storage_policy/' + sp_id + '/disk/' + disk_id)
+        response = delete_storage_policy_disks(request, sp_id, disk_id)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+    
+    def test_storage_policy_disk_delete_sp_not_found(self):
+        sp_id = '20'
+        disk_id = "storagenode1:sdb1"
+        request = self.api_factory.delete('/swift/storage_policy/' + sp_id + '/disk/' + disk_id)
+        response = delete_storage_policy_disks(request, sp_id, disk_id)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        
+        sp_id = '1'
+        disk_id = "storagenode1:sdb5"
+        request = self.api_factory.delete('/swift/storage_policy/' + sp_id + '/disk/' + disk_id)
+        response = delete_storage_policy_disks(request, sp_id, disk_id)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+            
     
     @mock.patch('swift_api.views.RingBuilder.load')
     @mock.patch('swift_api.views.copyfile')
@@ -314,12 +336,31 @@ class SwiftTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
 
+    # Containers
+
+    @mock.patch('swift_api.views.swift_client.put_container')
+    def test_container_post(self, mock_swift_client):
+        request = self.api_factory.post('/swift/projectid/container_name/create', {'header': 'foo'}, format='json')
+        response = create_container(request, 'projectid', 'container_name')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    @mock.patch('swift_api.views.swift_client')
+    @mock.patch('swift_api.views.os')
+    @mock.patch('swift_api.views.open')
+    def test_container_update(self, mock_open, mock_os, mock_swift_client):
+        request = self.api_factory.put('/swift/projectid/container_name/update', 'foo', format='json')
+        mock_swift_client.get_container.return_value = {'header': 'foo'}, [{'name': 'objname', 'content_type': 'text', 'headers': 'foo'}]
+        mock_swift_client.get_object.return_value = {'header': 'foo'}, 'body'
+        response = update_container(request, 'projectid', 'container_name')        
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+
     #
     # Aux functions
     #
 
     def create_storage_policies(self):
-        devices = [["storagenode1:sdb1"], ["storagenode2:sdb1"]]
+        devices = [["storagenode1:sdb1", 0], ["storagenode2:sdb1", 1]]
         self.r.hmset("storage-policy:0", {'name': 'allnodes', 'default': 'yes', 'policy_type': 'replication',
                                           'devices': json.dumps(devices), 'deprecated': 'false'})
         self.r.hmset("storage-policy:1", {'name': 'storage4', 'default': 'no', 'policy_type': 'replication',

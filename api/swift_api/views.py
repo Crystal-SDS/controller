@@ -796,14 +796,14 @@ def zone_detail(request, zone_id):
 def create_container(request, project_id, container_name):
     if request.method == 'POST':
 
-#         try:
-        headers = JSONParser().parse(request)
-        token = get_token_connection(request)
-        url = settings.SWIFT_URL + "/AUTH_" + project_id
-
-        swift_client.put_container(url, token, container_name, headers)
-#         except Exception as ex:
-#             return JSONResponse(ex.message, status=status.HTTP_500_INTERNAL_SERVER_ERROR) 
+        try:
+            headers = JSONParser().parse(request)
+            token = get_token_connection(request)
+            url = settings.SWIFT_URL + "/AUTH_" + project_id
+    
+            swift_client.put_container(url, token, container_name, headers)
+        except Exception as ex:
+            return JSONResponse(ex.message, status=status.HTTP_500_INTERNAL_SERVER_ERROR) 
 
         return JSONResponse("Container Policy updated correctly", status=status.HTTP_201_CREATED)
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
