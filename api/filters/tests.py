@@ -8,7 +8,7 @@ from django.test import TestCase, override_settings
 from rest_framework import status
 from rest_framework.test import APIRequestFactory
 
-from .views import dependency_list, dependency_detail, filter_list, filter_detail, filter_deploy, unset_filter, FilterData
+from .views import dependency_list, dependency_detail, filter_list, filter_detail, filter_deploy, unset_filter, FilterData, DependencyData
 from policies.views import slo_list, slo_detail
 
 
@@ -195,6 +195,11 @@ class FiltersTestCase(TestCase):
                                        content_type=None, headers=None, http_conn=None, proxy=None,
                                        query_string=None, response_dict=None):
         response_dict['status'] = status.HTTP_201_CREATED
+        
+    def test_filter_detail_get(self):
+        request = self.factory.get('/filters/fake')
+        response = filter_detail(request, 'fake')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     @mock.patch('filters.views.swift_client.put_object', side_effect=mock_put_object_status_created)
     def test_filter_deploy_to_project_ok(self, mock_put_object):
