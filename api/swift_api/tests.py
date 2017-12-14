@@ -9,7 +9,8 @@ from rest_framework import status
 from rest_framework.test import APIRequestFactory
 
 from swift_api.views import storage_policies, storage_policy_detail, storage_policy_disks, deploy_storage_policy, deployed_storage_policies, \
-    locality_list, node_list, node_detail, regions, region_detail, zones, zone_detail, delete_storage_policy_disks, create_container, update_container
+    locality_list, node_list, node_detail, regions, region_detail, zones, zone_detail, delete_storage_policy_disks, create_container, update_container, \
+    load_swift_policies
 import os
 
 
@@ -354,11 +355,23 @@ class SwiftTestCase(TestCase):
         response = update_container(request, 'projectid', 'container_name')        
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
+    @mock.patch('swift_api.views.ConfigParser')
+    @mock.patch('swift_api.views.RingBuilder')
+    @mock.patch('swift_api.views.glob')
+    @mock.patch('swift_api.views.paramiko.SSHClient')
+    def test_load_swift_policies(self, mock_ssh_client, mock_glob, mock_ring_builder, mock_config_parser):
+        request = self.api_factory.post('/swift/storage_policies/load')
+        mock_glob.glob.return_value = ['foo-1.file']
+        mock_ssh_client.return_value.listdir.return_value = ['object.builder']
+        mock_config_parser.has_section.return_value = True
+        mock_config_parser.has_section.return_value = False
+        response = load_swift_policies(request)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
+    
     #
     # Aux functions
     #
-
     def create_storage_policies(self):
         devices = [["storagenode1:sdb1", 0], ["storagenode2:sdb1", 1]]
         self.r.hmset("storage-policy:0", {'name': 'allnodes', 'default': 'yes', 'policy_type': 'replication',
@@ -376,15 +389,15 @@ class SwiftTestCase(TestCase):
         self.r.hmset('proxy_node:controller',
                      {'ip': '192.168.2.1', 'last_ping': '1467623304.332646', 'type': 'proxy', 'name': 'controller',
                       'devices': '{"sdb1": {"free": 16832876544, "size": 16832880640}}', 'region_id': 1, 'zone_id': 1,
-                      'ssh_access': 'False'})
+                      'ssh_access': 'False', 'ssh_username': 'user', 'ssh_password': 'pass'})
         self.r.hmset('object_node:storagenode1',
                      {'ip': '192.168.2.2', 'last_ping': '1467623304.332646', 'type': 'object', 'name': 'storagenode1',
                       'devices': '{"sdb1": {"free": 16832876544, "size": 16832880640}}', 'region_id': 1, 'zone_id': 1,
-                      'ssh_access': 'False'})
+                      'ssh_access': 'False', 'ssh_username': 'user', 'ssh_password': 'pass'})
         self.r.hmset('object_node:storagenode2',
                      {'ip': '192.168.2.3', 'last_ping': '1467623304.332646', 'type': 'object', 'name': 'storagenode2',
                       'devices': '{"sdb1": {"free": 16832876544, "size": 16832880640}}', 'region_id': 1, 'zone_id': 1,
-                      'ssh_access': 'False'})
+                      'ssh_access': 'False', 'ssh_username': 'user', 'ssh_password': 'pass'})
 
     def create_regions_and_zones(self):
         self.r.set('regions:id', 2)
