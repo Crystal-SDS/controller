@@ -11,7 +11,7 @@ install:
 - pip install -r requirements.txt
 - pip install -r test-requirements.txt
 script:
-- cd api/ && coverage run --source='.' manage.py test
+- cd api/ && coverage run --omit='*/actors/*' --source='.' manage.py test
 after_success: coveralls
 notifications:
   slack:
