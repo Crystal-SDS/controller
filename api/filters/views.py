@@ -514,7 +514,7 @@ def set_filter(r, target, filter_data, parameters, token):
                     }
 
         try:
-            project_id = target.split('/', 3)[0]
+            project_id = target.split(':')[0]
 
             if project_id == 'global':
                 projects_crystal_enabled = r.lrange('projects_crystal_enabled', 0, -1)

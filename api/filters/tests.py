@@ -8,7 +8,7 @@ from django.test import TestCase, override_settings
 from rest_framework import status
 from rest_framework.test import APIRequestFactory
 
-from .views import dependency_list, dependency_detail, filter_list, filter_detail, filter_deploy, unset_filter, FilterData
+from .views import dependency_list, dependency_detail, filter_list, filter_detail, filter_deploy, unset_filter, FilterData, DependencyData, filter_undeploy, dependency_deploy
 from policies.views import slo_list, slo_detail
 
 
@@ -195,6 +195,11 @@ class FiltersTestCase(TestCase):
                                        content_type=None, headers=None, http_conn=None, proxy=None,
                                        query_string=None, response_dict=None):
         response_dict['status'] = status.HTTP_201_CREATED
+        
+    def test_filter_detail_get(self):
+        request = self.factory.get('/filters/fake')
+        response = filter_detail(request, 'fake')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     @mock.patch('filters.views.swift_client.put_object', side_effect=mock_put_object_status_created)
     def test_filter_deploy_to_project_ok(self, mock_put_object):
@@ -245,6 +250,11 @@ class FiltersTestCase(TestCase):
         dumped_data = self.r.hget("pipeline:0123456789abcdef:container1", "1")
         json_data = json.loads(dumped_data)
         self.assertEqual(json_data["filter_name"], "test-1.0.jar")
+        
+    @mock.patch('filters.views.unset_filter')
+    def test_filter_undeploy(self, mock_unset_filter):
+        request = self.factory.put('/filters/projectid/containerid/swiftobject/undeploy/1')
+        response = filter_undeploy(request, 'fake', 'projectid')    
 
     def test_get_all_dependencies_ok(self):
         request = self.factory.get('/filters/dependencies')
@@ -308,6 +318,17 @@ class FiltersTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         dependencies = json.loads(response.content)
         self.assertEqual(len(dependencies), 0)
+    
+    
+    @mock.patch('filters.views.swift_client')
+    @mock.patch('filters.views.open')
+    @mock.patch('filters.views.dict')
+    def test_dependendy_deploy(self, mock_dict, mock_open, mock_swift_client):
+        dependency_id = 1
+        request = self.factory.put('/filters/dependencies/projectid/deploy/' + str(dependency_id))
+        mock_dict.return_value = {'status': 201}
+        response = dependency_deploy(request, dependency_id, 'projectid')
+        self.assertEqual(response.status_code, 201)
 
     @mock.patch('filters.views.swift_client.delete_object')
     def test_unset_filter_ok(self, mock_delete_object):
@@ -450,7 +471,7 @@ class FiltersTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
     def create_dependency(self):
-        dependency_data = {'name': 'DependencyName', 'version': '1.0', 'permissions': '0755'}
+        dependency_data = {'name': 'DependencyName', 'version': '1.0', 'permissions': '0755', 'path': 'foo'}
         request = self.factory.post('/filters/dependencies', dependency_data, format='json')
         response = dependency_list(request)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
