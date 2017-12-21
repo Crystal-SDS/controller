@@ -274,9 +274,9 @@ def filter_deploy(request, filter_id, project_id, container=None, swift_object=N
         try:
             for project in projects_id:
                 if container and swift_object:
-                    target = os.path.join(project, container, swift_object)
+                    target = ':'.join([project, container, swift_object])
                 elif container:
-                    target = os.path.join(project, container)
+                    target = ':'.join([project, container])
                 else:
                     target = project
 
