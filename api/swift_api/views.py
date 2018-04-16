@@ -270,7 +270,7 @@ def storage_policy_disks(request, storage_policy_id):
             tmp_policy_file = get_policy_file_path(settings.SWIFT_CFG_TMP_DIR, storage_policy_id)
 
             ring = RingBuilder.load(tmp_policy_file)
-            ring_dev_id = ring.add_dev({'weight': 100, 'region': region, 'zone': zone, 'ip': object_node['ip'], 'port': '6200', 'device': device_id})
+            ring_dev_id = ring.add_dev({'weight': 100, 'region': int(region), 'zone': int(zone), 'ip': object_node['ip'], 'port': 6200, 'device': device_id})
             ring.save(tmp_policy_file)
 
             storage_policy = r.hgetall(key)
