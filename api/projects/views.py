@@ -118,7 +118,8 @@ def create_docker_image(r, project_id):
         if node_ip not in already_created:
             if node_data['ssh_access']:
                 already_created.append(node_ip)
-                threading.Thread(target=deploy_docker_image, args=(node, node_data, project_id, r,)).start()
+                # threading.Thread(target=deploy_docker_image, args=(node, node_data, project_id, r,)).start()
+                deploy_docker_image(node, node_data, project_id, r)
             else:
                 logger.error('An error occurred connecting to: '+node)
                 raise AuthenticationException('An error occurred connecting to: '+node)
@@ -158,7 +159,8 @@ def delete_docker_image(r, project_id):
         if node_ip not in already_deleted:
             if node_data['ssh_access']:
                 already_deleted.append(node_ip)
-                threading.Thread(target=undeploy_docker_image, args=(node, node_data, project_id, r,)).start()
+                # threading.Thread(target=undeploy_docker_image, args=(node, node_data, project_id, r,)).start()
+                undeploy_docker_image(node, node_data, project_id, r)
             else:
                 logger.error('An error occurred connecting to: '+node)
                 raise AuthenticationException('An error occurred connecting to: '+node)
