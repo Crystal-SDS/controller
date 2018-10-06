@@ -48,6 +48,7 @@ def update_sp_files(path, policy_id, d):
     with open(swift_file, 'wb') as configfile:
         config_parser.write(configfile)
 
+
 def get_policy_file_path(dir_path, policy_id):
     object_builder_key = 'object.builder' if policy_id == '0' else 'object-' + policy_id + '.builder'
     return os.path.join(dir_path, object_builder_key)
@@ -122,7 +123,7 @@ def deployed_storage_policies(request):
         config_parser.read(swift_file)
 
         deployed_storage_policy_list = [sp for sp in keys if config_parser.has_section(sp)]
-        
+
         storage_policy_list = []
         for key in deployed_storage_policy_list:
             storage_policy = r.hgetall(key)
@@ -130,7 +131,7 @@ def deployed_storage_policies(request):
             storage_policy['id'] = str(key).split(':')[-1]
             storage_policy['devices'] = json.loads(storage_policy['devices'])
             storage_policy_list.append(storage_policy)
-            
+
         return JSONResponse(storage_policy_list, status=status.HTTP_200_OK)
 
     return JSONResponse('Only HTTP POST requests allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
@@ -184,7 +185,7 @@ def storage_policy_detail(request, storage_policy_id):
                 policy_file_path_dep = get_policy_file_path(settings.SWIFT_CFG_DEPLOY_DIR, storage_policy_id)
                 if os.path.isfile(policy_file_path_dep):
                     os.remove(policy_file_path_dep)
-                
+
                 gzip_policy_file_dep = policy_file_path_dep.replace('builder', 'ring.gz')
                 if os.path.isfile(gzip_policy_file_dep):
                     os.remove(gzip_policy_file_dep)
@@ -264,13 +265,15 @@ def storage_policy_disks(request, storage_policy_id):
             object_node_id, device_id = disk.split(':')
             object_node = r.hgetall('object_node:' + object_node_id)
             # device_detail = json.loads(object_node['devices'])[device_id]
-            region = r.hgetall('region:' + object_node['region_id'])['name']
-            zone = r.hgetall('zone:' + object_node['zone_id'])['name']
+            # region = r.hgetall('region:' + object_node['region_id'])['name']
+            # zone = r.hgetall('zone:' + object_node['zone_id'])['name']
+            region = int(object_node['region_id'])
+            zone = int(object_node['zone_id'])
 
             tmp_policy_file = get_policy_file_path(settings.SWIFT_CFG_TMP_DIR, storage_policy_id)
 
             ring = RingBuilder.load(tmp_policy_file)
-            ring_dev_id = ring.add_dev({'weight': 100, 'region': region, 'zone': zone, 'ip': object_node['ip'], 'port': '6200', 'device': device_id})
+            ring_dev_id = ring.add_dev({'weight': 100, 'region': region, 'zone': zone, 'ip': object_node['ip'], 'port': 6200, 'device': str(device_id)})
             ring.save(tmp_policy_file)
 
             storage_policy = r.hgetall(key)
@@ -800,10 +803,10 @@ def create_container(request, project_id, container_name):
             headers = JSONParser().parse(request)
             token = get_token_connection(request)
             url = settings.SWIFT_URL + "/AUTH_" + project_id
-    
+
             swift_client.put_container(url, token, container_name, headers)
         except Exception as ex:
-            return JSONResponse(ex.message, status=status.HTTP_500_INTERNAL_SERVER_ERROR) 
+            return JSONResponse(ex.message, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         return JSONResponse("Container Policy updated correctly", status=status.HTTP_201_CREATED)
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
@@ -839,10 +842,10 @@ def update_container(request, project_id, container_name):
         os.mkdir(path_container)
 
         for obj in obj_list:
-            file = open(path_container + "/" + obj["name"], "w")
+            fle = open(path_container + "/" + obj["name"], "w")
             obj_headers, obj_body = swift_client.get_object(url, token, container_name, obj["name"])
-            file.write(obj_body)
-            file.close()
+            fle.write(obj_body)
+            fle.close()
             obj["headers"] = obj_headers
             swift_client.delete_object(url, token, container_name, obj["name"])
 
