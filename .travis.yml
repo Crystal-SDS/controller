@@ -6,7 +6,7 @@ services:
 install:
 - sudo apt-get install build-essential libssl-dev libffi-dev python-dev
 - sudo apt-get install -y --no-install-recommends liberasurecode-dev
-- git clone git://git.openstack.org/openstack/swift && cd swift && pip install . && cd ..
+- git clone https://opendev.org/openstack/swift -b stable/pike && cd swift && pip install . && cd ..
 - pip install pytz
 - pip install -r requirements.txt
 - pip install -r test-requirements.txt

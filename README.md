@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/Crystal-SDS/controller.svg?branch=master)](https://travis-ci.org/Crystal-SDS/controller)
 [![Coverage Status](https://coveralls.io/repos/github/Crystal-SDS/controller/badge.svg?branch=master)](https://coveralls.io/github/Crystal-SDS/controller?branch=master)
-[![Code Health](https://landscape.io/github/Crystal-SDS/controller/master/landscape.svg?style=flat)](https://landscape.io/github/Crystal-SDS/controller/master)
+<!--[![Code Health](https://landscape.io/github/Crystal-SDS/controller/master/landscape.svg?style=flat)](https://landscape.io/github/Crystal-SDS/controller/master)-->
 
 This repository contains the code of Crystal Controller, the Software-Defined-Storage (SDS) REST API in the [IOStack](https://github.com/iostackproject) architecture.
 It is a Django project that implements the REST API needed to handle filters, storlets and policies on top of Openstack Swift object-storage system. This API also includes a set of python processes who use
@@ -62,4 +62,4 @@ Please [open an issue](https://github.com/Crystal-SDS/controller/issues/new) for
 
 Please contribute using [Github Flow](https://guides.github.com/introduction/flow/). Create a branch, add commits, and [open a pull request](https://github.com/Crystal-SDS/controller/compare/).
 
-For more information, please visit [crystal-sds.org](http://crystal-sds.org/).
+For more information, please visit [crystal-sds](http://cloudlab.urv.cat/crystal) website.
