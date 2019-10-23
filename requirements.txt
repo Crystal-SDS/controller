@@ -7,9 +7,9 @@
 # be installed in a specific order.
 #
 Django<2.0,>=1.8
-redis==2.8.0
 djangorestframework<3.4,>=3.3
 pika==0.13.1
+redis
 pyparsing
 python-keystoneclient
 python-swiftclient

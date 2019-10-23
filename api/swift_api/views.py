@@ -100,7 +100,7 @@ def storage_policies(request):
             ring.save(get_policy_file_path(settings.SWIFT_CFG_TMP_DIR, sp_id))
 
             r.hmset(key, data)
-        except:
+        except Exception:
             return JSONResponse('Error creating the Storage Policy', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         return JSONResponse('Account created successfully', status=status.HTTP_201_CREATED)
@@ -159,8 +159,17 @@ def storage_policy_detail(request, storage_policy_id):
                 object_node_devices = json.loads(object_node['devices'])
                 device_detail = object_node_devices[device_id]
                 device_detail['id'] = device[0]
-                device_detail['region'] = r.hgetall('region:' + object_node['region_id'])['name']
-                device_detail['zone'] = r.hgetall('zone:' + object_node['zone_id'])['name']
+                r_id = object_node['region_id']
+                z_id = object_node['zone_id']
+                if r.exists('region:' + r_id):
+                    device_detail['region'] = r.hgetall('region:' + object_node['region_id'])['name']
+                else:
+                    device_detail['region'] = r_id
+
+                if r.exists('region:' + r_id):
+                    device_detail['zone'] = r.hgetall('zone:' + object_node['zone_id'])['name']
+                else:
+                    device_detail['zone'] = z_id
                 devices.append(device_detail)
             storage_policy['devices'] = devices
             return JSONResponse(storage_policy, status=status.HTTP_200_OK)
@@ -251,8 +260,17 @@ def storage_policy_disks(request, storage_policy_id):
                 object_node = r.hgetall('object_node:' + object_node_id)
                 device_detail = json.loads(object_node['devices'])[device_id]
                 device_detail['id'] = device
-                device_detail['region'] = r.hgetall('region:' + object_node['region_id'])['name']
-                device_detail['zone'] = r.hgetall('zone:' + object_node['zone_id'])['name']
+                r_id = object_node['region_id']
+                z_id = object_node['zone_id']
+                if r.exists('region:' + r_id):
+                    device_detail['region'] = r.hgetall('region:' + object_node['region_id'])['name']
+                else:
+                    device_detail['region'] = r_id
+
+                if r.exists('region:' + r_id):
+                    device_detail['zone'] = r.hgetall('zone:' + object_node['zone_id'])['name']
+                else:
+                    device_detail['zone'] = z_id
                 available_devices_detail.append(device_detail)
             return JSONResponse(available_devices_detail, status=status.HTTP_200_OK)
         else:
@@ -359,9 +377,20 @@ def deploy_storage_policy(request, storage_policy_id):
                 ringdata.save(deploy_gzip_filename)
 
                 data = r.hgetall(key)
-                update_sp_files(settings.SWIFT_CFG_DEPLOY_DIR, storage_policy_id, {'name': data['name'],
-                                                                                   'deprecated': data['deprecated'],
-                                                                                   'default': data['default']})
+                policy = {'name': data['name'],
+                          'deprecated': data['deprecated'],
+                          'default': data['default']}
+
+                if data['policy_type'] == 'EC':
+                    policy.update({'policy_type': 'erasure_coding',
+                                   'ec_type': data['ec_type'],
+                                   'ec_num_data_fragments': data['ec_num_data_fragments'],
+                                   'ec_num_parity_fragments': data['ec_num_parity_fragments'],
+                                   'ec_object_segment_size': data['ec_object_segment_size'],
+                                   'ec_duplication_factor': data['ec_duplication_factor']})
+                    update_sp_files(settings.SWIFT_CFG_DEPLOY_DIR, storage_policy_id, policy)
+                else:
+                    update_sp_files(settings.SWIFT_CFG_DEPLOY_DIR, storage_policy_id, policy)
 
                 copyfile(tmp_policy_file, deploy_policy_file)
                 rsync_dir_with_nodes(settings.SWIFT_CFG_DEPLOY_DIR, '/etc/swift')
@@ -371,7 +400,7 @@ def deploy_storage_policy(request, storage_policy_id):
                 return JSONResponse('Storage policy deployed correctly', status=status.HTTP_200_OK)
             except RedisError:
                 return JSONResponse('Storage policy could not be deployed', status=status.HTTP_400_BAD_REQUEST)
-            except exceptions.RingBuilderError, e:
+            except exceptions.RingBuilderError as e:
                 return JSONResponse('Storage policy could not be deployed. Error message: %s' % e.message, status=status.HTTP_400_BAD_REQUEST)
         else:
             return JSONResponse('Storage policy not found.', status=status.HTTP_404_NOT_FOUND)
@@ -426,13 +455,13 @@ def load_swift_policies(request):
         files = glob.glob(pattern)
 
         try:
+            sp_id_list = []
             for builder_file in files:
                 builder = RingBuilder.load(builder_file)
                 if '-' in builder_file:
                     sp_id = builder_file.split('.')[0].split('-')[-1]
                     key = 'storage-policy:' + sp_id
-                    if int(sp_id) > r.get('storage-policies:id'):
-                        r.set('storage-policies:id', sp_id)
+                    sp_id_list.append(int(sp_id))
                 else:
                     key = 'storage-policy:0'
 
@@ -457,10 +486,12 @@ def load_swift_policies(request):
                         nodes_data[node] = r.hgetall(node)
 
                     for device in builder.devs:
+                        if device is None:
+                            continue
                         try:
                             inet_aton(device['ip'])
                             device['ip'] = next((nodes_data[node]['name'] for node in nodes_data if nodes_data[node]['ip'] == device['ip']), device['ip'])
-                        except:
+                        except Exception:
                             pass
                         devices.append((device['ip'] + ':' + device['device'], device['id']))
 
@@ -470,18 +501,36 @@ def load_swift_policies(request):
                             'time': builder.min_part_hours,
                             'devices': json.dumps(devices),
                             'deployed': 'True',
-                            'policy_type': policy_type if policy_type else 'Replication',
                             'partition_power': int(math.log(builder.parts, 2)),
                             'replicas': int(builder.replicas)
                             }
+                    if policy_type == 'Replication':
+                        data.update({'policy_type': policy_type if policy_type else 'Replication'})
+                    else:
+                        ec_type = config_parser.get(key, 'ec_type') if config_parser.has_option(key, 'ec_type') else 'liberasurecode_rs_vand'
+                        ec_num_parity_fragments = config_parser.get(key, 'ec_num_parity_fragments')
+                        ec_num_data_fragments = config_parser.get(key, 'ec_num_data_fragments')
+                        ec_duplication_factor = config_parser.get(key, 'ec_duplication_factor') if config_parser.has_option(key, 'ec_duplication_factor') else '1'
+                        ec_object_segment_size = config_parser.get(key, 'ec_object_segment_size') if config_parser.has_option(key, 'ec_object_segment_size') else '1048576'
+                        data.update({'policy_type': 'EC',
+                                     'ec_type': ec_type,
+                                     'ec_num_data_fragments': ec_num_data_fragments,
+                                     'ec_num_parity_fragments': ec_num_parity_fragments,
+                                     'ec_duplication_factor': ec_duplication_factor,
+                                     'ec_object_segment_size': ec_object_segment_size})
 
                     r.hmset(key, data)
 
                 else:
                     pass
+            if len(sp_id_list):
+                max_sp_id = max(sp_id_list)
+                r.set('storage-policies:id', max_sp_id)
+            else:
+                pass
 
         except RedisError:
-                return JSONResponse('Policies could not be loaded', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return JSONResponse('Policies could not be loaded', status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         return JSONResponse('Policies loaded correctly', status=status.HTTP_200_OK)
 
@@ -805,8 +854,8 @@ def create_container(request, project_id, container_name):
             url = settings.SWIFT_URL + "/AUTH_" + project_id
 
             swift_client.put_container(url, token, container_name, headers)
-        except Exception as ex:
-            return JSONResponse(ex.message, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except Exception as e:
+            return JSONResponse(e.message, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         return JSONResponse("Container Policy updated correctly", status=status.HTTP_201_CREATED)
     return JSONResponse('Method ' + str(request.method) + ' not allowed.', status=status.HTTP_405_METHOD_NOT_ALLOWED)
