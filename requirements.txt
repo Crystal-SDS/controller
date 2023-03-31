@@ -9,7 +9,7 @@
 Django<2.0,>=1.8
 djangorestframework<3.4,>=3.3
 pika==0.13.1
-redis==2.8.0
+redis==4.4.4
 pyparsing
 python-keystoneclient
 python-swiftclient
